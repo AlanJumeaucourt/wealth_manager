@@ -7,120 +7,86 @@ This document outlines the database schema for the WealthManager application. Th
 ### 👤 Users Table
 Primary table for user management and authentication.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Unique identifier for the user |
-| `name` | String | User's full name |
-| `email` | String | User's email address (unique) |
-| `password` | String | Encrypted password hash |
-| `created_at` | Timestamp | Account creation date |
-| `last_login` | Timestamp | Last login timestamp |
+| Field | Type | Description | Constraints |
+|-------|------|-------------|-------------|
+| `id` | INTEGER | Unique identifier | PRIMARY KEY, AUTOINCREMENT |
+| `name` | TEXT | User's full name | NOT NULL |
+| `email` | TEXT | User's email address | UNIQUE, NOT NULL |
+| `password` | TEXT | Encrypted password | NOT NULL |
+| `last_login` | TIMESTAMP | Last login timestamp | |
 
 ### 🏦 Banks Table
 Stores information about financial institutions.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Unique identifier for the bank |
-| `name` | String | Bank's name |
+| Field | Type | Description | Constraints |
+|-------|------|-------------|-------------|
+| `id` | INTEGER | Unique identifier | PRIMARY KEY, AUTOINCREMENT |
+| `user_id` | INTEGER | Reference to user | FOREIGN KEY, NOT NULL |
+| `name` | TEXT | Bank's name | NOT NULL |
 
 ### 💰 Accounts Table
 Manages different types of financial accounts.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Unique identifier for the account |
-| `name` | String | Account name |
-| `type` | Enum | Account type: asset/investment/income/expense/checking/savings |
-| `bankId` | UUID | Reference to associated bank |
-| `currency` | String | Account currency code |
-| `tags` | Array[String] | Custom tags for account categorization |
+| Field | Type | Description | Constraints |
+|-------|------|-------------|-------------|
+| `id` | INTEGER | Unique identifier | PRIMARY KEY, AUTOINCREMENT |
+| `user_id` | INTEGER | Reference to user | FOREIGN KEY, NOT NULL |
+| `name` | TEXT | Account name | NOT NULL |
+| `type` | TEXT | Account type | CHECK(type IN ('investment', 'income', 'expense', 'checking', 'savings')), NOT NULL |
+| `bank_id` | INTEGER | Reference to bank | FOREIGN KEY, NOT NULL |
+| `currency` | TEXT | Currency code | NOT NULL |
+| `tags` | TEXT | Custom tags | |
 
 ### 💸 Transactions Table
 Records all financial transactions.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Unique identifier for the transaction |
-| `date` | Date | Transaction date |
-| `description` | String | Transaction description |
-| `amount` | Decimal | Transaction amount |
-| `fromAccountId` | UUID | Source account reference |
-| `toAccountId` | UUID | Destination account reference |
-| `category` | String | Transaction category |
-| `subcategory` | String | Transaction subcategory (optional) |
-| `relatedTransactionId` | UUID | Reference to related transaction (optional) |
-| `type` | Enum | Transaction type: expense/income/transfer/refund |
+| Field | Type | Description | Constraints |
+|-------|------|-------------|-------------|
+| `id` | INTEGER | Unique identifier | PRIMARY KEY, AUTOINCREMENT |
+| `user_id` | INTEGER | Reference to user | FOREIGN KEY, NOT NULL |
+| `date` | TIMESTAMP | Transaction date | NOT NULL |
+| `date_accountability` | TIMESTAMP | Accountability date | NOT NULL |
+| `description` | TEXT | Transaction description | NOT NULL |
+| `amount` | DECIMAL(10,2) | Transaction amount | NOT NULL |
+| `from_account_id` | INTEGER | Source account | FOREIGN KEY, NOT NULL |
+| `to_account_id` | INTEGER | Destination account | FOREIGN KEY, NOT NULL |
+| `category` | TEXT | Transaction category | |
+| `subcategory` | TEXT | Transaction subcategory | |
+| `related_transaction_id` | INTEGER | Related transaction | |
+| `type` | TEXT | Transaction type | CHECK(type IN ('expense', 'income', 'transfer')), NOT NULL |
 
 ### 📈 Investment Transactions Table
 Specialized table for investment-related transactions.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Unique identifier for the investment transaction |
-| `accountId` | UUID | Reference to associated asset account |
-| `isin` | String | Stock symbol or ETF ticker |
-| `name` | String | Investment name |
-| `quantity` | Decimal | Number of shares/units |
-| `purchasePrice` | Decimal | Price per share/unit |
-| `fees` | Decimal | Transaction fees |
-| `transactionRelatedId` | UUID | Reference to main transaction (optional) |
+| Field | Type | Description | Constraints |
+|-------|------|-------------|-------------|
+| `id` | INTEGER | Unique identifier | PRIMARY KEY, AUTOINCREMENT |
+| `user_id` | INTEGER | Reference to user | FOREIGN KEY, NOT NULL |
+| `account_id` | INTEGER | Reference to account | FOREIGN KEY, NOT NULL |
+| `asset_symbol` | TEXT | Stock/ETF symbol | NOT NULL |
+| `asset_name` | TEXT | Investment name | NOT NULL |
+| `activity_type` | TEXT | Type of activity | CHECK(activity_type IN ('buy', 'sell', 'deposit', 'withdrawal')), NOT NULL |
+| `date` | TIMESTAMP | Transaction date | NOT NULL |
+| `quantity` | DECIMAL(10,6) | Number of shares | NOT NULL |
+| `unit_price` | DECIMAL(10,2) | Price per share | NOT NULL |
+| `fee` | DECIMAL(10,2) | Transaction fee | NOT NULL |
+| `tax` | DECIMAL(10,2) | Transaction tax | NOT NULL |
+| `transaction_related_id` | INTEGER | Related transaction | FOREIGN KEY |
 
-## 🔗 Relationships
+## 🔗 Entity Relationships
 
 ```mermaid
 erDiagram
-    Users {
-        UUID id PK
-        string name
-        string email
-        string password
-        timestamp created_at
-        timestamp last_login
-    }
-    Banks {
-        UUID id PK
-        string name
-    }
-    Accounts {
-        UUID id PK
-        string name
-        enum type
-        UUID bankId FK
-        string currency
-        array tags
-    }
-    Transactions {
-        UUID id PK
-        date date
-        string description
-        decimal amount
-        UUID fromAccountId FK
-        UUID toAccountId FK
-        string category
-        string subcategory
-        UUID relatedTransactionId FK
-        enum type
-    }
-    InvestmentTransactions {
-        UUID id PK
-        UUID accountId FK
-        string isin
-        string name
-        decimal quantity
-        decimal purchasePrice
-        decimal fees
-        UUID transactionRelatedId FK
-    }
-
+    Users ||--o{ Banks : owns
     Users ||--o{ Accounts : owns
+    Users ||--o{ Transactions : makes
+    Users ||--o{ InvestmentTransactions : makes
     Banks ||--o{ Accounts : provides
     Accounts ||--o{ Transactions : involves
-    Accounts ||--o{ InvestmentTransactions : contains
+    Accounts ||--o{ InvestmentTransactions : holds
     Transactions ||--o| Transactions : relates_to
+    InvestmentTransactions ||--o| InvestmentTransactions : relates_to
 ```
-
-## 🔐 Data Integrity Rules
 
 ## 📊 Views
 
@@ -164,8 +130,24 @@ LEFT JOIN transaction_impacts ti ON a.id = ti.account_id
 GROUP BY a.id, a.user_id, a.name, a.type, a.currency;
 ```
 
-This view provides several benefits:
-1. **Accurate Balance Calculation**: Properly handles different transaction types (income, expense, transfer)
-2. **Performance**: Pre-calculates account balances instead of computing them on every request
-3. **Consistency**: Ensures all parts of the application use the same balance calculation logic
-4. **Maintainability**: Centralizes the balance calculation logic
+## 🔐 Data Integrity Rules
+
+1. **Referential Integrity**
+   - All foreign keys are enforced with CASCADE delete
+   - User deletion cascades to all related records
+   - Account deletion checks for transaction dependencies
+
+2. **Type Constraints**
+   - Account types are restricted to predefined values
+   - Transaction types are restricted to predefined values
+   - Investment activity types are restricted to predefined values
+
+3. **Required Fields**
+   - Critical fields are marked as NOT NULL
+   - Unique constraints on email addresses
+   - Monetary values use DECIMAL for precision
+
+4. **Date Handling**
+   - All dates stored as TIMESTAMP
+   - Accountability date tracks when transaction should be counted
+   - Last login tracked for security purposes
