@@ -156,6 +156,68 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
     );
   };
 
+  // Update the transaction item styling and add animations
+  const TransactionItem = ({ item, onPress }: { item: Transaction; onPress: () => void }) => {
+    const getTransactionColor = (type: string) => {
+      switch (type) {
+        case 'expense':
+          return darkTheme.colors.error;
+        case 'income':
+          return darkTheme.colors.success;
+        default:
+          return darkTheme.colors.info;
+      }
+    };
+
+    return (
+      <Pressable
+        style={styles.transactionItem}
+        onPress={onPress}
+        android_ripple={{ color: 'rgba(0, 0, 0, 0.1)' }}
+      >
+        <View style={styles.transactionIcon}>
+          <View style={[
+            styles.iconCircle,
+            { backgroundColor: findCategoryByName(item.category)?.color || darkTheme.colors.primary }
+          ]}>
+            <Ionicons
+              name={getIconName(item)}
+              size={20}
+              color={darkTheme.colors.surface}
+            />
+          </View>
+        </View>
+        
+        <View style={styles.transactionContent}>
+          <View style={styles.transactionHeader}>
+            <Text style={styles.transactionDescription} numberOfLines={1}>
+              {item.description}
+            </Text>
+            <Text style={[
+              styles.transactionAmount,
+              { color: getTransactionColor(item.type) }
+            ]}>
+              {formatAmount(item.amount, item.type)}
+            </Text>
+          </View>
+
+          <View style={styles.transactionDetails}>
+            {item.type === 'transfer' ? (
+              <Text style={styles.transferDetails}>
+                <Ionicons name="arrow-forward" size={12} color={darkTheme.colors.info} />
+                {' '}{accountNameFromId(item.from_account_id)} → {accountNameFromId(item.to_account_id)}
+              </Text>
+            ) : (
+              <Text style={styles.categoryText}>
+                {item.subcategory ? `${item.category} - ${item.subcategory}` : item.category}
+              </Text>
+            )}
+          </View>
+        </View>
+      </Pressable>
+    );
+  };
+
   if (accountsLoading) {
     return <Text>Loading accounts...</Text>;
   }
@@ -208,57 +270,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
                 </Text>
               </View>
               <View style={styles.transactionsContainer}>
-                {transactions.map((item, index) => (
-                  <Pressable
-                    key={`${item.id}-${date}`}
+                {transactions.map((item) => (
+                  <TransactionItem
+                    key={item.id}
+                    item={item}
                     onPress={() => handlePress(item)}
-                    style={[
-                      styles.transactionItem,
-                      index === 0 && styles.firstTransaction,
-                      index === transactions.length - 1 && styles.lastTransaction,
-                    ]}
-                  >
-                    <View style={styles.transactionIcon}>
-                      <View style={[styles.iconCircle, { backgroundColor: findCategoryByName(item.category)?.color }, { marginRight: 10 }]}>
-                        <Ionicons
-                          name={
-                            findCategoryByName(item.category)?.subCategories?.find(
-                              sub => sub.name.toLowerCase() === item.subcategory.toLowerCase()
-                            )?.iconName || "chevron-forward"
-                          }
-                          size={20}
-                          color={colors.white}
-                        />
-                      </View>
-                    </View>
-                    <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionDescription}>{item.description}</Text>
-                      {item.type === 'transfer' && (
-                        <Text style={styles.transferDetails}>
-                          {accountNameFromId(item.from_account_id)} → {accountNameFromId(item.to_account_id)}
-                        </Text>
-                      )}
-                      {item.type === 'expense' && !accountId && (
-                        <Text style={styles.expenseDetails}>{accountNameFromId(item.from_account_id)}</Text>
-                      )}
-                      {item.type === 'income' && !accountId && (
-                        <Text style={styles.incomeDetails}>{accountNameFromId(item.to_account_id)}</Text>
-                      )}
-                      {item.category && !item.subcategory && item.type != 'transfer' && (
-                        <Text style={styles.categoryDetails}>{item.category}</Text>
-                      )}
-                      {item.subcategory && item.type != 'transfer' && (
-                        <Text style={styles.subcategoryDetails}>{item.category} - {item.subcategory}</Text>
-                      )}
-                    </View>
-                    <Text style={[
-                      styles.transactionAmount,
-                      item.type === 'expense' ? styles.expense :
-                        item.type === 'income' ? styles.income : styles.transfer
-                    ]}>
-                      {formatAmount(item.amount, item.type)}
-                    </Text>
-                  </Pressable>
+                  />
                 ))}
               </View>
             </View>
@@ -286,29 +303,36 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
 const styles = StyleSheet.create({
   contentTransactionList: {
     flexGrow: 1,
+    paddingBottom: 150,
   },
   footer: {
     padding: darkTheme.spacing.m,
     alignItems: 'center',
   },
   dateGroup: {
-    marginBottom: darkTheme.spacing.m,
+    marginBottom: darkTheme.spacing.s, // Reduced from m to s
+    paddingHorizontal: darkTheme.spacing.m, // Added horizontal padding
   },
   dateHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: darkTheme.spacing.s,
     paddingHorizontal: darkTheme.spacing.m,
+    paddingVertical: darkTheme.spacing.xs, // Reduced from s to xs
+    backgroundColor: `${darkTheme.colors.primary}10`,
+    borderRadius: darkTheme.borderRadius.m,
+    marginBottom: darkTheme.spacing.s,
   },
   dateHeaderText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 13, // Reduced from 14
+    fontWeight: '600',
     color: darkTheme.colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   dayTotal: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
   },
   positiveTotal: {
     color: darkTheme.colors.success,
@@ -324,121 +348,123 @@ const styles = StyleSheet.create({
   },
   transactionItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: darkTheme.spacing.m,
-    borderBottomWidth: 1,
-    borderBottomColor: darkTheme.colors.border,
-  },
-  firstTransaction: {
-    borderTopLeftRadius: darkTheme.borderRadius.l,
-    borderTopRightRadius: darkTheme.borderRadius.l,
-  },
-  lastTransaction: {
-    borderBottomLeftRadius: darkTheme.borderRadius.l,
-    borderBottomRightRadius: darkTheme.borderRadius.l,
-    borderBottomWidth: 0,
-  },
-  transactionDescription: {
-    fontSize: 14,
-    flex: 1,
-    paddingBottom: 5,
-    fontWeight: 'bold',
-    color: darkTheme.colors.text,
-  },
-  transactionAmount: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  expense: {
-    color: darkTheme.colors.text,
-    fontWeight: 'normal',
-  },
-  income: {
-    color: darkTheme.colors.success,
-    fontWeight: 'normal',
-  },
-  transfer: {
-    color: darkTheme.colors.info,
-    fontWeight: 'normal',
-  },
-  transactionDetails: {
-    flex: 1,
-  },
-  transferDetails: {
-    fontSize: 14,
-    color: darkTheme.colors.info,
-    fontWeight: '300',
-  },
-  expenseDetails: {
-    fontSize: 14,
-    color: darkTheme.colors.textSecondary,
-    fontWeight: '300',
-  },
-  incomeDetails: {
-    fontSize: 14,
-    color: darkTheme.colors.textSecondary,
-    fontWeight: '300',
-  },
-  categoryDetails: {
-    fontSize: 14,
-    color: darkTheme.colors.textSecondary,
-    fontWeight: '300',
-  },
-  subcategoryDetails: {
-    fontSize: 14,
-    color: darkTheme.colors.textSecondary,
-    fontWeight: '300',
-  },
-  iconCircle: {
-    borderRadius: darkTheme.borderRadius.xl,
-    padding: darkTheme.spacing.s,
-    marginRight: darkTheme.spacing.m,
+    padding: darkTheme.spacing.s, // Reduced from m to s
+    backgroundColor: darkTheme.colors.surface,
+    marginBottom: 1,
+    borderRadius: darkTheme.borderRadius.m,
   },
   transactionIcon: {
+    marginRight: darkTheme.spacing.m,
+  },
+  iconCircle: {
+    width: 36, // Reduced from 40
+    height: 36, // Reduced from 40
+    borderRadius: 18, // Adjusted for new size
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  transactionContent: {
+    flex: 1,
+  },
+  transactionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: darkTheme.spacing.xs,
+  },
+  transactionDescription: {
+    fontSize: 15, // Reduced from 16
+    fontWeight: '600',
+    color: darkTheme.colors.text,
+    flex: 1,
     marginRight: darkTheme.spacing.s,
   },
-  searchContainer: {
+  transactionAmount: {
+    fontSize: 15, // Reduced from 16
+    fontWeight: '600',
+  },
+  transactionDetails: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+  },
+  transferDetails: {
+    fontSize: 13, // Reduced from 14
+    color: darkTheme.colors.info,
+    fontWeight: '500',
+  },
+  categoryText: {
+    fontSize: 13, // Reduced from 14
+    color: darkTheme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  searchContainer: {
     backgroundColor: darkTheme.colors.surface,
-    marginBottom: darkTheme.spacing.s,
+    padding: darkTheme.spacing.m,
+    borderRadius: darkTheme.borderRadius.m,
+    marginBottom: darkTheme.spacing.m,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginHorizontal: darkTheme.spacing.m, // Added horizontal margin
   },
   searchInput: {
     flex: 1,
     height: 40,
-    borderColor: darkTheme.colors.border,
-    borderWidth: 1,
-    borderRadius: darkTheme.borderRadius.m,
-    paddingHorizontal: 10,
     backgroundColor: darkTheme.colors.background,
+    borderRadius: darkTheme.borderRadius.m,
+    paddingHorizontal: darkTheme.spacing.m,
     color: darkTheme.colors.text,
+    fontSize: 16,
   },
   searchClearButton: {
-    marginHorizontal: 10,
-  },
-  noResultsText: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: darkTheme.colors.textSecondary,
-    fontSize: 16,
+    padding: darkTheme.spacing.s,
+    marginLeft: darkTheme.spacing.s,
   },
   searchStatsContainer: {
     backgroundColor: darkTheme.colors.surface,
     padding: darkTheme.spacing.m,
-    marginBottom: darkTheme.spacing.s,
+    borderRadius: darkTheme.borderRadius.m,
+    marginBottom: darkTheme.spacing.m,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginHorizontal: darkTheme.spacing.m, // Added horizontal margin
   },
   searchStatsText: {
-    color: darkTheme.colors.text,
     fontSize: 14,
+    color: darkTheme.colors.textSecondary,
+    fontWeight: '500',
   },
   searchStatsAmount: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  noResultsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: darkTheme.spacing.xl,
+  },
+  noResultsText: {
+    fontSize: 16,
+    color: darkTheme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: darkTheme.spacing.m,
   },
 });
 

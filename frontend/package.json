@@ -68,6 +68,7 @@
     "react-redux": "^9.1.2",
     "redux": "^5.0.1",
     "redux-thunk": "^3.1.0",
+    "styled-components": "^6.1.13",
     "use-debounce": "^10.0.4",
     "victory": "^37.1.1",
     "victory-core": "^37.1.1",

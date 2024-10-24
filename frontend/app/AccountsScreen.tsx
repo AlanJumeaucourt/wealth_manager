@@ -283,6 +283,42 @@ export default function AccountsScreen() {
     setVisible(false);
   };
 
+  // Update the account item styling
+  const AccountItem = ({ account, onPress }: { account: Account; onPress: () => void }) => (
+    <Pressable
+      style={styles.accountItem}
+      onPress={onPress}
+    >
+      <View style={styles.accountIconContainer}>
+        <Image source={getAccountIcon(foundBankNameById(account.bank_id))} style={styles.accountIcon} />
+      </View>
+      <View style={styles.accountContent}>
+        <View style={styles.accountHeader}>
+          <Text style={styles.accountName}>{account.name}</Text>
+          <Text style={styles.accountType}>{account.type}</Text>
+        </View>
+        <Text style={styles.accountBalance}>
+          {formatNumber(account.balance)} €
+        </Text>
+      </View>
+    </Pressable>
+  );
+
+  // Add this helper function
+  const getAccountIcon = (bank: string): string => {
+    console.log("bank", bank);
+    switch (bank.toLowerCase()) {
+      case 'boursorama':
+        return require('./../assets/images/boursorama.png');
+      case 'crédit agricole':
+        return require('./../assets/images/credit_agricole.png');
+      case 'fortuneo':
+        return require('./../assets/images/fortuneo.png');
+      default:
+        return require('./../assets/images/icon.png');
+    }
+  };
+
   return (
     <View style={[sharedStyles.container]}>
       <View style={sharedStyles.header}>
@@ -404,16 +440,11 @@ export default function AccountsScreen() {
                 <View key={bank} style={styles.bankContainer}>
                   <Text style={styles.bankName}>{bank}</Text>
                   {groupedAccounts[bank].map((account: Account) => (
-                    <Pressable
+                    <AccountItem
                       key={account.id}
-                      style={styles.accountItem}
+                      account={account}
                       onPress={() => handleAccountPress(account)}
-                    >
-                      <View style={styles.accountHeader}>
-                        <Text style={styles.accountName}>{account.name}</Text>
-                        <Text style={styles.accountBalance}>{formatNumber(account.balance)} €</Text>
-                      </View>
-                    </Pressable>
+                    />
                   ))}
                 </View>
               ))}
@@ -460,7 +491,7 @@ const styles = StyleSheet.create({
   },
   totalBalanceContainer: {
     marginBottom: darkTheme.spacing.l,
-    padding: darkTheme.spacing.m,
+    padding: darkTheme.spacing.l,
     backgroundColor: darkTheme.colors.surface,
     borderRadius: darkTheme.borderRadius.l,
     marginHorizontal: darkTheme.spacing.m,
@@ -469,18 +500,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
+    alignItems: 'center',
   },
   totalBalanceLabel: {
     fontSize: 14,
-    textAlign: 'center',
     color: darkTheme.colors.textSecondary,
-    marginBottom: darkTheme.spacing.xs,
+    marginBottom: darkTheme.spacing.s,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   totalBalance: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: 'bold',
-    textAlign: 'center',
     color: darkTheme.colors.text,
+    marginBottom: darkTheme.spacing.xs,
   },
   filtersContainer: {
     backgroundColor: 'transparent',
@@ -516,37 +549,68 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   bankName: {
     fontSize: 18,
     fontWeight: 'bold',
     padding: darkTheme.spacing.m,
     color: darkTheme.colors.text,
-    backgroundColor: darkTheme.colors.surface,
-  },
-  accountItem: {
-    padding: darkTheme.spacing.m,
+    backgroundColor: `${darkTheme.colors.primary}10`,
     borderBottomWidth: 1,
     borderBottomColor: darkTheme.colors.border,
+  },
+  accountItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: darkTheme.spacing.m,
+    backgroundColor: darkTheme.colors.surface,
+    borderRadius: darkTheme.borderRadius.m,
+    marginBottom: darkTheme.spacing.s,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  accountIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${darkTheme.colors.primary}20`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: darkTheme.spacing.m,
+  },
+  accountContent: {
+    flex: 1,
   },
   accountHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: darkTheme.spacing.xs,
   },
   accountName: {
     fontSize: 16,
-    fontWeight: '500',
-    flex: 1,
+    fontWeight: '600',
     color: darkTheme.colors.text,
   },
+  accountType: {
+    fontSize: 12,
+    color: darkTheme.colors.textSecondary,
+    textTransform: 'capitalize',
+    backgroundColor: `${darkTheme.colors.primary}20`,
+    paddingHorizontal: darkTheme.spacing.s,
+    paddingVertical: 2,
+    borderRadius: darkTheme.borderRadius.s,
+  },
   accountBalance: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
     color: darkTheme.colors.primary,
-    fontWeight: '600',
   },
   graphContainer: {
     backgroundColor: darkTheme.colors.surface,
@@ -559,14 +623,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
+    overflow: 'hidden',
   },
   addButton: {
-    width: '70%',
-    marginHorizontal: '15%',
+    marginHorizontal: darkTheme.spacing.l,
     marginTop: darkTheme.spacing.m,
     marginBottom: darkTheme.spacing.s,
     borderRadius: darkTheme.borderRadius.m,
     backgroundColor: darkTheme.colors.primary,
+    elevation: 4,
   },
   header: {
     flexDirection: 'row',
@@ -665,20 +730,30 @@ const styles = StyleSheet.create({
   },
   tooltipContainer: {
     backgroundColor: darkTheme.colors.surface,
-    padding: 5,
-    borderRadius: 2,
-    alignItems: 'center',
-    borderColor: darkTheme.colors.primary,
+    padding: darkTheme.spacing.m,
+    borderRadius: darkTheme.borderRadius.m,
     borderWidth: 1,
+    borderColor: darkTheme.colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   tooltipValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
     color: darkTheme.colors.primary,
+    textAlign: 'center',
   },
   tooltipDate: {
-    fontSize: 10,
-    color: 'gray',
-    marginTop: 2,
+    fontSize: 12,
+    color: darkTheme.colors.textSecondary,
+    marginTop: darkTheme.spacing.xs,
+    textAlign: 'center',
+  },
+  accountIcon: {
+    width: 35,
+    height: 35,
   },
 });

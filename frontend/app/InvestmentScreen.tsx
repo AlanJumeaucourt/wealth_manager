@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import React, { useState, useEffect } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { VictoryAxis, VictoryChart, VictoryLine, VictoryScatter, VictoryTheme } from 'victory-native';
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Button } from 'react-native-paper';
@@ -351,50 +351,10 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
                         .map((transaction, index, array) => {
                             const isBuy = transactions.buys.includes(transaction);
                             return (
-                                <View key={`transaction-${index}`}>
-                                    <View style={styles.transactionItem}>
-                                        <View style={styles.transactionIconContainer}>
-                                            <View style={[styles.transactionIcon, isBuy ? styles.buyIcon : styles.sellIcon]}>
-                                                <Ionicons 
-                                                    name={isBuy ? "arrow-down" : "arrow-up"} 
-                                                    size={14} 
-                                                    color={darkTheme.colors.surface} 
-                                                />
-                                            </View>
-                                        </View>
-                                        <View style={styles.transactionContent}>
-                                            <View style={styles.transactionRow}>
-                                                <Text style={styles.transactionQuantity}>
-                                                    {isBuy ? '+' : '-'}{transaction.quantity} shares
-                                                </Text>
-                                                <Text style={styles.transactionPrice}>
-                                                    {transaction.price.toLocaleString()}€
-                                                </Text>
-                                            </View>
-                                            <View style={styles.transactionDetails}>
-                                                <Text style={styles.transactionDate}>
-                                                    {new Date(transaction.date).toLocaleDateString(undefined, { 
-                                                        month: 'short', 
-                                                        day: '2-digit',
-                                                        year: 'numeric'
-                                                    })}
-                                                </Text>
-                                                <Text style={styles.transactionAccount}>
-                                                    {transaction.account_name}
-                                                </Text>
-                                            </View>
-                                            <View style={styles.transactionFooter}>
-                                                <Text style={styles.transactionFee}>
-                                                    Fee: {transaction.fee.toLocaleString()}€
-                                                </Text>
-                                                <Text style={styles.transactionTotal}>
-                                                    Total: {((transaction.quantity * transaction.price) + (isBuy ? 1 : -1) * transaction.fee).toLocaleString()}€
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    </View>
-                                    {index < array.length - 1 && <View style={styles.transactionSeparator} />}
-                                </View>
+                                <TransactionCard 
+                                    transaction={transaction} 
+                                    isBuy={isBuy} 
+                                />
                             );
                     })}
                 </View>
@@ -435,6 +395,144 @@ const StockPositionItem: React.FC<StockPositionItemProps> = ({ position, onPress
                 </Text>
             </View>
         </Pressable>
+    );
+};
+
+const PortfolioSummary = ({ totalValue, totalGain, totalPerformance }: {
+  totalValue: number;
+  totalGain: number;
+  totalPerformance: number;
+}) => (
+  <View style={styles.summaryContainer}>
+    <Text style={styles.summaryTitle}>Portfolio Value</Text>
+    <Text style={styles.totalValue}>
+      {totalValue.toLocaleString()} €
+    </Text>
+    <View style={styles.performanceContainer}>
+      <Text style={[
+        styles.totalGain,
+        totalGain >= 0 ? styles.positivePerformance : styles.negativePerformance
+      ]}>
+        {totalGain >= 0 ? '+' : ''}{totalGain.toLocaleString()} € 
+      </Text>
+      <Text style={[
+        styles.performanceText,
+        totalPerformance >= 0 ? styles.positivePerformance : styles.negativePerformance
+      ]}>
+        ({totalPerformance.toFixed(2)}%)
+      </Text>
+    </View>
+  </View>
+);
+
+const PeriodSelector = ({ selectedPeriod, onPeriodChange }: {
+  selectedPeriod: string;
+  onPeriodChange: (period: string) => void;
+}) => (
+  <View style={styles.periodSelectorContainer}>
+    {['1M', '3M', '6M', '1Y', 'Max'].map((period) => (
+      <TouchableOpacity
+        key={period}
+        style={[
+          styles.periodButton,
+          selectedPeriod === period && styles.selectedPeriodButton
+        ]}
+        onPress={() => onPeriodChange(period)}
+      >
+        <Text style={[
+          styles.periodButtonText,
+          selectedPeriod === period && styles.selectedPeriodText
+        ]}>
+          {period}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </View>
+);
+
+const TransactionCard = ({ transaction, isBuy }: { 
+    transaction: AssetTransaction; 
+    isBuy: boolean; 
+}) => {
+    const subtotal = transaction.quantity * transaction.price;
+    const total = subtotal + (isBuy ? 1 : -1) * transaction.fee;
+    
+    return (
+        <View style={styles.transactionCard}>
+            <View style={styles.transactionHeader}>
+                <View style={styles.transactionTypeContainer}>
+                    <View style={[
+                        styles.transactionTypeTag,
+                        isBuy ? styles.buyIcon : styles.sellIcon
+                    ]}>
+                        <Ionicons 
+                            name={isBuy ? "arrow-down" : "arrow-up"} 
+                            size={14} 
+                            color={darkTheme.colors.surface} 
+                        />
+                    </View>
+                    <View>
+                        <Text style={[
+                            styles.transactionType,
+                            isBuy ? styles.buyText : styles.sellText
+                        ]}>
+                            {isBuy ? 'Purchase' : 'Sale'}
+                        </Text>
+                        <Text style={styles.transactionDate}>
+                            {new Date(transaction.date).toLocaleDateString(undefined, { 
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                            })}
+                        </Text>
+                    </View>
+                </View>
+                <Text style={styles.quantityHighlight}>
+                    {transaction.quantity.toLocaleString()} shares
+                </Text>
+            </View>
+            
+            <View style={styles.transactionBody}>
+                <View style={styles.accountSection}>
+                    <Text style={styles.accountName}>
+                        {transaction.account_name}
+                    </Text>
+                </View>
+
+                <View style={styles.costBreakdown}>
+                    <View style={styles.costRow}>
+                        <Text style={styles.costLabel}>Price per share</Text>
+                        <Text style={styles.costValue}>
+                            {transaction.price.toLocaleString()}€
+                        </Text>
+                    </View>
+                    
+                    <View style={styles.costRow}>
+                        <Text style={styles.costLabel}>Subtotal</Text>
+                        <Text style={styles.costValue}>
+                            {subtotal.toLocaleString()}€
+                        </Text>
+                    </View>
+
+                    <View style={styles.costRow}>
+                        <Text style={styles.costLabel}>Fee</Text>
+                        <Text style={styles.costValue}>
+                            {transaction.fee.toLocaleString()}€
+                        </Text>
+                    </View>
+
+                    <View style={styles.totalRow}>
+                        <Text style={styles.totalLabel}>Total</Text>
+                        <Text style={[
+                            styles.totalValue,
+                            isBuy ? styles.buyText : styles.sellText
+                        ]}>
+                            {isBuy ? '-' : '+'}{total.toLocaleString()}€
+                        </Text>
+                    </View>
+                </View>
+            </View>
+        </View>
     );
 };
 
@@ -571,31 +669,17 @@ const InvestmentOverview: React.FC = () => {
                 <ScrollView style={styles.container}>
                     <View style={styles.header}>
                         <Text style={styles.title}>Investissements</Text>
-                        <Text style={styles.totalValue}>
-                            {totalValue.toLocaleString()} €
-                        </Text>
-                        <Text style={[
-                            styles.totalGain,
-                            totalGain >= 0 ? styles.positivePerformance : styles.negativePerformance
-                        ]}>
-                            {totalGain >= 0 ? '+' : ''}{totalGain.toLocaleString()} € 
-                            ({totalPerformance.toFixed(2)}%)
-                        </Text>
+                        <PortfolioSummary
+                            totalValue={totalValue}
+                            totalGain={totalGain}
+                            totalPerformance={totalPerformance}
+                        />
                     </View>
 
-                    <View style={styles.periodSelector}>
-                        {['1M', '3M', '6M', '1A', 'Max'].map((period) => (
-                            <Pressable
-                                key={period}
-                                style={[styles.periodButton, selectedPeriod === period && styles.selectedPeriod]}
-                                onPress={() => setSelectedPeriod(period)}
-                            >
-                                <Text style={[styles.periodButtonText, selectedPeriod === period && styles.selectedPeriodText]}>
-                                    {period}
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </View>
+                    <PeriodSelector
+                        selectedPeriod={selectedPeriod}
+                        onPeriodChange={(period) => setSelectedPeriod(period)}
+                    />
 
                     {performanceData.length > 0 ? (
                         <View style={styles.chartContainer}>
@@ -1110,5 +1194,132 @@ const styles = StyleSheet.create({
         height: StyleSheet.hairlineWidth,
         backgroundColor: darkTheme.colors.border,
         marginHorizontal: darkTheme.spacing.m,
+    },
+    summaryContainer: {
+        backgroundColor: darkTheme.colors.surface,
+        padding: darkTheme.spacing.l,
+        marginHorizontal: darkTheme.spacing.m,
+        marginBottom: darkTheme.spacing.m,
+        borderRadius: darkTheme.borderRadius.l,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    summaryTitle: {
+        fontSize: 16,
+        color: darkTheme.colors.textSecondary,
+        marginBottom: darkTheme.spacing.s,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    performanceContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: darkTheme.spacing.xs,
+    },
+    periodSelectorContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: darkTheme.spacing.s,
+        marginBottom: darkTheme.spacing.m,
+        paddingHorizontal: darkTheme.spacing.m,
+    },
+    selectedPeriodButton: {
+        backgroundColor: darkTheme.colors.primary,
+    },
+    transactionCard: {
+        backgroundColor: darkTheme.colors.surface,
+        borderRadius: darkTheme.borderRadius.m,
+        marginBottom: darkTheme.spacing.m,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: `${darkTheme.colors.border}30`,
+    },
+    transactionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: darkTheme.spacing.m,
+        backgroundColor: `${darkTheme.colors.background}30`,
+    },
+    transactionTypeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: darkTheme.spacing.s,
+    },
+    transactionTypeTag: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    transactionType: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    transactionDate: {
+        fontSize: 13,
+        color: darkTheme.colors.textSecondary,
+        marginTop: 2,
+    },
+    quantityHighlight: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: darkTheme.colors.text,
+    },
+    transactionBody: {
+        padding: darkTheme.spacing.m,
+    },
+    accountSection: {
+        marginBottom: darkTheme.spacing.m,
+    },
+    accountName: {
+        fontSize: 14,
+        color: darkTheme.colors.primary,
+        fontWeight: '500',
+    },
+    costBreakdown: {
+        gap: darkTheme.spacing.s,
+    },
+    costRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    costLabel: {
+        fontSize: 14,
+        color: darkTheme.colors.textSecondary,
+    },
+    costValue: {
+        fontSize: 14,
+        color: darkTheme.colors.text,
+    },
+    totalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: darkTheme.spacing.m,
+        paddingTop: darkTheme.spacing.m,
+        borderTopWidth: 1,
+        borderTopColor: `${darkTheme.colors.border}30`,
+    },
+    totalLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: darkTheme.colors.text,
+    },
+    totalValue: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    buyText: {
+        color: darkTheme.colors.success,
+    },
+    sellText: {
+        color: darkTheme.colors.error,
     },
 });
