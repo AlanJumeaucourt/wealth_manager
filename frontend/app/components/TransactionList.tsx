@@ -3,9 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSelector } from 'react-redux';
-import { colors } from '../../constants/colors';
 import { darkTheme } from '../../constants/theme';
 import { Transaction } from '../../types/transaction';
 import { fetchTransactions } from '../api/bankApi';
@@ -46,7 +45,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
       const response = await fetchTransactions(numberofTransactionFetch, page, accountId, searchQuery);
       if ('transactions' in response) {
         // Update transactions
-        setTransactions(prevTransactions => 
+        setTransactions(prevTransactions =>
           page === 1 ? response.transactions : [...prevTransactions, ...response.transactions]
         );
         // Only update search stats if it's the first page or if we don't have stats yet
@@ -71,8 +70,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
 
   const filteredTransactions = useMemo(() => {
     if (accountId) {
-      return transactions.filter(transaction => 
-        transaction.from_account_id === accountId || 
+      return transactions.filter(transaction =>
+        transaction.from_account_id === accountId ||
         transaction.to_account_id === accountId
       );
     }
@@ -140,7 +139,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
   // Add this component to display search results
   const renderSearchStats = () => {
     if (!searchStats || !searchQuery) return null;
-    
+
     return (
       <View style={styles.searchStatsContainer}>
         <Text style={styles.searchStatsText}>
@@ -187,7 +186,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
             />
           </View>
         </View>
-        
+
         <View style={styles.transactionContent}>
           <View style={styles.transactionHeader}>
             <Text style={styles.transactionDescription} numberOfLines={1}>

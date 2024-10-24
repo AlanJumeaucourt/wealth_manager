@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Text } from 'react-native-paper';
 import { darkTheme } from '@/constants/theme';
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Text } from 'react-native-paper';
 import { searchStocks } from '../api/bankApi';
 import SearchableModal from './SearchableModal';
 

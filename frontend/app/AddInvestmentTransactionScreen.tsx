@@ -1,19 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Alert, StyleSheet, Pressable } from 'react-native';
-import { Text, Button, TextInput, Surface } from 'react-native-paper';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
-import DatePicker from 'react-native-ui-datepicker';
-import { Ionicons } from '@expo/vector-icons';
+import SearchableModal from '@/app/components/SearchableModal';
 import { darkTheme } from '@/constants/theme';
-import { Account } from '@/types/account';
 import { RootState } from '@/store/store';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import React, { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Modal from 'react-native-modal';
+import { Button, Surface, Text, TextInput } from 'react-native-paper';
+import DatePicker from 'react-native-ui-datepicker';
+import { useSelector } from 'react-redux';
 import { createInvestmentTransaction, updateInvestmentTransaction } from './api/bankApi';
 import { BackButton } from './components/BackButton';
-import SearchableModal from '@/app/components/SearchableModal';
-import sharedStyles from './styles/sharedStyles';
-import Modal from 'react-native-modal';
 import StockSearchModal from './components/StockSearchModal';
+import sharedStyles from './styles/sharedStyles';
 
 interface InvestmentTransaction {
     id: number;
@@ -32,7 +31,7 @@ export default function AddInvestmentTransactionScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const transaction = route.params?.transaction as InvestmentTransaction | undefined;
-    const accounts = useSelector((state: RootState) => 
+    const accounts = useSelector((state: RootState) =>
         state.accounts.accounts.filter(account => account.type === 'investment')
     );
 
@@ -144,14 +143,14 @@ export default function AddInvestmentTransactionScreen() {
                                 ]}
                                 onPress={() => setActivityType(type as typeof activityType)}
                             >
-                                <Ionicons 
+                                <Ionicons
                                     name={
-                                        type === 'buy' || type === 'deposit' 
-                                            ? 'arrow-down-circle' 
+                                        type === 'buy' || type === 'deposit'
+                                            ? 'arrow-down-circle'
                                             : 'arrow-up-circle'
-                                    } 
-                                    size={24} 
-                                    color={activityType === type ? darkTheme.colors.white : darkTheme.colors.text} 
+                                    }
+                                    size={24}
+                                    color={activityType === type ? darkTheme.colors.white : darkTheme.colors.text}
                                 />
                                 <Text style={[
                                     styles.activityText,
@@ -197,9 +196,9 @@ export default function AddInvestmentTransactionScreen() {
                     {/* Transaction Details */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Transaction Details</Text>
-                        
-                        <Pressable 
-                            onPress={() => setShowDatePicker(true)} 
+
+                        <Pressable
+                            onPress={() => setShowDatePicker(true)}
                             style={styles.dateButton}
                         >
                             <Text style={styles.dateButtonLabel}>Date</Text>
@@ -266,9 +265,9 @@ export default function AddInvestmentTransactionScreen() {
                         </Text>
                     </View>
 
-                    <Button 
-                        mode="contained" 
-                        onPress={handleSubmit} 
+                    <Button
+                        mode="contained"
+                        onPress={handleSubmit}
                         style={styles.submitButton}
                     >
                         {transaction ? 'Update Transaction' : 'Create Transaction'}
@@ -295,8 +294,8 @@ export default function AddInvestmentTransactionScreen() {
                         selectedItemColor={darkTheme.colors.primary}
                         headerTextStyle={styles.datePickerHeaderText}
                     />
-                    <Button 
-                        mode="outlined" 
+                    <Button
+                        mode="outlined"
                         onPress={() => setShowDatePicker(false)}
                         style={styles.closeButton}
                     >

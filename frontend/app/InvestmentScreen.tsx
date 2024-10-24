@@ -1,64 +1,62 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import React, { useState, useEffect } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons'
-import { Button } from 'react-native-paper';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
-import { Dimensions } from 'react-native';
+import { Button } from 'react-native-paper';
 
 import { darkTheme } from '@/constants/theme';
-import sharedStyles from './styles/sharedStyles';
+import {
+    AssetTransactions,
+    InvestmentStackParamList,
+    PerformanceData,
+    PortfolioPosition,
+    StockDetailProps,
+    StockPositionItemProps
+} from '@/types/investment';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Menu } from 'react-native-paper';
 import AddInvestmentTransactionScreen from './AddInvestmentTransactionScreen';
 import InvestmentTransactionListScreen from './InvestmentTransactionListScreen';
-import { getPortfolioSummary, getPortfolioPerformance, getAssetTransactions, getStockPrices } from './api/bankApi';
-import { 
-    InvestmentStackParamList,
-    StockDetailProps,
-    StockPositionItemProps,
-    PortfolioPosition,
-    PerformanceData,
-    AssetTransactions,
-    InvestmentTransaction
-} from '@/types/investment';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { getAssetTransactions, getPortfolioPerformance, getPortfolioSummary, getStockPrices } from './api/bankApi';
 import { InvestmentSkeleton } from './components/InvestmentSkeleton';
+import sharedStyles from './styles/sharedStyles';
 
 type InvestmentScreenNavigationProp = StackNavigationProp<InvestmentStackParamList>;
 
 // Types
 type Asset = {
-  name: string;
-  value: number;
-  allocation: number;
-  performance: number;
+    name: string;
+    value: number;
+    allocation: number;
+    performance: number;
 };
 
 type HistoricalData = {
-  date: string;
-  value: number;
+    date: string;
+    value: number;
 };
 
 type StockPosition = {
-  symbol: string;
-  name: string;
-  purchases: {
-    date: string;
-    quantity: number;
-    price: number;
-  }[];
-  sells: {
-    date: string;
-    quantity: number;
-    price: number;
-  }[];
-  currentPrice: number;
+    symbol: string;
+    name: string;
+    purchases: {
+        date: string;
+        quantity: number;
+        price: number;
+    }[];
+    sells: {
+        date: string;
+        quantity: number;
+        price: number;
+    }[];
+    currentPrice: number;
 };
 
 type StockHistoricalData = {
-  date: string;
-  price: number;
+    date: string;
+    price: number;
 };
 
 // Définir le type AssetTransaction correctement
@@ -76,67 +74,67 @@ interface AssetTransaction {
 
 // Mock data
 const investmentAssets: Asset[] = [
-  { name: 'Actions', value: 50000, allocation: 50, performance: 8.5 },
-  { name: 'Obligations', value: 30000, allocation: 30, performance: 3.2 },
-  { name: 'Immobilier', value: 15000, allocation: 15, performance: 5.7 },
-  { name: 'Liquidités', value: 5000, allocation: 5, performance: 0.5 },
+    { name: 'Actions', value: 50000, allocation: 50, performance: 8.5 },
+    { name: 'Obligations', value: 30000, allocation: 30, performance: 3.2 },
+    { name: 'Immobilier', value: 15000, allocation: 15, performance: 5.7 },
+    { name: 'Liquidités', value: 5000, allocation: 5, performance: 0.5 },
 ];
 
 const historicalPerformance: HistoricalData[] = [
-  { date: '2023-01', value: 95000 },
-  { date: '2023-02', value: 97000 },
-  { date: '2023-03', value: 98500 },
-  { date: '2023-04', value: 101000 },
-  { date: '2023-05', value: 100000 },
+    { date: '2023-01', value: 95000 },
+    { date: '2023-02', value: 97000 },
+    { date: '2023-03', value: 98500 },
+    { date: '2023-04', value: 101000 },
+    { date: '2023-05', value: 100000 },
 ];
 
 const stockPositions: StockPosition[] = [
-  {
-    symbol: 'AAPL',
-    name: 'Apple Inc.',
-    purchases: [
-      { date: '2022-01-15', quantity: 10, price: 150 },
-      { date: '2022-06-30', quantity: 5, price: 140 },
-      { date: '2023-02-10', quantity: 8, price: 160 },
-    ],
-    sells: [
-      { date: '2022-01-16', quantity: 10, price: 152 },
-    ],
-    currentPrice: 175,
-  },
-  {
-    symbol: 'GOOGL',
-    name: 'Alphabet Inc.',
-    purchases: [
-      { date: '2022-03-20', quantity: 5, price: 2500 },
-      { date: '2022-09-05', quantity: 3, price: 2400 },
-    ],
-    sells: [
-      { date: '2022-03-22', quantity: 5, price: 2520 },
-    ],
-    currentPrice: 2700,
-  },
-  // Ajoutez d'autres positions si nécessaire
+    {
+        symbol: 'AAPL',
+        name: 'Apple Inc.',
+        purchases: [
+            { date: '2022-01-15', quantity: 10, price: 150 },
+            { date: '2022-06-30', quantity: 5, price: 140 },
+            { date: '2023-02-10', quantity: 8, price: 160 },
+        ],
+        sells: [
+            { date: '2022-01-16', quantity: 10, price: 152 },
+        ],
+        currentPrice: 175,
+    },
+    {
+        symbol: 'GOOGL',
+        name: 'Alphabet Inc.',
+        purchases: [
+            { date: '2022-03-20', quantity: 5, price: 2500 },
+            { date: '2022-09-05', quantity: 3, price: 2400 },
+        ],
+        sells: [
+            { date: '2022-03-22', quantity: 5, price: 2520 },
+        ],
+        currentPrice: 2700,
+    },
+    // Ajoutez d'autres positions si nécessaire
 ];
 
 // Add mock historical data for stocks
 const stockHistoricalData: { [key: string]: StockHistoricalData[] } = {
-  AAPL: [
-    { date: '2022-01-01', price: 140 },
-    { date: '2022-04-01', price: 155 },
-    { date: '2022-07-01', price: 145 },
-    { date: '2022-10-01', price: 160 },
-    { date: '2023-01-01', price: 170 },
-    { date: '2023-04-01', price: 175 },
-  ],
-  GOOGL: [
-    { date: '2022-01-01', price: 2400 },
-    { date: '2022-04-01', price: 2500 },
-    { date: '2022-07-01', price: 2300 },
-    { date: '2022-10-01', price: 2600 },
-    { date: '2023-01-01', price: 2650 },
-    { date: '2023-04-01', price: 2700 },
-  ],
+    AAPL: [
+        { date: '2022-01-01', price: 140 },
+        { date: '2022-04-01', price: 155 },
+        { date: '2022-07-01', price: 145 },
+        { date: '2022-10-01', price: 160 },
+        { date: '2023-01-01', price: 170 },
+        { date: '2023-04-01', price: 175 },
+    ],
+    GOOGL: [
+        { date: '2022-01-01', price: 2400 },
+        { date: '2022-04-01', price: 2500 },
+        { date: '2022-07-01', price: 2300 },
+        { date: '2022-10-01', price: 2600 },
+        { date: '2023-01-01', price: 2650 },
+        { date: '2023-04-01', price: 2700 },
+    ],
 };
 
 const Stack = createStackNavigator();
@@ -176,7 +174,7 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
                     getAssetTransactions(symbol),
                     getStockPrices(symbol, '1Y')
                 ]);
-                
+
                 setTransactions(transactionsData);
                 setHistoricalPrices(pricesData.prices || []);
             } catch (error) {
@@ -190,7 +188,7 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
     }, [symbol]);
 
     const handleTransactionPress = (transaction: AssetTransaction, isBuy: boolean) => {
-        navigation.navigate('AddInvestmentTransaction', { 
+        navigation.navigate('AddInvestmentTransaction', {
             transaction: {
                 id: transaction.id,
                 account_id: transaction.account_id, // Pass account_id
@@ -265,7 +263,7 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
         const step = Math.floor(data.length / 8);
         return data.map((item, index) => ({
             ...item,
-            showLabel: index % step === 0 && index < data.length - step/2
+            showLabel: index % step === 0 && index < data.length - step / 2
         }));
     };
 
@@ -288,7 +286,7 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
 
             <ScrollView contentContainerStyle={styles.modalContent}>
 
-                
+
                 {chartData.length > 0 ? (
                     <View style={styles.chartContainer}>
                         <LineChart
@@ -310,8 +308,8 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
                             yAxisTextStyle={{ color: darkTheme.colors.textTertiary }}
                             hideRules
                             showVerticalLines={false}
-                            xAxisLabelTextStyle={{ 
-                                color: darkTheme.colors.textTertiary, 
+                            xAxisLabelTextStyle={{
+                                color: darkTheme.colors.textTertiary,
                                 fontSize: 10,
                                 width: 60,
                                 textAlign: 'center'
@@ -383,9 +381,9 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
                         .map((transaction, index, array) => {
                             const isBuy = transactions.buys.includes(transaction);
                             return (
-                                <TransactionCard 
+                                <TransactionCard
                                     key={`transaction-${index}`}
-                                    transaction={transaction} 
+                                    transaction={transaction}
                                     isBuy={isBuy}
                                     onPress={() => handleTransactionPress(transaction, isBuy)}
                                 />
@@ -412,7 +410,7 @@ const StockPositionItem: React.FC<StockPositionItemProps> = ({ position, onPress
                 Current Price: {position.current_price.toLocaleString()} €
             </Text>
             <Text style={[
-                styles.stockPerformance, 
+                styles.stockPerformance,
                 position.performance >= 0 ? styles.positivePerformance : styles.negativePerformance
             ]}>
                 Performance: {position.performance.toFixed(2)}%
@@ -433,66 +431,66 @@ const StockPositionItem: React.FC<StockPositionItemProps> = ({ position, onPress
 };
 
 const PortfolioSummary = ({ totalValue, totalGain, totalPerformance }: {
-  totalValue: number;
-  totalGain: number;
-  totalPerformance: number;
+    totalValue: number;
+    totalGain: number;
+    totalPerformance: number;
 }) => (
-  <View style={styles.summaryContainer}>
-    <Text style={styles.summaryTitle}>Portfolio Value</Text>
-    <Text style={styles.totalValue}>
-      {totalValue.toLocaleString()} €
-    </Text>
-    <View style={styles.performanceContainer}>
-      <Text style={[
-        styles.totalGain,
-        totalGain >= 0 ? styles.positivePerformance : styles.negativePerformance
-      ]}>
-        {totalGain >= 0 ? '+' : ''}{totalGain.toLocaleString()} € 
-      </Text>
-      <Text style={[
-        styles.performanceText,
-        totalPerformance >= 0 ? styles.positivePerformance : styles.negativePerformance
-      ]}>
-        ({totalPerformance.toFixed(2)}%)
-      </Text>
+    <View style={styles.summaryContainer}>
+        <Text style={styles.summaryTitle}>Portfolio Value</Text>
+        <Text style={styles.totalValue}>
+            {totalValue.toLocaleString()} €
+        </Text>
+        <View style={styles.performanceContainer}>
+            <Text style={[
+                styles.totalGain,
+                totalGain >= 0 ? styles.positivePerformance : styles.negativePerformance
+            ]}>
+                {totalGain >= 0 ? '+' : ''}{totalGain.toLocaleString()} €
+            </Text>
+            <Text style={[
+                styles.performanceText,
+                totalPerformance >= 0 ? styles.positivePerformance : styles.negativePerformance
+            ]}>
+                ({totalPerformance.toFixed(2)}%)
+            </Text>
+        </View>
     </View>
-  </View>
 );
 
 const PeriodSelector = ({ selectedPeriod, onPeriodChange }: {
-  selectedPeriod: string;
-  onPeriodChange: (period: string) => void;
+    selectedPeriod: string;
+    onPeriodChange: (period: string) => void;
 }) => (
-  <View style={styles.periodSelectorContainer}>
-    {['1M', '3M', '6M', '1Y', 'Max'].map((period) => (
-      <TouchableOpacity
-        key={period}
-        style={[
-          styles.periodButton,
-          selectedPeriod === period && styles.selectedPeriodButton
-        ]}
-        onPress={() => onPeriodChange(period)}
-      >
-        <Text style={[
-          styles.periodButtonText,
-          selectedPeriod === period && styles.selectedPeriodText
-        ]}>
-          {period}
-        </Text>
-      </TouchableOpacity>
-    ))}
-  </View>
+    <View style={styles.periodSelectorContainer}>
+        {['1M', '3M', '6M', '1Y', 'Max'].map((period) => (
+            <TouchableOpacity
+                key={period}
+                style={[
+                    styles.periodButton,
+                    selectedPeriod === period && styles.selectedPeriodButton
+                ]}
+                onPress={() => onPeriodChange(period)}
+            >
+                <Text style={[
+                    styles.periodButtonText,
+                    selectedPeriod === period && styles.selectedPeriodText
+                ]}>
+                    {period}
+                </Text>
+            </TouchableOpacity>
+        ))}
+    </View>
 );
 
-const TransactionCard = ({ transaction, isBuy, onPress }: { 
-    transaction: AssetTransaction; 
+const TransactionCard = ({ transaction, isBuy, onPress }: {
+    transaction: AssetTransaction;
     isBuy: boolean;
     onPress?: () => void;
 }) => {
     const total = (transaction.quantity * transaction.price) + (isBuy ? 1 : -1) * transaction.fee;
-    
+
     return (
-        <Pressable 
+        <Pressable
             style={styles.transactionCard}
             onPress={onPress}
             android_ripple={{ color: `${darkTheme.colors.primary}20` }}
@@ -503,10 +501,10 @@ const TransactionCard = ({ transaction, isBuy, onPress }: {
                         styles.transactionTypeTag,
                         isBuy ? styles.buyIcon : styles.sellIcon
                     ]}>
-                        <Ionicons 
-                            name={isBuy ? "arrow-down" : "arrow-up"} 
-                            size={14} 
-                            color={darkTheme.colors.surface} 
+                        <Ionicons
+                            name={isBuy ? "arrow-down" : "arrow-up"}
+                            size={14}
+                            color={darkTheme.colors.surface}
                         />
                     </View>
                     <View style={styles.transactionInfo}>
@@ -522,7 +520,7 @@ const TransactionCard = ({ transaction, isBuy, onPress }: {
                             </Text>
                         </View>
                         <Text style={styles.transactionDate}>
-                            {new Date(transaction.date).toLocaleDateString(undefined, { 
+                            {new Date(transaction.date).toLocaleDateString(undefined, {
                                 day: '2-digit',
                                 month: 'short',
                                 year: 'numeric'
@@ -640,11 +638,11 @@ const InvestmentOverview: React.FC = () => {
 
         // Calculate step size to get approximately 8 points
         const step = Math.floor(data.length / 8);
-        
+
         // Mark points for label display
         return data.map((item, index) => ({
             ...item,
-            showLabel: index % step === 0 && index < data.length - step/2 // Avoid label at the very end
+            showLabel: index % step === 0 && index < data.length - step / 2 // Avoid label at the very end
         }));
     };
 
@@ -714,8 +712,8 @@ const InvestmentOverview: React.FC = () => {
                                 hideRules
                                 hideDataPoints
                                 showVerticalLines={false}
-                                xAxisLabelTextStyle={{ 
-                                    color: darkTheme.colors.textTertiary, 
+                                xAxisLabelTextStyle={{
+                                    color: darkTheme.colors.textTertiary,
                                     fontSize: 10,
                                     width: 60, // Add fixed width for labels
                                     textAlign: 'center'
@@ -793,9 +791,9 @@ const InvestmentOverview: React.FC = () => {
                                 <StockPositionItem
                                     key={index}
                                     position={position}
-                                    onPress={() => navigation.navigate('StockDetail', { 
+                                    onPress={() => navigation.navigate('StockDetail', {
                                         symbol: position.asset_symbol,
-                                        name: position.asset_name 
+                                        name: position.asset_name
                                     })}
                                 />
                             ))

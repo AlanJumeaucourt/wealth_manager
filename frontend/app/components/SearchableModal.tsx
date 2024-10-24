@@ -4,7 +4,6 @@ import { Account } from '@/types/account';
 import React, { useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Modal from 'react-native-modal';
-import sharedStyles from '../styles/sharedStyles';
 
 interface SearchableModalProps {
     data: Account[];
@@ -17,25 +16,25 @@ interface SearchableModalProps {
     renderCustomItem?: (item: any) => React.ReactNode;
 }
 
-const SearchableModal: React.FC<SearchableModalProps> = ({ 
-    data, 
-    onSelect, 
-    placeholder, 
-    label, 
-    allowCustomValue = false, 
+const SearchableModal: React.FC<SearchableModalProps> = ({
+    data,
+    onSelect,
+    placeholder,
+    label,
+    allowCustomValue = false,
     searchable = true,
     onSearch,
-    renderCustomItem 
+    renderCustomItem
 }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
     // Only filter locally if no onSearch prop is provided
-    const filteredData = onSearch 
-        ? data 
-        : (searchable ? data.filter(item => 
+    const filteredData = onSearch
+        ? data
+        : (searchable ? data.filter(item =>
             item.name.toLowerCase().includes(searchQuery.toLowerCase())
-          ) : data);
+        ) : data);
 
     const handleSearchChange = (text: string) => {
         setSearchQuery(text);
@@ -172,7 +171,7 @@ const styles = StyleSheet.create({
         width: '100%',
         color: darkTheme.colors.text,
         backgroundColor: darkTheme.colors.surface,
-        
+
     },
     item: {
         padding: darkTheme.spacing.m,
