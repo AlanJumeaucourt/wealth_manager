@@ -2,12 +2,12 @@ import { fetchAccounts } from '@/actions/accountActions';
 import { Account } from '@/types/account';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Menu } from 'react-native-paper';
 import { useDispatch } from 'react-redux';
 import { darkTheme } from '../constants/theme';
-import { deleteAccount } from './api/bankApi';
+import { deleteAccount, fetchTransactions } from './api/bankApi';
 import { BackButton } from './components/BackButton';
 import TransactionList from './components/TransactionList'; // Import the TransactionList component
 import sharedStyles from './styles/sharedStyles';
@@ -22,6 +22,7 @@ export default function TransactionsScreen() {
   const route = useRoute();
   const { account } = route.params as RouteParams;
   const [visible, setVisible] = useState(false);
+
 
   const openMenu = () => setVisible(true);
   const closeMenu = () => setVisible(false);

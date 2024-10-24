@@ -164,6 +164,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
     return <Text>Error loading accounts: {accountsError instanceof Error ? accountsError.message : String(accountsError)}</Text>;
   }
 
+
   // Footer component for loading indicator
   const renderFooter = () => {
     if (!isLoadingMore) return null;

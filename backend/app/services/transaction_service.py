@@ -18,7 +18,9 @@ class TransactionService(BaseService):
         fields: Optional[List[str]] = None,
         search: Optional[str] = None
     ) -> Dict[str, Any]:
-        print("transaction get all called")
+        print("Fetching transactions for user:", user_id)  # Add this log
+        print("With filters:", filters)  # Add this log
+        
         if fields:
             fields = [field for field in fields if field in self.model_class.__annotations__]
         else:
@@ -43,6 +45,7 @@ class TransactionService(BaseService):
         # Handle the account_id filter
         account_id = filters.get('account_id')
         if account_id:
+            print(f"Filtering by account_id: {account_id}")  # Add this log
             account_condition = " AND (from_account_id = ? OR to_account_id = ?)"
             query += account_condition
             total_query += account_condition
@@ -79,11 +82,13 @@ class TransactionService(BaseService):
             # Get total amount and count
             total_result = self.db_manager.execute_select(total_query, total_params)
             
-            return {
+            result = {
                 'transactions': transactions if transactions else [],
                 'total_amount': total_result[0]['total_amount'] if total_result else 0,
                 'count': total_result[0]['count'] if total_result else 0
             }
+            print("Returning transactions:", result)  # Add this log
+            return result
         except Exception as e:
             print(f"Error in get_all: {e}")
             return {'transactions': [], 'total_amount': 0, 'count': 0}

@@ -73,14 +73,14 @@ export default function AccountsScreen() {
           console.log("No response");
         }
         setIsLoading(false);
-        console.log("wealthData", wealthData);
+        // console.log("wealthData", wealthData);
       } catch (error) {
         console.error('Error fetching wealth data:', error);
         setIsLoading(false);
       }
     };
 
-    console.log("wealthData", wealthData);
+    // console.log("wealthData", wealthData);
     fetchData();
     dispatch(fetchAccounts() as unknown); // Cast to unknown to satisfy TypeScript
     dispatch(fetchBanks() as unknown); // Cast to unknown to satisfy TypeScript

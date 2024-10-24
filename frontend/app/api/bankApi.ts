@@ -162,7 +162,6 @@ export const updateTransaction = async (transactionId: number, transactionData: 
 export const fetchTransactions = async (perPage: number, page: number, accountId?: number, search?: string) => {
   try {
     const response = await apiClient.get(`/transactions?per_page=${perPage}&page=${page}&sort_by=date&sort_order=desc${accountId ? `&account_id=${accountId}` : ''}${search ? `&search=${search}` : ''}`);
-    console.log('Transactions response:', response.data);
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching transactions');
@@ -202,7 +201,7 @@ export const deleteTransaction = async (transactionId: number, onSuccess?: () =>
 export const fetchWealthData = async (startDate: string, endDate: string) => {
   try {
     const response = await apiClient.get(`/accounts/balance_over_time?start_date=${startDate}&end_date=${endDate}`);
-    console.log("wealth data", response.data);
+    // console.log("wealth data", response.data);
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching wealth data');
@@ -211,7 +210,7 @@ export const fetchWealthData = async (startDate: string, endDate: string) => {
 
 export const fetchBudgetSummary = async (startDate: string, endDate: string) => {
   try {
-    const response = await apiClient.get(`/budgets/budget_summary?start_date=${startDate}&end_date=${endDate}}`);
+    const response = await apiClient.get(`/budgets/summary?start_date=${startDate}&end_date=${endDate}}`);
     console.log("budget summary", response.data); // Log the response data
     return response.data;
   } catch (error) {
