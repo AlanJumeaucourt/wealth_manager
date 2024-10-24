@@ -6,42 +6,17 @@
 
 A comprehensive personal finance management application built with React Native and Expo, designed to help users take control of their financial lives with powerful features and an intuitive interface.
 
-## ✨ Key Features
+## 📱 Mobile App Features
 
-### 📊 Financial Dashboard
-- Real-time wealth tracking and visualization
-- Interactive wealth evolution charts
-- Multi-currency support
-- Customizable date ranges (1M, 3M, 6M, 1Y, Max)
+See our detailed [Mobile App Documentation](frontend/README.md) for complete feature list and screenshots.
 
-### 💳 Account Management
-- Support for multiple account types:
-  - Checking accounts
-  - Savings accounts
-  - Investment portfolios
-- Real-time balance updates
-- Bank integration
-- Detailed transaction history
+- 📊 Real-time wealth tracking and visualization
+- 💳 Multi-account management with bank integration
+- 📈 Investment portfolio tracking and analysis
+- 💰 Smart budgeting and expense analytics
+- 🔄 Intelligent transaction management
 
-### 📈 Investment Tracking
-- Stock position monitoring
-- Portfolio performance analysis
-- Asset allocation visualization
-- Investment transaction history
-
-### 💰 Budget Analytics
-- Expense categorization with beautiful donut charts
-- Customizable budget periods
-- Detailed category breakdown
-- Income vs. Expense analysis
-
-### 🔄 Smart Transaction Management
-- Easy transaction entry
-- Intelligent categorization
-- Transfer between accounts
-- Detailed transaction view
-
-## 🛠 Technical Stack
+## 🏗 Technical Architecture
 
 ### Frontend
 - **Framework**: React Native with Expo
@@ -54,8 +29,8 @@ A comprehensive personal finance management application built with React Native 
 
 ### Backend
 - **Framework**: Flask
-- **Database**: SQLite
-- **Authentication**: Flask-JWT-Extended
+- **Database**: SQLite ([Database Documentation](DATABASE_STRUCTURE.md))
+- **Authentication**: JWT & Flask-JWT-Extended
 - **API Documentation**: OpenAPI/Swagger
 - **Error Tracking**: Sentry
 
@@ -66,7 +41,3 @@ A comprehensive personal finance management application built with React Native 
 - npm or yarn
 - Expo CLI
 - Python 3.8+ (for backend)
-
-### Installation
-
-1. Clone the repository:
