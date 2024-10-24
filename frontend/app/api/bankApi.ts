@@ -29,6 +29,7 @@ const handleApiError = async (error: unknown, message: string) => {
 apiClient.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('accessToken');
+    console.log("token", token);
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
       config.headers['Content-Type'] = 'application/json';
@@ -229,7 +230,7 @@ export const fetchInvestmentTransactions = async (perPage: number, page: number,
   }
 };
 
-export const createInvestmentTransaction = async (transactionData: Omit<InvestmentTransaction, 'id' | 'user_id'>) => {
+export const createInvestmentTransaction = async (transactionData: Omit<InvestmentTransaction, 'id' | 'user_id' | 'account_name'>) => {
     try {
         const response = await apiClient.post('/investments', transactionData);
         return response.data;
@@ -240,7 +241,7 @@ export const createInvestmentTransaction = async (transactionData: Omit<Investme
 
 export const updateInvestmentTransaction = async (
     transactionId: number, 
-    transactionData: Partial<Omit<InvestmentTransaction, 'id' | 'user_id'>>
+    transactionData: Partial<Omit<InvestmentTransaction, 'id' | 'user_id' | 'account_name'>>
 ) => {
     try {
         const response = await apiClient.put(`/investments/${transactionId}`, transactionData);

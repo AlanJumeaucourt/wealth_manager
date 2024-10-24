@@ -11,6 +11,7 @@ investment_schema = InvestmentTransactionSchema()
 # Define models
 investment_model = investment_ns.model('InvestmentTransaction', {
     'account_id': fields.Integer(required=True, description='Account ID'),
+    'account_name': fields.String(required=True, description='Account name'),
     'asset_symbol': fields.String(required=True, description='Asset symbol'),
     'asset_name': fields.String(required=True, description='Asset name'),
     'activity_type': fields.String(required=True, description='Activity type', enum=['buy', 'sell', 'deposit', 'withdrawal']),

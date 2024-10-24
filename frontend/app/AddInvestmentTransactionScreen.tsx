@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Alert, StyleSheet, Pressable } from 'react-native';
-import { Text, Button, TextInput } from 'react-native-paper';
+import { Text, Button, TextInput, Surface } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import DatePicker from 'react-native-ui-datepicker';
@@ -17,7 +17,7 @@ import StockSearchModal from './components/StockSearchModal';
 
 interface InvestmentTransaction {
     id: number;
-    account_id: number;
+    account_name: string;
     asset_symbol: string;
     asset_name: string;
     activity_type: 'buy' | 'sell' | 'deposit' | 'withdrawal';
@@ -37,10 +37,11 @@ export default function AddInvestmentTransactionScreen() {
     );
 
     // Initialize state with transaction data if editing
-    const [accountId, setAccountId] = useState<number | null>(transaction ? transaction.account_id : null);
+    const [accountId, setAccountId] = useState<number | null>(transaction ? transaction.account_name : null);
     const [selectedAccountName, setSelectedAccountName] = useState<string>(
-        transaction ? accounts.find(acc => acc.id === transaction.account_id)?.name || '' : ''
+        transaction ? accounts.find(acc => acc.id === transaction.account_name)?.name || '' : ''
     );
+    console.log(transaction);
     const [assetSymbol, setAssetSymbol] = useState(transaction ? transaction.asset_symbol : '');
     const [assetName, setAssetName] = useState(transaction ? transaction.asset_name : '');
     const [activityType, setActivityType] = useState<'buy' | 'sell' | 'deposit' | 'withdrawal'>(
@@ -110,6 +111,14 @@ export default function AddInvestmentTransactionScreen() {
         }
     };
 
+    const calculateTotal = () => {
+        const qty = parseFloat(quantity) || 0;
+        const price = parseFloat(unitPrice) || 0;
+        const fees = parseFloat(fee) || 0;
+        const taxes = parseFloat(tax) || 0;
+        return (qty * price) + fees + taxes;
+    };
+
     return (
         <View style={sharedStyles.container}>
             <View style={sharedStyles.header}>
@@ -120,40 +129,30 @@ export default function AddInvestmentTransactionScreen() {
             </View>
 
             <ScrollView style={styles.scrollContainer}>
-                <View style={styles.form}>
-                    {/* Account Selection using SearchableModal */}
-                    <SearchableModal
-                        data={accounts}
-                        onSelect={(value) => {
-                            if (typeof value === 'string') {
-                                setSelectedAccountName(value);
-                                setAccountId(null);
-                            } else {
-                                setAccountId(value);
-                                const selectedAccount = accounts.find(account => account.id === value);
-                                setSelectedAccountName(selectedAccount ? selectedAccount.name : '');
-                            }
-                        }}
-                        placeholder={selectedAccountName || "Select an investment account"}
-                        label="Investment Account"
-                        allowCustomValue={false}
-                    />
-
-                    {/* Activity Type Selection with colors */}
-                    <Text style={styles.label}>Activity Type</Text>
-                    <View style={styles.pickerContainer}>
+                <Surface style={styles.card}>
+                    {/* Activity Type Selection */}
+                    <Text style={styles.sectionTitle}>Transaction Type</Text>
+                    <View style={styles.activityTypeContainer}>
                         {['buy', 'sell', 'deposit', 'withdrawal'].map((type) => (
                             <Pressable
                                 key={type}
                                 style={[
                                     styles.activityOption,
                                     activityType === type && {
-                                        ...styles.selectedActivity,
                                         backgroundColor: getActivityTypeColor(type)
                                     }
                                 ]}
                                 onPress={() => setActivityType(type as typeof activityType)}
                             >
+                                <Ionicons 
+                                    name={
+                                        type === 'buy' || type === 'deposit' 
+                                            ? 'arrow-down-circle' 
+                                            : 'arrow-up-circle'
+                                    } 
+                                    size={24} 
+                                    color={activityType === type ? darkTheme.colors.white : darkTheme.colors.text} 
+                                />
                                 <Text style={[
                                     styles.activityText,
                                     activityType === type && styles.selectedActivityText
@@ -164,55 +163,108 @@ export default function AddInvestmentTransactionScreen() {
                         ))}
                     </View>
 
-                    {/* Asset Information */}
-                    <StockSearchModal
-                        onSelect={(symbol, name) => {
-                            setAssetSymbol(symbol);
-                            setAssetName(name);
-                        }}
-                        placeholder={assetSymbol || "Search for a stock or ETF"}
-                        label="Asset Symbol"
-                    />
+                    {/* Account and Asset Selection */}
+                    <View style={styles.section}>
+                        <SearchableModal
+                            data={accounts}
+                            onSelect={(value) => {
+                                if (typeof value === 'string') {
+                                    setSelectedAccountName(value);
+                                    setAccountId(null);
+                                } else {
+                                    setAccountId(value);
+                                    const selectedAccount = accounts.find(account => account.id === value);
+                                    setSelectedAccountName(selectedAccount ? selectedAccount.name : '');
+                                }
+                            }}
+                            placeholder={selectedAccountName || "Select an investment account"}
+                            label="Investment Account"
+                            allowCustomValue={false}
+                            containerStyle={styles.input}
+                        />
+
+                        <StockSearchModal
+                            onSelect={(symbol, name) => {
+                                setAssetSymbol(symbol);
+                                setAssetName(name);
+                            }}
+                            placeholder={assetSymbol || "Search for a stock or ETF"}
+                            label="Asset"
+                            containerStyle={styles.input}
+                        />
+                    </View>
 
                     {/* Transaction Details */}
-                    <Text style={styles.label}>Transaction Date</Text>
-                    <Pressable onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
-                        <Text style={styles.dateButtonText}>
-                            {transactionDate.toLocaleDateString()}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Transaction Details</Text>
+                        
+                        <Pressable 
+                            onPress={() => setShowDatePicker(true)} 
+                            style={styles.dateButton}
+                        >
+                            <Text style={styles.dateButtonLabel}>Date</Text>
+                            <Text style={styles.dateButtonText}>
+                                {transactionDate.toLocaleDateString()}
+                            </Text>
+                        </Pressable>
+
+                        <View style={styles.row}>
+                            <View style={styles.halfWidth}>
+                                <TextInput
+                                    label="Quantity"
+                                    value={quantity}
+                                    onChangeText={setQuantity}
+                                    keyboardType="numeric"
+                                    style={styles.input}
+                                    mode="outlined"
+                                />
+                            </View>
+                            <View style={styles.halfWidth}>
+                                <TextInput
+                                    label="Unit Price"
+                                    value={unitPrice}
+                                    onChangeText={setUnitPrice}
+                                    keyboardType="numeric"
+                                    style={styles.input}
+                                    mode="outlined"
+                                    right={<TextInput.Affix text="€" />}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.row}>
+                            <View style={styles.halfWidth}>
+                                <TextInput
+                                    label="Fee"
+                                    value={fee}
+                                    onChangeText={setFee}
+                                    keyboardType="numeric"
+                                    style={styles.input}
+                                    mode="outlined"
+                                    right={<TextInput.Affix text="€" />}
+                                />
+                            </View>
+                            <View style={styles.halfWidth}>
+                                <TextInput
+                                    label="Tax"
+                                    value={tax}
+                                    onChangeText={setTax}
+                                    keyboardType="numeric"
+                                    style={styles.input}
+                                    mode="outlined"
+                                    right={<TextInput.Affix text="€" />}
+                                />
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Total Section */}
+                    <View style={styles.totalSection}>
+                        <Text style={styles.totalLabel}>Total Amount</Text>
+                        <Text style={styles.totalValue}>
+                            {calculateTotal().toLocaleString()}€
                         </Text>
-                    </Pressable>
-
-                    <TextInput
-                        label="Quantity"
-                        value={quantity}
-                        onChangeText={setQuantity}
-                        keyboardType="numeric"
-                        style={styles.input}
-                    />
-
-                    <TextInput
-                        label="Unit Price"
-                        value={unitPrice}
-                        onChangeText={setUnitPrice}
-                        keyboardType="numeric"
-                        style={styles.input}
-                    />
-
-                    <TextInput
-                        label="Fee"
-                        value={fee}
-                        onChangeText={setFee}
-                        keyboardType="numeric"
-                        style={styles.input}
-                    />
-
-                    <TextInput
-                        label="Tax"
-                        value={tax}
-                        onChangeText={setTax}
-                        keyboardType="numeric"
-                        style={styles.input}
-                    />
+                    </View>
 
                     <Button 
                         mode="contained" 
@@ -221,7 +273,7 @@ export default function AddInvestmentTransactionScreen() {
                     >
                         {transaction ? 'Update Transaction' : 'Create Transaction'}
                     </Button>
-                </View>
+                </Surface>
             </ScrollView>
 
             {/* Date Picker Modal */}
@@ -231,27 +283,17 @@ export default function AddInvestmentTransactionScreen() {
                 onSwipeComplete={() => setShowDatePicker(false)}
                 style={styles.modal}
                 swipeDirection="down"
-                propagateSwipe
             >
                 <View style={styles.modalContent}>
                     <DatePicker
                         date={transactionDate}
                         onChange={(params) => handleDateChange(params.date)}
                         mode="single"
-                        calendarTextStyle={styles.datePicker}
-                        selectedTextStyle={styles.datePicker}
-                        weekDaysTextStyle={styles.datePicker}
-                        monthContainerStyle={styles.monthContainerStyle}
-                        yearContainerStyle={styles.monthContainerStyle}
+                        calendarTextStyle={styles.datePickerText}
+                        selectedTextStyle={styles.datePickerText}
+                        weekDaysTextStyle={styles.datePickerText}
                         selectedItemColor={darkTheme.colors.primary}
-                        headerContainerStyle={styles.datePickerHeader}
                         headerTextStyle={styles.datePickerHeaderText}
-                        dayContainerStyle={styles.datePickerDayContainer}
-                        selectedRangeBackgroundColor={darkTheme.colors.primary}
-                        weekDaysContainerStyle={styles.datePickerDayContainer}
-                        timePickerContainerStyle={styles.datePicker}
-                        buttonNextIcon={<Ionicons name="chevron-forward" size={24} color={darkTheme.colors.primary} />}
-                        buttonPrevIcon={<Ionicons name="chevron-back" size={24} color={darkTheme.colors.primary} />}
                     />
                     <Button 
                         mode="outlined" 
@@ -267,13 +309,6 @@ export default function AddInvestmentTransactionScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: darkTheme.colors.background,
-    },
-    scrollContainer: {
-        padding: 16,
-    },
     title: {
         fontSize: 20,
         fontWeight: 'bold',
@@ -281,93 +316,117 @@ const styles = StyleSheet.create({
         flex: 1,
         textAlign: 'center',
     },
-    form: {
-        gap: 16,
+    scrollContainer: {
+        padding: 16,
     },
-    label: {
-        fontSize: 16,
-        color: darkTheme.colors.text,
-        marginBottom: 8,
-    },
-    input: {
+    card: {
         backgroundColor: darkTheme.colors.surface,
-        marginBottom: 16,
+        borderRadius: 12,
+        padding: 16,
+        elevation: 4,
     },
-    pickerContainer: {
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: darkTheme.colors.text,
+        marginBottom: 12,
+    },
+    activityTypeContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 8,
-        marginBottom: 16,
-        alignItems: 'center',
-        alignContent: 'center',
-        alignSelf: 'center',
-    },
-    accountOption: {
-        padding: 8,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: darkTheme.colors.border,
-    },
-    selectedAccount: {
-        backgroundColor: darkTheme.colors.primary,
-    },
-    accountText: {
-        color: darkTheme.colors.text,
+        marginBottom: 24,
     },
     activityOption: {
-        padding: 8,
+        flex: 1,
+        minWidth: '45%',
+        padding: 12,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: darkTheme.colors.border,
+        flexDirection: 'row',
         alignItems: 'center',
-        minWidth: 5,
-    },
-    selectedActivity: {
+        gap: 8,
     },
     activityText: {
         color: darkTheme.colors.text,
+        fontSize: 16,
     },
     selectedActivityText: {
         color: darkTheme.colors.white,
-        fontWeight: 'bold',
+        fontWeight: '500',
+    },
+    section: {
+        marginBottom: 24,
+    },
+    input: {
+        marginBottom: 12,
+        backgroundColor: darkTheme.colors.background,
+    },
+    row: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 12,
+    },
+    halfWidth: {
+        flex: 1,
     },
     dateButton: {
         padding: 16,
-        backgroundColor: darkTheme.colors.surface,
+        backgroundColor: darkTheme.colors.background,
         borderRadius: 8,
-        marginBottom: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: darkTheme.colors.border,
+    },
+    dateButtonLabel: {
+        fontSize: 12,
+        color: darkTheme.colors.textSecondary,
+        marginBottom: 4,
     },
     dateButtonText: {
+        fontSize: 16,
+        color: darkTheme.colors.text,
+    },
+    totalSection: {
+        borderTopWidth: 1,
+        borderTopColor: darkTheme.colors.border,
+        paddingTop: 16,
+        marginTop: 24,
+        marginBottom: 24,
+    },
+    totalLabel: {
+        fontSize: 16,
+        color: darkTheme.colors.textSecondary,
+        marginBottom: 8,
+    },
+    totalValue: {
+        fontSize: 24,
+        fontWeight: 'bold',
         color: darkTheme.colors.text,
     },
     submitButton: {
-        marginTop: 24,
+        marginTop: 8,
     },
     modal: {
         justifyContent: 'flex-end',
         margin: 0,
     },
-    datePicker: {
-        width: '100%',
-        color: darkTheme.colors.textSecondary,
-        textAlign: 'center',
-    },
-    datePickerHeader: {
+    modalContent: {
         backgroundColor: darkTheme.colors.surface,
+        padding: 16,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+    },
+    datePickerText: {
         color: darkTheme.colors.text,
     },
     datePickerHeaderText: {
         color: darkTheme.colors.text,
-    },
-    datePickerDayContainer: {
-        backgroundColor: darkTheme.colors.surface,
-        color: darkTheme.colors.text,
-    },
-    monthContainerStyle: {
-        backgroundColor: darkTheme.colors.surface,
-        color: darkTheme.colors.text,
+        fontSize: 16,
+        fontWeight: '600',
     },
     closeButton: {
-        marginTop: darkTheme.spacing.m,
+        marginTop: 16,
     },
 });

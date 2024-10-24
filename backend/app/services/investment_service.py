@@ -132,7 +132,8 @@ class InvestmentService(BaseService):
             it.unit_price,
             it.fee,
             it.tax,
-            a.name as account_name
+            a.name as account_name,
+            it.account_id
         FROM investment_transactions it
         JOIN accounts a ON it.account_id = a.id
         WHERE it.user_id = ? AND it.asset_symbol = ?
@@ -164,7 +165,8 @@ class InvestmentService(BaseService):
                         'price': float(trans['unit_price']),
                         'fee': float(trans['fee']) if trans['fee'] else 0,
                         'tax': float(trans['tax']) if trans['tax'] else 0,
-                        'account_name': trans['account_name']
+                        'account_name': trans['account_name'],
+                        'account_id': trans['account_id']
                     })
             
             return result

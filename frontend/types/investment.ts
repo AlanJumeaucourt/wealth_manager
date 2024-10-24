@@ -41,6 +41,8 @@ export interface AssetTransaction {
     price: number;
     fee: number;
     tax: number;
+    account_name: string;
+    account_id: number;
 }
 
 export interface AssetTransactions {
