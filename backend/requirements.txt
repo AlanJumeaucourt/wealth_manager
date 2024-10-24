@@ -1,0 +1,5 @@
+sentry_sdk
+marshmallow
+flask
+flask-cors
+flask-jwt-extended

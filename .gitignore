@@ -1,0 +1,6 @@
+*.csv
+*.env
+*__pycache__*
+.db
+nohup.out
+backend/app/wealthmanager.db
