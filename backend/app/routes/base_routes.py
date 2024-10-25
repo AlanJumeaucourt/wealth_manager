@@ -44,16 +44,10 @@ class BaseRoutes:
         data['user_id'] = user_id
 
         try:
-            # Validate dates if they exist in the data
-            for date_field in ['date', 'date_accountability']:
-                if date_field in data:
-                    is_valid, error_message = validate_date_format(data[date_field])
-                    if not is_valid:
-                        return jsonify({"error": f"Invalid {date_field}: {error_message}"}), 422
-
             validated_data: Any = self.schema.load(data)
         except ValidationError as err:
-            return jsonify({"Validation error": err.messages}), 400
+            # Changed status code from 400 to 422 for validation errors
+            return jsonify({"Validation error": err.messages}), 422
         
         item = self.service.create(validated_data)
         if item:
@@ -84,7 +78,8 @@ class BaseRoutes:
         try:
             validated_data: Any = self.schema.load(data, partial=True)
         except ValidationError as err:
-            return jsonify({"Validation error": err.messages}), 400
+            # Changed status code from 400 to 422 for validation errors
+            return jsonify({"Validation error": err.messages}), 422
 
         item = self.service.update(id, user_id, validated_data)
         if item:
@@ -159,4 +154,6 @@ def validate_date_format(date_str: str) -> Tuple[bool, Optional[str]]:
                 return False, "Date must be in format 'YYYY-MM-DD' or 'YYYY-MM-DDThh:mm:ss'"
 
     except ValueError as e:
+        return False, f"Invalid date values: {str(e)}"
+    except Exception as e:
         return False, f"Invalid date values: {str(e)}"

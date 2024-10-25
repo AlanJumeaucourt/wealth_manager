@@ -118,7 +118,7 @@ class AccountService(BaseService):
         """
         try:
             result = self.db_manager.execute_select(query, (account_id,))
-            return result[0]['current_balance'] if result else 0
+            return round(result[0]['current_balance'] if result else 0, 2)
         except Exception as e:
             print(f"Error getting account balance: {e}")
             return 0
@@ -165,8 +165,8 @@ class AccountService(BaseService):
         except Exception as e:
             print("error in sum_accounts_balances_over_days", e)
             return {}
-        results = {row['date']: row['cumulative_balance'] for row in results if row['date'] >= start_date and row['date'] <= end_date}
-        results.update({end_date: list(results.values())[-1]})
+        results = {row['date']: round(row['cumulative_balance'], 2) for row in results if row['date'] >= start_date and row['date'] <= end_date}
+        results.update({end_date: round(list(results.values())[-1], 2)})
         return results
 
     def get_wealth(self, user_id: int) -> Dict[str, Any]:
