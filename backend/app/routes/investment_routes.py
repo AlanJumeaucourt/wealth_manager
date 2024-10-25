@@ -1,63 +1,32 @@
-from flask_restx import Namespace, Resource, fields
+from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.routes.base_routes import BaseRoutes
 from app.services.investment_service import InvestmentService
 from app.schemas import InvestmentTransactionSchema
-from flask import request  # Add this import
 
-investment_ns = Namespace('investments', description='Investment operations')
 investment_service = InvestmentService()
-investment_schema = InvestmentTransactionSchema()
+investment_routes = BaseRoutes('investment', investment_service, InvestmentTransactionSchema())
+investment_bp = investment_routes.bp
 
-# Define models
-investment_model = investment_ns.model('InvestmentTransaction', {
-    'account_id': fields.Integer(required=True, description='Account ID'),
-    'account_name': fields.String(required=True, description='Account name'),
-    'asset_symbol': fields.String(required=True, description='Asset symbol'),
-    'asset_name': fields.String(required=True, description='Asset name'),
-    'activity_type': fields.String(required=True, description='Activity type', enum=['buy', 'sell', 'deposit', 'withdrawal']),
-    'date': fields.DateTime(required=True, description='Transaction date'),
-    'quantity': fields.Float(required=True, description='Quantity'),
-    'unit_price': fields.Float(required=True, description='Unit price'),
-    'fee': fields.Float(required=True, description='Transaction fee'),
-    'tax': fields.Float(required=True, description='Transaction tax')
-})
+@investment_bp.route('/portfolio/summary', methods=['GET'])
+@jwt_required()
+def get_portfolio_summary():
+    user_id = get_jwt_identity()
+    account_id = request.args.get('account_id', type=int)
+    summary = investment_service.get_portfolio_summary(user_id, account_id)
+    return jsonify(summary)
 
-@investment_ns.route('/')
-class InvestmentList(Resource):
-    @investment_ns.doc('list_investments')
-    @jwt_required()
-    def get(self):
-        """List all investments"""
-        user_id = get_jwt_identity()
-        return investment_service.get_all(user_id, 1, 1000, {}, None, None, None)
+@investment_bp.route('/portfolio/performance', methods=['GET'])
+@jwt_required()
+def get_portfolio_performance():
+    user_id = get_jwt_identity()
+    period = request.args.get('period', '1Y')
+    performance = investment_service.get_portfolio_performance(user_id, period)
+    return jsonify(performance)
 
-@investment_ns.route('/portfolio/summary')
-class PortfolioSummary(Resource):
-    @investment_ns.doc('get_portfolio_summary')
-    @jwt_required()
-    def get(self):
-        """Get portfolio summary"""
-        user_id = get_jwt_identity()
-        account_id = request.args.get('account_id', type=int)  # Changed this line
-        return investment_service.get_portfolio_summary(user_id, account_id)
-
-@investment_ns.route('/portfolio/performance')
-class PortfolioPerformance(Resource):
-    @investment_ns.doc('get_portfolio_performance')
-    @investment_ns.param('period', 'Performance period (e.g., 1Y, 6M)')
-    @jwt_required()
-    def get(self):
-        """Get portfolio performance"""
-        user_id = get_jwt_identity()
-        period = request.args.get('period', '1Y')  # Changed this line
-        return investment_service.get_portfolio_performance(user_id, period)
-
-@investment_ns.route('/assets/<symbol>/transactions')
-@investment_ns.param('symbol', 'The asset symbol')
-class AssetTransactions(Resource):
-    @investment_ns.doc('get_asset_transactions')
-    @jwt_required()
-    def get(self, symbol: str):
-        """Get transactions for a specific asset"""
-        user_id = get_jwt_identity()
-        return investment_service.get_asset_transactions(user_id, symbol)
+@investment_bp.route('/assets/<symbol>/transactions', methods=['GET'])
+@jwt_required()
+def get_asset_transactions(symbol: str):
+    user_id = get_jwt_identity()
+    transactions = investment_service.get_asset_transactions(user_id, symbol)
+    return jsonify(transactions)

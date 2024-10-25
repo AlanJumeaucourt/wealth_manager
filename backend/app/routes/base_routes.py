@@ -57,7 +57,8 @@ class BaseRoutes:
         sentry_sdk.set_user({"id": str(user_id)})
         item = self.service.get_by_id(id, user_id)
         if item:
-            item.date = datetime.fromisoformat(item.date.rstrip('Z'))
+            if hasattr(item, 'date'):
+                item.date = datetime.fromisoformat(item.date.rstrip('Z'))
             return jsonify(self.schema.dump(item))
         else:
             return ('', 404)
@@ -77,7 +78,8 @@ class BaseRoutes:
 
         item = self.service.update(id, user_id, validated_data)
         if item:
-            item.date = datetime.fromisoformat(item.date.rstrip('Z'))
+            if hasattr(item, 'date'):
+                item.date = datetime.fromisoformat(item.date.rstrip('Z'))
             return jsonify(self.schema.dump(item))
         else:
             return jsonify({"error": f"Failed to update {self.service.table_name}"}), 500
