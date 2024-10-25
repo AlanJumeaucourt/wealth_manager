@@ -56,8 +56,11 @@ class AccountService(BaseService):
 
     def get_by_id(self, id: int, user_id: int) -> Optional[Account]:
         account = super().get_by_id(id, user_id)
-        if account and account.tags:
-            account.tags = account.tags.split(',')
+        if account:
+            if account.tags:
+                account.tags = account.tags.split(',')
+            account.balance = self.calculate_balance(id)
+
         return account
 
     def get_all(self, user_id: int, page: int, per_page: int, filters: Dict[str, Any], sort_by: Optional[str], sort_order: Optional[str], fields: Optional[List[str]], search: Optional[str] = None) -> List[Dict[str, Any]]:
