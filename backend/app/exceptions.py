@@ -28,3 +28,12 @@ class NoResultFoundError(DatabaseError):
 
 class DuplicateUserError(Exception):
     pass
+
+class TransactionValidationError(Exception):
+    """Raised when a transaction fails validation."""
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self):
+        return self.message

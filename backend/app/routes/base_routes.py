@@ -1,10 +1,15 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 import sentry_sdk
-import json  # Add this import at the top
+import json
 from datetime import datetime
+import re
+from logging import getLogger
+
+logger = getLogger(__name__)
+
 class BaseRoutes:
     def __init__(self, blueprint_name: str, service: Any, schema: Any):
         self.bp = Blueprint(blueprint_name, __name__)
@@ -39,14 +44,19 @@ class BaseRoutes:
         data['user_id'] = user_id
 
         try:
+            # Validate dates if they exist in the data
+            for date_field in ['date', 'date_accountability']:
+                if date_field in data:
+                    is_valid, error_message = validate_date_format(data[date_field])
+                    if not is_valid:
+                        return jsonify({"error": f"Invalid {date_field}: {error_message}"}), 422
+
             validated_data: Any = self.schema.load(data)
         except ValidationError as err:
             return jsonify({"Validation error": err.messages}), 400
         
         item = self.service.create(validated_data)
         if item:
-            if hasattr(item, 'date'):
-                item.date = datetime.fromisoformat(item.date.rstrip('Z'))
             return jsonify(self.schema.dump(item)), 201
         else:
             return jsonify({"error": f"Failed to create {self.service.table_name}"}), 500
@@ -110,3 +120,43 @@ class BaseRoutes:
         
         results = self.service.get_all(user_id, page, per_page, filters, sort_by, sort_order, fields, search)
         return jsonify(results)
+
+def validate_date_format(date_str: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate that the date string matches accepted formats:
+    - 'YYYY-MM-DDThh:mm:ss' 
+    - 'YYYY-MM-DDThh:mm:ss.mmmmmm' (isoformat with microseconds)
+    - 'YYYY-MM-DD'
+    
+    Args:
+        date_str: The date string to validate
+        
+    Returns:
+        Tuple[bool, Optional[str]]: (is_valid, error_message)
+    """
+    if not date_str:
+        return False, "Date string cannot be empty"
+
+    try:
+        # First try to parse with isoformat (handles microseconds)
+        try:
+            parsed_date = datetime.fromisoformat(date_str)
+            # Convert back to our accepted format without microseconds
+            formatted_date = parsed_date.strftime("%Y-%m-%dT%H:%M:%S")
+            return True, None
+        except ValueError:
+            # If isoformat fails, try our specific formats
+            full_datetime_pattern = r"^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$"
+            date_only_pattern = r"^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$"
+
+            if re.match(full_datetime_pattern, date_str):
+                datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
+                return True, None
+            elif re.match(date_only_pattern, date_str):
+                datetime.strptime(date_str, "%Y-%m-%d")
+                return True, None
+            else:
+                return False, "Date must be in format 'YYYY-MM-DD' or 'YYYY-MM-DDThh:mm:ss'"
+
+    except ValueError as e:
+        return False, f"Invalid date values: {str(e)}"
