@@ -12,7 +12,7 @@ import { useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image } from 'react-native';
 import { Button } from 'react-native-paper';
-import DatePicker from 'react-native-ui-datepicker';
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useDispatch, useSelector } from 'react-redux';
 import { darkTheme } from '../constants/theme';
 import { findCategoryByName } from '../utils/categoryUtils'; // Import the utility function
@@ -48,9 +48,9 @@ export default function AddTransactionScreen() {
     const [originalCategory, setOriginalCategory] = useState<string | null>(transaction ? transaction.category : null);
     const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
     const [transactionDate, setTransactionDate] = useState(transaction ? new Date(transaction.date) : new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
     const [accountabilityDate, setAccountabilityDate] = useState(transaction ? new Date(transaction.date_accountability) : new Date());
-    const [showAccountabilityDatePicker, setShowAccountabilityDatePicker] = useState(false);
+    const [isAccountabilityDatePickerVisible, setAccountabilityDatePickerVisibility] = useState(false);
 
 
     useEffect(() => {
@@ -126,8 +126,8 @@ export default function AddTransactionScreen() {
                     await createTransaction(transactionData);
                     Alert.alert('Success', 'Transaction created successfully!');
                 }
-                dispatch(fetchAccounts());
-                dispatch(fetchTransactions());
+                dispatch(fetchAccounts() as any); // Cast to any if necessary
+                dispatch(fetchTransactions() as any); // Cast to any if necessary
             } else {
                 console.error('Invalid account selection');
                 console.error('localFromAccountId:', fromAccountId);
@@ -142,8 +142,8 @@ export default function AddTransactionScreen() {
     };
 
     useEffect(() => {
-        dispatch(fetchAccounts());
-        dispatch(fetchTransactions());
+        dispatch(fetchAccounts() as any); // Cast to any if necessary
+        dispatch(fetchTransactions() as any); // Cast to any if necessary
     }, [dispatch]);
 
     const transactionTypes = ['expense', 'income', 'transfer'];
@@ -257,7 +257,7 @@ export default function AddTransactionScreen() {
                 style={styles.categoryItem}
                 onPress={() => handleSubcategorySelect(item)}
             >
-                <Ionicons name={item.iconName} size={24} color={darkTheme.colors.primary} />
+                <Ionicons name={item.iconName as any} size={24} color={darkTheme.colors.primary} />
                 <Text style={styles.categoryText}>{item.name}</Text>
             </Pressable>
         );
@@ -315,16 +315,31 @@ export default function AddTransactionScreen() {
         setIsCategoryModalVisible(false);
     };
 
-    const handleDateChange = (date: string) => {
-        console.log('Selected date:', date);
-        setTransactionDate(new Date(date)); // Update the transaction date
-        setShowDatePicker(false); // Close the date picker
+    const showDatePicker = () => {
+        setDatePickerVisibility(true);
     };
 
-    // Add handler for accountability date
-    const handleAccountabilityDateChange = (date: string) => {
-        setAccountabilityDate(new Date(date));
-        setShowAccountabilityDatePicker(false);
+    const hideDatePicker = () => {
+        setDatePickerVisibility(false);
+    };
+
+    const handleConfirm = (date: Date) => {
+        console.log("A date has been picked: ", date);
+        setTransactionDate(date);
+        hideDatePicker();
+    };
+
+    const showAccountabilityDatePicker = () => {
+        setAccountabilityDatePickerVisibility(true);
+    };
+
+    const hideAccountabilityDatePicker = () => {
+        setAccountabilityDatePickerVisibility(false);
+    };
+
+    const handleAccountabilityConfirm = (date: Date) => {
+        setAccountabilityDate(date);
+        hideAccountabilityDatePicker();
     };
 
     return (
@@ -470,89 +485,32 @@ export default function AddTransactionScreen() {
                     </Modal>
 
                     <Text style={styles.label}>Transaction Date</Text>
-                    <Pressable onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
+                    <Pressable onPress={showDatePicker} style={styles.dateButton}>
                         <Text style={[styles.dateButtonText, { color: darkTheme.colors.textTertiary }]}>
                             {transactionDate.toLocaleDateString()}
                         </Text>
                     </Pressable>
 
-                    <Modal
-                        visible={showDatePicker}
-                        animationType="slide"
-                        transparent={true}
-                        onRequestClose={() => setShowDatePicker(false)}
-                    >
-                        <View style={styles.modalContainer}>
-                            <View style={styles.modalContent}>
-                                <DatePicker
-                                    date={transactionDate}
-                                    onChange={(params) => handleDateChange(params.date)}
-                                    mode="single"
-                                    calendarTextStyle={styles.datePicker}
-                                    selectedTextStyle={styles.datePicker}
-                                    weekDaysTextStyle={styles.datePicker}
-                                    monthContainerStyle={styles.monthContainerStyle}
-                                    yearContainerStyle={styles.monthContainerStyle}
-                                    selectedItemColor={darkTheme.colors.primary}
-                                    headerContainerStyle={styles.datePickerHeader}
-                                    headerTextStyle={styles.datePickerHeaderText}
-                                    dayContainerStyle={styles.datePickerDayContainer}
-                                    selectedRangeBackgroundColor={darkTheme.colors.primary}
-                                    weekDaysContainerStyle={styles.datePickerDayContainer}
-                                    timePickerContainerStyle={styles.datePicker}
-                                    buttonNextIcon={<Ionicons name="chevron-forward" size={24} color={darkTheme.colors.primary} />}
-                                    buttonPrevIcon={<Ionicons name="chevron-back" size={24} color={darkTheme.colors.primary} />}
-                                />
-                                <Button mode="outlined" onPress={() => setShowDatePicker(false)} style={styles.closeButton}>
-                                    Close
-                                </Button>
-                            </View>
-                        </View>
-                    </Modal>
-
-
+                    <DateTimePickerModal
+                        isVisible={isDatePickerVisible}
+                        mode="date"
+                        onConfirm={handleConfirm}
+                        onCancel={hideDatePicker}
+                    />
 
                     <Text style={styles.label}>Accountability Date</Text>
-                    <Pressable onPress={() => setShowAccountabilityDatePicker(true)} style={styles.dateButton}>
+                    <Pressable onPress={showAccountabilityDatePicker} style={styles.dateButton}>
                         <Text style={[styles.dateButtonText, { color: darkTheme.colors.textTertiary }]}>
                             {accountabilityDate.toLocaleDateString()}
                         </Text>
                     </Pressable>
 
-                    {/* Add new Modal for Accountability DatePicker */}
-                    <Modal
-                        visible={showAccountabilityDatePicker}
-                        animationType="slide"
-                        transparent={true}
-                        onRequestClose={() => setShowAccountabilityDatePicker(false)}
-                    >
-                        <View style={styles.modalContainer}>
-                            <View style={styles.modalContent}>
-                                <DatePicker
-                                    date={accountabilityDate}
-                                    onChange={(params) => handleAccountabilityDateChange(params.date)}
-                                    mode="single"
-                                    calendarTextStyle={styles.datePicker}
-                                    selectedTextStyle={styles.datePicker}
-                                    weekDaysTextStyle={styles.datePicker}
-                                    monthContainerStyle={styles.monthContainerStyle}
-                                    yearContainerStyle={styles.monthContainerStyle}
-                                    selectedItemColor={darkTheme.colors.primary}
-                                    headerContainerStyle={styles.datePickerHeader}
-                                    headerTextStyle={styles.datePickerHeaderText}
-                                    dayContainerStyle={styles.datePickerDayContainer}
-                                    selectedRangeBackgroundColor={darkTheme.colors.primary}
-                                    weekDaysContainerStyle={styles.datePickerDayContainer}
-                                    timePickerContainerStyle={styles.datePicker}
-                                    buttonNextIcon={<Ionicons name="chevron-forward" size={24} color={darkTheme.colors.primary} />}
-                                    buttonPrevIcon={<Ionicons name="chevron-back" size={24} color={darkTheme.colors.primary} />}
-                                />
-                                <Button mode="outlined" onPress={() => setShowAccountabilityDatePicker(false)} style={styles.closeButton}>
-                                    Close
-                                </Button>
-                            </View>
-                        </View>
-                    </Modal>
+                    <DateTimePickerModal
+                        isVisible={isAccountabilityDatePickerVisible}
+                        mode="date"
+                        onConfirm={handleAccountabilityConfirm}
+                        onCancel={hideAccountabilityDatePicker}
+                    />
 
                     <Button mode="contained" onPress={handleAddOrUpdateTransaction} style={styles.button}>
                         <Text style={styles.buttonText}>{transaction ? 'Update Transaction' : 'Add Transaction'}</Text>

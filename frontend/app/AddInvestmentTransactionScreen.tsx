@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { Button, Surface, Text, TextInput } from 'react-native-paper';
-import DatePicker from 'react-native-ui-datepicker';
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useSelector } from 'react-redux';
 import { createInvestmentTransaction, updateInvestmentTransaction } from './api/bankApi';
 import { BackButton } from './components/BackButton';
@@ -53,11 +53,19 @@ export default function AddInvestmentTransactionScreen() {
     const [unitPrice, setUnitPrice] = useState(transaction ? transaction.unit_price.toString() : '');
     const [fee, setFee] = useState(transaction ? transaction.fee.toString() : '0');
     const [tax, setTax] = useState(transaction ? transaction.tax.toString() : '0');
-    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
 
-    const handleDateChange = (date: string) => {
-        setTransactionDate(new Date(date));
-        setShowDatePicker(false);
+    const showDatePicker = () => {
+        setDatePickerVisibility(true);
+    };
+
+    const hideDatePicker = () => {
+        setDatePickerVisibility(false);
+    };
+
+    const handleConfirm = (date: Date) => {
+        setTransactionDate(date);
+        hideDatePicker();
     };
 
     const handleSubmit = async () => {
@@ -198,7 +206,7 @@ export default function AddInvestmentTransactionScreen() {
                         <Text style={styles.sectionTitle}>Transaction Details</Text>
 
                         <Pressable
-                            onPress={() => setShowDatePicker(true)}
+                            onPress={showDatePicker}
                             style={styles.dateButton}
                         >
                             <Text style={styles.dateButtonLabel}>Date</Text>
@@ -206,6 +214,13 @@ export default function AddInvestmentTransactionScreen() {
                                 {transactionDate.toLocaleDateString()}
                             </Text>
                         </Pressable>
+
+                        <DateTimePickerModal
+                            isVisible={isDatePickerVisible}
+                            mode="date"
+                            onConfirm={handleConfirm}
+                            onCancel={hideDatePicker}
+                        />
 
                         <View style={styles.row}>
                             <View style={styles.halfWidth}>
@@ -274,35 +289,6 @@ export default function AddInvestmentTransactionScreen() {
                     </Button>
                 </Surface>
             </ScrollView>
-
-            {/* Date Picker Modal */}
-            <Modal
-                isVisible={showDatePicker}
-                onBackdropPress={() => setShowDatePicker(false)}
-                onSwipeComplete={() => setShowDatePicker(false)}
-                style={styles.modal}
-                swipeDirection="down"
-            >
-                <View style={styles.modalContent}>
-                    <DatePicker
-                        date={transactionDate}
-                        onChange={(params) => handleDateChange(params.date)}
-                        mode="single"
-                        calendarTextStyle={styles.datePickerText}
-                        selectedTextStyle={styles.datePickerText}
-                        weekDaysTextStyle={styles.datePickerText}
-                        selectedItemColor={darkTheme.colors.primary}
-                        headerTextStyle={styles.datePickerHeaderText}
-                    />
-                    <Button
-                        mode="outlined"
-                        onPress={() => setShowDatePicker(false)}
-                        style={styles.closeButton}
-                    >
-                        Close
-                    </Button>
-                </View>
-            </Modal>
         </View>
     );
 }
