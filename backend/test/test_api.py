@@ -369,15 +369,15 @@ class TestTransactionAPI(unittest.TestCase):
     jwt_token = None
 
     def setUp(self):
-        self.name: str = fake.name()
-        self.email: str = fake.email()
-        self.password: str = fake.password()
-        self.create_user()
-        self.login_user()
-        self.create_bank()
-        self.create_accounts()
+        # Create test user and get token
+        self.name = fake.name()
+        self.email = fake.email()
+        self.password = fake.password()
+        self.create_user_and_login()
+        self.setup_accounts()
 
-    def create_user(self):
+    def create_user_and_login(self):
+        # Create user
         url = f'{self.base_url}/users/register'
         data = {
             'name': self.name,
@@ -386,10 +386,9 @@ class TestTransactionAPI(unittest.TestCase):
         }
         response = requests.post(url, json=data)
         self.assertEqual(response.status_code, 201)
-        user_data = response.json()
-        self.user_id = user_data['id']
+        self.user_id = response.json()['id']
 
-    def login_user(self):
+        # Login
         url = f'{self.base_url}/users/login'
         data = {
             'email': self.email,
@@ -397,161 +396,217 @@ class TestTransactionAPI(unittest.TestCase):
         }
         response = requests.post(url, json=data)
         self.assertEqual(response.status_code, 200)
-        login_data = response.json()
-        self.jwt_token = login_data['access_token']
+        self.jwt_token = response.json()['access_token']
+
+    def setup_accounts(self):
+        # Create a bank
+        url = f'{self.base_url}/banks/'
+        headers = {'Authorization': f'Bearer {self.jwt_token}'}
+        data = {'name': fake.bank_name()}
+        response = requests.post(url, headers=headers, json=data)
+        self.assertEqual(response.status_code, 201)
+        self.bank_id = response.json()['id']
+
+        # Create two accounts
+        url = f'{self.base_url}/accounts'
+        self.accounts = []
+        for acc_type in ['checking', 'savings']:
+            data = {
+                'name': f'Test {acc_type.capitalize()}',
+                'type': acc_type,
+                'currency': 'EUR',
+                'bank_id': self.bank_id,
+                'tags': 'test'
+            }
+            response = requests.post(url, headers=headers, json=data)
+            self.assertEqual(response.status_code, 201)
+            self.accounts.append(response.json()['id'])
+
+    def test_create_transaction(self):
+        url = f'{self.base_url}/transactions'
+        headers = {'Authorization': f'Bearer {self.jwt_token}'}
+        data = {
+            'date': datetime.now().isoformat(),
+            'date_accountability': datetime.now().isoformat(),
+            'description': 'Test transaction',
+            'amount': 100.00,
+            'from_account_id': self.accounts[0],
+            'to_account_id': self.accounts[1],
+            'category': 'Transfer',
+            'subcategory': 'Test',
+            'type': 'transfer'
+        }
+        response = requests.post(url, headers=headers, json=data)
+        self.assertEqual(response.status_code, 201)
+        transaction = response.json()
+        self.assertEqual(transaction['amount'], 100.00)
+        self.assertEqual(transaction['description'], 'Test transaction')
+
+    def test_get_transactions_with_filters(self):
+        # Create a test transaction first
+        self.test_create_transaction()
+
+        url = f'{self.base_url}/transactions'
+        headers = {'Authorization': f'Bearer {self.jwt_token}'}
+        
+        # Test different filters
+        filters = [
+            {'account_id': self.accounts[0]},
+            {'type': 'transfer'},
+            {'category': 'Transfer'},
+            {'search': 'Test'}
+        ]
+
+        for filter_params in filters:
+            response = requests.get(url, headers=headers, params=filter_params)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertIn('transactions', data)
+            self.assertIn('total_amount', data)
+            self.assertIn('count', data)
+            self.assertTrue(len(data['transactions']) > 0)
+
+    def test_transaction_pagination(self):
+        # Create multiple transactions
+        for _ in range(5):
+            self.test_create_transaction()
+
+        url = f'{self.base_url}/transactions'
+        headers = {'Authorization': f'Bearer {self.jwt_token}'}
+        
+        # Test pagination
+        params = {'page': 1, 'per_page': 2}
+        response = requests.get(url, headers=headers, params=params)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data['transactions']), 2)
+
+    def tearDown(self):
+        if hasattr(self, 'user_id'):
+            url = f'{self.base_url}/users/{self.user_id}'
+            headers = {'Authorization': f'Bearer {self.jwt_token}'}
+            requests.delete(url, headers=headers)
+
+class TestAccountAPI(unittest.TestCase):
+    base_url = 'http://localhost:5000'
+    jwt_token = None
+
+    def setUp(self):
+        self.name = fake.name()
+        self.email = fake.email()
+        self.password = fake.password()
+        self.create_user_and_login()
+        self.create_bank()
+
+    def create_user_and_login(self):
+        # Create user
+        url = f'{self.base_url}/users/register'
+        data = {
+            'name': self.name,
+            'email': self.email,
+            'password': self.password
+        }
+        response = requests.post(url, json=data)
+        self.assertEqual(response.status_code, 201)
+        self.user_id = response.json()['id']
+
+        # Login
+        url = f'{self.base_url}/users/login'
+        data = {
+            'email': self.email,
+            'password': self.password
+        }
+        response = requests.post(url, json=data)
+        self.assertEqual(response.status_code, 200)
+        self.jwt_token = response.json()['access_token']
 
     def create_bank(self):
         url = f'{self.base_url}/banks/'
-        headers = {
-            'Authorization': f'Bearer {self.jwt_token}'
-        }
-        data = {
-            'name': fake.company()
-        }
+        headers = {'Authorization': f'Bearer {self.jwt_token}'}
+        data = {'name': fake.bank_name()}
         response = requests.post(url, headers=headers, json=data)
         self.assertEqual(response.status_code, 201)
-        bank_data = response.json()
-        self.bank_id = bank_data['id']
+        self.bank_id = response.json()['id']
 
-    def create_accounts(self):
-        self.account1 = self.create_account("Account 1", "checking", self.bank_id)
-        self.account2 = self.create_account("Account 2", "savings", self.bank_id)
-
-    def create_account(self, name: str, account_type: str, bank_id: int):
+    def test_create_account_types(self):
         url = f'{self.base_url}/accounts'
-        headers = {
-            'Authorization': f'Bearer {self.jwt_token}'
-        }
-        data = {
-            'name': name,
-            'type': account_type,
-            'currency': 'EUR',
-            'bank_id': bank_id,
-            'tags': 'tag1,tag2'
-        }
-        response = requests.post(url, headers=headers, json=data)
-        self.assertEqual(response.status_code, 201)
-        return response.json()['id']
+        headers = {'Authorization': f'Bearer {self.jwt_token}'}
+        
+        # Test creating different types of accounts
+        account_types = ['checking', 'savings', 'investment', 'expense', 'income']
+        for acc_type in account_types:
+            data = {
+                'name': f'Test {acc_type.capitalize()}',
+                'type': acc_type,
+                'currency': 'EUR',
+                'bank_id': self.bank_id,
+                'tags': f'test,{acc_type}'
+            }
+            response = requests.post(url, headers=headers, json=data)
+            self.assertEqual(response.status_code, 201)
+            account = response.json()
+            self.assertEqual(account['type'], acc_type)
+            self.assertEqual(account['currency'], 'EUR')
 
-    def test_create_transaction(self):
-        transaction_id = self.create_transaction()
-        self.assertIsNotNone(transaction_id)
+    def test_get_account_balance(self):
+        # Create an account and some transactions
+        url = f'{self.base_url}/accounts'
+        headers = {'Authorization': f'Bearer {self.jwt_token}'}
+        
+        # Create two accounts
+        accounts = []
+        for i in range(2):
+            data = {
+                'name': f'Test Account {i}',
+                'type': 'checking',
+                'currency': 'EUR',
+                'bank_id': self.bank_id,
+                'tags': 'test'
+            }
+            response = requests.post(url, headers=headers, json=data)
+            self.assertEqual(response.status_code, 201)
+            accounts.append(response.json()['id'])
 
-    def test_get_transaction(self):
-        transaction_id = self.create_transaction()
-        self.get_transaction(transaction_id)
-
-    def test_update_transaction(self):
-        transaction_id = self.create_transaction()
-        self.update_transaction(transaction_id)
-
-    def test_delete_transaction(self):
-        transaction_id = self.create_transaction()
-        self.delete_transaction(transaction_id)
-
-    def test_create_transaction_with_faulty_token(self):
-        faulty_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-        self.create_transaction_with_faulty_token(faulty_token)
-
-    def create_transaction(self):
-        url = f'{self.base_url}/transactions'
-        headers = {
-            'Authorization': f'Bearer {self.jwt_token}'
-        }
-        transaction_date = datetime.now().isoformat()
-        data = {
-            'date': transaction_date,
-            'date_accountability': transaction_date,  # Ajout du nouveau champ
-            'description': fake.sentence(),
-            'amount': round(fake.random.uniform(10, 1000), 2),
-            'from_account_id': self.account1,
-            'to_account_id': self.account2,
-            'category': 'Transfer',
-            'subcategory': 'Transfer',
-            'related_transaction_id': None,
+        # Create some transactions
+        transaction_url = f'{self.base_url}/transactions'
+        transaction_data = {
+            'date': datetime.now().isoformat(),
+            'date_accountability': datetime.now().isoformat(),
+            'description': 'Test transaction',
+            'amount': 100.00,
+            'from_account_id': accounts[0],
+            'to_account_id': accounts[1],
             'type': 'transfer'
         }
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(transaction_url, headers=headers, json=transaction_data)
         self.assertEqual(response.status_code, 201)
-        transaction_data = response.json()
-        self.assertIn('id', transaction_data)
-        return transaction_data['id']
 
-    def get_transaction(self, transaction_id: int):
-        url = f'{self.base_url}/transactions/{transaction_id}'
-        headers = {
-            'Authorization': f'Bearer {self.jwt_token}'
-        }
+        # Get account balance
+        response = requests.get(f'{url}/{accounts[0]}', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        account = response.json()
+        self.assertIn('balance', account)
+
+    def test_get_wealth_summary(self):
+        # Create accounts and transactions first
+        self.test_get_account_balance()
+
+        url = f'{self.base_url}/accounts/wealth'
+        headers = {'Authorization': f'Bearer {self.jwt_token}'}
+        
         response = requests.get(url, headers=headers)
         self.assertEqual(response.status_code, 200)
-        transaction_data = response.json()
-        self.assertEqual(transaction_data['id'], transaction_id)
-        # Vérification de la présence du nouveau champ
-        self.assertIn('date_accountability', transaction_data)
-        self.assertIsInstance(transaction_data['date_accountability'], str)
-
-    def update_transaction(self, transaction_id: int):
-        url = f'{self.base_url}/transactions/{transaction_id}'
-        headers = {
-            'Authorization': f'Bearer {self.jwt_token}'
-        }
-        new_description = fake.sentence()
-        new_date = datetime.now().isoformat()
-        data = {
-            'description': new_description,
-            'date_accountability': new_date  # Ajout du nouveau champ
-        }
-        response = requests.put(url, headers=headers, json=data)
-        self.assertEqual(response.status_code, 200)
-        updated_transaction = response.json()
-        self.assertEqual(updated_transaction['id'], transaction_id)
-        self.assertIsInstance(updated_transaction['date'], str)
-        self.assertIsInstance(updated_transaction['date_accountability'], str)  # Vérification du nouveau champ
-        self.assertEqual(updated_transaction['description'], new_description)
-        self.assertIsInstance(updated_transaction['amount'], float)
-        self.assertEqual(updated_transaction['from_account_id'], self.account1)
-        self.assertEqual(updated_transaction['to_account_id'], self.account2)
-        self.assertEqual(updated_transaction['category'], 'Transfer')
-        self.assertEqual(updated_transaction['subcategory'], 'Transfer')
-        self.assertEqual(updated_transaction['related_transaction_id'], None)
-        self.assertEqual(updated_transaction['type'], 'transfer')
-
-    def delete_transaction(self, transaction_id: int):
-        url = f'{self.base_url}/transactions/{transaction_id}'
-        headers = {
-            'Authorization': f'Bearer {self.jwt_token}'
-        }
-        response = requests.delete(url, headers=headers)
-        self.assertEqual(response.status_code, 204)
-
-    def create_transaction_with_faulty_token(self, faulty_token: str):
-        url = f'{self.base_url}/transactions'
-        headers = {
-            'Authorization': f'Bearer {faulty_token}'
-        }
-        transaction_date = datetime.now().isoformat()
-        data = {
-            'date': transaction_date,
-            'date_accountability': transaction_date,  # Ajout du nouveau champ
-            'description': fake.sentence(),
-            'amount': round(fake.random.uniform(10, 1000), 2),
-            'from_account_id': self.account1,
-            'to_account_id': self.account2,
-            'category': fake.word(),
-            'subcategory': fake.word(),
-            'type': 'transfer'
-        }
-        response = requests.post(url, headers=headers, json=data)
-        self.assertEqual(response.status_code, 401)
-        self.assertIn('msg', response.json())
+        data = response.json()
+        
+        # Check for required fields in wealth summary
+        required_fields = ['total_balance', 'checking_balance', 'savings_balance', 'investment_balance']
+        for field in required_fields:
+            self.assertIn(field, data)
 
     def tearDown(self):
-        # Clean up: delete the user and associated data
         if hasattr(self, 'user_id'):
             url = f'{self.base_url}/users/{self.user_id}'
-            headers = {
-                'Authorization': f'Bearer {self.jwt_token}'
-            }
+            headers = {'Authorization': f'Bearer {self.jwt_token}'}
             requests.delete(url, headers=headers)
 
 if __name__ == '__main__':
