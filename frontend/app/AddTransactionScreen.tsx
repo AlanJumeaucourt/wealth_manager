@@ -184,7 +184,7 @@ export default function AddTransactionScreen() {
             case 'income':
                 return accounts.filter(account => account.type === 'income');
             case 'expense':
-                return accounts.filter(account => account.type === 'expense');
+                return accounts.filter(account => account.type !== 'income' && account.type !== 'expense');
             case 'transfer':
                 return accounts.filter(account => account.type !== 'income' && account.type !== 'expense');
             default:
