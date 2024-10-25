@@ -79,7 +79,7 @@ export default function BudgetScreen() {
 
         // Modifiez votre API pour utiliser date_accountability dans la requête
         const result = await fetchBudgetSummary(startDate, endDate, 'date_accountability');
-        const budgetSummary = result.categories;
+        const budgetSummary = result;
 
         if (!Array.isArray(budgetSummary)) {
           throw new Error('Expected budgetSummary.categories to be an array');

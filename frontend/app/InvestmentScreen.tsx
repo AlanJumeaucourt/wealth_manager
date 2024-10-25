@@ -19,7 +19,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { Menu } from 'react-native-paper';
 import AddInvestmentTransactionScreen from './AddInvestmentTransactionScreen';
 import InvestmentTransactionListScreen from './InvestmentTransactionListScreen';
-import { getAssetTransactions, getPortfolioPerformance, getPortfolioSummary, getStockPrices } from './api/bankApi';
+import { getAssetTransactions, getCurrentHistory, getPortfolioPerformance, getPortfolioSummary, getStockPrices } from './api/bankApi';
 import { InvestmentSkeleton } from './components/InvestmentSkeleton';
 import sharedStyles from './styles/sharedStyles';
 
@@ -160,9 +160,9 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
     }, []);
 
     const calculateSpacing = (width: number, dataLength: number): number => {
-        const minSpacing = 1;
-        const maxSpacing = 10;
-        const calculatedSpacing = Math.max(minSpacing, Math.min(maxSpacing, (width - 60) / (dataLength + 1)));
+        const minSpacing = 0.1;
+        const maxSpacing = 100;
+        const calculatedSpacing = Math.max(minSpacing, Math.min(maxSpacing, (width - 80) / (dataLength + 1)));
         return calculatedSpacing;
     };
 
@@ -172,11 +172,12 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
             try {
                 const [transactionsData, pricesData] = await Promise.all([
                     getAssetTransactions(symbol),
-                    getStockPrices(symbol, '1Y')
+                    getStockPrices(symbol, 'max')
                 ]);
-
+                const firstBuyDate = transactionsData.buys[0]?.date;
+                const filteredPrices = pricesData.prices.filter((price: { date: string }) => price.date >= firstBuyDate);
                 setTransactions(transactionsData);
-                setHistoricalPrices(pricesData.prices || []);
+                setHistoricalPrices(filteredPrices || []);
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
@@ -301,7 +302,7 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
                             thickness={1.4}
                             startOpacity={0.9}
                             endOpacity={0.2}
-                            initialSpacing={0}
+                            initialSpacing={10}
                             noOfSections={4}
                             yAxisColor="transparent"
                             xAxisColor="transparent"
@@ -550,7 +551,7 @@ const InvestmentOverview: React.FC = () => {
     const [totalGain, setTotalGain] = useState(0);
     const [totalPerformance, setTotalPerformance] = useState(0);
     const [error, setError] = useState<string | null>(null);
-    const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 40);
+    const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 60);
 
     // Add resize handler
     useEffect(() => {
@@ -703,9 +704,8 @@ const InvestmentOverview: React.FC = () => {
                                 thickness={1.5}
                                 startOpacity={0.9}
                                 endOpacity={0.2}
-                                initialSpacing={0}
+                                initialSpacing={20}
                                 noOfSections={4}
-                                maxVisiblePoints={8} // Add this line
                                 yAxisColor="transparent"
                                 xAxisColor="transparent"
                                 yAxisTextStyle={{ color: darkTheme.colors.textTertiary }}
@@ -728,7 +728,7 @@ const InvestmentOverview: React.FC = () => {
                                 animateOnDataChange
                                 animationDuration={1000}
                                 xAxisLabelsVerticalShift={20}
-                                getLabel={(item) => item.showLabel ? new Date(item.date).toLocaleDateString('fr-FR', {
+                                getLabel={(item: { showLabel: boolean; date: string }) => item.showLabel ? new Date(item.date).toLocaleDateString('fr-FR', {
                                     month: 'short',
                                     year: '2-digit'
                                 }) : ''}

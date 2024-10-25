@@ -1,11 +1,26 @@
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+import logging
+from typing import List, Dict, Any, Optional, Union, TypedDict
 from app.models import InvestmentTransaction
 from app.database import DatabaseManager
 from app.exceptions import NoResultFoundError
 from app.services.base_service import BaseService
 from app.services.stock_service import StockService
 from app.services.transaction_service import TransactionService
+
+logger = logging.getLogger(__name__)
+
+# Add these type definitions at the top of the file
+class PerformanceDataPoint(TypedDict):
+    date: str
+    cumulative_value: float
+
+class PortfolioPerformance(TypedDict):
+    performance_data: List[PerformanceDataPoint]
+
+class HistoricalPrice(TypedDict):
+    date: str
+    close: float
 
 class InvestmentService(BaseService):
     def __init__(self):
@@ -178,113 +193,143 @@ class InvestmentService(BaseService):
                 'withdrawals': []
             }
 
-    def get_portfolio_performance(self, user_id: int, period: str = '1Y') -> Dict[str, Any]:
+    def get_portfolio_performance(self, user_id: int, period: str = '1Y') -> PortfolioPerformance:
         """Get portfolio value over time using current market prices."""
         period_map = {
-            '1M': 'interval 1 month',
-            '3M': 'interval 3 month',
-            '6M': 'interval 6 month',
-            '1Y': 'interval 1 year',
-            '3Y': 'interval 3 year',
-            '5Y': 'interval 5 year'
+            '1M': '1mo',  # Match yfinance period format
+            '3M': '3mo',
+            '6M': '6mo',
+            '1Y': '1y',
+            '3Y': '3y',
+            '5Y': '5y',
+            'Max': 'max'
         }
         
-        interval = period_map.get(period, 'interval 1 year')
+        yf_period = period_map.get(period, '1y')
         
-        # First, get all positions and their quantities over time
-        query = f"""
-        WITH RECURSIVE dates AS (
-            SELECT date('now', '-{interval}') as date
-            UNION ALL
-            SELECT date(date, '+1 day')
-            FROM dates
-            WHERE date < date('now')
-        )
+        # Get all transactions within the period
+        query = """
         SELECT 
-            d.date,
-            it.asset_symbol,
+            date(t.date) as date,
+            t.asset_symbol,
             SUM(CASE 
-                WHEN it.activity_type = 'buy' THEN it.quantity
-                WHEN it.activity_type = 'sell' THEN -it.quantity
+                WHEN t.activity_type = 'buy' THEN t.quantity
+                WHEN t.activity_type = 'sell' THEN -t.quantity
                 ELSE 0 
-            END) as daily_quantity_change
-        FROM dates d
-        LEFT JOIN investment_transactions it 
-            ON date(it.date) = d.date 
-            AND it.user_id = ?
-        GROUP BY d.date, it.asset_symbol
-        ORDER BY d.date
+            END) as quantity_change
+        FROM investment_transactions t
+        WHERE t.user_id = ?
+        GROUP BY date(t.date), t.asset_symbol
+        HAVING quantity_change != 0
+        ORDER BY date
         """
         
         try:
-            daily_positions = self.db_manager.execute_select(query, (user_id,))
+            transactions = self.db_manager.execute_select(query, (user_id,))
+            logger.info(f"transactions: {transactions}")
             
-            # Get unique symbols
-            symbols = set()
-            for position in daily_positions:
-                if position['asset_symbol']:
-                    symbols.add(position['asset_symbol'])
-            
-            # Get historical prices for each symbol
-            symbol_prices = {}
+            if not transactions:
+                return {
+                    'performance_data': [{
+                        'date': datetime.now().strftime('%Y-%m-%d'),
+                        'cumulative_value': 0.0
+                    }]
+                }
+
+            # Get unique symbols and track positions
+            positions: Dict[str, float] = {}  # symbol -> quantity
+            daily_positions: Dict[str, Dict[str, float]] = {}  # date -> {symbol -> quantity}
+            symbols = {str(t['asset_symbol']) for t in transactions}
+
+            # Calculate positions for each day based on transactions
+            for trans in transactions:
+                date = str(trans['date'])
+                symbol = str(trans['asset_symbol'])
+                quantity_change = float(trans['quantity_change'])
+
+                # Update running position for this symbol
+                positions[symbol] = positions.get(symbol, 0.0) + quantity_change
+
+                # Store the positions for this date
+                if date not in daily_positions:
+                    # Copy the previous day's positions for all symbols
+                    daily_positions[date] = positions.copy()
+                else:
+                    # Update just this symbol's position
+                    daily_positions[date][symbol] = positions[symbol]
+
+            # Get historical prices for all symbols
+            prices_by_symbol: Dict[str, Dict[str, float]] = {}
             for symbol in symbols:
                 try:
-                    historical_data = self.stock_service.get_historical_prices(symbol, period)
-                    symbol_prices[symbol] = {
-                        item['date']: item['close'] 
-                        for item in historical_data
-                    }
+                    historical_data = self.stock_service.get_historical_prices(symbol, yf_period)
+                    logger.info(f"historical_data for {symbol}: {historical_data[:2]}...")  # Log first 2 entries
+                    
+                    # Create a date -> price mapping for this symbol
+                    prices_by_symbol[symbol] = {}
+                    for item in historical_data:
+                        date = str(item['date'])
+                        close_price = float(item['close'])
+                        prices_by_symbol[symbol][date] = close_price
+                        
                 except Exception as e:
-                    print(f"Error fetching prices for {symbol}: {e}")
+                    logger.error(f"Error fetching prices for {symbol}: {e}")
                     continue
+
+            # Get all dates where we have either transactions or prices
+            all_dates = sorted(set(
+                date for dates in [
+                    daily_positions.keys(),
+                    *(prices.keys() for prices in prices_by_symbol.values())
+                ]
+                for date in dates
+            ))
+
+            # Calculate daily portfolio values
+            performance_data: List[PerformanceDataPoint] = []
+            current_positions = {symbol: 0.0 for symbol in symbols}
             
-            # Calculate running totals and daily values
-            running_quantities = {symbol: 0 for symbol in symbols}
-            performance_data = []
-            current_date = None
-            daily_value = 0
-            
-            for position in daily_positions:
-                date = position['date']
-                symbol = position['asset_symbol']
+            for date in all_dates:
+                # Update positions if we have transactions for this date
+                if date in daily_positions:
+                    current_positions.update(daily_positions[date])
                 
-                # If new date, calculate total value and reset
-                if date != current_date:
-                    if current_date is not None:
-                        performance_data.append({
-                            'date': current_date,
-                            'cumulative_value': daily_value
-                        })
-                    current_date = date
-                    daily_value = 0
+                # Calculate total value for this date
+                daily_value = 0.0
+                for symbol, quantity in current_positions.items():
+                    if symbol in prices_by_symbol and date in prices_by_symbol[symbol]:
+                        price = prices_by_symbol[symbol][date]
+                        position_value = quantity * price
+                        daily_value += position_value
                 
-                if symbol:
-                    # Update running quantity for this symbol
-                    quantity_change = float(position['daily_quantity_change'] or 0)
-                    running_quantities[symbol] += quantity_change
-                    
-                    # Get price for this date
-                    price = symbol_prices.get(symbol, {}).get(date, 0)
-                    
-                    # Add to daily value
-                    daily_value += running_quantities[symbol] * price
+                if daily_value > 0:  # Only add points where we have a value
+                    performance_data.append({
+                        'date': date,
+                        'cumulative_value': round(daily_value, 2)
+                    })
             
-            # Add last day
-            if current_date is not None:
-                performance_data.append({
-                    'date': current_date,
-                    'cumulative_value': daily_value
-                })
+            # Sort by date
+            performance_data.sort(key=lambda x: x['date'])
             
+            # Ensure we have at least one data point
+            if not performance_data:
+                return {
+                    'performance_data': [{
+                        'date': datetime.now().strftime('%Y-%m-%d'),
+                        'cumulative_value': 0.0
+                    }]
+                }
+            
+            logger.info(f"Returning performance data with {len(performance_data)} points")
             return {
                 'performance_data': performance_data
             }
             
-        except NoResultFoundError:
-            today = datetime.now().strftime('%Y-%m-%d')
+        except Exception as e:
+            logger.error(f"Error in get_portfolio_performance: {e}", exc_info=True)
             return {
                 'performance_data': [{
-                    'date': today,
+                    'date': datetime.now().strftime('%Y-%m-%d'),
                     'cumulative_value': 0.0
                 }]
             }
@@ -360,3 +405,4 @@ class InvestmentService(BaseService):
                 connection.rollback()
             print(f"Error creating investment transaction: {e}")
             raise
+

@@ -18,8 +18,8 @@ import { darkTheme } from '../constants/theme';
 import sharedStyles from './styles/sharedStyles';
 
 interface DataPoint {
-  date: Date;
   value: number;
+  date: string;
 }
 // Define the navigation param list
 type RootStackParamList = {
@@ -48,7 +48,20 @@ export default function AccountsScreen() {
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0); // Ajoutez cet état
   const [isLoading, setIsLoading] = useState(true);
-  const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 20); // Initialize with current width
+  const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 80);
+
+  // Move the resize effect up here, before any conditional returns
+  useEffect(() => {
+    const handleResize = () => {
+      setChartWidth(Dimensions.get('window').width - 40);
+    };
+
+    const subscription = Dimensions.addEventListener('change', handleResize);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
 
   const foundBankNameById = (bankId: number) => {
     return banks.find((bank: Bank) => bank.id === bankId)?.name;
@@ -58,12 +71,10 @@ export default function AccountsScreen() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        console.log("fetchData called");
+
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 6); // 6 months ago
-        console.log("startDate", startDate);
         const endDate = new Date(); // Current date
-        console.log("endDate", endDate);
         const response = await fetchWealthData(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]);
         // console.log("response", response);
         if (response) {
@@ -177,7 +188,7 @@ export default function AccountsScreen() {
   );
 
   const refreshPage = () => {
-    router.reload();
+    setRefreshKey(prev => prev + 1);
   };
 
   const LogoutModal = () => (
@@ -229,13 +240,16 @@ export default function AccountsScreen() {
   };
 
   const formatData = (): DataPoint[] => {
-    return Object.entries(wealthData).map(([date, value]) => ({
-      value: parseFloat(value.toFixed(2)),
-      date
-    }));
+    return Object.entries(wealthData)
+      .map(([date, value]) => ({
+        value: typeof value === 'number' ? value : parseFloat(String(value)),
+        date
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
   const calculateMaxPoints = (dataLength: number): number => {
+    // Fonction exponentielle décroissante pour calculer le nombre maximum de points
     const baseMax = 250; // Maximum points for a small dataset
     const minMax = 100; // Minimum points for a large dataset
     const decayFactor = 0.0005; // Decay factor
@@ -267,15 +281,14 @@ export default function AccountsScreen() {
   };
 
   const calculateSpacing = (width: number, dataLength: number): number => {
-    const minSpacing = 1; // Minimum spacing
-    const maxSpacing = 10; // Maximum spacing
-    const calculatedSpacing = Math.max(minSpacing, Math.min(maxSpacing, (width - 60) / (dataLength + 1))); // Adjusted width calculation
+    const minSpacing = 0.1;
+    const maxSpacing = 100;
+    const calculatedSpacing = Math.max(
+      minSpacing,
+      Math.min(maxSpacing, (width - 30) / (dataLength + 1))
+    );
     return calculatedSpacing;
   };
-
-  // Update the spacing calculation
-  const spacing = calculateSpacing(chartWidth, data.length); // Calculate spacing based on width and data length
-
 
   const [visible, setVisible] = useState(false);
   const openMenu = () => setVisible(true);
@@ -305,8 +318,9 @@ export default function AccountsScreen() {
   );
 
   // Add this helper function
-  const getAccountIcon = (bank: string): string => {
-    console.log("bank", bank);
+  const getAccountIcon = (bank: string | undefined): any => {
+    if (!bank) return require('./../assets/images/icon.png');
+
     switch (bank.toLowerCase()) {
       case 'boursorama':
         return require('./../assets/images/boursorama.png');
@@ -362,28 +376,27 @@ export default function AccountsScreen() {
             <View style={styles.graphContainer}>
               <LineChart
                 areaChart
-                data={data} // Use the prepared data
-                width={chartWidth} // Use the dynamic width
+                data={data}
+                width={chartWidth}
                 height={100}
-                spacing={spacing} // Use the calculated spacing
+                spacing={calculateSpacing(chartWidth, data.length)}
                 adjustToWidth={true}
                 color={darkTheme.colors.primary}
-                startFillColor={`${darkTheme.colors.primary}40`} // 40 pour 25% d'opacité
-                endFillColor={`${darkTheme.colors.primary}10`} // 10 pour 6% d'opacité
+                startFillColor={`${darkTheme.colors.primary}40`}
+                endFillColor={`${darkTheme.colors.primary}10`}
                 thickness={1.5}
                 startOpacity={0.9}
                 endOpacity={0.2}
-                initialSpacing={0}
+                initialSpacing={10}
                 noOfSections={2}
-
                 yAxisOffset={minValue()}
                 yAxisColor="transparent"
                 xAxisColor="transparent"
+                formatYLabel={(value: string) => formatCompactNumber(Number(value)) + '€'}
                 yAxisTextStyle={{ color: darkTheme.colors.textTertiary }}
                 hideRules
                 hideDataPoints
                 showVerticalLines={false}
-                xAxisLabelTextStyle={{ color: darkTheme.colors.textTertiary, fontSize: 10 }}
                 yAxisTextNumberOfLines={1}
                 yAxisLabelSuffix="€"
                 yAxisLabelPrefix=""
@@ -618,12 +631,7 @@ const styles = StyleSheet.create({
     marginHorizontal: darkTheme.spacing.m,
     marginBottom: darkTheme.spacing.l,
     borderRadius: darkTheme.borderRadius.l,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-    overflow: 'hidden',
+    ...darkTheme.shadows.medium,
   },
   addButton: {
     marginHorizontal: darkTheme.spacing.l,
@@ -755,5 +763,15 @@ const styles = StyleSheet.create({
   accountIcon: {
     width: 35,
     height: 35,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: darkTheme.spacing.m,
+  },
+  modalButton: {
+    marginHorizontal: darkTheme.spacing.s,
+    minWidth: 100,
   },
 });

@@ -14,6 +14,20 @@ export default function WealthScreen() {
     const [selectedRange, setSelectedRange] = useState("1Y");
     const [wealthData, setWealthData] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
+    const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 40);
+
+    // Move the resize effect up here, before any conditional returns
+    useEffect(() => {
+        const handleResize = () => {
+            setChartWidth(Dimensions.get('window').width - 40);
+        };
+
+        const subscription = Dimensions.addEventListener('change', handleResize);
+
+        return () => {
+            subscription?.remove();
+        };
+    }, []);
 
     useEffect(() => {
         const loadData = async () => {
@@ -107,18 +121,15 @@ export default function WealthScreen() {
         return value;
     };
 
-    const screenWidth = Dimensions.get('window').width;
-
     const calculateSpacing = (width: number, dataLength: number): number => {
-        const minSpacing = 1; // Minimum spacing
-        const maxSpacing = 10; // Maximum spacing
-        const calculatedSpacing = Math.max(minSpacing, Math.min(maxSpacing, (width - 60) / (dataLength + 1))); // Adjusted width calculation
+        const minSpacing = 0.1;
+        const maxSpacing = 100;
+        const calculatedSpacing = Math.max(
+            minSpacing, 
+            Math.min(maxSpacing, (width - 80) / (dataLength + 1))
+        );
         return calculatedSpacing;
     };
-
-    // Update the spacing calculation
-    const spacing = calculateSpacing(screenWidth, data.length); // Calculate spacing based on width and data length
-
 
     return (
         <View style={[sharedStyles.container]}>
@@ -162,9 +173,9 @@ export default function WealthScreen() {
                         <LineChart
                             areaChart
                             data={data}
-                            width={screenWidth - 60}
+                            width={chartWidth}
                             height={300}
-                            spacing={spacing}
+                            spacing={calculateSpacing(chartWidth, data.length)}
                             adjustToWidth={true}
                             color={darkTheme.colors.primary}
                             thickness={1.5}
@@ -178,11 +189,15 @@ export default function WealthScreen() {
                             yAxisColor="transparent"
                             xAxisColor="transparent"
                             yAxisTextStyle={{ color: darkTheme.colors.textTertiary }}
-                            xAxisTextStyle={{ color: darkTheme.colors.textTertiary }}
                             hideRules
                             hideDataPoints
                             showVerticalLines={false}
-                            xAxisLabelTextStyle={{ color: darkTheme.colors.textTertiary, fontSize: 10 }}
+                            xAxisLabelTextStyle={{ 
+                                color: darkTheme.colors.textTertiary, 
+                                fontSize: 10,
+                                width: 60,
+                                textAlign: 'center'
+                            }}
                             yAxisTextNumberOfLines={1}
                             yAxisLabelSuffix="€"
                             yAxisLabelPrefix=""
@@ -192,6 +207,7 @@ export default function WealthScreen() {
                             curved
                             animateOnDataChange
                             animationDuration={1000}
+                            xAxisLabelsVerticalShift={20}
                             pointerConfig={{
                                 showPointerStrip: true,
                                 pointerStripWidth: 2,

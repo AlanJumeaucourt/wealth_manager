@@ -2,12 +2,12 @@ from typing import Any
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from app.schemas import UserSchema
-from app.services.user_service import create_user, get_user_by_id, update_user, delete_user, authenticate_user
+from app.services.user_service import create_user, get_user_by_id, update_user, delete_user, authenticate_user, update_last_login
 from app.routes.route_utils import process_request
 import sentry_sdk
 from flask_jwt_extended import jwt_required, create_access_token
 from app.exceptions import DuplicateUserError
-
+from datetime import datetime
 user_bp = Blueprint('user', __name__)
 user_schema = UserSchema()
 
@@ -49,13 +49,14 @@ def login():
     if user:
         access_token = create_access_token(identity=user.id)
         sentry_sdk.set_user({"id": f"{user.id}"})  # Set user context in Sentry
+        update_last_login(user.id, datetime.now())
         return jsonify(access_token=access_token), 200
     else:
         return jsonify({"error": "Invalid credentials"}), 401
 
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
-def get_user(user_id: int):
+def get_user_admin(user_id: int):
     user_id_from_tokens, _, error, code = process_request(type_of_request='GET')
     
     if user_id_from_tokens != user_id:
@@ -65,6 +66,18 @@ def get_user(user_id: int):
         return error, code
 
     user = get_user_by_id(user_id)
+    return jsonify(user.__dict__) if user else ('', 404)
+
+@user_bp.route('/', methods=['GET'])
+@jwt_required()
+def get_user():
+    user_id_from_tokens, _, error, code = process_request(type_of_request='GET')
+    
+    if error:
+        return error, code
+
+    user = get_user_by_id(user_id_from_tokens)
+    update_last_login(user_id_from_tokens, datetime.now())
     return jsonify(user.__dict__) if user else ('', 404)
 
 @user_bp.route('/<int:user_id>', methods=['PUT'])
@@ -107,4 +120,8 @@ def delete_user_route(user_id: int):
 @user_bp.route('/verify-token', methods=['GET'])
 @jwt_required()
 def verify_token():
+    user_id_from_tokens, _, error, code = process_request(type_of_request='GET')
+    if error:
+        return error, code
+    update_last_login(user_id_from_tokens, datetime.now())
     return jsonify({"message": "Token is valid"}), 200

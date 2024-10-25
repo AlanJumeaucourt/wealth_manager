@@ -106,7 +106,14 @@ class StockService:
             print(f"Error in get_asset_info: {str(e)}")
             return None
 
-    def get_historical_prices(self, symbol: str, period: str = '1y') -> List[Dict]:
+
+    def get_historical_prices(self, symbol: str, period: Optional[str] = 'max') -> List[Dict]:
+        
+        valid_periods = ['1d', '5d', '7d', '60d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
+        
+        if period not in valid_periods:
+            raise ValueError(f"Invalid period: {period}. Please use one of the following: {', '.join(valid_periods)}")
+        
         """Get historical price data for an asset."""
         try:
             ticker = yf.Ticker(symbol)
@@ -116,7 +123,7 @@ class StockService:
             # Format the response
             return [{
                 'date': index.strftime('%Y-%m-%d'),
-                'value': float(row['Close']),  # Use closing price as the value
+                'value': float(row['Close']),
                 'volume': int(row['Volume']),
                 'open': float(row['Open']),
                 'high': float(row['High']),

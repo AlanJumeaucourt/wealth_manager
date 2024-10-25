@@ -57,16 +57,3 @@ def get_stock_prices(symbol: str):
         'prices': prices
     })
 
-@stock_bp.route('/<symbol>/price', methods=['GET'])
-@jwt_required_wrapper
-def get_current_stock_price(symbol: str):
-    """Get current price for a stock."""
-    price = stock_service.get_current_price(symbol)
-    
-    if price is None:
-        return jsonify({'error': 'Failed to fetch stock price'}), 404
-        
-    return jsonify({
-        'symbol': symbol,
-        'price': price
-    })

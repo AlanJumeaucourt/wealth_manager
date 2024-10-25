@@ -3,7 +3,7 @@ from ..services.budget_service import get_budget_summary
 from flask_jwt_extended import jwt_required, get_jwt_identity
 budget_bp = Blueprint('budget', __name__)
 
-@budget_bp.route('/budget_summary', methods=['GET'])
+@budget_bp.route('/summary', methods=['GET'])
 @jwt_required()
 def budget_summary():
     user_id = get_jwt_identity()
@@ -14,5 +14,5 @@ def budget_summary():
     total_amount = get_budget_summary(start_date, end_date, user_id)
 
     # Return the result as a JSON response
-    return jsonify({'total_amount': total_amount})
+    return jsonify(total_amount)
 

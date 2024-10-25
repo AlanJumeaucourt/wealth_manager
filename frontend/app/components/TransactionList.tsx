@@ -203,7 +203,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
           <View style={styles.transactionDetails}>
             {item.type === 'transfer' ? (
               <Text style={styles.transferDetails}>
-                <Ionicons name="arrow-forward" size={12} color={darkTheme.colors.info} />
                 {' '}{accountNameFromId(item.from_account_id)} → {accountNameFromId(item.to_account_id)}
               </Text>
             ) : (

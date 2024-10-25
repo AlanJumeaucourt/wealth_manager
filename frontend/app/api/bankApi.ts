@@ -9,6 +9,7 @@ import {
     PortfolioPerformanceResponse, 
     AssetTransactionsResponse,
 } from '@/types/investment';
+import { BudgetSummaryItem } from '@/types/budget';
 
 const handleApiError = async (error: unknown, message: string) => {
   if (axios.isAxiosError(error)) {
@@ -209,7 +210,7 @@ export const fetchWealthData = async (startDate: string, endDate: string) => {
   }
 };
 
-export const fetchBudgetSummary = async (startDate: string, endDate: string) => {
+export const fetchBudgetSummary = async (startDate: string, endDate: string): Promise<BudgetSummaryItem[]> => {
   try {
     const response = await apiClient.get(`/budgets/summary?start_date=${startDate}&end_date=${endDate}}`);
     console.log("budget summary", response.data); // Log the response data
@@ -324,7 +325,9 @@ export const getInvestmentTransactions = async () => {
     }
 };
 
-export const getStockPrices = async (symbol: string, period: string = '1Y') => {
+type StockPeriod = '1d' | '5d' | '7d' | '60d' | '1mo' | '3mo' | '6mo' | '1y' | '2y' | '5y' | '10y' | 'ytd' | 'max';
+
+export const getStockPrices = async (symbol: string, period: StockPeriod) => {
     try {
         const response = await apiClient.get(`/stocks/${encodeURIComponent(symbol)}/prices?period=${period}`);
         return response.data;
@@ -333,9 +336,9 @@ export const getStockPrices = async (symbol: string, period: string = '1Y') => {
     }
 };
 
-export const getCurrentStockPrice = async (symbol: string) => {
+export const getCurrentHistory = async (symbol: string) => {
     try {
-        const response = await apiClient.get(`/stocks/${encodeURIComponent(symbol)}/price`);
+        const response = await apiClient.get(`/stocks/${encodeURIComponent(symbol)}/history?period=max`);
         return response.data.price;
     } catch (error) {
         return handleApiError(error, 'Error fetching current stock price');

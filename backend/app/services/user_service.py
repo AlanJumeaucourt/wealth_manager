@@ -119,3 +119,13 @@ def authenticate_user(email: str, password: str) -> Optional[User]:
     except Exception as e:
         print(f"Unexpected error: {e}")
         return None
+
+def update_last_login(user_id: int, login_time: datetime) -> bool:
+    try:
+        user = db_manager.execute_update("UPDATE users SET last_login = ? WHERE id = ?", (login_time, user_id))
+        if user:
+            return True
+        return False
+    except Exception as e:
+        print(f"Error updating last login: {e}")
+        return False
