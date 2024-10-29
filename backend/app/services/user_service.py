@@ -87,7 +87,7 @@ def update_user(user_id: int, name: Optional[str] = None, email: Optional[str] =
 
 def delete_user(user_id: int) -> bool:
     try:
-        db_manager.delete_all_data_from_user(user_id)
+        db_manager.execute_delete("DELETE FROM users WHERE id = ?", [user_id])
         return True
     except Exception as e:
         print(f"Error deleting user: {e}")

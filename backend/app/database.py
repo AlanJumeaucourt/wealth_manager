@@ -35,7 +35,7 @@ class DatabaseManager:
         # sqlite3.register_converter(
         #     "timestamp", lambda s: datetime.fromisoformat(s.decode())
         # )
-        # connection.execute("PRAGMA foreign_keys = ON;")
+        connection.execute("PRAGMA foreign_keys = ON;")
         return connection
     
     def execute_select(self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None) -> List[Dict[str, Any]]:
@@ -145,7 +145,7 @@ class DatabaseManager:
                         id INTEGER PRIMARY KEY AUTOINCREMENT, 
                         user_id INTEGER NOT NULL,
                         name TEXT NOT NULL,
-                        FOREIGN KEY (user_id) REFERENCES users(id));
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
                     """,
             """CREATE TABLE IF NOT EXISTS accounts (
                         id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -155,8 +155,8 @@ class DatabaseManager:
                         bank_id INTEGER NOT NULL,
                         currency TEXT NOT NULL, 
                         tags TEXT,
-                        FOREIGN KEY (user_id) REFERENCES users(id),
-                        FOREIGN KEY (bank_id) REFERENCES banks(id));
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE CASCADE);
                     """,
             """CREATE TABLE IF NOT EXISTS transactions (
                         id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -171,9 +171,9 @@ class DatabaseManager:
                         subcategory TEXT,
                         related_transaction_id INTEGER,
                         type TEXT CHECK(type IN ('expense', 'income', 'transfer')) NOT NULL,
-                        FOREIGN KEY (user_id) REFERENCES users(id),
-                        FOREIGN KEY (from_account_id) REFERENCES accounts(id),
-                        FOREIGN KEY (to_account_id) REFERENCES accounts(id));
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (from_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+                        FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE);
                     """,
             """CREATE TABLE IF NOT EXISTS investment_transactions (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -188,9 +188,9 @@ class DatabaseManager:
                         fee DECIMAL(10, 2) NOT NULL,
                         tax DECIMAL(10, 2) NOT NULL,
                         transaction_related_id INTEGER,
-                        FOREIGN KEY (user_id) REFERENCES users(id),
-                        FOREIGN KEY (account_id) REFERENCES accounts(id),
-                        FOREIGN KEY (transaction_related_id) REFERENCES investment_transactions(id)
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+                        FOREIGN KEY (transaction_related_id) REFERENCES investment_transactions(id) ON DELETE SET NULL
                     );""",
         ]
         
@@ -283,10 +283,6 @@ class DatabaseManager:
 
         :param user_id: The ID of the user whose data should be deleted.
         """
-        self.execute_delete("DELETE FROM investment_transactions WHERE user_id = ?", [user_id])
-        self.execute_delete("DELETE FROM transactions WHERE user_id = ?", [user_id])
-        self.execute_delete("DELETE FROM accounts WHERE user_id = ?", [user_id])
-        self.execute_delete("DELETE FROM banks WHERE user_id = ?", [user_id])
         self.execute_delete("DELETE FROM users WHERE id = ?", [user_id])
 
 if __name__ == "__main__":
