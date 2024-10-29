@@ -16,6 +16,7 @@ import sharedStyles from './styles/sharedStyles';
 
 interface InvestmentTransaction {
     id: number;
+    account_id: number;
     account_name: string;
     asset_symbol: string;
     asset_name: string;
@@ -32,13 +33,13 @@ export default function AddInvestmentTransactionScreen() {
     const route = useRoute();
     const transaction = route.params?.transaction as InvestmentTransaction | undefined;
     const accounts = useSelector((state: RootState) =>
-        state.accounts.accounts.filter(account => account.type === 'investment')
+        state.accounts.accounts.filter(account => account.id === transaction?.account_id)
     );
 
     // Initialize state with transaction data if editing
-    const [accountId, setAccountId] = useState<number | null>(transaction ? transaction.account_name : null);
+    const [accountId, setAccountId] = useState<number | null>(transaction ? transaction.account_id : null);
     const [selectedAccountName, setSelectedAccountName] = useState<string>(
-        transaction ? accounts.find(acc => acc.id === transaction.account_name)?.name || '' : ''
+        transaction ? accounts.find(acc => acc === transaction.account_name)?.name || '' : ''
     );
     console.log(transaction);
     const [assetSymbol, setAssetSymbol] = useState(transaction ? transaction.asset_symbol : '');

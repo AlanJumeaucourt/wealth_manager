@@ -23,7 +23,7 @@ export default function RegisterScreen() {
     setError('');
     try {
       console.log('Sending registration request:', { name, email, password });
-      const response = await axios.post(`${API_URL}/register`, {
+      const response = await axios.post(`${API_URL}/users/register`, {
         name,
         email,
         password,
