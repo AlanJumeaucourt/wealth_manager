@@ -23,23 +23,7 @@ class AccountService(BaseService):
                 placeholders = ', '.join(['?' for _ in data])
                 query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
                 result = self.db_manager.execute_insert_returning(query, tuple(data.values()))
-                
-                # If it's an investment account, create associated cash account
-                if data['type'] == 'investment':
-                    cash_account_data = {
-                        'user_id': data['user_id'],
-                        'name': f"{result['name']} cash",
-                        'type': 'checking',
-                        'currency': data['currency'],
-                        'bank_id': data['bank_id'],
-                        'tags': 'investment_cash'
-                    }
-                    
-                    columns = ', '.join(cash_account_data.keys())
-                    placeholders = ', '.join(['?' for _ in cash_account_data])
-                    query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders})"
-                    self.db_manager.execute_insert(query, tuple(cash_account_data.values()))
-                
+         
                 connection.commit()
                 return self.model_class(**result)
                 
@@ -124,6 +108,10 @@ class AccountService(BaseService):
             return 0
 
     def sum_accounts_balances_over_days(self, user_id: int, start_date: str, end_date: str) -> Dict[str, float]:
+        # Verify if account exists for the user
+        if not self.get_all(user_id, 1, 1, {}, None, None, None, None):
+            return {}
+        
         query = f"""
             WITH RECURSIVE date_range AS (
                 -- Start the recursion with the minimum transaction date

@@ -335,74 +335,17 @@ class InvestmentService(BaseService):
             }
 
     def create(self, data: Dict[str, Any]) -> Optional[InvestmentTransaction]:
-        """Create investment transaction and associated transfer transaction if needed."""
+        """Create investment transaction. Associated transfer transaction is handled by trigger."""
         try:
-            # Start transaction
-            with self.db_manager.connect_to_database() as connection:
-                connection.execute("BEGIN TRANSACTION")
-                
-                # First, find the name of the investment account from the id
-                investment_account_name_query = """
-                SELECT name 
-                FROM accounts 
-                WHERE user_id = ? AND id = ? AND type = 'investment'
-                """
-                investment_account_name = self.db_manager.execute_select(
-                    investment_account_name_query, 
-                    (data['user_id'], data['account_id'])
-                )
-                investment_account_name = investment_account_name[0]['name']
-                
-                # Then, find the id of the cash account
-                cash_account_id_query = """
-                SELECT id 
-                FROM accounts 
-                WHERE user_id = ? AND type = 'checking' AND name = ?
-                """
-                cash_account_id = self.db_manager.execute_select(
-                    cash_account_id_query, 
-                    (data['user_id'], f"{investment_account_name} cash")
-                )
-                cash_account_id = cash_account_id[0]['id']
-                                                
-                # Create investment transaction
-                columns = ', '.join(data.keys())
-                placeholders = ', '.join(['?' for _ in data])
-                query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
-                investment_result = self.db_manager.execute_insert_returning(query, tuple(data.values()))
-                
-                # For buy/sell transactions, create corresponding transfer transaction
-                if data['activity_type'] in ['buy', 'sell']:
-                    total_amount = (data['quantity'] * data['unit_price']) + data['fee'] + data['tax']
-                    
-                    # For buy: transfer from cash to stock account
-                    # For sell: transfer from stock to cash account
-                    from_account_id = cash_account_id if data['activity_type'] == 'buy' else data['account_id']
-                    to_account_id = data['account_id'] if data['activity_type'] == 'buy' else cash_account_id
-                    
-                    transfer_data = {
-                        'user_id': data['user_id'],
-                        'date': datetime.now().isoformat(),
-                        'date_accountability': data['date'],
-                        'description': f"{data['activity_type'].title()} {data['quantity']} {data['asset_symbol']} @ {data['unit_price']}",
-                        'amount': total_amount,
-                        'from_account_id': from_account_id,
-                        'to_account_id': to_account_id,
-                        'type': 'transfer',
-                        'category': 'Investment',
-                        'subcategory': data['activity_type'].title(),
-                        'related_transaction_id': investment_result['id']
-                    }
-                    
-                    # Create transfer transaction
-                    self.transaction_service.create(transfer_data)
-                
-                connection.commit()
-                return self.model_class(**investment_result)
+            # Create investment transaction
+            columns = ', '.join(data.keys())
+            placeholders = ', '.join(['?' for _ in data])
+            query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
+            investment_result = self.db_manager.execute_insert_returning(query, tuple(data.values()))
+            
+            return self.model_class(**investment_result)
                 
         except Exception as e:
-            if 'connection' in locals():
-                connection.rollback()
             print(f"Error creating investment transaction: {e}")
             raise
 

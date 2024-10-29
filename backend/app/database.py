@@ -131,7 +131,7 @@ class DatabaseManager:
 
     def create_tables(self):
         """
-        Create the necessary tables, views and indexes in the database if they do not exist.
+        Create the necessary tables, views, triggers and indexes in the database if they do not exist.
         """
         tables = [
             """CREATE TABLE IF NOT EXISTS users (
@@ -162,7 +162,7 @@ class DatabaseManager:
                         id INTEGER PRIMARY KEY AUTOINCREMENT, 
                         user_id INTEGER NOT NULL,
                         date TIMESTAMP NOT NULL,
-                        date_accountability TIMESTAMP NOT NULL,  # Added field
+                        date_accountability TIMESTAMP NOT NULL,
                         description TEXT NOT NULL,
                         amount DECIMAL(10, 2) NOT NULL,
                         from_account_id INTEGER NOT NULL,
@@ -233,6 +233,131 @@ class DatabaseManager:
             """
         ]
         
+        triggers = [
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_create_investment_transfer
+            AFTER INSERT ON investment_transactions
+            FOR EACH ROW
+            WHEN NEW.activity_type IN ('buy', 'sell')
+            BEGIN
+                INSERT INTO transactions (
+                    user_id,
+                    date,
+                    date_accountability,
+                    description,
+                    amount,
+                    from_account_id,
+                    to_account_id,
+                    type,
+                    category,
+                    subcategory,
+                    related_transaction_id
+                )
+                SELECT
+                    NEW.user_id,
+                    DATETIME('now'),
+                    NEW.date,
+                    NEW.activity_type || ' ' || NEW.quantity || ' ' || NEW.asset_symbol || ' @ ' || NEW.unit_price,
+                    (NEW.quantity * NEW.unit_price) + NEW.fee + NEW.tax,
+                    CASE 
+                        WHEN NEW.activity_type = 'buy' THEN 
+                            (SELECT c.id
+                             FROM accounts i
+                             JOIN accounts c ON c.name = i.name || ' cash'
+                             WHERE i.id = NEW.account_id
+                             AND i.user_id = NEW.user_id
+                             AND c.type = 'checking'
+                             LIMIT 1)
+                        ELSE NEW.account_id 
+                    END,
+                    CASE 
+                        WHEN NEW.activity_type = 'buy' THEN NEW.account_id 
+                        ELSE (SELECT c.id
+                              FROM accounts i
+                              JOIN accounts c ON c.name = i.name || ' cash'
+                              WHERE i.id = NEW.account_id
+                              AND i.user_id = NEW.user_id
+                              AND c.type = 'checking'
+                              LIMIT 1)
+                    END,
+                    'transfer',
+                    'Investment',
+                    NEW.activity_type,
+                    NEW.id;
+            END;
+            """,
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_validate_transaction
+            BEFORE INSERT ON transactions
+            BEGIN
+                -- Get account types for validation
+                WITH account_types AS (
+                    SELECT 
+                        NEW.from_account_id as account_id,
+                        type as from_type,
+                        (SELECT type FROM accounts WHERE id = NEW.to_account_id) as to_type
+                    FROM accounts 
+                    WHERE id = NEW.from_account_id
+                )
+                SELECT
+                    CASE
+                        -- Validate income transactions
+                        WHEN NEW.type = 'income' AND (
+                            (SELECT to_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
+                        ) THEN
+                            RAISE(ABORT, 'Income cannot be received in this type of account')
+                        WHEN NEW.type = 'income' AND (
+                            (SELECT from_type FROM account_types) != 'income'
+                        ) THEN
+                            RAISE(ABORT, 'Income must originate from an income account')
+                            
+                        -- Validate expense transactions
+                        WHEN NEW.type = 'expense' AND (
+                            (SELECT from_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
+                        ) THEN
+                            RAISE(ABORT, 'Expenses cannot be paid from this type of account')
+                        WHEN NEW.type = 'expense' AND (
+                            (SELECT to_type FROM account_types) != 'expense'
+                        ) THEN
+                            RAISE(ABORT, 'Expenses must go to an expense account')
+                            
+                        -- Validate transfer transactions
+                        WHEN NEW.type = 'transfer' AND (
+                            (SELECT from_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
+                        ) THEN
+                            RAISE(ABORT, 'Cannot transfer from this type of account')
+                        WHEN NEW.type = 'transfer' AND (
+                            (SELECT to_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
+                        ) THEN
+                            RAISE(ABORT, 'Cannot transfer to this type of account')
+                    END;
+            END;
+            """,
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_create_investment_cash_account
+            AFTER INSERT ON accounts
+            WHEN NEW.type = 'investment'
+            BEGIN
+                INSERT INTO accounts (
+                    user_id,
+                    name,
+                    type,
+                    currency,
+                    bank_id,
+                    tags
+                )
+                VALUES (
+                    NEW.user_id,
+                    NEW.name || ' cash',
+                    'checking',
+                    NEW.currency,
+                    NEW.bank_id,
+                    'investment_cash'
+                );
+            END;
+            """
+        ]
+        
         indexes = [
             # Users table - email is used for login/authentication
             "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);",
@@ -251,7 +376,7 @@ class DatabaseManager:
             # Investment transactions table - most important queries
             "CREATE INDEX IF NOT EXISTS idx_investment_transactions_user_id_date ON investment_transactions(user_id, date);",
             "CREATE INDEX IF NOT EXISTS idx_investment_transactions_user_asset ON investment_transactions(user_id, asset_symbol);",
-            "CREATE INDEX IF NOT EXISTS idx_investment_transactions_account ON investment_transactions(account_id);"
+            "CREATE INDEX IF NOT EXISTS idx_investment_transactions_account ON investment_transactions(account_id);",
         ]
         
         with self.connect_to_database() as connection:
@@ -265,26 +390,38 @@ class DatabaseManager:
                 for view in views:
                     cursor.execute(view)
                 
+                # Create triggers
+                for trigger in triggers:
+                    print(trigger)
+                    cursor.execute(trigger)
+                
                 # Create indexes
                 for index in indexes:
                     cursor.execute(index)
                 
                 connection.commit()
+                print("Tables, views, triggers and indexes created successfully")
             except Exception as e:
-                print(f"Error creating tables, views or indexes: {e}")
+                print(f"Error creating tables, views, triggers or indexes: {e}")
                 connection.rollback()
                 raise
             finally:
                 cursor.close()
 
-    def delete_all_data_from_user(self, user_id: int):
-        """
-        Delete all data associated with a specific user.
 
-        :param user_id: The ID of the user whose data should be deleted.
+    def update_user_login(self, user_id: int, current_password: str):
         """
-        self.execute_delete("DELETE FROM users WHERE id = ?", [user_id])
+        Update user's last login time via trigger.
+        
+        :param user_id: The ID of the user who is logging in
+        :param current_password: The user's current password (for trigger condition)
+        """
+        self.execute_update(
+            "UPDATE users SET password = ? WHERE id = ? AND password = ?",
+            [current_password, user_id, current_password]
+        )
 
 if __name__ == "__main__":
+    print("Creating tables, views, triggers and indexes")
     db = DatabaseManager()
     db.create_tables()
