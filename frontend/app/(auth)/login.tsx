@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/browser";
 import axios from 'axios';
-import { useRouter } from 'expo-router'; // Use only useRouter
+import { useRouter } from 'expo-router'; // Remove if not needed
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
@@ -36,7 +36,7 @@ export default function LoginScreen() {
         await login(response.data.access_token); // Use the login method from context
         console.log('Token stored, redirecting to home');
         Sentry.setUser({ email: email });
-        // router.replace('/AccountsScreen'); // Use router for navigation
+       router.replace('/'); // Use Expo Router's replace for navigation
       } else {
         console.log('Invalid response data:', response);
         setError('Invalid response from server');

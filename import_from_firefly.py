@@ -1,4 +1,3 @@
-from unicodedata import category
 import pandas as pd
 import requests
 import logging
@@ -103,6 +102,7 @@ account_name_type_mapping = {
     'Natixis PERCO': 'investment',
     'LouveInvest SCPI': 'investment',
     'Balance initiale pour "Prêt Etudiant CA"': 'income',
+    'Initial balance account of Prêt Etudiant CA': 'income',
     'Robocash P2P': 'investment',
     'Miimosa P2P': 'investment',
 }
@@ -111,7 +111,7 @@ account_name_type_mapping = {
 account_dictionary: Dict[str, str] = {}
 
 def create_user(name: str, email: str, password: str):
-    url = 'http://localhost:5000/users/register'  # Adjust the URL if necessary
+    url = 'http://100.121.97.42:5000/users/register'  # Adjust the URL if necessary
     headers = {
         'Content-Type': 'application/json'
     }
@@ -124,7 +124,7 @@ def create_user(name: str, email: str, password: str):
     return response
 
 def login_user(email: str, password: str):
-    url = 'http://localhost:5000/users/login'  # Adjust the URL if necessary
+    url = 'http://100.121.97.42:5000/users/login'  # Adjust the URL if necessary
     headers = {
         'Content-Type': 'application/json'
     }
@@ -162,7 +162,7 @@ def bank_id_from_account_name(account_name: str) -> int:
         return bank_id_from_bank_name('Other')
 
 def get_user_from_api(user_id: int):
-    url = f'http://localhost:5000/users/{user_id}'
+    url = f'http://100.121.97.42:5000/users/{user_id}'
     headers = {
         'Authorization': f'Bearer {jwt_token}',
         'Content-Type': 'application/json'
@@ -172,7 +172,7 @@ def get_user_from_api(user_id: int):
 
 
 def get_banks_from_api() -> List[Dict[str, Any]]:
-    url = 'http://localhost:5000/banks'
+    url = 'http://100.121.97.42:5000/banks'
     headers = {
         'Authorization': f'Bearer {jwt_token}',
         'Content-Type': 'application/json'
@@ -185,7 +185,7 @@ def get_banks_from_api() -> List[Dict[str, Any]]:
         return []
 
 def delete_user(user_id: int):
-    url = f'http://localhost:5000/users/{user_id}'
+    url = f'http://100.121.97.42:5000/users/{user_id}'
     headers = {
         'Authorization': f'Bearer {jwt_token}',
         'Content-Type': 'application/json'
@@ -194,7 +194,7 @@ def delete_user(user_id: int):
     return response
 
 def get_accounts_from_api() -> List[Dict[str, Any]]:
-    url = 'http://localhost:5000/accounts?per_page=1000'
+    url = 'http://100.121.97.42:5000/accounts?per_page=1000'
     headers = {
         'Authorization': f'Bearer {jwt_token}',
         'Content-Type': 'application/json'
@@ -207,7 +207,7 @@ def get_accounts_from_api() -> List[Dict[str, Any]]:
         return []
 
 def create_bank_in_api(bank_name: str):
-    url = 'http://localhost:5000/banks'  # Adjust the URL if necessary
+    url = 'http://100.121.97.42:5000/banks'  # Adjust the URL if necessary
     headers = {
         'Authorization': f'Bearer {jwt_token}',  # Replace with actual JWT token
         'Content-Type': 'application/json'
@@ -230,7 +230,7 @@ def create_bank_in_api(bank_name: str):
         raise
 
 def create_account_in_api(account_name: str, account_type: str, currency: str, bank_id: int):
-    url = 'http://localhost:5000/accounts'  # Adjust the URL if necessary
+    url = 'http://100.121.97.42:5000/accounts'  # Adjust the URL if necessary
     headers = {
         'Authorization': f'Bearer {jwt_token}',  # Replace with actual JWT token
         'Content-Type': 'application/json'
@@ -278,7 +278,7 @@ def get_account_id_from_name(account_name: str, account_type: str):
         raise
 
 def create_transaction_in_api(transaction_data: Dict[str, Any]) -> requests.Response:
-    url = 'http://localhost:5000/transactions'
+    url = 'http://100.121.97.42:5000/transactions'
     headers = {
         'Authorization': f'Bearer {jwt_token}',
         'Content-Type': 'application/json'
@@ -327,20 +327,23 @@ def print_unique_budgets(file_path: str):
                 destination_account_type = account_name_type_mapping.get(row['destination_name'], 
                                                                          account_type_mapping.get(row['destination_type'], 'Unknown'))
 
+
                 # Get account IDs from names and types
-                from_account_id = get_account_id_from_name(row['source_name'], source_account_type)
-                to_account_id = get_account_id_from_name(row['destination_name'], destination_account_type)
+                from_account_id = get_account_id_from_name(str(row['source_name']), source_account_type)
+
+
+                if row['destination_name'] == "Prêt Etudiant CA":
+                    transaction_type = 'transfer'
+                    to_account_id = get_account_id_from_name('Prêt Etudiant CA', 'savings')
+                else:
+                    transaction_type = handle_transaction_type(row['type'])
+                    to_account_id = get_account_id_from_name(str(row['destination_name']), destination_account_type)
                 
                 if from_account_id is None or to_account_id is None:
                     logging.warning(f"Account ID not found for transaction: {row['source_name']} or {row['destination_name']}")
                     continue
 
                 
-                if row['destination_name'] == "Prêt Etudiant CA":
-                    transaction_type = 'transfer'
-                    to_account_id = get_account_id_from_name('Prêt Etudiant CA', 'savings')
-                else:
-                    transaction_type = handle_transaction_type(row['type'])
 
                 category = transform_budget_to_categories(str(row['budget']))['category']
                 sub_category = transform_budget_to_categories(str(row['budget']))['subCategory']
@@ -355,6 +358,7 @@ def print_unique_budgets(file_path: str):
                     'description': row['description'] if not pd.isna(row['description']) else '',
                     'type': transaction_type,
                     'date': row['date'][:10],
+                    'date_accountability': row['date'][:10],
                     'category': category,
                     'subcategory': sub_category
                 }
@@ -406,7 +410,7 @@ def transform_budgets_to_categories(budgets: List[str]) -> List[CategoryInfo]:
     return categories
 
 def get_transactions_from_api() -> requests.Response:
-    url = "http://localhost:5000/transactions?per_page=1000&page=1"  # Adjust the URL if necessary
+    url = "http://100.121.97.42:5000/transactions?per_page=1000&page=1"  # Adjust the URL if necessary
     headers = {
         'Authorization': f'Bearer {jwt_token}',  # Replace with actual JWT token
         'Content-Type': 'application/json'
@@ -415,7 +419,7 @@ def get_transactions_from_api() -> requests.Response:
     return response
 
 def get_wealth_from_api() -> requests.Response:
-    url = 'http://localhost:5000/accounts/balance_over_time?start_date=2024-01-01&end_date=2024-08-12'  # Adjust the URL if necessary
+    url = 'http://100.121.97.42:5000/accounts/balance_over_time?start_date=2024-01-01&end_date=2024-08-12'  # Adjust the URL if necessary
     headers = {
         'Authorization': f'Bearer {jwt_token}',  # Replace with actual JWT token
         'Content-Type': 'application/json'
@@ -423,9 +427,9 @@ def get_wealth_from_api() -> requests.Response:
     response = requests.get(url, headers=headers)
     return response
 
-name : str = "cccc"
-email: str = "cccc@cccc.com"
-password: str = "cccccc"
+name : str = "a"
+email: str = "a@a.com"
+password: str = "aaaaaa"
 
 create_user_r = create_user(name, email, password)
 if create_user_r.status_code == 201:
@@ -546,12 +550,13 @@ def process_batch(batch: pd.DataFrame, existing_transactions: List[Dict[str, Any
                                                                  account_type_mapping.get(row['destination_type'], 'Unknown'))
         
         transaction_data = {
-            'from_account_id': get_account_id_from_name(row['source_name'], source_account_type),
-            'to_account_id': get_account_id_from_name(row['destination_name'], destination_account_type),
+            'from_account_id': get_account_id_from_name(str(row['source_name']), source_account_type),
+            'to_account_id': get_account_id_from_name(str(row['destination_name']), destination_account_type),
             'amount': abs(float(row['amount'])),
             'description': row['description'] if not pd.isna(row['description']) else '',
             'type': handle_transaction_type(row['type']),
             'date': row['date'][:10],
+            'date_accountability': row['date'][:10],
             'category': transform_budget_to_categories(str(row['budget']))['category'],
             'subcategory': transform_budget_to_categories(str(row['budget']))['subCategory']
         }

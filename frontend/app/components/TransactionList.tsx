@@ -207,7 +207,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
               </Text>
             ) : (
               <Text style={styles.categoryText}>
-                {item.subcategory ? `${item.category} - ${item.subcategory}` : item.category}
+                {item.subcategory ? `${item.subcategory}` : item.category}
               </Text>
             )}
           </View>

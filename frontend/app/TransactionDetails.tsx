@@ -159,7 +159,7 @@ export default function TransactionDetailsScreen() {
             )}
             <View style={styles.legendLabelContainer}>
               <Text style={styles.legendLabel} numberOfLines={1} ellipsizeMode="tail">
-                {transaction.subcategory ? `${transaction.category} - ${transaction.subcategory}` : transaction.category}
+                {transaction.subcategory ? `${transaction.subcategory}` : transaction.category}
               </Text>
             </View>
           </View>
@@ -184,7 +184,7 @@ export default function TransactionDetailsScreen() {
 interface DetailRowProps {
   icon: string;
   label: string;
-  value: string; transactionIcon
+  value: string;
 }
 
 const DetailRow: React.FC<DetailRowProps> = ({ icon, label, value }) => (

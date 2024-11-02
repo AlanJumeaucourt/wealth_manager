@@ -13,16 +13,15 @@ import { darkTheme } from '../constants/theme';
 import store from '../store';
 import LoginScreen from './(auth)/login';
 import RegisterScreen from './(auth)/register';
-import AccountsScreen from './AccountsScreen';
-import AddAccountScreen from './AddAccountScreen';
-import AddTransactionScreen from './AddTransactionScreen';
-import BudgetDetailScreen from './BudgetDetailScreen';
-import BudgetScreen from './BudgetScreen';
-import InvestmentScreen from './InvestmentScreen';
+import AccountsScreen from './(app)/(tabs)/accounts';
+import AddAccountScreen from './add-account';
+import AddTransactionScreen from './add-transaction';
+import BudgetScreen from './(app)/(tabs)/budget';
+import InvestmentScreen from './(app)/(tabs)/investment';
 import TransactionDetails from './TransactionDetails';
-import TransactionsScreen from './TransactionsScreen';
+import TransactionsScreen from './(app)/(tabs)/transactions';
 import TransactionsScreenAccount from './TransactionsScreenAccount';
-import WealthDashboard from './WealthScreen';
+import WealthDashboard from './(app)/(tabs)/wealth';
 
 // Initialize Sentry for error tracking
 Sentry.init({
@@ -33,15 +32,6 @@ Sentry.init({
     replaysSessionSampleRate: 1.0,
     replaysOnErrorSampleRate: 1.0,
   },
-  integrations: [
-    Sentry.mobileReplayIntegration(),
-  ],
-});
-
-Sentry.mobileReplayIntegration({
-  maskAllText: true,
-  maskAllImages: true,
-  maskAllVectors: true,
 });
 
 const Tab = createBottomTabNavigator();
@@ -100,11 +90,7 @@ function TransactionsStack() {
         component={TransactionsScreenAccount}
         options={{ title: 'Account Transactions', headerShown: false }}
       />
-      <Stack.Screen
-        name="BudgetDetail"
-        component={BudgetDetailScreen}
-        options={{ title: 'Budget Details', headerShown: false }}
-      />
+
       {/* Add more screens related to Transactions here */}
     </Stack.Navigator>
   );
@@ -132,11 +118,6 @@ function BudgetStack() {
         name="BudgetMain"
         component={BudgetScreen}
         options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="BudgetDetail"
-        component={BudgetDetailScreen}
-        options={{ title: 'Budget Details', headerShown: false }}
       />
       {/* Add more screens related to Budget here */}
     </Stack.Navigator>

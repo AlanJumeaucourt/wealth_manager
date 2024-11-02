@@ -13,6 +13,7 @@ import { createInvestmentTransaction, updateInvestmentTransaction } from './api/
 import { BackButton } from './components/BackButton';
 import StockSearchModal from './components/StockSearchModal';
 import sharedStyles from './styles/sharedStyles';
+import { Account } from '@/types/account';
 
 interface InvestmentTransaction {
     id: number;
@@ -33,13 +34,13 @@ export default function AddInvestmentTransactionScreen() {
     const route = useRoute();
     const transaction = route.params?.transaction as InvestmentTransaction | undefined;
     const accounts = useSelector((state: RootState) =>
-        state.accounts.accounts.filter(account => account.id === transaction?.account_id)
+        state.accounts.accounts.filter((account: Account) => account.id === transaction?.account_id)
     );
 
     // Initialize state with transaction data if editing
     const [accountId, setAccountId] = useState<number | null>(transaction ? transaction.account_id : null);
     const [selectedAccountName, setSelectedAccountName] = useState<string>(
-        transaction ? accounts.find(acc => acc === transaction.account_name)?.name || '' : ''
+        transaction ? accounts.find((acc: Account) => acc.name === transaction.account_name)?.name || '' : ''
     );
     console.log(transaction);
     const [assetSymbol, setAssetSymbol] = useState(transaction ? transaction.asset_symbol : '');
@@ -181,7 +182,7 @@ export default function AddInvestmentTransactionScreen() {
                                     setAccountId(null);
                                 } else {
                                     setAccountId(value);
-                                    const selectedAccount = accounts.find(account => account.id === value);
+                                    const selectedAccount = accounts.find((account: Account) => account.id === value);
                                     setSelectedAccountName(selectedAccount ? selectedAccount.name : '');
                                 }
                             }}

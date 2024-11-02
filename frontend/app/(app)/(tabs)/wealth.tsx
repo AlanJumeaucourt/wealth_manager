@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LineChart } from 'react-native-gifted-charts';
-import { darkTheme } from '../constants/theme';
-import { fetchWealthData } from "./api/bankApi";
-import sharedStyles from './styles/sharedStyles';
+import { darkTheme } from '../../../constants/theme';
+import { fetchWealthData } from "../../api/bankApi";
+import sharedStyles from '../../styles/sharedStyles';
 
 interface DataPoint {
     value: number;
@@ -135,7 +135,7 @@ export default function WealthScreen() {
         <View style={[sharedStyles.container]}>
             <View style={sharedStyles.header}>
                 <Image
-                    source={require('./../assets/images/logo-removebg-white.png')}
+                    source={require('./../../../assets/images/logo-removebg-white.png')}
                     style={{ width: 30, height: 30 }}
                     resizeMode="contain"
                 />

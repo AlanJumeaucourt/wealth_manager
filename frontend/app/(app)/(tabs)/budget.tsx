@@ -1,15 +1,14 @@
-/* eslint-disable react-native/no-inline-styles */
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFont } from '@shopify/react-native-skia';
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
-import { expenseCategories, incomeCategories } from '../constants/categories';
-import { darkTheme } from '../constants/theme';
-import { fetchBudgetSummary } from './api/bankApi';
-import DonutChart from './components/DonutChart';
-import sharedStyles from './styles/sharedStyles';
+import { expenseCategories, incomeCategories } from '../../../constants/categories';
+import { darkTheme } from '../../../constants/theme';
+import { fetchBudgetSummary } from '../../api/bankApi';
+import DonutChart from '../../components/DonutChart';
+import sharedStyles from './../../styles/sharedStyles';
 
 interface Data {
   value: number;
@@ -236,8 +235,8 @@ export default function BudgetScreen() {
     setCurrentDate(newDate);
   };
 
-  const font = useFont(require('./../assets/fonts/Roboto-Bold.ttf'), 45);
-  const smallFont = useFont(require('./../assets/fonts/Roboto-Light.ttf'), 25);
+  const font = useFont(require('./../../../assets/fonts/Roboto-Bold.ttf'), 45);
+  const smallFont = useFont(require('./../../../assets/fonts/Roboto-Light.ttf'), 25);
 
   if (!font || !smallFont) {
     return <View />;
@@ -271,7 +270,7 @@ export default function BudgetScreen() {
       <View style={sharedStyles.header}>
         <View style={styles.headerContent}>
           <Image
-            source={require('./../assets/images/logo-removebg-white.png')}
+            source={require('./../../../assets/images/logo-removebg-white.png')}
             style={{ width: 30, height: 30 }}
             resizeMode="contain"
           />

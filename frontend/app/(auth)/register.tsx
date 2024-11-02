@@ -40,7 +40,7 @@ export default function RegisterScreen() {
       } else {
         setError('Registration failed. Please try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error.response ? error.response.data : error.message);
       setError('An error occurred during registration: ' + (error.response ? error.response.data.error : error.message));
     } finally {

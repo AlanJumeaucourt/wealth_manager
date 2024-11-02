@@ -4,9 +4,9 @@ import { Text, ActivityIndicator } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { darkTheme } from '@/constants/theme';
-import { getInvestmentTransactions } from './api/bankApi';
-import { BackButton } from './components/BackButton';
-import sharedStyles from './styles/sharedStyles';
+import { getInvestmentTransactions } from '../api/bankApi';
+import { BackButton } from './BackButton';
+import sharedStyles from '../styles/sharedStyles';
 
 interface InvestmentTransaction {
     id: number;

@@ -9,13 +9,15 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Dimensions, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts'; // Import the LineChart component
-import { ActivityIndicator, Button, Menu, Button as PaperButton } from 'react-native-paper';
+import { ActivityIndicator, Button, Menu, Button as PaperButton, FAB } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchAccounts } from '../actions/accountActions';
-import { fetchBanks } from '../actions/bankActions';
-import { colors } from '../constants/colors';
-import { darkTheme } from '../constants/theme';
-import sharedStyles from './styles/sharedStyles';
+import { fetchAccounts } from '../../../actions/accountActions';
+import { fetchBanks } from '../../../actions/bankActions';
+import { colors } from '../../../constants/colors';
+import { darkTheme } from '../../../constants/theme';
+import sharedStyles from '../../styles/sharedStyles';
+import { ThunkDispatch } from 'redux-thunk';
+import { AnyAction } from 'redux';
 
 interface DataPoint {
   value: number;
@@ -38,7 +40,7 @@ const Stack = createStackNavigator();
 type WealthDataPoint = { [date: string]: number };
 
 export default function AccountsScreen() {
-  const dispatch = useDispatch();
+  const dispatch: ThunkDispatch<{}, {}, AnyAction> = useDispatch();
   const { accounts, accountsLoading, accountsError } = useSelector((state: any) => state.accounts);
   const { banks, banksLoading, banksError } = useSelector((state: any) => state.banks);
   const navigation = useNavigation<AccountsScreenNavigationProp>();
@@ -49,6 +51,7 @@ export default function AccountsScreen() {
   const [refreshKey, setRefreshKey] = useState(0); // Ajoutez cet état
   const [isLoading, setIsLoading] = useState(true);
   const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 80);
+  const [fabOpen, setFabOpen] = useState(false);
 
   // Move the resize effect up here, before any conditional returns
   useEffect(() => {
@@ -93,8 +96,8 @@ export default function AccountsScreen() {
 
     // console.log("wealthData", wealthData);
     fetchData();
-    dispatch(fetchAccounts() as unknown); // Cast to unknown to satisfy TypeScript
-    dispatch(fetchBanks() as unknown); // Cast to unknown to satisfy TypeScript
+    dispatch(fetchAccounts());
+    dispatch(fetchBanks());
   }, [dispatch, refreshKey]);
 
   useEffect(() => {
@@ -103,8 +106,8 @@ export default function AccountsScreen() {
     };
 
     const subscription = Dimensions.addEventListener('change', handleResize); // Listen for dimension changes
-    dispatch(fetchAccounts() as unknown); // Cast to unknown to satisfy TypeScript
-    dispatch(fetchBanks() as unknown);
+    dispatch(fetchAccounts());
+    dispatch(fetchBanks());
 
     return () => {
       subscription?.remove(); // Clean up the event listener on unmount
@@ -133,7 +136,7 @@ export default function AccountsScreen() {
     const sortedGroups: Record<string, Account[]> = {};
     Object.keys(groups).sort().forEach(key => {
       // Sort accounts within each bank alphabetically
-      sortedGroups[key] = groups[key].sort((a, b) => a.name.localeCompare(b.name));
+      sortedGroups[key] = groups[key].sort((a: Account, b: Account) => a.name.localeCompare(b.name));
     });
 
     return sortedGroups;
@@ -319,17 +322,17 @@ export default function AccountsScreen() {
 
   // Add this helper function
   const getAccountIcon = (bank: string | undefined): any => {
-    if (!bank) return require('./../assets/images/icon.png');
+    if (!bank) return require('./../../../assets/images/icon.png');
 
     switch (bank.toLowerCase()) {
       case 'boursorama':
-        return require('./../assets/images/boursorama.png');
+        return require('./../../../assets/images/boursorama.png');
       case 'crédit agricole':
-        return require('./../assets/images/credit_agricole.png');
+        return require('./../../../assets/images/credit_agricole.png');
       case 'fortuneo':
-        return require('./../assets/images/fortuneo.png');
+        return require('./../../../assets/images/fortuneo.png');
       default:
-        return require('./../assets/images/icon.png');
+        return require('./../../../assets/images/icon.png');
     }
   };
 
@@ -337,7 +340,7 @@ export default function AccountsScreen() {
     <View style={[sharedStyles.container]}>
       <View style={sharedStyles.header}>
         <Image
-          source={require('./../assets/images/logo-removebg-white.png')}
+          source={require('./../../../assets/images/logo-removebg-white.png')}
           style={{ width: 30, height: 30 }}
           resizeMode="contain"
         />
@@ -465,28 +468,38 @@ export default function AccountsScreen() {
           ) : (
             <Text style={styles.noAccountsText}>No accounts found for this filter.</Text>
           )}
-
-          {/* Add Account Button */}
-          <Button
-            mode="contained"
-            onPress={() => navigation.navigate('AddAccount' as never)}
-            style={styles.addButton}
-            icon="plus"
-          >
-            Add Account
-          </Button>
-
-          {/* Add Transaction Button */}
-          <Button
-            mode="contained"
-            onPress={() => navigation.navigate('AddTransaction' as never)}
-            style={styles.addButton}
-            icon="plus"
-          >
-            Add Transaction
-          </Button>
         </ScrollView>
       </View>
+
+      <FAB.Group
+        open={fabOpen}
+        icon={fabOpen ? 'close' : 'plus'}
+        actions={[
+          {
+            icon: 'account-plus-outline',
+            label: 'Add Account',
+            onPress: () => navigation.navigate('AddAccount' as never),
+          },
+          {
+            icon: 'plus',
+            label: 'Add Transaction',
+            onPress: () => navigation.navigate('AddTransaction' as never),
+          },
+          {
+            icon: 'chart-line',
+            label: 'Add Investment Transaction',
+            onPress: () => navigation.navigate('AddInvestmentTransaction' as never),
+          },
+        ]}
+        onStateChange={({ open }) => setFabOpen(open)}
+        onPress={() => {
+          if (fabOpen) {
+            // Optional: Handle FAB press when menu is open
+          }
+        }}
+        fabStyle={styles.fab}
+      />
+
       <LogoutModal />
     </View>
   )
@@ -496,6 +509,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: darkTheme.colors.background,
+    position: 'relative', // Ensure the container is relative for absolute positioning
   },
   scrollViewContent: {
     flexGrow: 1,
@@ -506,11 +520,11 @@ const styles = StyleSheet.create({
     marginBottom: darkTheme.spacing.l,
     padding: darkTheme.spacing.l,
     backgroundColor: darkTheme.colors.surface,
-    borderRadius: darkTheme.borderRadius.l,
+    borderRadius: 12,
     marginHorizontal: darkTheme.spacing.m,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
     alignItems: 'center',
@@ -579,9 +593,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: darkTheme.spacing.m,
-    backgroundColor: darkTheme.colors.surface,
-    borderRadius: darkTheme.borderRadius.m,
-    marginBottom: darkTheme.spacing.s,
+    backgroundColor: darkTheme.colors.card,
+    borderRadius: 10,
+    marginVertical: darkTheme.spacing.s,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -634,25 +648,30 @@ const styles = StyleSheet.create({
     ...darkTheme.shadows.medium,
   },
   addButton: {
-    marginHorizontal: darkTheme.spacing.l,
-    marginTop: darkTheme.spacing.m,
-    marginBottom: darkTheme.spacing.s,
-    borderRadius: darkTheme.borderRadius.m,
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+    borderRadius: 30,
+    padding: 16,
     backgroundColor: darkTheme.colors.primary,
-    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: darkTheme.spacing.m,
+    paddingHorizontal: darkTheme.spacing.l,
     paddingVertical: darkTheme.spacing.m,
-    backgroundColor: darkTheme.colors.surface,
+    backgroundColor: darkTheme.colors.primary,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: darkTheme.colors.text,
+    fontSize: 22,
+    fontWeight: '700',
+    color: darkTheme.colors.background,
   },
   modalContent: {
     backgroundColor: darkTheme.colors.surface,
@@ -773,5 +792,12 @@ const styles = StyleSheet.create({
   modalButton: {
     marginHorizontal: darkTheme.spacing.s,
     minWidth: 100,
+  },
+  accountItemTouchable: {
+    activeOpacity: 0.7,
+  },
+  fab: {
+    backgroundColor: darkTheme.colors.primary,
+    // You can customize the FAB style further if needed
   },
 });

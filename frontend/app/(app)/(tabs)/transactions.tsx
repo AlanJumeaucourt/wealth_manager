@@ -2,11 +2,11 @@ import React, { useEffect } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchTransactions } from '../actions/transactionActions';
-import { darkTheme } from '../constants/theme';
-import { RootState } from '../store'; // Assuming you have a root state type defined
-import TransactionList from './components/TransactionList';
-import sharedStyles from './styles/sharedStyles';
+import { fetchTransactions } from '../../../actions/transactionActions';
+import { darkTheme } from '../../../constants/theme';
+import { RootState } from '../../../store'; // Assuming you have a root state type defined
+import TransactionList from '../../components/TransactionList';
+import sharedStyles from '../../styles/sharedStyles';
 
 const TransactionContent = ({
   transactions,
@@ -48,7 +48,7 @@ export default function TransactionsScreen() {
     <View style={[sharedStyles.container]}>
       <View style={sharedStyles.header}>
         <Image
-          source={require('./../assets/images/logo-removebg-white.png')}
+          source={require('./../../../assets/images/logo-removebg-white.png')}
           style={{ width: 30, height: 30 }}
           resizeMode="contain"
         />

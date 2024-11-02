@@ -17,11 +17,11 @@ import {
 } from '@/types/investment';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Menu } from 'react-native-paper';
-import AddInvestmentTransactionScreen from './AddInvestmentTransactionScreen';
-import InvestmentTransactionListScreen from './InvestmentTransactionListScreen';
-import { getAssetTransactions, getCurrentHistory, getPortfolioPerformance, getPortfolioSummary, getStockPrices } from './api/bankApi';
-import { InvestmentSkeleton } from './components/InvestmentSkeleton';
-import sharedStyles from './styles/sharedStyles';
+import AddInvestmentTransactionScreen from '../../add-investment-transaction';
+import InvestmentTransactionListScreen from '../../components/InvestmentTransactionListScreen';
+import { getAssetTransactions, getCurrentHistory, getPortfolioPerformance, getPortfolioSummary, getStockPrices } from '../../api/bankApi';
+import { InvestmentSkeleton } from '../../components/InvestmentSkeleton';
+import sharedStyles from '../../styles/sharedStyles';
 
 type InvestmentScreenNavigationProp = StackNavigationProp<InvestmentStackParamList>;
 
@@ -276,7 +276,7 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
         <View style={[sharedStyles.container]}>
             <View style={sharedStyles.header}>
                 <Image
-                    source={require('./../assets/images/logo-removebg-white.png')}
+                    source={require('./../../../assets/images/logo-removebg-white.png')}
                     style={{ width: 30, height: 30 }}
                     resizeMode="contain"
                 />
@@ -651,7 +651,7 @@ const InvestmentOverview: React.FC = () => {
         <View style={[sharedStyles.container]}>
             <View style={sharedStyles.header}>
                 <Image
-                    source={require('./../assets/images/logo-removebg-white.png')}
+                    source={require('./../../../assets/images/logo-removebg-white.png')}
                     style={{ width: 30, height: 30 }}
                     resizeMode="contain"
                 />
