@@ -5,7 +5,7 @@ import re
 def validate_date_format(date_str: str) -> bool:
     """
     Validate that the date string matches accepted formats:
-    - 'YYYY-MM-DDThh:mm:ss' 
+    - 'YYYY-MM-DDThh:mm:ss'
     - 'YYYY-MM-DDThh:mm:ss.mmmmmm' (isoformat with microseconds)
     - 'YYYY-MM-DD'
     - 'YYYY-MM-DDThh:mm:ssZ' (with UTC timezone)
@@ -75,21 +75,7 @@ class AccountSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1))
     type = fields.Str(required=True, validate=validate.OneOf(['asset', 'investment', 'income', 'expense', 'checking', 'savings']))
     bank_id = fields.Int(required=True)
-    currency = fields.Str(required=True, validate=validate.Length(equal=3))
-    tags = fields.List(fields.Str())
     balance = fields.Float(dump_only=True)  # Add this line
-
-    @pre_load
-    def process_tags(self, data, **kwargs):
-        if 'tags' in data and isinstance(data['tags'], str):
-            data['tags'] = [tag.strip() for tag in data['tags'].split(',') if tag.strip()]
-        return data
-
-    @post_dump
-    def join_tags(self, data, **kwargs):
-        if 'tags' in data and isinstance(data['tags'], list):
-            data['tags'] = ','.join(data['tags'])
-        return data
 
 class TransactionSchema(Schema):
     id = fields.Int(dump_only=True)
@@ -102,19 +88,29 @@ class TransactionSchema(Schema):
     to_account_id = fields.Int(required=True)
     category = fields.Str(allow_none=True, required=False)
     subcategory = fields.Str(allow_none=True, required=False)
-    related_transaction_id = fields.Int(allow_none=True)
     type = fields.Str(required=True, validate=validate.OneOf(['expense', 'income', 'transfer']))
+
+class AssetSchema(Schema):
+    id = fields.Int(dump_only=True)
+    symbol = fields.Str(required=True)
+    name = fields.Str(required=True)
 
 class InvestmentTransactionSchema(Schema):
     id = fields.Int(dump_only=True)
     user_id = fields.Int(required=True)
-    account_id = fields.Int(required=True)
-    asset_symbol = fields.Str(required=True)
-    asset_name = fields.Str(required=True)
+    from_account_id = fields.Int(required=True)
+    to_account_id = fields.Int(required=True)
+    asset_id = fields.Int(required=True)
     activity_type = fields.Str(required=True, validate=validate.OneOf(['buy', 'sell', 'deposit', 'withdrawal']))
     date = DateField(required=True)
     quantity = fields.Float(required=True)
     unit_price = fields.Float(required=True)
     fee = fields.Float(required=True)
     tax = fields.Float(required=True)
-    transaction_related_id = fields.Int(allow_none=True)
+    total_paid = fields.Float(required=True, dump_only=True)
+
+class AccountAssetSchema(Schema):
+    id = fields.Int(dump_only=True)
+    account_id = fields.Int(required=True)
+    asset_id = fields.Int(required=True)
+    quantity = fields.Float(required=True)

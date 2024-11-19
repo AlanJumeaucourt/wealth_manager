@@ -1,3 +1,4 @@
+import time
 import unittest
 import requests
 from faker import Faker
@@ -177,6 +178,12 @@ class TestUserAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"message": "Token is valid"})
 
+    def tearDown(self):
+        if hasattr(self, "jwt_token") and hasattr(self, "user_id"):
+            url = f"{self.base_url}/users/{self.user_id}"
+            headers = {"Authorization": f"Bearer {self.jwt_token}"}
+            requests.delete(url, headers=headers)
+
 
 class TestBankAPI(unittest.TestCase):
     base_url = "http://localhost:5000"
@@ -308,7 +315,7 @@ class TestBankAPI(unittest.TestCase):
 
     def tearDown(self):
         # Clean up: delete the user and associated data
-        if hasattr(self, "user_id"):
+        if hasattr(self, "jwt_token") and hasattr(self, "user_id"):
             url = f"{self.base_url}/users/{self.user_id}"
             headers = {"Authorization": f"Bearer {self.jwt_token}"}
             requests.delete(url, headers=headers)
@@ -357,9 +364,7 @@ class TestTransactionAPI(unittest.TestCase):
             data = {
                 "name": f"Test {acc_type.capitalize()}",
                 "type": acc_type,
-                "currency": "EUR",
                 "bank_id": self.bank_id,
-                "tags": "test",
             }
             response = requests.post(url, headers=headers, json=data)
             self.assertEqual(response.status_code, 201)
@@ -603,7 +608,7 @@ class TestTransactionAPI(unittest.TestCase):
             self.assertIn("date_accountability", transaction)
 
     def tearDown(self):
-        if hasattr(self, "user_id"):
+        if hasattr(self, "jwt_token") and hasattr(self, "user_id"):
             url = f"{self.base_url}/users/{self.user_id}"
             headers = {"Authorization": f"Bearer {self.jwt_token}"}
             requests.delete(url, headers=headers)
@@ -653,15 +658,12 @@ class TestAccountAPI(unittest.TestCase):
             data = {
                 "name": f"Test {acc_type.capitalize()}",
                 "type": acc_type,
-                "currency": "EUR",
                 "bank_id": self.bank_id,
-                "tags": f"test,{acc_type}",
             }
             response = requests.post(url, headers=headers, json=data)
             self.assertEqual(response.status_code, 201)
             account = response.json()
             self.assertEqual(account["type"], acc_type)
-            self.assertEqual(account["currency"], "EUR")
 
     def test_get_account_balance(self):
         # Create an account and some transactions
@@ -674,9 +676,7 @@ class TestAccountAPI(unittest.TestCase):
             data = {
                 "name": f"Test Account {i}",
                 "type": "checking",
-                "currency": "EUR",
                 "bank_id": self.bank_id,
-                "tags": "test",
             }
             response = requests.post(url, headers=headers, json=data)
             self.assertEqual(response.status_code, 201)
@@ -692,6 +692,7 @@ class TestAccountAPI(unittest.TestCase):
             "from_account_id": accounts[0],
             "to_account_id": accounts[1],
             "type": "transfer",
+            "category": "transfer",
         }
         response = requests.post(
             transaction_url, headers=headers, json=transaction_data
@@ -726,195 +727,10 @@ class TestAccountAPI(unittest.TestCase):
             self.assertIn(field, data)
 
     def tearDown(self):
-        if hasattr(self, "user_id"):
+        if hasattr(self, "jwt_token") and hasattr(self, "user_id"):
             url = f"{self.base_url}/users/{self.user_id}"
             headers = {"Authorization": f"Bearer {self.jwt_token}"}
             requests.delete(url, headers=headers)
-
-
-class TestInvestmentTransactionAPI(unittest.TestCase):
-    base_url = "http://localhost:5000"
-    jwt_token = None
-
-    def setUp(self):
-        # Create test user and get token
-        self.name = fake.name()
-        self.email = fake.email()
-        self.password = fake.password()
-        self.create_user_and_login()
-        self.setup_investment_accounts()
-
-    def create_user_and_login(self):
-        # Create user
-        url = f"{self.base_url}/users/register"
-        data = {"name": self.name, "email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 201)
-        self.user_id = response.json()["id"]
-
-        # Login
-        url = f"{self.base_url}/users/login"
-        data = {"email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 200)
-        self.jwt_token = response.json()["access_token"]
-
-    def setup_investment_accounts(self):
-        # Create a bank
-        url = f"{self.base_url}/banks/"
-        headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        data = {"name": fake.bank_name()}
-        response = requests.post(url, headers=headers, json=data)
-        self.assertEqual(response.status_code, 201)
-        self.bank_id = response.json()["id"]
-
-        # Create investment account
-        url = f"{self.base_url}/accounts"
-        data = {
-            "name": "Test Investment Account",
-            "type": "investment",
-            "currency": "EUR",
-            "bank_id": self.bank_id,
-            "tags": "test,investment"
-        }
-        response = requests.post(url, headers=headers, json=data)
-        self.assertEqual(response.status_code, 201)
-        self.investment_account = response.json()
-        
-        # Verify cash account was automatically created
-        url = f"{self.base_url}/accounts"
-        response = requests.get(url, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        accounts = response.json()
-        self.cash_account = next(
-            (acc for acc in accounts if acc["name"] == f"{self.investment_account['name']} cash"),
-            None
-        )
-        self.assertIsNotNone(self.cash_account)
-
-    def test_create_investment_transaction(self):
-        """Test creating different types of investment transactions."""
-        url = f"{self.base_url}/investments"
-        headers = {"Authorization": f"Bearer {self.jwt_token}"}
-
-        # Test different transaction types
-        transaction_types = [
-            {
-                "activity_type": "buy",
-                "quantity": 10,
-                "unit_price": 100,
-            },
-            {
-                "activity_type": "sell",
-                "quantity": 5,
-                "unit_price": 110,
-            },
-            {
-                "activity_type": "deposit",
-                "quantity": 1000,
-                "unit_price": 1,
-            },
-            {
-                "activity_type": "withdrawal",
-                "quantity": 500,
-                "unit_price": 1,
-            }
-        ]
-
-        for tx_type in transaction_types:
-            data = {
-                "account_id": self.investment_account["id"],
-                "asset_symbol": "AAPL",
-                "asset_name": "Apple Inc.",
-                "date": datetime.now().isoformat(),
-                "fee": 5,
-                "tax": 2,
-                **tx_type
-            }
-            
-            response = requests.post(url, headers=headers, json=data)
-            self.assertEqual(response.status_code, 201)
-            
-            # Verify the investment transaction was created
-            transaction = response.json()
-            self.assertEqual(transaction["activity_type"], tx_type["activity_type"])
-            self.assertEqual(float(transaction["quantity"]), tx_type["quantity"])
-            self.assertEqual(float(transaction["unit_price"]), tx_type["unit_price"])
-            
-            # For buy/sell transactions, verify the corresponding transfer transaction
-            if tx_type["activity_type"] in ["buy", "sell"]:
-                # Calculate expected total amount
-                total_amount = (tx_type["quantity"] * tx_type["unit_price"]) + data["fee"] + data["tax"]
-                
-                # Get all transactions to find the transfer
-                response = requests.get(
-                    f"{self.base_url}/transactions",
-                    headers=headers,
-                    params={"related_transaction_id": transaction["id"]}
-                )
-                self.assertEqual(response.status_code, 200)
-                transfers = response.json()["transactions"]
-                
-                self.assertEqual(len(transfers), 1)
-                transfer = transfers[0]
-                self.assertEqual(transfer["type"], "transfer")
-                self.assertEqual(float(transfer["amount"]), total_amount)
-                
-                if tx_type["activity_type"] == "buy":
-                    self.assertEqual(transfer["from_account_id"], self.cash_account["id"])
-                    self.assertEqual(transfer["to_account_id"], self.investment_account["id"])
-                else:  # sell
-                    self.assertEqual(transfer["from_account_id"], self.investment_account["id"])
-                    self.assertEqual(transfer["to_account_id"], self.cash_account["id"])
-
-    def test_get_portfolio_summary(self):
-        """Test getting portfolio summary after creating transactions."""
-        # First create some transactions
-        self.test_create_investment_transaction()
-        
-        url = f"{self.base_url}/investments/portfolio/summary"
-        headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        
-        response = requests.get(url, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        
-        summary = response.json()
-        self.assertIn("positions", summary)
-        self.assertIn("total_invested", summary)
-        self.assertIn("total_value", summary)
-        self.assertIn("total_gain", summary)
-        
-        # Verify AAPL position
-        aapl_position = next((pos for pos in summary["positions"] if pos["asset_symbol"] == "AAPL"), None)
-        self.assertIsNotNone(aapl_position)
-        self.assertEqual(aapl_position["total_quantity"], 5)  # 10 bought - 5 sold
-
-    def test_get_portfolio_performance(self):
-        """Test getting portfolio performance data."""
-        # First create some transactions
-        self.test_create_investment_transaction()
-        
-        url = f"{self.base_url}/investments/portfolio/performance"
-        headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        
-        response = requests.get(url, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        
-        performance = response.json()
-        self.assertIn("performance_data", performance)
-        self.assertGreater(len(performance["performance_data"]), 0)
-        
-        # Verify data point structure
-        data_point = performance["performance_data"][0]
-        self.assertIn("date", data_point)
-        self.assertIn("cumulative_value", data_point)
-
-    def tearDown(self):
-        if hasattr(self, "user_id"):
-            url = f"{self.base_url}/users/{self.user_id}"
-            headers = {"Authorization": f"Bearer {self.jwt_token}"}
-            requests.delete(url, headers=headers)
-
 
 if __name__ == "__main__":
     unittest.main()

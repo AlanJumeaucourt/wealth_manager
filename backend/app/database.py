@@ -1,8 +1,10 @@
 import sqlite3
 from typing import Optional, Union, List, Dict, Any
 from enum import Enum
-from app.exceptions import QueryExecutionError, NoResultFoundError
-
+if __name__ != "__main__":
+    from app.exceptions import QueryExecutionError, NoResultFoundError
+else:
+    from exceptions import QueryExecutionError, NoResultFoundError
 
 class QueryType(Enum):
     SELECT = "select"
@@ -37,47 +39,64 @@ class DatabaseManager:
         # )
         connection.execute("PRAGMA foreign_keys = ON;")
         return connection
-    
-    def execute_select(self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None) -> List[Dict[str, Any]]:
+
+    def execute_select(
+        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
+    ) -> List[Dict[str, Any]]:
         result = self.__execute_raw_sql(query, QueryType.SELECT, params)
         if not result:
             raise NoResultFoundError("No result found for select query", query, params)
         return result
 
-    def execute_insert(self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None) -> int:
+    def execute_insert(
+        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
+    ) -> int:
         result = self.__execute_raw_sql(query, QueryType.INSERT, params)
         if not result:
             raise NoResultFoundError("No result found for insert query", query, params)
         return result
 
-    def execute_insert_returning(self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None) -> Dict[str, Any]:
+    def execute_insert_returning(
+        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
+    ) -> Dict[str, Any]:
         result = self.__execute_raw_sql(query, QueryType.INSERT_RETURNING, params)
         if not result:
-            raise NoResultFoundError("No result found for insert returning query", query, params)
+            raise NoResultFoundError(
+                "No result found for insert returning query", query, params
+            )
         return result
 
-    def execute_update(self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None) -> int:
+    def execute_update(
+        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
+    ) -> int:
         result = self.__execute_raw_sql(query, QueryType.UPDATE, params)
         if not result:
             raise NoResultFoundError("No result found for update query", query, params)
         return result
-    
-    def execute_update_returning(self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None) -> Dict[str, Any]:
+
+    def execute_update_returning(
+        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
+    ) -> Dict[str, Any]:
         result = self.__execute_raw_sql(query, QueryType.UPDATE_RETURNING, params)
         if not result:
-            raise NoResultFoundError("No result found for update returning query", query, params)
+            raise NoResultFoundError(
+                "No result found for update returning query", query, params
+            )
         return result
-    
-    def execute_delete(self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None) -> bool:
+
+    def execute_delete(
+        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
+    ) -> bool:
         result = self.__execute_raw_sql(query, QueryType.DELETE, params)
         if not result:
             raise NoResultFoundError("No result found for delete query", query, params)
         return result
-    
-    
-    
+
     def __execute_raw_sql(
-        self, query: str, query_type: QueryType, params: Optional[Union[tuple[Any, ...], list[Any]]] = None, 
+        self,
+        query: str,
+        query_type: QueryType,
+        params: Optional[Union[tuple[Any, ...], list[Any]]] = None,
     ) -> Any:
         """
         Execute a raw SQL query and return the results.
@@ -97,15 +116,12 @@ class DatabaseManager:
 
                 if query_type == QueryType.SELECT:
                     results = cursor.fetchall()
-                    return [
-                        dict(row) for row in results
-                    ]
-                    
-                                
+                    return [dict(row) for row in results]
+
                 elif query_type == QueryType.INSERT:
                     connection.commit()
                     return cursor.lastrowid
-                
+
                 elif query_type == QueryType.INSERT_RETURNING:
                     result = cursor.fetchall()
                     connection.commit()
@@ -114,18 +130,20 @@ class DatabaseManager:
                 elif query_type == QueryType.UPDATE:
                     connection.commit()
                     return cursor.lastrowid
-                
+
                 elif query_type == QueryType.UPDATE_RETURNING:
                     result = cursor.fetchall()
                     connection.commit()
                     return dict(result[0])
-                
+
                 elif query_type == QueryType.DELETE:
                     connection.commit()
                     return True
-               
+
             except Exception as err:
-                raise QueryExecutionError(f"Error executing query: {err}", query, params)
+                raise QueryExecutionError(
+                    f"Error executing query: {err}", query, params
+                )
             finally:
                 cursor.close()
 
@@ -134,117 +152,151 @@ class DatabaseManager:
         Create the necessary tables, views, triggers and indexes in the database if they do not exist.
         """
         tables = [
-            """CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                        name TEXT NOT NULL, 
-                        email TEXT UNIQUE NOT NULL, 
-                        password TEXT NOT NULL, 
-                        last_login TIMESTAMP);
-                    """,
-            """CREATE TABLE IF NOT EXISTS banks (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                        user_id INTEGER NOT NULL,
-                        name TEXT NOT NULL,
-                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
-                    """,
-            """CREATE TABLE IF NOT EXISTS accounts (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                        user_id INTEGER NOT NULL,
-                        name TEXT NOT NULL, 
-                        type TEXT CHECK(type IN ('investment', 'income', 'expense', 'checking', 'savings')) NOT NULL, 
-                        bank_id INTEGER NOT NULL,
-                        currency TEXT NOT NULL, 
-                        tags TEXT,
-                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                        FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE CASCADE);
-                    """,
-            """CREATE TABLE IF NOT EXISTS transactions (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                        user_id INTEGER NOT NULL,
-                        date TIMESTAMP NOT NULL,
-                        date_accountability TIMESTAMP NOT NULL,
-                        description TEXT NOT NULL,
-                        amount DECIMAL(10, 2) NOT NULL,
-                        from_account_id INTEGER NOT NULL,
-                        to_account_id INTEGER NOT NULL,
-                        category TEXT,
-                        subcategory TEXT,
-                        related_transaction_id INTEGER,
-                        type TEXT CHECK(type IN ('expense', 'income', 'transfer')) NOT NULL,
-                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                        FOREIGN KEY (from_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
-                        FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE);
-                    """,
-            """CREATE TABLE IF NOT EXISTS investment_transactions (
+            """--sql
+                CREATE TABLE IF NOT EXISTS users (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        account_id INTEGER NOT NULL,
-                        asset_symbol TEXT NOT NULL,
-                        asset_name TEXT NOT NULL,
-                        activity_type TEXT CHECK(activity_type IN ('buy', 'sell', 'deposit', 'withdrawal')) NOT NULL,
-                        date TIMESTAMP NOT NULL,
-                        quantity DECIMAL(10, 6) NOT NULL,
-                        unit_price DECIMAL(10, 2) NOT NULL,
-                        fee DECIMAL(10, 2) NOT NULL,
-                        tax DECIMAL(10, 2) NOT NULL,
-                        transaction_related_id INTEGER,
-                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                        FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
-                        FOREIGN KEY (transaction_related_id) REFERENCES investment_transactions(id) ON DELETE SET NULL
-                    );""",
+                        name TEXT NOT NULL,
+                        email TEXT UNIQUE NOT NULL,
+                        password TEXT NOT NULL,
+                        last_login TIMESTAMP);
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS banks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS accounts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    type TEXT NOT NULL CHECK (type IN ('investment', 'income', 'expense', 'checking', 'savings')),
+                    bank_id INTEGER NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE CASCADE
+                );
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS transactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    date TIMESTAMP NOT NULL,
+                    date_accountability TIMESTAMP NOT NULL,
+                    description TEXT NOT NULL,
+                    amount DECIMAL(10,2) NOT NULL,
+                    from_account_id INTEGER NOT NULL,
+                    to_account_id INTEGER NOT NULL,
+                    category TEXT NOT NULL,
+                    subcategory TEXT,
+                    type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'transfer')),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (from_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+                FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE
+                );
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS assets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL
+                );
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS investment_transactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    from_account_id INTEGER NOT NULL,
+                    to_account_id INTEGER NOT NULL,
+                    asset_id INTEGER NOT NULL,
+                    activity_type TEXT NOT NULL CHECK (activity_type IN ('buy', 'sell', 'deposit', 'withdrawal')),
+                    date TIMESTAMP NOT NULL,
+                    quantity DECIMAL(10,6) NOT NULL,
+                    unit_price DECIMAL(10,2) NOT NULL,
+                    fee DECIMAL(10,2) NOT NULL,
+                    tax DECIMAL(10,2) NOT NULL,
+                    total_paid DECIMAL(10,2),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (from_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+                    FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+                    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+                );
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS accounts_assets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id INTEGER NOT NULL,
+                    asset_id INTEGER NOT NULL,
+                    quantity DECIMAL(10,6) NOT NULL,
+                    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+                    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+                );
+            """,
         ]
-        
+
         views = [
-            """
-            CREATE VIEW IF NOT EXISTS account_balances AS
-            WITH transaction_impacts AS (
-                -- Incoming transactions (positive impact)
-                SELECT 
-                    to_account_id as account_id,
-                    CASE 
-                        WHEN type = 'income' THEN amount
-                        WHEN type = 'transfer' THEN amount
-                        ELSE 0 
-                    END as amount
-                FROM transactions
-                
+            """--sql
+                CREATE VIEW IF NOT EXISTS account_balances AS
+                WITH transaction_impacts AS (
+                    -- Incoming transactions (positive impact)
+                    SELECT
+                        to_account_id as account_id,
+                        CASE
+                            WHEN type = 'income' THEN amount
+                            WHEN type = 'transfer' THEN amount
+                            ELSE 0
+                        END as amount
+                    FROM transactions
                 UNION ALL
-                
                 -- Outgoing transactions (negative impact)
-                SELECT 
+                SELECT
                     from_account_id as account_id,
-                    CASE 
+                    CASE
                         WHEN type = 'expense' THEN -amount
                         WHEN type = 'transfer' THEN -amount
-                        ELSE 0 
+                        ELSE 0
                     END as amount
                 FROM transactions
-            )
-            SELECT 
-                a.id as account_id,
-                a.user_id,
-                a.name as account_name,
-                a.type as account_type,
-                a.currency,
-                COALESCE(SUM(ti.amount), 0) as current_balance
-            FROM accounts a
-            LEFT JOIN transaction_impacts ti ON a.id = ti.account_id
-            GROUP BY a.id, a.user_id, a.name, a.type, a.currency;
-            """
+                )
+                SELECT
+                    a.id as account_id,
+                    a.user_id,
+                    a.name as account_name,
+                    a.type as account_type,
+                    COALESCE(SUM(ti.amount), 0) as current_balance
+                FROM accounts a
+                    LEFT JOIN transaction_impacts ti ON a.id = ti.account_id
+                    GROUP BY a.id, a.user_id, a.name, a.type;
+            """,
+            """--sql
+                CREATE VIEW IF NOT EXISTS account_asset_balances AS
+                SELECT
+                    aa.account_id,
+                    aa.asset_id,
+                    a.name AS account_name,
+                    ast.symbol AS asset_symbol,
+                    ast.name AS asset_name,
+                    aa.quantity
+                FROM accounts_assets aa
+                JOIN accounts a ON aa.account_id = a.id
+                JOIN assets ast ON aa.asset_id = ast.id;
+            """,
         ]
-        
+
         triggers = [
-            """
+            """--sql
             CREATE TRIGGER IF NOT EXISTS trg_validate_transaction
             BEFORE INSERT ON transactions
             BEGIN
                 -- Get account types for validation
                 WITH account_types AS (
-                    SELECT 
+                    SELECT
                         NEW.from_account_id as account_id,
                         type as from_type,
                         (SELECT type FROM accounts WHERE id = NEW.to_account_id) as to_type
-                    FROM accounts 
+                    FROM accounts
                     WHERE id = NEW.from_account_id
                 )
                 SELECT
@@ -258,7 +310,7 @@ class DatabaseManager:
                             (SELECT from_type FROM account_types) != 'income'
                         ) THEN
                             RAISE(ABORT, 'Income must originate from an income account')
-                            
+
                         -- Validate expense transactions
                         WHEN NEW.type = 'expense' AND (
                             (SELECT from_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
@@ -268,7 +320,7 @@ class DatabaseManager:
                             (SELECT to_type FROM account_types) != 'expense'
                         ) THEN
                             RAISE(ABORT, 'Expenses must go to an expense account')
-                            
+
                         -- Validate transfer transactions
                         WHEN NEW.type = 'transfer' AND (
                             (SELECT from_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
@@ -280,50 +332,63 @@ class DatabaseManager:
                             RAISE(ABORT, 'Cannot transfer to this type of account')
                     END;
             END;
-            """
+
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_calculate_total_paid_investment_transaction
+                AFTER INSERT ON investment_transactions
+                FOR EACH ROW
+                BEGIN
+                    UPDATE investment_transactions
+                    SET total_paid = (NEW.quantity * NEW.unit_price) + NEW.fee + NEW.tax
+                    WHERE id = NEW.id;
+                END;
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_calculate_total_paid_investment_transaction_update
+                AFTER UPDATE ON investment_transactions
+                FOR EACH ROW
+                BEGIN
+                    UPDATE investment_transactions
+                    SET total_paid = (NEW.quantity * NEW.unit_price) + NEW.fee + NEW.tax
+                    WHERE id = NEW.id;
+                END;
+            """,
         ]
-        
+
         indexes = [
             # Users table - email is used for login/authentication
-            "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);",
-            
-            # Banks table - frequently queried by user_id
-            "CREATE INDEX IF NOT EXISTS idx_banks_user_id ON banks(user_id);",
-            
-            # Accounts table - most important queries
-            "CREATE INDEX IF NOT EXISTS idx_accounts_user_id_type ON accounts(user_id, type);",
-            
-            # Transactions table - most important queries
-            "CREATE INDEX IF NOT EXISTS idx_transactions_user_id_date ON transactions(user_id, date);",
-            "CREATE INDEX IF NOT EXISTS idx_transactions_user_id_date_accountability ON transactions(user_id, date_accountability);",
-            "CREATE INDEX IF NOT EXISTS idx_transactions_account_ids ON transactions(from_account_id, to_account_id);",
-            
-            # Investment transactions table - most important queries
-            "CREATE INDEX IF NOT EXISTS idx_investment_transactions_user_id_date ON investment_transactions(user_id, date);",
-            "CREATE INDEX IF NOT EXISTS idx_investment_transactions_user_asset ON investment_transactions(user_id, asset_symbol);",
-            "CREATE INDEX IF NOT EXISTS idx_investment_transactions_account ON investment_transactions(account_id);",
+            "CREATE INDEX idx_users_email ON users(email);",
+            "CREATE INDEX idx_banks_user_id ON banks(user_id);",
+            "CREATE INDEX idx_accounts_user_type ON accounts(user_id, type);",
+            "CREATE INDEX idx_transactions_user_date ON transactions(user_id, date);",
+            "CREATE INDEX idx_transactions_user_date_acc ON transactions(user_id, date_accountability);",
+            "CREATE INDEX idx_transactions_accounts ON transactions(from_account_id, to_account_id);",
+            "CREATE INDEX idx_investment_transactions_user_date ON investment_transactions(user_id, date);",
+            "CREATE INDEX idx_investment_transactions_user_asset ON investment_transactions(user_id, asset_id);",
+            "CREATE INDEX idx_accounts_assets_account_id ON accounts_assets(account_id);",
+            "CREATE INDEX idx_accounts_assets_asset_id ON accounts_assets(asset_id);",
         ]
-        
+
         with self.connect_to_database() as connection:
             cursor = connection.cursor()
             try:
                 # Create tables
                 for table in tables:
-                    cursor.execute(table)
-                
+                    self.execute_delete(table)
+
                 # Create views
                 for view in views:
-                    cursor.execute(view)
-                
+                    self.execute_delete(view)
+
                 # Create triggers
                 for trigger in triggers:
-                    print(trigger)
-                    cursor.execute(trigger)
-                
+                    self.execute_delete(trigger)
+
                 # Create indexes
                 for index in indexes:
-                    cursor.execute(index)
-                
+                    self.execute_delete(index)
+
                 connection.commit()
                 print("Tables, views, triggers and indexes created successfully")
             except Exception as e:
@@ -333,18 +398,18 @@ class DatabaseManager:
             finally:
                 cursor.close()
 
-
     def update_user_login(self, user_id: int, current_password: str):
         """
         Update user's last login time via trigger.
-        
+
         :param user_id: The ID of the user who is logging in
         :param current_password: The user's current password (for trigger condition)
         """
         self.execute_update(
             "UPDATE users SET password = ? WHERE id = ? AND password = ?",
-            [current_password, user_id, current_password]
+            [current_password, user_id, current_password],
         )
+
 
 if __name__ == "__main__":
     print("Creating tables, views, triggers and indexes")

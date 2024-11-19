@@ -15,12 +15,12 @@ user_schema = UserSchema()
 def register():
     data = request.json
     required_fields = ['name', 'email', 'password']
-    
+
     if not data:
         return jsonify({"error": "No data provided"}), 400
     elif not all(field in data for field in required_fields):
         return jsonify({"error": f"Missing required fields: {', '.join(required_fields)}"}), 400
-    
+
     try:
         validated_data: Any = user_schema.load(data)
     except ValidationError as err:
@@ -58,10 +58,10 @@ def login():
 @jwt_required()
 def get_user_admin(user_id: int):
     user_id_from_tokens, _, error, code = process_request(type_of_request='GET')
-    
+
     if user_id_from_tokens != user_id:
         return jsonify({"error": "Unauthorized, cannot access this user"}), 403
-    
+
     if error:
         return error, code
 
@@ -72,7 +72,7 @@ def get_user_admin(user_id: int):
 @jwt_required()
 def get_user():
     user_id_from_tokens, _, error, code = process_request(type_of_request='GET')
-    
+
     if error:
         return error, code
 
@@ -87,11 +87,11 @@ def update_user_route(user_id: int):
 
     if error:
         return error, code
-    
+
     if user_id_from_tokens != user_id:
         return jsonify({"error": "Unauthorized, cannot update this user"}), 403
 
-    
+
     try:
         validated_data: Any = user_schema.load(data, partial=True)
     except ValidationError as err:

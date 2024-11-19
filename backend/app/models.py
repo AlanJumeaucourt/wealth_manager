@@ -24,9 +24,7 @@ class Account:
     user_id: int
     name: str
     type: str
-    currency: str
     bank_id: int  # Corrected from bankId to bank_id for consistency
-    tags: Optional[list[str]] = field(default_factory=list)  # Changed to list for consistency
     id: Optional[int] = field(default=None)  # Added id field
 
 @dataclass
@@ -42,7 +40,6 @@ class Transaction:
     type: str
     category: Optional[str] = field(default=None)
     subcategory: Optional[str] = field(default=None)
-    related_transaction_id: Optional[int] = field(default=None)
     id: Optional[int] = field(default=None)
 
     def __post_init__(self):
@@ -50,21 +47,36 @@ class Transaction:
             raise ValueError("Invalid transaction type.")
 
 @dataclass
+class Asset:
+    """Represents an asset."""
+    symbol: str
+    name: str
+    id: Optional[int] = field(default=None)
+
+@dataclass
 class InvestmentTransaction:
     """Represents an investment transaction."""
     user_id: int
-    account_id: int
-    asset_symbol: str
-    asset_name: str
+    from_account_id: int
+    to_account_id: int
+    asset_id: int
     activity_type: str
     date: datetime
     quantity: float
     unit_price: float
     fee: float
     tax: float
-    transaction_related_id: Optional[int] = field(default=None)
+    total_paid: Optional[float] = field(default=None)
     id: Optional[int] = field(default=None)
 
     def __post_init__(self):
         if self.activity_type not in ['buy', 'sell', 'deposit', 'withdrawal']:
             raise ValueError("Invalid activity type.")
+
+@dataclass
+class AccountAsset:
+    """Represents an asset associated with an account."""
+    account_id: int
+    asset_id: int
+    quantity: float
+    id: Optional[int] = field(default=None)

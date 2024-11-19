@@ -23,14 +23,14 @@ class TransactionService(BaseService):
         try:
             # Get account types
             query = """
-                SELECT id, type, name FROM accounts 
+                SELECT id, type, name FROM accounts
                 WHERE id IN (?, ?) AND user_id = ?
             """
             accounts = self.db_manager.execute_select(
-                query, 
+                query,
                 (data['from_account_id'], data['to_account_id'], data['user_id'])
             )
-            
+
             if len(accounts) != 2:
                 raise TransactionValidationError("Invalid account IDs or unauthorized access")
 
@@ -40,7 +40,7 @@ class TransactionService(BaseService):
             to_account = account_map[data['to_account_id']]
 
             transaction_type = data['type']
-            
+
             # Validate based on transaction type
             if transaction_type == 'income':
                 # Income should go to a regular account (checking, savings, investment)
@@ -93,13 +93,13 @@ class TransactionService(BaseService):
         return super().create(data)
 
     def get_all(
-        self, 
-        user_id: int, 
-        page: int, 
-        per_page: int, 
-        filters: Dict[str, Any], 
-        sort_by: Optional[str] = None, 
-        sort_order: Optional[str] = None, 
+        self,
+        user_id: int,
+        page: int,
+        per_page: int,
+        filters: Dict[str, Any],
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
         fields: Optional[List[str]] = None,
         search: Optional[str] = None
     ) -> TransactionData:
@@ -113,15 +113,15 @@ class TransactionService(BaseService):
         query = f"SELECT {', '.join(fields)} FROM {self.table_name} WHERE user_id = ?"
         # Query for total amount
         total_query = """
-            SELECT 
-                COALESCE(SUM(CASE WHEN type = 'expense' THEN -amount 
-                                WHEN type = 'income' THEN amount 
+            SELECT
+                COALESCE(SUM(CASE WHEN type = 'expense' THEN -amount
+                                WHEN type = 'income' THEN amount
                                 ELSE 0 END), 0) as total_amount,
                 COUNT(*) as count
-            FROM {table_name} 
+            FROM {table_name}
             WHERE user_id = ?
         """.format(table_name=self.table_name)
-        
+
         params: List[Union[int, str]] = [user_id]
         total_params: List[Union[int, str]] = [user_id]
 
@@ -163,7 +163,7 @@ class TransactionService(BaseService):
             transactions = self.db_manager.execute_select(query, params)
             # Get total amount and count
             total_result = self.db_manager.execute_select(total_query, total_params)
-            
+
             return {
                 'transactions': transactions if transactions else [],
                 'total_amount': total_result[0]['total_amount'] if total_result else 0,

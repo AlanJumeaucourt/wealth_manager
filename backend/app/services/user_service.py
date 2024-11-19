@@ -33,7 +33,7 @@ def get_user_by_id(user_id: int) -> Optional[User]:
         result = db_manager.execute_select("SELECT * FROM users WHERE id = ?", (user_id,))
         if not result:
             raise NoResultFoundError("No user found with the given ID.", "SELECT * FROM users WHERE id = ?", (user_id,))
-        
+
         user_data = result[0]
         return User(
             id=user_data['id'],
@@ -54,10 +54,10 @@ def get_user_by_id(user_id: int) -> Optional[User]:
 
 def update_user(user_id: int, name: Optional[str] = None, email: Optional[str] = None, password: Optional[str] = None) -> Optional[User]:
     try:
-        
+
         update_fields: list[str] = []
         params: list[str | int] = []
-        
+
         if name:
             update_fields.append("name = ?")
             params.append(name)
@@ -70,7 +70,7 @@ def update_user(user_id: int, name: Optional[str] = None, email: Optional[str] =
 
         if not update_fields:
             return None
-        
+
         query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = ? RETURNING *"
         params.extend([user_id])
         user = db_manager.execute_update_returning(query, params)
@@ -82,7 +82,7 @@ def update_user(user_id: int, name: Optional[str] = None, email: Optional[str] =
             last_login=user['last_login']
         )
     except Exception as e:
-        print(f"Error updating user: {e}") 
+        print(f"Error updating user: {e}")
         return None
 
 def delete_user(user_id: int) -> bool:
@@ -101,7 +101,7 @@ def authenticate_user(email: str, password: str) -> Optional[User]:
         )
         if not result:
             raise NoResultFoundError("No user found with the given email and password.", "SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
-        
+
         user_data = result[0]
         return User(
             id=user_data['id'],

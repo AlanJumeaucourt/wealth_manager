@@ -26,14 +26,14 @@ def create_app():
     app = Flask(__name__)
     app.url_map.strict_slashes = False  # Add this line
     CORS(app, resources={r"/*": {"origins": "*"}})
-    
+
     # Configure your JWT secret key
     app.config['JWT_SECRET_KEY'] = 'your_secret_key'  # Change this to a strong secret key
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)  # Access token expiration
     jwt = JWTManager(app)
-    
+
     app.config['JSONIFY_MIMETYPE'] = 'application/json'
-    
+
     @app.before_request
     def log_request_info():
         logging.debug(f"Request: {request.method} {request.url}")
@@ -53,6 +53,8 @@ def create_app():
     from app.routes.budget_routes import budget_bp
     from app.routes.investment_routes import investment_bp
     from app.routes.stock_routes import stock_bp
+    from app.routes.asset_routes import asset_bp
+    from app.routes.account_asset_routes import account_asset_bp
 
     app.register_blueprint(user_bp, url_prefix='/users')  # Register user routes
     app.register_blueprint(account_bp, url_prefix='/accounts')  # Register account routes
@@ -61,6 +63,8 @@ def create_app():
     app.register_blueprint(budget_bp, url_prefix='/budgets')
     app.register_blueprint(investment_bp, url_prefix='/investments')
     app.register_blueprint(stock_bp, url_prefix='/stocks')
+    app.register_blueprint(asset_bp, url_prefix='/assets')
+    app.register_blueprint(account_asset_bp, url_prefix='/account_assets')
 
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string: str):
