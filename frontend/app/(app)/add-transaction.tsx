@@ -12,7 +12,7 @@ import { Category } from '@/types/category';
 import { Transaction } from '@/types/transaction';
 import { findCategoryByName } from '@/utils/categoryUtils'; // import the utility function
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -28,12 +28,12 @@ const accountNameFromId = (accountId: number, accounts: Account[]) => {
 };
 
 export default function AddTransactionScreen() {
-    const params = useLocalSearchParams();
+    const route = useRoute();
     const dispatch = useDispatch();
-    const transaction = params.transaction ? JSON.parse(params.transaction as string) as Transaction : undefined;
+    const transaction = route.params?.transaction as Transaction | undefined;
     const accounts = useSelector((state) => state.accounts.accounts);
 
-    console.log('params : ', params);
+    console.log('route.params : ', route.params);
 
     const [amount, setAmount] = useState(transaction ? transaction.amount.toString() : '');
     const [description, setDescription] = useState(transaction ? transaction.description : '');
