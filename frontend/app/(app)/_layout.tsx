@@ -32,14 +32,12 @@ export default function AppLayout() {
       <Stack.Screen
         name="transaction/[id]"
         options={{
-          presentation: 'modal',
           headerShown: false
         }}
       />
       <Stack.Screen
         name="add-transaction"
         options={{
-          presentation: 'modal',
           headerShown: false
         }}
       />
