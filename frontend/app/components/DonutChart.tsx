@@ -1,9 +1,9 @@
+import DonutPath from '@/app/components/DonutPath';
 import { darkTheme } from '@/constants/theme';
 import { Canvas, Path, SkFont, Skia, Text } from '@shopify/react-native-skia';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SharedValue } from 'react-native-reanimated';
-import DonutPath from './DonutPath';
 
 type Props = {
   n: number;

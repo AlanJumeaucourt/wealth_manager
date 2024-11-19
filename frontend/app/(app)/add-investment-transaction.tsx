@@ -1,19 +1,17 @@
+import { createInvestmentTransaction, updateInvestmentTransaction } from '@/app/api/bankApi';
+import { BackButton } from '@/app/components/BackButton';
 import SearchableModal from '@/app/components/SearchableModal';
+import StockSearchModal from '@/app/components/StockSearchModal';
 import { darkTheme } from '@/constants/theme';
-import { RootState } from '@/store/store';
+import { sharedStyles } from '@/styles/sharedStyles';
+import { Account } from '@/types/account';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Modal from 'react-native-modal';
-import { Button, Surface, Text, TextInput } from 'react-native-paper';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { Button, Surface, Text, TextInput } from 'react-native-paper';
 import { useSelector } from 'react-redux';
-import { createInvestmentTransaction, updateInvestmentTransaction } from './api/bankApi';
-import { BackButton } from './components/BackButton';
-import StockSearchModal from './components/StockSearchModal';
-import sharedStyles from './styles/sharedStyles';
-import { Account } from '@/types/account';
 
 interface InvestmentTransaction {
     id: number;
@@ -29,20 +27,47 @@ interface InvestmentTransaction {
     tax: number;
 }
 
+interface BackButtonProps {
+    onPress: () => void;
+}
+
+interface SearchableModalProps {
+    data: any[];
+    onSelect: (value: string | number) => void;
+    placeholder: string;
+    label: string;
+    allowCustomValue: boolean;
+}
+
+interface StockSearchModalProps {
+    onSelect: (symbol: string, name: string) => void;
+    placeholder: string;
+    label: string;
+}
+
 export default function AddInvestmentTransactionScreen() {
-    const navigation = useNavigation();
-    const route = useRoute();
-    const transaction = route.params?.transaction as InvestmentTransaction | undefined;
-    const accounts = useSelector((state: RootState) =>
-        state.accounts.accounts.filter((account: Account) => account.id === transaction?.account_id)
+    const params = useLocalSearchParams();
+    const router = useRouter();
+    let transaction: InvestmentTransaction | undefined;
+
+    try {
+        transaction = params.transaction ? JSON.parse(params.transaction as string) : undefined;
+    } catch (error) {
+        console.error('Error parsing transaction:', error);
+        transaction = undefined;
+    }
+
+    const accounts = useSelector((state) =>
+        state.accounts.accounts.filter((account: Account) => 
+            transaction ? account.id === transaction.account_id : true
+        )
     );
 
     // Initialize state with transaction data if editing
     const [accountId, setAccountId] = useState<number | null>(transaction ? transaction.account_id : null);
     const [selectedAccountName, setSelectedAccountName] = useState<string>(
-        transaction ? accounts.find((acc: Account) => acc.name === transaction.account_name)?.name || '' : ''
+        transaction ? accounts.find((acc: Account) => acc.id === transaction.account_id)?.name || '' : ''
     );
-    console.log(transaction);
     const [assetSymbol, setAssetSymbol] = useState(transaction ? transaction.asset_symbol : '');
     const [assetName, setAssetName] = useState(transaction ? transaction.asset_name : '');
     const [activityType, setActivityType] = useState<'buy' | 'sell' | 'deposit' | 'withdrawal'>(
@@ -98,7 +123,7 @@ export default function AddInvestmentTransactionScreen() {
                 await createInvestmentTransaction(transactionData);
                 Alert.alert('Success', 'Investment transaction created successfully!');
             }
-            navigation.goBack();
+            router.back();
         } catch (error) {
             console.error('Error saving investment transaction:', error);
             Alert.alert('Error', `Failed to ${transaction ? 'update' : 'create'} investment transaction`);
@@ -128,10 +153,14 @@ export default function AddInvestmentTransactionScreen() {
         return (qty * price) + fees + taxes;
     };
 
+    const handleClose = () => {
+        router.back();
+    };
+
     return (
         <View style={sharedStyles.container}>
             <View style={sharedStyles.header}>
-                <BackButton />
+                <BackButton onPress={handleClose} />
                 <Text style={styles.title}>
                     {transaction ? 'Edit Investment Transaction' : 'Add Investment Transaction'}
                 </Text>

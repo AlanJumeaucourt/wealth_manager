@@ -1,9 +1,9 @@
+import { fetchWealthData } from '@/app/api/bankApi';
+import { darkTheme } from '@/constants/theme';
+import { sharedStyles } from '@/styles/sharedStyles';
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LineChart } from 'react-native-gifted-charts';
-import { darkTheme } from '../../../constants/theme';
-import { fetchWealthData } from "../../api/bankApi";
-import sharedStyles from '../../styles/sharedStyles';
 
 interface DataPoint {
     value: number;
@@ -125,7 +125,7 @@ export default function WealthScreen() {
         const minSpacing = 0.1;
         const maxSpacing = 100;
         const calculatedSpacing = Math.max(
-            minSpacing, 
+            minSpacing,
             Math.min(maxSpacing, (width - 80) / (dataLength + 1))
         );
         return calculatedSpacing;
@@ -135,7 +135,7 @@ export default function WealthScreen() {
         <View style={[sharedStyles.container]}>
             <View style={sharedStyles.header}>
                 <Image
-                    source={require('./../../../assets/images/logo-removebg-white.png')}
+                    source={require('@/assets/images/logo-removebg-white.png')}
                     style={{ width: 30, height: 30 }}
                     resizeMode="contain"
                 />
@@ -192,8 +192,8 @@ export default function WealthScreen() {
                             hideRules
                             hideDataPoints
                             showVerticalLines={false}
-                            xAxisLabelTextStyle={{ 
-                                color: darkTheme.colors.textTertiary, 
+                            xAxisLabelTextStyle={{
+                                color: darkTheme.colors.textTertiary,
                                 fontSize: 10,
                                 width: 60,
                                 textAlign: 'center'

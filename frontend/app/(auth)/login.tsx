@@ -1,19 +1,27 @@
+import { API_URL } from '@/config';
+import { darkTheme } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
 import * as Sentry from "@sentry/browser";
 import axios from 'axios';
-import { useRouter } from 'expo-router'; // Remove if not needed
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
-import { API_URL } from '../../config';
-import { useAuth } from '../../context/AuthContext'; // Ensure this does not import components that depend on it
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const router = useRouter(); // Use useRouter for navigation
-  const { login } = useAuth(); // Use the useAuth hook to get login
+  const router = useRouter();
+  const { login, checkAuthStatus } = useAuth();
+
+  useEffect(() => {
+    const initAuth = async () => {
+      await checkAuthStatus();
+    };
+    initAuth();
+  }, []);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -36,7 +44,7 @@ export default function LoginScreen() {
         await login(response.data.access_token); // Use the login method from context
         console.log('Token stored, redirecting to home');
         Sentry.setUser({ email: email });
-       router.replace('/'); // Use Expo Router's replace for navigation
+        router.replace('/'); // Use Expo Router's replace for navigation
       } else {
         console.log('Invalid response data:', response);
         setError('Invalid response from server');
@@ -67,39 +75,52 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Temporary replacement for the logo */}
-      <Text style={styles.logoText}>Wealth Manager</Text>
-      <Text style={styles.title}>Welcome Back</Text>
-      <TextInput
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        mode="outlined"
-        style={styles.input}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        mode="outlined"
-        style={styles.input}
-        secureTextEntry
-      />
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      <Button
-        mode="contained"
-        onPress={handleLogin}
-        style={styles.button}
-        loading={loading}
-        disabled={loading}
-      >
-        Login
-      </Button>
-      <Pressable onPress={() => router.push('/register')}>
-        <Text style={styles.registerLink}>Don't have an account? Register here</Text>
-      </Pressable>
+      <View style={styles.headerContainer}>
+        <Image
+          source={require('@/assets/images/logo-removebg-white.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.logoText}>WealthManager</Text>
+      </View>
+      <View style={styles.contentContainer}>
+        <Text style={styles.title}>Welcome Back</Text>
+        <TextInput
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          mode="outlined"
+          style={styles.input}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          theme={darkTheme}
+          textColor={darkTheme.colors.text}
+        />
+        <TextInput
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          mode="outlined"
+          style={styles.input}
+          secureTextEntry
+          theme={darkTheme}
+          textColor={darkTheme.colors.text}
+        />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <Button
+          mode="contained"
+          onPress={handleLogin}
+          style={styles.button}
+          loading={loading}
+          disabled={loading}
+          theme={darkTheme}
+        >
+          Login
+        </Button>
+        <Pressable onPress={() => router.push('/register')}>
+          <Text style={styles.registerLink}>Don't have an account? Register here</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -107,36 +128,55 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: darkTheme.colors.background,
+  },
+  headerContainer: {
+    flex: 0.8,
+    justifyContent: 'flex-end',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    paddingBottom: 40,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    alignSelf: 'center',
+    marginBottom: 8,
   },
   logoText: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
+    color: darkTheme.colors.primary,
     textAlign: 'center',
     marginBottom: 20,
+  },
+  contentContainer: {
+    flex: 1.2,
+    justifyContent: 'flex-start',
+    padding: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
+    color: darkTheme.colors.text,
   },
   input: {
     marginBottom: 10,
+    backgroundColor: darkTheme.colors.surface,
   },
   button: {
     marginTop: 10,
+    backgroundColor: darkTheme.colors.primary,
   },
   errorText: {
-    color: 'red',
+    color: darkTheme.colors.error,
     textAlign: 'center',
     marginBottom: 10,
   },
   registerLink: {
     marginTop: 15,
-    color: '#3498db',
+    color: darkTheme.colors.primary,
     textAlign: 'center',
   },
 });

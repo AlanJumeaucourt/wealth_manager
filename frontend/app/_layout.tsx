@@ -1,12 +1,11 @@
+import { darkTheme } from '@/constants/theme';
 import { AuthProvider } from '@/context/AuthContext';
-import { Slot, Stack } from 'expo-router';
+import store from '@/store';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
-import { darkTheme } from '../constants/theme';
-import store from '../store';
 
 export default function RootLayout() {
   return (
@@ -20,11 +19,13 @@ export default function RootLayout() {
                 headerShown: false,
                 contentStyle: {
                   backgroundColor: darkTheme.colors.background,
-                  paddingBottom: Platform.OS === 'ios' ? 20 : 0,
                 },
-                animation: 'slide_from_right',
               }}
-            />
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(app)" />
+            </Stack>
           </SafeAreaProvider>
         </AuthProvider>
       </PaperProvider>

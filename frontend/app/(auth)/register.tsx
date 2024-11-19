@@ -1,9 +1,11 @@
+import { API_URL } from '@/config';
+import { darkTheme } from '@/constants/theme';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
-import { API_URL } from '../../config';
+
 export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -50,52 +52,71 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
-      <TextInput
-        label="Name"
-        value={name}
-        onChangeText={setName}
-        mode="outlined"
-        style={styles.input}
-      />
-      <TextInput
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        mode="outlined"
-        style={styles.input}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        mode="outlined"
-        style={styles.input}
-        secureTextEntry
-      />
-      <TextInput
-        label="Confirm Password"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        mode="outlined"
-        style={styles.input}
-        secureTextEntry
-      />
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      <Button
-        mode="contained"
-        onPress={handleRegister}
-        style={styles.button}
-        loading={loading}
-        disabled={loading}
-      >
-        Register
-      </Button>
-      <Pressable onPress={() => router.push('/')}>
-        <Text style={styles.loginLink}>Already have an account? Login here</Text>
-      </Pressable>
+      <View style={styles.headerContainer}>
+        <Image
+          source={require('@/assets/images/logo-removebg-white.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.logoText}>WealthManager</Text>
+      </View>
+      <View style={styles.contentContainer}>
+        <Text style={styles.title}>Create Account</Text>
+        <TextInput
+          label="Name"
+          value={name}
+          onChangeText={setName}
+          mode="outlined"
+          style={styles.input}
+          theme={darkTheme}
+          textColor={darkTheme.colors.text}
+        />
+        <TextInput
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          mode="outlined"
+          style={styles.input}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          theme={darkTheme}
+          textColor={darkTheme.colors.text}
+        />
+        <TextInput
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          mode="outlined"
+          style={styles.input}
+          secureTextEntry
+          theme={darkTheme}
+          textColor={darkTheme.colors.text}
+        />
+        <TextInput
+          label="Confirm Password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          mode="outlined"
+          style={styles.input}
+          secureTextEntry
+          theme={darkTheme}
+          textColor={darkTheme.colors.text}
+        />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <Button
+          mode="contained"
+          onPress={handleRegister}
+          style={styles.button}
+          loading={loading}
+          disabled={loading}
+          theme={darkTheme}
+        >
+          Register
+        </Button>
+        <Pressable onPress={() => router.push('/')}>
+          <Text style={styles.loginLink}>Already have an account? Login here</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -103,30 +124,55 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: darkTheme.colors.background,
+  },
+  headerContainer: {
+    flex: 0.8,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    paddingBottom: 40,
+  },
+  contentContainer: {
+    flex: 1.5,
+    justifyContent: 'flex-start',
+    padding: 20,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  logoText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: darkTheme.colors.primary,
+    textAlign: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
+    color: darkTheme.colors.text,
   },
   input: {
     marginBottom: 10,
+    backgroundColor: darkTheme.colors.surface,
   },
   button: {
     marginTop: 10,
+    backgroundColor: darkTheme.colors.primary,
   },
   errorText: {
-    color: 'red',
+    color: darkTheme.colors.error,
     textAlign: 'center',
     marginBottom: 10,
   },
   loginLink: {
     marginTop: 15,
-    color: '#3498db',
+    color: darkTheme.colors.primary,
     textAlign: 'center',
   },
 });

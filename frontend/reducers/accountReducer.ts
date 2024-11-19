@@ -1,5 +1,5 @@
+import { FETCH_ACCOUNTS_FAILURE, FETCH_ACCOUNTS_REQUEST, FETCH_ACCOUNTS_SUCCESS } from '@/actions/accountActions';
 import { Action } from 'redux';
-import { FETCH_ACCOUNTS_FAILURE, FETCH_ACCOUNTS_REQUEST, FETCH_ACCOUNTS_SUCCESS } from '../actions/accountActions';
 
 const initialState = {
     accounts: [],

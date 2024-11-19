@@ -1,13 +1,13 @@
+import { fetchTransactions } from '@/app/api/bankApi';
+import { darkTheme } from '@/constants/theme';
+import { Transaction } from '@/types/transaction';
 import { findCategoryByName } from '@/utils/categoryUtils';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSelector } from 'react-redux';
-import { darkTheme } from '../../constants/theme';
-import { Transaction } from '../../types/transaction';
-import { fetchTransactions } from '../api/bankApi';
 
 interface TransactionListProps {
   accountId?: number;
@@ -29,7 +29,7 @@ const getIconName = (transaction: Transaction) => {
 
 const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
   const { accounts, loading: accountsLoading, error: accountsError } = useSelector((state: any) => state.accounts || {});
-  const navigation = useNavigation();
+  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false); // Loading state
@@ -125,7 +125,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
   };
 
   const handlePress = (transaction: Transaction) => {
-    navigation.navigate('TransactionDetails', { transaction });
+    router.push({
+      pathname: '/transaction/[id]',
+      params: { transaction: JSON.stringify(transaction) }
+    });
   };
 
   const handleSearch = (query: string) => {

@@ -1,57 +1,42 @@
-import { fetchWealthData } from '@/app/api/bankApi'; // Import the new API function
+import { fetchAccounts } from '@/actions/accountActions';
+import { fetchBanks } from '@/actions/bankActions';
+import { fetchWealthData } from '@/app/api/bankApi';
+import { colors } from '@/constants/colors';
+import { darkTheme } from '@/constants/theme';
+import { sharedStyles } from '@/styles/sharedStyles';
 import { Account } from '@/types/account';
 import { Bank } from '@/types/bank';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
-import { createStackNavigator, StackNavigationProp } from '@react-navigation/stack';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Dimensions, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LineChart } from 'react-native-gifted-charts'; // Import the LineChart component
-import { ActivityIndicator, Button, Menu, Button as PaperButton, FAB } from 'react-native-paper';
+import { LineChart } from 'react-native-gifted-charts';
+import { ActivityIndicator, FAB, Menu, Button as PaperButton } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchAccounts } from '../../../actions/accountActions';
-import { fetchBanks } from '../../../actions/bankActions';
-import { colors } from '../../../constants/colors';
-import { darkTheme } from '../../../constants/theme';
-import sharedStyles from '../../styles/sharedStyles';
-import { ThunkDispatch } from 'redux-thunk';
 import { AnyAction } from 'redux';
+import { ThunkDispatch } from 'redux-thunk';
 
 interface DataPoint {
   value: number;
   date: string;
 }
-// Define the navigation param list
-type RootStackParamList = {
-  TransactionsScreen: { account: Account };
-  TransactionsScreenAccount: { account: Account };
-};
-
-// Define the navigation prop type
-type AccountsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'TransactionsScreen' | 'TransactionsScreenAccount'>;
 
 const filters = ['All', 'Checking', 'Savings', 'Investment'];
 
-const Stack = createStackNavigator();
-
-// Define the type for wealth data
-type WealthDataPoint = { [date: string]: number };
-
 export default function AccountsScreen() {
   const dispatch: ThunkDispatch<{}, {}, AnyAction> = useDispatch();
-  const { accounts, accountsLoading, accountsError } = useSelector((state: any) => state.accounts);
-  const { banks, banksLoading, banksError } = useSelector((state: any) => state.banks);
-  const navigation = useNavigation<AccountsScreenNavigationProp>();
-  const [selectedFilter, setSelectedFilter] = useState('All');
+  const { accounts } = useSelector((state: any) => state.accounts);
+  const { banks } = useSelector((state: any) => state.banks);
   const router = useRouter();
-  const [wealthData, setWealthData] = useState<WealthDataPoint[]>([]); // State to hold wealth data
+  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [wealthData, setWealthData] = useState<Record<string, number>>({});
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0); // Ajoutez cet état
+  const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 80);
   const [fabOpen, setFabOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   // Move the resize effect up here, before any conditional returns
   useEffect(() => {
@@ -144,14 +129,17 @@ export default function AccountsScreen() {
 
   const handleAccountPress = (account: Account) => {
     if (account.type === 'checking' || account.type === 'savings' || account.type === 'investment') {
-      navigation.navigate('TransactionsScreenAccount', { account: account });
+      router.push({
+        pathname: '/account/[id]',
+        params: { account: JSON.stringify(account) }
+      });
     }
   };
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('accessToken');
     await AsyncStorage.removeItem('refreshToken');
-    router.replace('/');
+    router.replace('/(auth)/login');
   };
 
   const formatCompactNumber = (number: number) => {
@@ -293,11 +281,24 @@ export default function AccountsScreen() {
     return calculatedSpacing;
   };
 
-  const [visible, setVisible] = useState(false);
-  const openMenu = () => setVisible(true);
-  const closeMenu = () => {
-    setVisible(false);
-  };
+  // Update FAB actions to use router
+  const fabActions = [
+    {
+      icon: 'account-plus-outline',
+      label: 'Add Account',
+      onPress: () => router.push('/add-account'),
+    },
+    {
+      icon: 'plus',
+      label: 'Add Transaction',
+      onPress: () => router.push('/add-transaction'),
+    },
+    {
+      icon: 'chart-line',
+      label: 'Add Investment Transaction',
+      onPress: () => router.push('/add-investment-transaction'),
+    },
+  ];
 
   // Update the account item styling
   const AccountItem = ({ account, onPress }: { account: Account; onPress: () => void }) => (
@@ -306,7 +307,7 @@ export default function AccountsScreen() {
       onPress={onPress}
     >
       <View style={styles.accountIconContainer}>
-        <Image source={getAccountIcon(foundBankNameById(account.bank_id))} style={styles.accountIcon} />
+        <Image source={getAccountIcon(foundBankNameById(account.bank_id))} style={{ ...styles.accountIcon, overflow: 'hidden' }} />
       </View>
       <View style={styles.accountContent}>
         <View style={styles.accountHeader}>
@@ -322,17 +323,17 @@ export default function AccountsScreen() {
 
   // Add this helper function
   const getAccountIcon = (bank: string | undefined): any => {
-    if (!bank) return require('./../../../assets/images/icon.png');
+    if (!bank) return require('@/assets/images/icon.png');
 
     switch (bank.toLowerCase()) {
       case 'boursorama':
-        return require('./../../../assets/images/boursorama.png');
+        return require('@/assets/images/boursorama.png');
       case 'crédit agricole':
-        return require('./../../../assets/images/credit_agricole.png');
+        return require('@/assets/images/credit_agricole.png');
       case 'fortuneo':
-        return require('./../../../assets/images/fortuneo.png');
+        return require('@/assets/images/fortuneo.png');
       default:
-        return require('./../../../assets/images/icon.png');
+        return require('@/assets/images/icon.png');
     }
   };
 
@@ -340,16 +341,16 @@ export default function AccountsScreen() {
     <View style={[sharedStyles.container]}>
       <View style={sharedStyles.header}>
         <Image
-          source={require('./../../../assets/images/logo-removebg-white.png')}
+          source={require('@/assets/images/logo-removebg-white.png')}
           style={{ width: 30, height: 30 }}
           resizeMode="contain"
         />
         <Text style={sharedStyles.headerTitle}>Accounts</Text>
         <Menu
           visible={visible}
-          onDismiss={closeMenu}
+          onDismiss={() => setVisible(false)}
           anchor={
-            <Pressable style={styles.menuButton} onPress={openMenu}>
+            <Pressable style={styles.menuButton} onPress={() => setVisible(true)}>
               <Ionicons name="ellipsis-vertical" size={24} color={darkTheme.colors.text} />
             </Pressable>
           }
@@ -472,25 +473,10 @@ export default function AccountsScreen() {
       </View>
 
       <FAB.Group
+        visible
         open={fabOpen}
         icon={fabOpen ? 'close' : 'plus'}
-        actions={[
-          {
-            icon: 'account-plus-outline',
-            label: 'Add Account',
-            onPress: () => navigation.navigate('AddAccount' as never),
-          },
-          {
-            icon: 'plus',
-            label: 'Add Transaction',
-            onPress: () => navigation.navigate('AddTransaction' as never),
-          },
-          {
-            icon: 'chart-line',
-            label: 'Add Investment Transaction',
-            onPress: () => navigation.navigate('AddInvestmentTransaction' as never),
-          },
-        ]}
+        actions={fabActions}
         onStateChange={({ open }) => setFabOpen(open)}
         onPress={() => {
           if (fabOpen) {
@@ -593,7 +579,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: darkTheme.spacing.m,
-    backgroundColor: darkTheme.colors.card,
+    backgroundColor: darkTheme.colors.surface,
     borderRadius: 10,
     marginVertical: darkTheme.spacing.s,
     shadowColor: '#000',
@@ -793,11 +779,7 @@ const styles = StyleSheet.create({
     marginHorizontal: darkTheme.spacing.s,
     minWidth: 100,
   },
-  accountItemTouchable: {
-    activeOpacity: 0.7,
-  },
   fab: {
     backgroundColor: darkTheme.colors.primary,
-    // You can customize the FAB style further if needed
   },
 });

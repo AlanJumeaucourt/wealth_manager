@@ -1,28 +1,32 @@
-import { Account } from '@/types/account';
+import { fetchAccounts } from '@/actions/accountActions';
+import { fetchBanks } from '@/actions/bankActions';
+import { createAccount, createBank, deleteBank, updateAccount } from '@/app/api/bankApi';
+import { AddButton } from '@/app/components/AddButton';
+import { BackButton } from '@/app/components/BackButton';
+import { DeleteButton } from '@/app/components/DeleteButton';
+import { darkTheme } from '@/constants/theme';
+import { sharedStyles } from '@/styles/sharedStyles';
 import { Bank } from '@/types/bank';
 import { Picker } from '@react-native-picker/picker';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActionSheetIOS, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
+import { ActionSheetIOS, Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchAccounts } from '../actions/accountActions';
-import { fetchBanks } from '../actions/bankActions';
-import { darkTheme } from '../constants/theme';
-import { createAccount, createBank, deleteBank, updateAccount } from './api/bankApi';
-import { AddButton } from './components/AddButton';
-import { BackButton } from './components/BackButton';
-import { DeleteButton } from './components/DeleteButton';
-import sharedStyles from './styles/sharedStyles';
 
 export default function AddAccountScreen() {
-    const navigation = useNavigation();
-    const route = useRoute();
+    const params = useLocalSearchParams();
+    const router = useRouter();
+    const account = params.account ? JSON.parse(params.account as string) : undefined;
+
+    const handleClose = () => {
+        router.back();
+    };
+
     const dispatch = useDispatch();
     const { banks } = useSelector((state: any) => state.banks);
     console.log('banks in AddAccountScreen : ', banks);
 
-    const account = route.params?.account as Account;
     const [formData, setFormData] = useState({
         AccountName: account ? account.name : '',
         AccountType: account ? account.type : '',
@@ -93,11 +97,11 @@ export default function AddAccountScreen() {
                 // Update existing account logic here
                 await updateAccount(account.id, accountData);
                 Alert.alert('Account updated successfully!');
-                navigation.goBack();
+                router.back();
             } else {
                 await createAccount(accountData);
                 Alert.alert('Account created successfully!');
-                navigation.goBack();
+                router.back();
             }
             dispatch(fetchAccounts());
         } catch (error) {
@@ -264,7 +268,7 @@ export default function AddAccountScreen() {
                     <Text style={sharedStyles.headerTitle}>{account ? `Edit Account` : 'Add New Account'}</Text>
                 </View>
                 <Image
-                    source={require('./../assets/images/logo-removebg-white.png')}
+                    source={require('@/assets/images/logo-removebg-white.png')}
                     style={{ width: 30, height: 30 }}
                     resizeMode="contain"
                 />
@@ -336,7 +340,7 @@ export default function AddAccountScreen() {
                     <Button mode="contained" onPress={handleAddOrUpdateAccount} style={styles.editButton}>
                         {account ? 'Update Account' : 'Add Account'}
                     </Button>
-                    <Button mode="contained" onPress={() => navigation.goBack()} style={styles.closeButton}>
+                    <Button mode="contained" onPress={handleClose} style={styles.closeButton}>
                         Close
                     </Button>
                 </ScrollView>

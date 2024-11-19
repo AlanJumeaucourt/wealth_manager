@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
 import { darkTheme } from '@/constants/theme';
+import React from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 
 const SkeletonItem = () => {
     const animatedValue = new Animated.Value(0);

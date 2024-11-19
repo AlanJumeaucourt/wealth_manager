@@ -1,6 +1,6 @@
+import { darkTheme } from '@/constants/theme';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { darkTheme } from '../../constants/theme';
 
 export default function LoadingScreen() {
     return (

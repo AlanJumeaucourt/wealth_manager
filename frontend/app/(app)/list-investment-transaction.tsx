@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList, Pressable } from 'react-native';
-import { Text, ActivityIndicator } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { getInvestmentTransactions } from '@/app/api/bankApi';
+import { BackButton } from '@/app/components/BackButton';
 import { darkTheme } from '@/constants/theme';
-import { getInvestmentTransactions } from '../api/bankApi';
-import { BackButton } from './BackButton';
-import sharedStyles from '../styles/sharedStyles';
+import { sharedStyles } from '@/styles/sharedStyles';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Text } from 'react-native-paper';
 
 interface InvestmentTransaction {
     id: number;
@@ -24,7 +24,7 @@ interface InvestmentTransaction {
 export default function InvestmentTransactionListScreen() {
     const [transactions, setTransactions] = useState<InvestmentTransaction[]>([]);
     const [loading, setLoading] = useState(true);
-    const navigation = useNavigation();
+    const router = useRouter();
 
     useEffect(() => {
         fetchTransactions();
@@ -68,9 +68,15 @@ export default function InvestmentTransactionListScreen() {
         const totalCost = totalValue + item.fee + item.tax;
 
         return (
-            <Pressable 
+            <Pressable
                 style={styles.transactionCard}
-                onPress={() => navigation.navigate('AddInvestmentTransaction', { transaction: item })}
+                onPress={() => {
+                    const transactionString = JSON.stringify(item);
+                    router.push({
+                        pathname: 'add-investment-transaction',
+                        params: { transaction: transactionString }
+                    });
+                }}
             >
                 <View style={styles.transactionHeader}>
                     <View style={styles.symbolContainer}>
@@ -105,8 +111,8 @@ export default function InvestmentTransactionListScreen() {
                     {(item.fee > 0 || item.tax > 0) && (
                         <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>Fees & Tax:</Text>
-                            <Text style={styles.detailValue}>
-                                {formatCurrency(item.fee + item.tax)}
+                            <Text style={[styles.detailValue, { color: "#ff471a" }]}>
+                                - {formatCurrency(item.fee + item.tax)}
                             </Text>
                         </View>
                     )}
@@ -126,7 +132,7 @@ export default function InvestmentTransactionListScreen() {
                 <Text style={styles.title}>Investment Transactions</Text>
                 <Pressable
                     style={styles.addButton}
-                    onPress={() => navigation.navigate('AddInvestmentTransaction')}
+                    onPress={() => router.push('add-investment-transaction')}
                 >
                     <Ionicons name="add" size={24} color={darkTheme.colors.text} />
                 </Pressable>

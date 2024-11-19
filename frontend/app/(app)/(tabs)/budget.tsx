@@ -1,14 +1,14 @@
+import { fetchBudgetSummary } from '@/app/api/bankApi';
+import DonutChart from '@/app/components/DonutChart';
+import { expenseCategories, incomeCategories } from '@/constants/categories';
+import { darkTheme } from '@/constants/theme';
+import { sharedStyles } from '@/styles/sharedStyles';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { useFont } from '@shopify/react-native-skia';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
-import { expenseCategories, incomeCategories } from '../../../constants/categories';
-import { darkTheme } from '../../../constants/theme';
-import { fetchBudgetSummary } from '../../api/bankApi';
-import DonutChart from '../../components/DonutChart';
-import sharedStyles from './../../styles/sharedStyles';
 
 interface Data {
   value: number;
@@ -35,18 +35,14 @@ type BudgetDetailParams = {
   transactionIds: string[] | undefined;
 };
 
-type NavigationProp = {
-  navigate: (screen: string, params: BudgetDetailParams) => void;
-};
-
 export default function BudgetScreen() {
+  const router = useRouter();
   const [data, setData] = useState<Data[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [periodType, setPeriodType] = useState<PeriodType>('month');
   const [filterType, setFilterType] = useState<'Income' | 'Expense'>('Expense'); // {{ edit: Remove 'All' from filterType state }}
   const [totalValue, setTotalValue] = useState(0);
   const decimals = useSharedValue<number[]>([]);
-  const navigation = useNavigation<NavigationProp>();
   const [allData, setAllData] = useState<Data[]>([]); // {{ edit: Add allData state }}
   // Add loading state
   const [isLoading, setIsLoading] = useState(true);
@@ -77,7 +73,7 @@ export default function BudgetScreen() {
         }
 
         // Modifiez votre API pour utiliser date_accountability dans la requête
-        const result = await fetchBudgetSummary(startDate, endDate, 'date_accountability');
+        const result = await fetchBudgetSummary(startDate, endDate);
         const budgetSummary = result;
 
         if (!Array.isArray(budgetSummary)) {
@@ -235,10 +231,10 @@ export default function BudgetScreen() {
     setCurrentDate(newDate);
   };
 
-  const font = useFont(require('./../../../assets/fonts/Roboto-Bold.ttf'), 45);
-  const smallFont = useFont(require('./../../../assets/fonts/Roboto-Light.ttf'), 25);
+  const font = Platform.OS === 'web' ? null : useFont(require('@/assets/fonts/Roboto-Bold.ttf'), 45);
+  const smallFont = Platform.OS === 'web' ? null : useFont(require('@/assets/fonts/Roboto-Light.ttf'), 25);
 
-  if (!font || !smallFont) {
+  if (Platform.OS !== 'web' && !font && !smallFont) {
     return <View />;
   }
 
@@ -270,7 +266,7 @@ export default function BudgetScreen() {
       <View style={sharedStyles.header}>
         <View style={styles.headerContent}>
           <Image
-            source={require('./../../../assets/images/logo-removebg-white.png')}
+            source={require('@/assets/images/logo-removebg-white.png')}
             style={{ width: 30, height: 30 }}
             resizeMode="contain"
           />
@@ -336,27 +332,40 @@ export default function BudgetScreen() {
             contentContainerStyle={styles.scrollViewContent}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.chartContainer}>
-              <DonutChart
-                radius={RADIUS}
-                gap={GAP}
-                strokeWidth={STROKE_WIDTH}
-                outerStrokeWidth={OUTER_STROKE_WIDTH}
-                font={font}
-                smallFont={smallFont}
-                totalValue={totalValue}
-                n={data.length}
-                decimals={decimals}
-                colors={data.map(item => item.color)}
-                totalText={filterType === 'Income' ? 'Total Income' : 'Total Expense'}
-              />
-            </View>
+            {Platform.OS !== 'web' ? (
+              <View style={styles.chartContainer}>
+                <DonutChart
+                  radius={RADIUS}
+                  gap={GAP}
+                  strokeWidth={STROKE_WIDTH}
+                  outerStrokeWidth={OUTER_STROKE_WIDTH}
+                  font={font!}
+                  smallFont={smallFont!}
+                  totalValue={totalValue}
+                  n={data.length}
+                  decimals={decimals}
+                  colors={data.map(item => item.color)}
+                  totalText={filterType === 'Income' ? 'Total Income' : 'Total Expense'}
+                />
+              </View>
+            ) : (
+              <View style={styles.webChartFallback}>
+                <View style={styles.webChartContent}>
+                  <Text style={styles.webTotalLabel}>
+                    {filterType === 'Income' ? 'Total Income' : 'Total Expense'}
+                  </Text>
+                  <Text style={styles.webTotalValue}>
+                    {totalValue.toLocaleString()} €
+                  </Text>
+                </View>
+              </View>
+            )}
             {data.map((item, index) => (
               <Pressable
                 key={index}
                 style={styles.legendItem}
                 onPress={() =>
-                  navigation.navigate('BudgetDetail', {
+                  router.push('BudgetDetail', {
                     category: item.category,
                     subcategory: item.subcategory,
                     transactionIds: item.transactionIds,
@@ -521,5 +530,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  webChartFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: darkTheme.spacing.xl,
+    backgroundColor: darkTheme.colors.surface,
+    borderRadius: darkTheme.borderRadius.l,
+    marginVertical: darkTheme.spacing.m,
+    height: RADIUS * 2,
+    ...darkTheme.shadows.medium,
+  },
+  webChartContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webTotalValue: {
+    fontSize: 42,
+    fontWeight: 'bold',
+    color: darkTheme.colors.primary,
+    marginTop: darkTheme.spacing.m,
+  },
+  webTotalLabel: {
+    fontSize: 18,
+    color: darkTheme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });

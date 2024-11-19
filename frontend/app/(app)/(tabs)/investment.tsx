@@ -1,29 +1,20 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { LineChart } from 'react-native-gifted-charts';
-import { Button } from 'react-native-paper';
-
+import { getAssetTransactions, getPortfolioPerformance, getPortfolioSummary, getStockPrices } from '@/app/api/bankApi';
+import { InvestmentSkeleton } from '@/app/components/InvestmentSkeleton';
 import { darkTheme } from '@/constants/theme';
+import { sharedStyles } from '@/styles/sharedStyles';
 import {
     AssetTransactions,
-    InvestmentStackParamList,
     PerformanceData,
     PortfolioPosition,
     StockDetailProps,
     StockPositionItemProps
 } from '@/types/investment';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { Menu } from 'react-native-paper';
-import AddInvestmentTransactionScreen from '../../add-investment-transaction';
-import InvestmentTransactionListScreen from '../../components/InvestmentTransactionListScreen';
-import { getAssetTransactions, getCurrentHistory, getPortfolioPerformance, getPortfolioSummary, getStockPrices } from '../../api/bankApi';
-import { InvestmentSkeleton } from '../../components/InvestmentSkeleton';
-import sharedStyles from '../../styles/sharedStyles';
-
-type InvestmentScreenNavigationProp = StackNavigationProp<InvestmentStackParamList>;
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LineChart } from 'react-native-gifted-charts';
+import { Button, Menu } from 'react-native-paper';
 
 // Types
 type Asset = {
@@ -137,15 +128,13 @@ const stockHistoricalData: { [key: string]: StockHistoricalData[] } = {
     ],
 };
 
-const Stack = createStackNavigator();
-
 const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
     const { symbol, name } = route.params;
     const [transactions, setTransactions] = useState<AssetTransactions | null>(null);
     const [historicalPrices, setHistoricalPrices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 40);
-    const navigation = useNavigation();
+    const router = useRouter();
 
     useEffect(() => {
         const handleResize = () => {
@@ -174,9 +163,10 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
                     getAssetTransactions(symbol),
                     getStockPrices(symbol, 'max')
                 ]);
+                console.log('transactionsData', transactionsData);
                 const firstBuyDate = transactionsData.buys[0]?.date;
                 const filteredPrices = pricesData.prices.filter((price: { date: string }) => price.date >= firstBuyDate);
-                setTransactions(transactionsData);
+                setTransactions("transactionsData");
                 setHistoricalPrices(filteredPrices || []);
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -189,19 +179,22 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
     }, [symbol]);
 
     const handleTransactionPress = (transaction: AssetTransaction, isBuy: boolean) => {
-        navigation.navigate('AddInvestmentTransaction', {
-            transaction: {
-                id: transaction.id,
-                account_id: transaction.account_id, // Pass account_id
-                account_name: transaction.account_name,
-                asset_symbol: symbol,
-                asset_name: name,
-                activity_type: isBuy ? 'buy' : 'sell',
-                date: transaction.date,
-                quantity: transaction.quantity,
-                unit_price: transaction.price,
-                fee: transaction.fee,
-                tax: transaction.tax
+        router.push({
+            path: 'AddInvestmentTransaction',
+            params: {
+                transaction: {
+                    id: transaction.id,
+                    account_id: transaction.account_id, // Pass account_id
+                    account_name: transaction.account_name,
+                    asset_symbol: symbol,
+                    asset_name: name,
+                    activity_type: isBuy ? 'buy' : 'sell',
+                    date: transaction.date,
+                    quantity: transaction.quantity,
+                    unit_price: transaction.price,
+                    fee: transaction.fee,
+                    tax: transaction.tax
+                }
             }
         });
     };
@@ -276,7 +269,7 @@ const StockDetail: React.FC<StockDetailProps> = ({ route }) => {
         <View style={[sharedStyles.container]}>
             <View style={sharedStyles.header}>
                 <Image
-                    source={require('./../../../assets/images/logo-removebg-white.png')}
+                    source={require('@/assets/images/logo-removebg-white.png')}
                     style={{ width: 30, height: 30 }}
                     resizeMode="contain"
                 />
@@ -541,7 +534,7 @@ const TransactionCard = ({ transaction, isBuy, onPress }: {
 };
 
 const InvestmentOverview: React.FC = () => {
-    const navigation = useNavigation<InvestmentScreenNavigationProp>();
+    const router = useRouter();
     const [selectedPeriod, setSelectedPeriod] = useState('1Y');
     const [positions, setPositions] = useState<PortfolioPosition[]>([]);
     const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
@@ -588,6 +581,7 @@ const InvestmentOverview: React.FC = () => {
             }
 
             setPositions(summaryResponse.positions);
+            console.log(performanceResponse)
             setPerformanceData(performanceResponse?.performance_data || []);
 
             // Update total values with safe defaults
@@ -651,7 +645,7 @@ const InvestmentOverview: React.FC = () => {
         <View style={[sharedStyles.container]}>
             <View style={sharedStyles.header}>
                 <Image
-                    source={require('./../../../assets/images/logo-removebg-white.png')}
+                    source={require('@/assets/images/logo-removebg-white.png')}
                     style={{ width: 30, height: 30 }}
                     resizeMode="contain"
                 />
@@ -665,8 +659,20 @@ const InvestmentOverview: React.FC = () => {
                         </Pressable>
                     }
                 >
-                    <Menu.Item onPress={() => navigation.navigate('AddInvestmentTransaction')} title="Add investment transaction" />
-                    <Menu.Item onPress={() => navigation.navigate('InvestmentTransactionList')} title="Show list investments" />
+                    <Menu.Item
+                        onPress={() => {
+                            closeMenu();
+                            router.push('/add-investment-transaction');
+                        }}
+                        title="Add investment transaction"
+                    />
+                    <Menu.Item
+                        onPress={() => {
+                            closeMenu();
+                            router.push('InvestmentTransactionList');
+                        }}
+                        title="Show list investments"
+                    />
                 </Menu>
             </View>
             <View style={sharedStyles.body}>
@@ -692,7 +698,6 @@ const InvestmentOverview: React.FC = () => {
                                 data={formatDateLabels(performanceData).map(item => ({
                                     value: item.cumulative_value,
                                     date: item.date,
-                                    showLabel: item.showLabel
                                 }))}
                                 width={chartWidth}
                                 height={200}
@@ -791,9 +796,12 @@ const InvestmentOverview: React.FC = () => {
                                 <StockPositionItem
                                     key={index}
                                     position={position}
-                                    onPress={() => navigation.navigate('StockDetail', {
-                                        symbol: position.asset_symbol,
-                                        name: position.asset_name
+                                    onPress={() => router.push({
+                                        pathname: 'list-investment-transaction',
+                                        params: {
+                                            symbol: position.asset_symbol,
+                                            name: position.asset_name
+                                        }
                                     })}
                                 />
                             ))
@@ -811,32 +819,7 @@ const InvestmentOverview: React.FC = () => {
 
 export default function InvestmentScreen() {
     return (
-        <Stack.Navigator
-            screenOptions={{
-                headerShown: false,
-            }}
-        >
-            <Stack.Screen
-                name="InvestmentOverview"
-                component={InvestmentOverview}
-                options={{ headerShown: false }}
-            />
-            <Stack.Screen
-                name="StockDetail"
-                component={StockDetail}
-                options={({ route }) => ({ title: route.params.symbol })}
-            />
-            <Stack.Screen
-                name="InvestmentTransactionList"
-                component={InvestmentTransactionListScreen}
-                options={{ headerShown: false }}
-            />
-            <Stack.Screen
-                name="AddInvestmentTransaction"
-                component={AddInvestmentTransactionScreen}
-                options={{ headerShown: false }}
-            />
-        </Stack.Navigator>
+        <InvestmentOverview />
     );
 }
 

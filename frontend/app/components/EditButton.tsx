@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Alert, Platform, Pressable, StyleSheet } from "react-native";
 import { Text } from "react-native-paper";
@@ -11,7 +11,7 @@ interface EditButtonProps {
 }
 
 export const EditButton: React.FC<EditButtonProps> = ({ editText, editTextAlert, editFunction }) => {
-    const navigation = useNavigation();
+    const router = useRouter();
 
     const handleEdit = () => {
         Alert.alert(

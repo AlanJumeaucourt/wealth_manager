@@ -1,5 +1,5 @@
+import { FETCH_BANKS_FAILURE, FETCH_BANKS_REQUEST, FETCH_BANKS_SUCCESS } from '@/actions/bankActions';
 import { Action } from 'redux';
-import { FETCH_BANKS_FAILURE, FETCH_BANKS_REQUEST, FETCH_BANKS_SUCCESS } from '../actions/bankActions';
 
 const initialState = {
     banks: [],

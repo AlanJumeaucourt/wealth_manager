@@ -1,13 +1,13 @@
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet } from "react-native";
 import { Icon } from "react-native-elements";
 import { Text } from "react-native-paper";
 
 export const BackButton = () => {
-    const navigation = useNavigation();
+    const router = useRouter();
 
     return (
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Icon name="arrow-back" type="ionicon" color="#007AFF" size={24} />
             <Text style={styles.backButtonText}>Back</Text>
         </Pressable>

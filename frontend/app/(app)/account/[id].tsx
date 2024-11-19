@@ -1,34 +1,31 @@
 import { fetchAccounts } from '@/actions/accountActions';
-import { Account } from '@/types/account';
+import { deleteAccount } from '@/app/api/bankApi';
+import { BackButton } from '@/app/components/BackButton';
+import TransactionList from '@/app/components/TransactionList'; // import the TransactionList component
+import { darkTheme } from '@/constants/theme';
+import { sharedStyles } from '@/styles/sharedStyles';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import React, { useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Menu } from 'react-native-paper';
 import { useDispatch } from 'react-redux';
-import { darkTheme } from '../constants/theme';
-import { deleteAccount, fetchTransactions } from './api/bankApi';
-import { BackButton } from './components/BackButton';
-import TransactionList from './components/TransactionList'; // Import the TransactionList component
-import sharedStyles from './styles/sharedStyles';
-
-type RouteParams = {
-  account: Account;
-};
 
 export default function TransactionsScreen() {
   const dispatch = useDispatch();
-  const navigation = useNavigation();
-  const route = useRoute();
-  const { account } = route.params as RouteParams;
+  const params = useLocalSearchParams();
+  const router = useRouter();
+  const account = params.account ? JSON.parse(params.account as string) : undefined;
   const [visible, setVisible] = useState(false);
-
 
   const openMenu = () => setVisible(true);
   const closeMenu = () => setVisible(false);
 
   const handleEditAccount = () => {
-    navigation.navigate('AddAccount', { account });
+    router.push({
+      pathname: '/add-account',
+      params: { account: JSON.stringify(account) }
+    });
     closeMenu();
   };
 
@@ -48,7 +45,7 @@ export default function TransactionsScreen() {
             onPress: async () => {
               await deleteAccount(account.id, () => {
                 dispatch(fetchAccounts());
-                navigation.goBack();
+                router.back();
                 Alert.alert('Success', 'Account deleted successfully.');
               });
             },

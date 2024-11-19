@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, TextInput, FlatList, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
-import { fetchAccounts } from '../api/bankApi';
-import { Account } from '../../types/account';
+import { fetchAccounts } from '@/app/api/bankApi';
+import { darkTheme } from '@/constants/theme';
+import { Account } from '@/types/account';
 import { Ionicons } from '@expo/vector-icons';
-import { darkTheme } from '../../constants/theme';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const AccountList: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);

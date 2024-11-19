@@ -1,9 +1,9 @@
+import { searchStocks } from '@/app/api/bankApi';
+import SearchableModal from '@/app/components/SearchableModal';
 import { darkTheme } from '@/constants/theme';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
-import { searchStocks } from '../api/bankApi';
-import SearchableModal from './SearchableModal';
 
 interface StockSearchModalProps {
     onSelect: (symbol: string, name: string) => void;

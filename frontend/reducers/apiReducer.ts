@@ -1,4 +1,4 @@
-import { FETCH_DATA_FAILURE, FETCH_DATA_REQUEST, FETCH_DATA_SUCCESS } from '../actions/apiActions';
+import { FETCH_DATA_FAILURE, FETCH_DATA_REQUEST, FETCH_DATA_SUCCESS } from '@/actions/apiActions';
 
 const initialState = {
     data: null,

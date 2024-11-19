@@ -1,24 +1,23 @@
 import { fetchAccounts } from '@/actions/accountActions';
 import { fetchTransactions } from '@/actions/transactionActions';
+import { createAccount, createTransaction, updateTransaction } from '@/app/api/bankApi';
+import { BackButton } from '@/app/components/BackButton';
 import SearchableModal from '@/app/components/SearchableModal';
 import { expenseCategories, incomeCategories } from '@/constants/categories';
 import { colors } from '@/constants/colors';
-import { RootState } from '@/store/store';
+import { darkTheme } from '@/constants/theme';
+import sharedStyles from '@/styles/sharedStyles';
 import { Account } from '@/types/account';
 import { Category } from '@/types/category';
 import { Transaction } from '@/types/transaction';
+import { findCategoryByName } from '@/utils/categoryUtils'; // import the utility function
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image } from 'react-native';
-import { Button } from 'react-native-paper';
+import { Alert, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { Button } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
-import { darkTheme } from '../constants/theme';
-import { findCategoryByName } from '../utils/categoryUtils'; // Import the utility function
-import { createAccount, createTransaction, updateTransaction } from './api/bankApi';
-import { BackButton } from './components/BackButton';
-import sharedStyles from './styles/sharedStyles';
 
 const accountNameFromId = (accountId: number, accounts: Account[]) => {
     if (!accounts || !Array.isArray(accounts)) {
@@ -32,7 +31,7 @@ export default function AddTransactionScreen() {
     const route = useRoute();
     const dispatch = useDispatch();
     const transaction = route.params?.transaction as Transaction | undefined;
-    const accounts = useSelector((state: RootState) => state.accounts.accounts);
+    const accounts = useSelector((state) => state.accounts.accounts);
 
     console.log('route.params : ', route.params);
 
@@ -350,7 +349,7 @@ export default function AddTransactionScreen() {
                     <Text style={sharedStyles.headerTitle}>{transaction ? `Edit Transaction` : 'Add New Transaction'}</Text>
                 </View>
                 <Image
-                    source={require('./../assets/images/logo-removebg-white.png')}
+                    source={require('@/assets/images/logo-removebg-white.png')}
                     style={{ width: 30, height: 30 }}
                     resizeMode="contain"
                 />

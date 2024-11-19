@@ -1,5 +1,4 @@
 import apiClient from '@/app/api/axiosConfig';
-import axios from 'axios';
 import { Dispatch } from 'redux';
 
 export const FETCH_DATA_REQUEST = 'FETCH_DATA_REQUEST';

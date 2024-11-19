@@ -1,5 +1,5 @@
-import { Category } from '@/types/category';
 import { expenseCategories, incomeCategories } from '@/constants/categories';
+import { Category } from '@/types/category';
 
 export function findCategoryByName(categoryName: string): Category | null {
   const lowerCaseName = categoryName.toLowerCase();

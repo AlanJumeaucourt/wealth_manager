@@ -1,9 +1,7 @@
-import { Stack, Tabs } from 'expo-router';
-import { useEffect } from 'react';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { darkTheme } from '../../constants/theme';
+import { darkTheme } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter, Redirect } from 'expo-router';
+import { Redirect, Stack, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 
 export default function AppLayout() {
   const { isLoggedIn, checkAuthStatus } = useAuth();
@@ -21,26 +19,30 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen
-        name="(tabs)"
-        options={{ headerShown: false }}
-      />
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: {
+          backgroundColor: darkTheme.colors.background,
+        },
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="transaction/[id]"
-        options={{ 
+        options={{
           presentation: 'modal',
-          headerShown: false 
+          headerShown: false
         }}
       />
       <Stack.Screen
         name="add-transaction"
-        options={{ 
+        options={{
           presentation: 'modal',
-          headerShown: false 
+          headerShown: false
         }}
       />
-      {/* Add other modal/detail screens here */}
     </Stack>
   );
 } 
