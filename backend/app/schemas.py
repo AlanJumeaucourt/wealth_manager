@@ -91,6 +91,7 @@ class TransactionSchema(Schema):
     type = fields.Str(required=True, validate=validate.OneOf(['expense', 'income', 'transfer']))
 
 class AssetSchema(Schema):
+    user_id = fields.Int(required=True)
     id = fields.Int(dump_only=True)
     symbol = fields.Str(required=True)
     name = fields.Str(required=True)
@@ -111,6 +112,7 @@ class InvestmentTransactionSchema(Schema):
 
 class AccountAssetSchema(Schema):
     id = fields.Int(dump_only=True)
+    user_id = fields.Int(required=True)
     account_id = fields.Int(required=True)
     asset_id = fields.Int(required=True)
     quantity = fields.Float(required=True)

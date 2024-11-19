@@ -56,7 +56,7 @@ class InvestmentService(BaseService):
                 GROUP_CONCAT(it.id) as transaction_ids
             FROM investment_transactions it
             JOIN assets a ON it.asset_id = a.id
-            WHERE it.user_id = ? {}
+            WHERE it.user_id = ? AND a.user_id = ? {}
             GROUP BY a.symbol, a.name
             HAVING total_quantity > 0 OR total_invested != 0
         )
@@ -73,7 +73,7 @@ class InvestmentService(BaseService):
         FROM position_summary
         """
 
-        params = [user_id]
+        params = [user_id, user_id]
         if account_id:
             query = query.format("AND account_id = ?")
             params.append(account_id)
@@ -215,21 +215,22 @@ class InvestmentService(BaseService):
         query = """
         SELECT
             date(t.date) as date,
-            t.asset_symbol,
+            a.symbol as asset_symbol,
             SUM(CASE
                 WHEN t.activity_type = 'buy' THEN t.quantity
                 WHEN t.activity_type = 'sell' THEN -t.quantity
                 ELSE 0
             END) as quantity_change
         FROM investment_transactions t
-        WHERE t.user_id = ?
-        GROUP BY date(t.date), t.asset_symbol
+        JOIN assets a ON t.asset_id = a.id
+        WHERE t.user_id = ? AND a.user_id = ?
+        GROUP BY date(t.date), a.symbol
         HAVING quantity_change != 0
         ORDER BY date
         """
 
         try:
-            transactions = self.db_manager.execute_select(query, (user_id,))
+            transactions = self.db_manager.execute_select(query, (user_id, user_id))
             logger.info(f"transactions: {transactions}")
 
             if not transactions:
@@ -345,33 +346,12 @@ class InvestmentService(BaseService):
             with self.db_manager.connect_to_database() as connection:
                 connection.execute("BEGIN TRANSACTION")
 
-                # Get or create asset
-                asset_query = """
-                SELECT id FROM assets
-                WHERE symbol = ?
-                """
-                asset_result = self.db_manager.execute_select(asset_query, (data['asset_symbol'],))
-
-                if not asset_result:
-                    # Create new asset
-                    insert_asset_query = """
-                    INSERT INTO assets (symbol, name)
-                    VALUES (?, ?)
-                    RETURNING id
-                    """
-                    asset_result = self.db_manager.execute_insert_returning(
-                        insert_asset_query,
-                        (data['asset_symbol'], data.get('asset_name', data['asset_symbol']))
-                    )
-
-                asset_id = asset_result[0]['id'] if isinstance(asset_result, list) else asset_result['id']
-
                 # Prepare investment transaction data
                 investment_data = {
                     'user_id': data['user_id'],
-                    'from_account_id': data['account_id'],  # For buys, this is the cash account
-                    'to_account_id': data['account_id'],    # For sells, this is the investment account
-                    'asset_id': asset_id,
+                    'from_account_id': data['from_account_id'],
+                    'to_account_id': data['to_account_id'],
+                    'asset_id': data['asset_id'],
                     'activity_type': data['activity_type'],
                     'date': data['date'],
                     'quantity': data['quantity'],
@@ -386,30 +366,30 @@ class InvestmentService(BaseService):
                 query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
                 investment_result = self.db_manager.execute_insert_returning(query, tuple(investment_data.values()))
 
-                # For buy/sell transactions, create corresponding transfer transaction
-                if data['activity_type'] in ['buy', 'sell']:
-                    total_amount = (data['quantity'] * data['unit_price']) + data['fee'] + data['tax']
+                # Update or create account_assets entry
+                account_assets_query = """
+                INSERT INTO account_assets (user_id, account_id, asset_id, quantity)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (account_id, asset_id) DO UPDATE
+                SET quantity = quantity + ?
+                """
 
-                    # For buy: transfer from cash to stock account
-                    # For sell: transfer from stock to cash account
-                    from_account_id = investment_data['from_account_id']
-                    to_account_id = investment_data['to_account_id']
+                quantity_change = (
+                    data['quantity'] if data['activity_type'] == 'buy'
+                    else -data['quantity'] if data['activity_type'] == 'sell'
+                    else 0
+                )
 
-                    transfer_data = {
-                        'user_id': data['user_id'],
-                        'date': datetime.now().isoformat(),
-                        'date_accountability': data['date'],
-                        'description': f"{data['activity_type'].title()} {data['quantity']} {data['asset_symbol']} @ {data['unit_price']}",
-                        'amount': total_amount,
-                        'from_account_id': from_account_id,
-                        'to_account_id': to_account_id,
-                        'type': 'transfer',
-                        'category': 'Investment',
-                        'subcategory': data['activity_type'].title()
-                    }
-
-                    # Create transfer transaction
-                    self.transaction_service.create(transfer_data)
+                self.db_manager.execute_insert(
+                    account_assets_query,
+                    (
+                        data['user_id'],
+                        data['to_account_id'],
+                        data['asset_id'],
+                        quantity_change,
+                        quantity_change
+                    )
+                )
 
                 connection.commit()
                 return self.model_class(**investment_result)
@@ -417,5 +397,5 @@ class InvestmentService(BaseService):
         except Exception as e:
             if 'connection' in locals():
                 connection.rollback()
-            print(f"Error creating investment transaction: {e}")
+            logger.error(f"Error creating investment transaction: {e}")
             raise

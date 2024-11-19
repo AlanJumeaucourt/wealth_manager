@@ -200,8 +200,10 @@ class DatabaseManager:
             """--sql
                 CREATE TABLE IF NOT EXISTS assets (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
                     symbol TEXT NOT NULL UNIQUE,
-                    name TEXT NOT NULL
+                    name TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 );
             """,
             """--sql
@@ -225,11 +227,14 @@ class DatabaseManager:
                 );
             """,
             """--sql
-                CREATE TABLE IF NOT EXISTS accounts_assets (
+                CREATE TABLE IF NOT EXISTS account_assets (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
                     account_id INTEGER NOT NULL,
                     asset_id INTEGER NOT NULL,
                     quantity DECIMAL(10,6) NOT NULL,
+                    UNIQUE(account_id, asset_id),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
                     FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
                 );
@@ -279,7 +284,7 @@ class DatabaseManager:
                     ast.symbol AS asset_symbol,
                     ast.name AS asset_name,
                     aa.quantity
-                FROM accounts_assets aa
+                FROM account_assets aa
                 JOIN accounts a ON aa.account_id = a.id
                 JOIN assets ast ON aa.asset_id = ast.id;
             """,
@@ -366,8 +371,8 @@ class DatabaseManager:
             "CREATE INDEX idx_transactions_accounts ON transactions(from_account_id, to_account_id);",
             "CREATE INDEX idx_investment_transactions_user_date ON investment_transactions(user_id, date);",
             "CREATE INDEX idx_investment_transactions_user_asset ON investment_transactions(user_id, asset_id);",
-            "CREATE INDEX idx_accounts_assets_account_id ON accounts_assets(account_id);",
-            "CREATE INDEX idx_accounts_assets_asset_id ON accounts_assets(asset_id);",
+            "CREATE INDEX idx_account_assets_account_id ON account_assets(account_id);",
+            "CREATE INDEX idx_account_assets_asset_id ON account_assets(asset_id);",
         ]
 
         with self.connect_to_database() as connection:

@@ -65,7 +65,7 @@ def create_app():
     app.register_blueprint(stock_bp, url_prefix='/stocks')
     app.register_blueprint(asset_bp, url_prefix='/assets')
     app.register_blueprint(account_asset_bp, url_prefix='/account_assets')
-
+    
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string: str):
         return jsonify({

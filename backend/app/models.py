@@ -49,6 +49,7 @@ class Transaction:
 @dataclass
 class Asset:
     """Represents an asset."""
+    user_id: int
     symbol: str
     name: str
     id: Optional[int] = field(default=None)
@@ -76,6 +77,7 @@ class InvestmentTransaction:
 @dataclass
 class AccountAsset:
     """Represents an asset associated with an account."""
+    user_id: int
     account_id: int
     asset_id: int
     quantity: float
