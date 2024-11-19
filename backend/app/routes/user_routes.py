@@ -117,6 +117,15 @@ def delete_user_route(user_id: int):
     # To do: revoke token and check it in all code
     return ('', 204) if success else (jsonify({"error": "Failed to delete user"}), 500)
 
+@user_bp.route('/', methods=['DELETE'])
+@jwt_required()
+def self_delete_user_route():
+    user_id_from_tokens, _, error, code = process_request(type_of_request='DELETE')
+    if error:
+        return error, code
+    success = delete_user(user_id_from_tokens)
+    return ('', 204) if success else (jsonify({"error": "Failed to delete user"}), 500)
+
 @user_bp.route('/verify-token', methods=['GET'])
 @jwt_required()
 def verify_token():
