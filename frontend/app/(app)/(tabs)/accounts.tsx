@@ -332,6 +332,10 @@ export default function AccountsScreen() {
         return require('@/assets/images/credit_agricole.png');
       case 'fortuneo':
         return require('@/assets/images/fortuneo.png');
+      case 'bank of america':
+        return require('@/assets/images/bank_of_america.png');
+      case 'chase bank':
+        return require('@/assets/images/chase_bank.png');
       default:
         return require('@/assets/images/icon.png');
     }
