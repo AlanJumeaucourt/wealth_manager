@@ -235,58 +235,6 @@ class DatabaseManager:
         
         triggers = [
             """
-            CREATE TRIGGER IF NOT EXISTS trg_create_investment_transfer
-            AFTER INSERT ON investment_transactions
-            FOR EACH ROW
-            WHEN NEW.activity_type IN ('buy', 'sell')
-            BEGIN
-                INSERT INTO transactions (
-                    user_id,
-                    date,
-                    date_accountability,
-                    description,
-                    amount,
-                    from_account_id,
-                    to_account_id,
-                    type,
-                    category,
-                    subcategory,
-                    related_transaction_id
-                )
-                SELECT
-                    NEW.user_id,
-                    DATETIME('now'),
-                    NEW.date,
-                    NEW.activity_type || ' ' || NEW.quantity || ' ' || NEW.asset_symbol || ' @ ' || NEW.unit_price,
-                    (NEW.quantity * NEW.unit_price) + NEW.fee + NEW.tax,
-                    CASE 
-                        WHEN NEW.activity_type = 'buy' THEN 
-                            (SELECT c.id
-                             FROM accounts i
-                             JOIN accounts c ON c.name = i.name || ' cash'
-                             WHERE i.id = NEW.account_id
-                             AND i.user_id = NEW.user_id
-                             AND c.type = 'checking'
-                             LIMIT 1)
-                        ELSE NEW.account_id 
-                    END,
-                    CASE 
-                        WHEN NEW.activity_type = 'buy' THEN NEW.account_id 
-                        ELSE (SELECT c.id
-                              FROM accounts i
-                              JOIN accounts c ON c.name = i.name || ' cash'
-                              WHERE i.id = NEW.account_id
-                              AND i.user_id = NEW.user_id
-                              AND c.type = 'checking'
-                              LIMIT 1)
-                    END,
-                    'transfer',
-                    'Investment',
-                    NEW.activity_type,
-                    NEW.id;
-            END;
-            """,
-            """
             CREATE TRIGGER IF NOT EXISTS trg_validate_transaction
             BEFORE INSERT ON transactions
             BEGIN
@@ -331,29 +279,6 @@ class DatabaseManager:
                         ) THEN
                             RAISE(ABORT, 'Cannot transfer to this type of account')
                     END;
-            END;
-            """,
-            """
-            CREATE TRIGGER IF NOT EXISTS trg_create_investment_cash_account
-            AFTER INSERT ON accounts
-            WHEN NEW.type = 'investment'
-            BEGIN
-                INSERT INTO accounts (
-                    user_id,
-                    name,
-                    type,
-                    currency,
-                    bank_id,
-                    tags
-                )
-                VALUES (
-                    NEW.user_id,
-                    NEW.name || ' cash',
-                    'checking',
-                    NEW.currency,
-                    NEW.bank_id,
-                    'investment_cash'
-                );
             END;
             """
         ]
