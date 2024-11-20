@@ -1,6 +1,7 @@
 {
     "python.analysis.autoImportCompletions": true,
     "editor.formatOnSave": true,
+    "editor.trimAutoWhitespace": true,
     "python.analysis.typeCheckingMode": "strict",
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
