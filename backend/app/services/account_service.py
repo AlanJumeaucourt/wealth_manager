@@ -1,3 +1,4 @@
+from unittest import result
 from app.services.base_service import BaseService
 from app.models import Account
 from typing import Dict, Any, Optional, List
@@ -7,26 +8,6 @@ from app.exceptions import NoResultFoundError
 class AccountService(BaseService):
     def __init__(self):
         super().__init__('accounts', Account)
-
-    def create(self, data: Dict[str, Any]) -> Optional[Account]:
-        """Create account and associated cash account if it's an investment account."""
-        try:
-            # Start transaction
-            with self.db_manager.connect_to_database() as connection:
-                connection.execute("BEGIN TRANSACTION")
-
-                columns = ', '.join(data.keys())
-                placeholders = ', '.join(['?' for _ in data])
-                query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
-                result = self.db_manager.execute_insert_returning(query, tuple(data.values()))
-                connection.commit()
-                return self.model_class(**result)
-
-        except Exception as e:
-            if 'connection' in locals():
-                connection.rollback()
-            print(f"Error creating account: {e}")
-            return None
 
     def get_by_id(self, id: int, user_id: int) -> Optional[Account]:
         account = super().get_by_id(id, user_id)
@@ -136,7 +117,7 @@ class AccountService(BaseService):
         params = [user_id, user_id, user_id, user_id, user_id, user_id, user_id]
         try:
             results = self.db_manager.execute_select(query, params)
-            return {row['date']: round(row['cumulative_balance'], 2) for row in results}
+            return {row['date']: round(row['cumulative_balance'], 2) for row in results if start_date <= row['date'] <= end_date}
         except Exception as e:
             print("error in get_accounts_balance_over_days", e)
             return {}
