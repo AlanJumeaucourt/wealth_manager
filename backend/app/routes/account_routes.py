@@ -17,10 +17,10 @@ def get_balance_over_time():
     user_id = get_jwt_identity()
     start_date = request.args.get('start_date', type=str)
     end_date = request.args.get('end_date', type=str)
-    
+
     if not start_date or not end_date:
         return jsonify({"error": "Start and end dates are required query parameters"}), 400
-    
+
     try:
         datetime.strptime(start_date, '%Y-%m-%d')
         datetime.strptime(end_date, '%Y-%m-%d')
@@ -37,7 +37,9 @@ def get_wealth():
     wealth_data = account_service.get_wealth(user_id)
     return jsonify(wealth_data)
 
-@account_bp.route('/', methods=['POST'])
+@account_bp.route('/<int:id>/balance', methods=['GET'])
 @jwt_required()
-def create_account():
-    return account_routes.create()  # Ensure this is correctly calling the create method
+def get_account_balance(id):
+    user_id = get_jwt_identity()
+    balance = account_service.get_account_balance(user_id, id)
+    return jsonify(balance)

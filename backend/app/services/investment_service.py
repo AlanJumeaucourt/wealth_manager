@@ -366,30 +366,40 @@ class InvestmentService(BaseService):
                 query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
                 investment_result = self.db_manager.execute_insert_returning(query, tuple(investment_data.values()))
 
-                # Update or create account_assets entry
-                account_assets_query = """
-                INSERT INTO account_assets (user_id, account_id, asset_id, quantity)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT (account_id, asset_id) DO UPDATE
-                SET quantity = quantity + ?
-                """
-
+                # Calculate quantity change based on activity type
                 quantity_change = (
                     data['quantity'] if data['activity_type'] == 'buy'
                     else -data['quantity'] if data['activity_type'] == 'sell'
                     else 0
                 )
 
-                self.db_manager.execute_insert(
-                    account_assets_query,
-                    (
+                # First try to update existing record
+                update_query = """
+                UPDATE account_assets
+                SET quantity = quantity + ?
+                WHERE account_id = ? AND asset_id = ? AND user_id = ?
+                """
+
+                cursor = connection.cursor()
+                cursor.execute(update_query, (
+                    quantity_change,
+                    data['to_account_id'],
+                    data['asset_id'],
+                    data['user_id']
+                ))
+
+                # If no rows were updated, insert new record
+                if cursor.rowcount == 0:
+                    insert_query = """
+                    INSERT INTO account_assets (user_id, account_id, asset_id, quantity)
+                    VALUES (?, ?, ?, ?)
+                    """
+                    cursor.execute(insert_query, (
                         data['user_id'],
                         data['to_account_id'],
                         data['asset_id'],
-                        quantity_change,
                         quantity_change
-                    )
-                )
+                    ))
 
                 connection.commit()
                 return self.model_class(**investment_result)

@@ -92,7 +92,7 @@ class AccountService(BaseService):
             return 0
 
     def sum_accounts_balances_over_days(self, user_id: int, start_date: str, end_date: str) -> Dict[str, float]:
-        query = f"""
+        query = """
             WITH RECURSIVE date_range AS (
                 -- Start the recursion with the minimum transaction date
                 SELECT MIN(date) AS date
@@ -104,38 +104,43 @@ class AccountService(BaseService):
                 -- Recursively generate the next date by adding 1 day
                 SELECT date(date, '+1 day')
                 FROM date_range
-                WHERE date < DATE(?)
+                WHERE date < (SELECT MAX(date) FROM transactions WHERE user_id = ?)
+            ),
+            daily_balances AS (
+                SELECT
+                    dr.date,
+                    COALESCE(SUM(CASE
+                        WHEN t.type = 'income' AND t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN t.amount
+                        WHEN t.type = 'expense' AND t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN -t.amount
+                        WHEN t.type = 'transfer' AND t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN t.amount
+                        WHEN t.type = 'transfer' AND t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN -t.amount
+                        ELSE 0
+                    END), 0) AS daily_balance
+                FROM date_range dr
+                LEFT JOIN transactions t
+                    ON dr.date = DATE(t.date) AND t.user_id = ?
+                GROUP BY dr.date
+            ),
+            cumulative_balances AS (
+                SELECT
+                    db.date,
+                    SUM(db.daily_balance) OVER (ORDER BY db.date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_balance
+                FROM daily_balances db
             )
             SELECT
-                dr.date,
-                COALESCE(SUM(CASE
-                    WHEN t.type = 'income' AND t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN t.amount
-                    WHEN t.type = 'expense' AND t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN -t.amount
-                    ELSE 0
-                END), 0) AS daily_balance,
-                COALESCE(SUM(SUM(CASE
-                    WHEN t.type = 'income' AND t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN t.amount
-                    WHEN t.type = 'expense' AND t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN -t.amount
-                    ELSE 0
-                END)) OVER (ORDER BY dr.date), 0) AS cumulative_balance
-            FROM date_range dr
-            LEFT JOIN transactions t
-                ON dr.date = t.date AND t.user_id = ?
-            GROUP BY dr.date
-            ORDER BY dr.date;
+                cb.date,
+                cb.cumulative_balance
+            FROM cumulative_balances cb
+            ORDER BY cb.date;
         """
-        params = [user_id, end_date, user_id, user_id, user_id, user_id, user_id]
+        params = [user_id, user_id, user_id, user_id, user_id, user_id, user_id]
         try:
             results = self.db_manager.execute_select(query, params)
-        except NoResultFoundError as e:
-            print("error in sum_accounts_balances_over_days", e)
-            return {}
+            return {row['date']: round(row['cumulative_balance'], 2) for row in results}
         except Exception as e:
-            print("error in sum_accounts_balances_over_days", e)
+            print("error in get_accounts_balance_over_days", e)
             return {}
-        results = {row['date']: round(row['cumulative_balance'], 2) for row in results if row['date'] >= start_date and row['date'] <= end_date}
-        results.update({end_date: round(list(results.values())[-1], 2)})
-        return results
+
 
     def get_wealth(self, user_id: int) -> Dict[str, Any]:
         query = """
@@ -188,3 +193,53 @@ class AccountService(BaseService):
             print("error in get_wealth", e)
             return {}
         return result[0] if result else {}
+
+    def get_account_balance(self, user_id: int, account_id: int) -> Dict[str, float]:
+        query = """
+            WITH RECURSIVE date_range AS (
+                -- Start the recursion with the minimum transaction date
+                SELECT MIN(date) AS date
+                FROM transactions
+                WHERE user_id = ?
+
+                UNION ALL
+
+                -- Recursively generate the next date by adding 1 day
+                SELECT date(date, '+1 day')
+                FROM date_range
+                WHERE date < (SELECT MAX(date) FROM transactions WHERE user_id = ?)
+            ),
+            daily_balances AS (
+                SELECT
+                    dr.date,
+                    COALESCE(SUM(CASE
+                        WHEN t.type = 'income' AND t.to_account_id = ? THEN t.amount
+                        WHEN t.type = 'expense' AND t.from_account_id = ? THEN -t.amount
+                        WHEN t.type = 'transfer' AND t.to_account_id = ? THEN t.amount
+                        WHEN t.type = 'transfer' AND t.from_account_id = ? THEN -t.amount
+                        ELSE 0
+                    END), 0) AS daily_balance
+                FROM date_range dr
+                LEFT JOIN transactions t
+                    ON dr.date = DATE(t.date) AND t.user_id = ?
+                GROUP BY dr.date
+            ),
+            cumulative_balances AS (
+                SELECT
+                    db.date,
+                    SUM(db.daily_balance) OVER (ORDER BY db.date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_balance
+                FROM daily_balances db
+            )
+            SELECT
+                cb.date,
+                cb.cumulative_balance
+            FROM cumulative_balances cb
+            ORDER BY cb.date;
+        """
+        params = [user_id, user_id, account_id, account_id, account_id, account_id, user_id]
+        try:
+            results = self.db_manager.execute_select(query, params)
+            return {row['date']: round(row['cumulative_balance'], 2) for row in results}
+        except Exception as e:
+            print("error in get_account_balance_over_days", e)
+            return {}
