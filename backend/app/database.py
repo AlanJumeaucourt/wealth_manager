@@ -277,19 +277,6 @@ class DatabaseManager:
                     LEFT JOIN transaction_impacts ti ON a.id = ti.account_id
                     GROUP BY a.id, a.user_id, a.name, a.type;
             """,
-            """--sql
-                CREATE VIEW IF NOT EXISTS account_asset_balances AS
-                SELECT
-                    aa.account_id,
-                    aa.asset_id,
-                    a.name AS account_name,
-                    ast.symbol AS asset_symbol,
-                    ast.name AS asset_name,
-                    aa.quantity
-                FROM account_assets aa
-                JOIN accounts a ON aa.account_id = a.id
-                JOIN assets ast ON aa.asset_id = ast.id;
-            """,
         ]
 
         triggers = [
