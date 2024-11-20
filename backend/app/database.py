@@ -241,6 +241,15 @@ class DatabaseManager:
                     FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
                 );
             """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS stock_cache (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    data TEXT NOT NULL,
+                    last_updated TIMESTAMP NOT NULL,
+                    UNIQUE(symbol)
+                );
+            """,
         ]
 
         views = [
