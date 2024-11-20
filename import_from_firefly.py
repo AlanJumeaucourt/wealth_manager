@@ -219,7 +219,7 @@ def create_bank_in_api(bank_name: str):
     session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
     session.mount('http://', HTTPAdapter(max_retries=retries))
-    
+
     try:
         # logging.debug(f"Sending POST request to {url} with data: {data}")
         response = session.post(url, json=data, headers=headers, timeout=10)  # Increase timeout to 10 seconds
@@ -239,19 +239,19 @@ def create_account_in_api(account_name: str, account_type: str, currency: str, b
         'name': account_name,
         'type': account_type,
         'bank_id': bank_id,
-        'currency': currency
     }
-    
+
     # Set up a session with retries and increased timeout
     session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
     session.mount('http://', HTTPAdapter(max_retries=retries))
-    
+
     try:
-        # logging.debug(f"Sending POST request to {url} with data: {data}")
+        logging.info(f"Sending POST request to {url} with data: {data}")
         response = session.post(url, json=data, headers=headers, timeout=10)  # Increase timeout to 10 seconds
+        logging.info(f"Received response: {response.status_code} - {response.text}")
         return response
-        # logging.debug(f"Received response: {response.status_code} - {response.text}")
+
     except requests.exceptions.RequestException as e:
         logging.error(f"An error occurred during POST request: {e}")
         raise
@@ -269,6 +269,7 @@ def get_account_id_from_name(account_name: str, account_type: str):
             accounts = get_accounts_from_api()
             account_id_mapping = {f"{account['name']}|{account['type']}": account['id'] for account in accounts}
             result = account_id_mapping.get(f"{account_name}|{account_type}", None)
+            print(f"{result=}")
             # logging.info(f"Created account: {account_name}|{account_type}, ID: {result}")
             if result is None:
                 raise Exception(f"Failed to create account: {account_name}|{account_type}")
@@ -305,7 +306,7 @@ def print_unique_budgets(file_path: str):
         df: pd.DataFrame = pd.read_csv(file_path)
         df = df.sort_values(by='date', ascending=True)
         # logging.debug(f"CSV loaded with columns: {df.columns}")
-        
+
         # Check if 'budget' column exists
         if 'budget' in df.columns:
             # # print all unique budgets
@@ -316,15 +317,15 @@ def print_unique_budgets(file_path: str):
             # logging.info(f"Transformed Categories: {transformed_categories}")
         else:
             logging.warning("Error: 'budget' column not found in the CSV file.")
-        
+
         # Process transactions
         if 'source_name' in df.columns and 'destination_name' in df.columns:
             # logging.info("Processing Transactions:")
             for index, row in df.iterrows():
                 # logging.debug(f"Processing row {index}: {row}")
-                source_account_type = account_name_type_mapping.get(row['source_name'], 
+                source_account_type = account_name_type_mapping.get(row['source_name'],
                                                                     account_type_mapping.get(row['source_type'], 'Unknown'))
-                destination_account_type = account_name_type_mapping.get(row['destination_name'], 
+                destination_account_type = account_name_type_mapping.get(row['destination_name'],
                                                                          account_type_mapping.get(row['destination_type'], 'Unknown'))
 
 
@@ -338,12 +339,12 @@ def print_unique_budgets(file_path: str):
                 else:
                     transaction_type = handle_transaction_type(row['type'])
                     to_account_id = get_account_id_from_name(str(row['destination_name']), destination_account_type)
-                
+
                 if from_account_id is None or to_account_id is None:
                     logging.warning(f"Account ID not found for transaction: {row['source_name']} or {row['destination_name']}")
                     continue
 
-                
+
 
                 category = transform_budget_to_categories(str(row['budget']))['category']
                 sub_category = transform_budget_to_categories(str(row['budget']))['subCategory']
@@ -352,8 +353,8 @@ def print_unique_budgets(file_path: str):
                     category = category_to_category_mapping.get(row['category'], category)
 
                 transaction_data = {
-                    'from_account_id': from_account_id,  
-                    'to_account_id': to_account_id, 
+                    'from_account_id': from_account_id,
+                    'to_account_id': to_account_id,
                     'amount': abs(float(row['amount'])),
                     'description': row['description'] if not pd.isna(row['description']) else '',
                     'type': transaction_type,
@@ -363,7 +364,7 @@ def print_unique_budgets(file_path: str):
                     'subcategory': sub_category
                 }
                 # logging.debug(f"Transaction data: {transaction_data}")
-                try: 
+                try:
                     response = create_transaction_in_api(transaction_data)
                     if response.status_code == 201:
                         # logging.info(f"Created Transaction: {transaction_data}, Response: {response.json()}")
@@ -377,7 +378,7 @@ def print_unique_budgets(file_path: str):
         # logging.info("Account Dictionary:")
         # for account, account_type in account_dictionary.items():
             # logging.info(f"Account: {account}, Type: {account_type}")
-    
+
     except FileNotFoundError:
         logging.error(f"Error: The file '{file_path}' was not found.")
     except Exception as e:
@@ -387,10 +388,10 @@ def print_unique_budgets(file_path: str):
 def transform_budget_to_categories(budget: str) -> CategoryInfo:
     """
     Transforms a budget string into a dictionary containing category and subcategory information.
-    
+
     Args:
     budget (str): The budget string to be transformed.
-    
+
     Returns:
     CategoryInfo: A dictionary containing 'category' and 'subCategory' information.
     """
@@ -428,7 +429,7 @@ def get_wealth_from_api() -> requests.Response:
     return response
 
 name : str = "a"
-email: str = "a@a.com"
+email: str = "aaaa@a.com"
 password: str = "aaaaaa"
 
 create_user_r = create_user(name, email, password)
@@ -459,8 +460,8 @@ else:
 # create_bank_in_api('Fake')
 # # print(create_account_in_api('Fake', 'expense', 'EUR', 1).json())
 transaction_data = {
-    'from_account_id': 1,  
-    'to_account_id': 2, 
+    'from_account_id': 1,
+    'to_account_id': 2,
     'amount': 100,
     'description': 'Test',
     'type': 'expense',
@@ -485,34 +486,34 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
         # Load the CSV file
         df: pd.DataFrame = pd.read_csv(file_path)
         df = df.sort_values(by='date', ascending=True)
-        
+
         # Fetch existing transactions and accounts from the API
         existing_transactions = get_transactions_from_api().json()
         existing_accounts = get_accounts_from_api()
-        
+
         missing_accounts = set()  # {{ edit_2: Changed missing_accounts to a set to ensure uniqueness }}
         missing_transactions = []
-        
+
         # Check for missing accounts
         for index, row in df.iterrows():
-            source_account_type = account_name_type_mapping.get(row['source_name'], 
+            source_account_type = account_name_type_mapping.get(row['source_name'],
                                                                 account_type_mapping.get(row['source_type'], 'Unknown'))
-            destination_account_type = account_name_type_mapping.get(row['destination_name'], 
+            destination_account_type = account_name_type_mapping.get(row['destination_name'],
                                                                      account_type_mapping.get(row['destination_type'], 'Unknown'))
-            
+
             # {{ edit_3: Use add() instead of append() for missing_accounts }}
             if not any(f"{row['source_name']}|{source_account_type}" in account for account in missing_accounts):
                 if not any(account['name'] == row['source_name'] and account['type'] == source_account_type for account in existing_accounts):
                     missing_accounts.add(f"{row['source_name']}|{source_account_type}")
-                
+
             if not any(f"{row['destination_name']}|{destination_account_type}" in account for account in missing_accounts):
                 if not any(account['name'] == row['destination_name'] and account['type'] == destination_account_type for account in existing_accounts):
                     missing_accounts.add(f"{row['destination_name']}|{destination_account_type}")
-        
+
         # {{ edit_4: Introduced batch processing for missing transactions }}
         batch_size = 100  # Define the size of each batch
         batches = [df[i:i + batch_size] for i in range(0, len(df), batch_size)]
-        
+
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = [
                 executor.submit(process_batch, batch, existing_transactions)
@@ -520,20 +521,20 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
             ]
             for future in concurrent.futures.as_completed(futures):
                 missing_transactions.extend(future.result())
-        
+
         print(f"Missing accounts: {missing_accounts}")
         print(f"Missing transactions: {missing_transactions}")
-        
+
         if add_transactions:
             # {{ edit_5: Create missing accounts before adding transactions }}
             for account in missing_accounts:
                 name, acc_type = account.split('|')
                 bank_id = bank_id_from_account_name(name)
                 create_account_in_api(name, acc_type, 'EUR', bank_id)
-            
+
             for transaction in missing_transactions:
                 print(create_transaction_in_api(transaction).json())
-    
+
     except FileNotFoundError:
         logging.error(f"Error: The file '{file_path}' was not found.")
     except Exception as e:
@@ -544,11 +545,11 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
 def process_batch(batch: pd.DataFrame, existing_transactions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     batch_missing_transactions = []
     for index, row in batch.iterrows():
-        source_account_type = account_name_type_mapping.get(row['source_name'], 
+        source_account_type = account_name_type_mapping.get(row['source_name'],
                                                             account_type_mapping.get(row['source_type'], 'Unknown'))
-        destination_account_type = account_name_type_mapping.get(row['destination_name'], 
+        destination_account_type = account_name_type_mapping.get(row['destination_name'],
                                                                  account_type_mapping.get(row['destination_type'], 'Unknown'))
-        
+
         transaction_data = {
             'from_account_id': get_account_id_from_name(str(row['source_name']), source_account_type),
             'to_account_id': get_account_id_from_name(str(row['destination_name']), destination_account_type),
@@ -560,11 +561,11 @@ def process_batch(batch: pd.DataFrame, existing_transactions: List[Dict[str, Any
             'category': transform_budget_to_categories(str(row['budget']))['category'],
             'subcategory': transform_budget_to_categories(str(row['budget']))['subCategory']
         }
-        
+
         if row['destination_name'] == "Prêt Etudiant CA":
             transaction_data['type'] = 'transfer'
             transaction_data['to_account_id'] = get_account_id_from_name('Prêt Etudiant CA', 'savings')
-        
+
         # Check if the transaction is missing
         is_missing = not any(
             existing_transaction['from_account_id'] == transaction_data['from_account_id'] and
@@ -573,11 +574,11 @@ def process_batch(batch: pd.DataFrame, existing_transactions: List[Dict[str, Any
             existing_transaction['date'] == transaction_data['date']
             for existing_transaction in existing_transactions
         )
-        
+
         if is_missing:
             batch_missing_transactions.append(transaction_data)
             print(f"Missing transaction : {transaction_data}")
-    
+
     return batch_missing_transactions
 
 # Call the function with the path to your CSV file
