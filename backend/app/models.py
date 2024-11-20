@@ -2,34 +2,42 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+
 @dataclass
 class User:
     """Represents a user in the system."""
+
     name: str
     email: str
     password: str
     last_login: Optional[datetime] = field(default=None)  # Made last_login optional
     id: Optional[int] = field(default=None)  # Added id field
 
+
 @dataclass
 class Bank:
     """Represents a bank associated with a user."""
+
     user_id: int
     name: str
     id: Optional[int] = field(default=None)  # Added id field
 
+
 @dataclass
 class Account:
     """Represents an account associated with a user."""
+
     user_id: int
     name: str
     type: str
     bank_id: int  # Corrected from bankId to bank_id for consistency
     id: Optional[int] = field(default=None)  # Added id field
 
+
 @dataclass
 class Transaction:
     """Represents a transaction between accounts."""
+
     user_id: int
     date: datetime
     date_accountability: datetime  # Added field
@@ -43,20 +51,24 @@ class Transaction:
     id: Optional[int] = field(default=None)
 
     def __post_init__(self):
-        if self.type not in ['expense', 'income', 'transfer', 'refund']:
+        if self.type not in ["expense", "income", "transfer", "refund"]:
             raise ValueError("Invalid transaction type.")
+
 
 @dataclass
 class Asset:
     """Represents an asset."""
+
     user_id: int
     symbol: str
     name: str
     id: Optional[int] = field(default=None)
 
+
 @dataclass
 class InvestmentTransaction:
     """Represents an investment transaction."""
+
     user_id: int
     from_account_id: int
     to_account_id: int
@@ -71,12 +83,14 @@ class InvestmentTransaction:
     id: Optional[int] = field(default=None)
 
     def __post_init__(self):
-        if self.activity_type not in ['buy', 'sell', 'deposit', 'withdrawal']:
+        if self.activity_type not in ["buy", "sell", "deposit", "withdrawal"]:
             raise ValueError("Invalid activity type.")
+
 
 @dataclass
 class AccountAsset:
     """Represents an asset associated with an account."""
+
     user_id: int
     account_id: int
     asset_id: int

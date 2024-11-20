@@ -6,18 +6,19 @@ from app.exceptions import QueryExecutionError, NoResultFoundError, DuplicateUse
 
 db_manager = DatabaseManager()
 
+
 def create_user(name: str, email: str, password: str) -> Optional[User]:
     try:
         user = db_manager.execute_insert_returning(
             "INSERT INTO users (name, email, password, last_login) VALUES (?, ?, ?, ?) RETURNING *",
-            (name, email, password, datetime.now(timezone.utc))
+            (name, email, password, datetime.now(timezone.utc)),
         )
         return User(
-            id=user['id'],
-            name=user['name'],
-            email=user['email'],
-            password=user['password'],
-            last_login=user['last_login']
+            id=user["id"],
+            name=user["name"],
+            email=user["email"],
+            password=user["password"],
+            last_login=user["last_login"],
         )
     except QueryExecutionError as e:
         if "UNIQUE constraint failed: users.email" in str(e):
@@ -28,19 +29,26 @@ def create_user(name: str, email: str, password: str) -> Optional[User]:
         print(f"Unexpected error: {e}")
         return None
 
+
 def get_user_by_id(user_id: int) -> Optional[User]:
     try:
-        result = db_manager.execute_select("SELECT * FROM users WHERE id = ?", (user_id,))
+        result = db_manager.execute_select(
+            "SELECT * FROM users WHERE id = ?", (user_id,)
+        )
         if not result:
-            raise NoResultFoundError("No user found with the given ID.", "SELECT * FROM users WHERE id = ?", (user_id,))
+            raise NoResultFoundError(
+                "No user found with the given ID.",
+                "SELECT * FROM users WHERE id = ?",
+                (user_id,),
+            )
 
         user_data = result[0]
         return User(
-            id=user_data['id'],
-            name=user_data['name'],
-            email=user_data['email'],
-            password=user_data['password'],
-            last_login=user_data['last_login']
+            id=user_data["id"],
+            name=user_data["name"],
+            email=user_data["email"],
+            password=user_data["password"],
+            last_login=user_data["last_login"],
         )
     except NoResultFoundError as e:
         print(f"Error: {e}")
@@ -52,7 +60,13 @@ def get_user_by_id(user_id: int) -> Optional[User]:
         print(f"Unexpected error: {e}")
         return None
 
-def update_user(user_id: int, name: Optional[str] = None, email: Optional[str] = None, password: Optional[str] = None) -> Optional[User]:
+
+def update_user(
+    user_id: int,
+    name: Optional[str] = None,
+    email: Optional[str] = None,
+    password: Optional[str] = None,
+) -> Optional[User]:
     try:
 
         update_fields: list[str] = []
@@ -75,15 +89,16 @@ def update_user(user_id: int, name: Optional[str] = None, email: Optional[str] =
         params.extend([user_id])
         user = db_manager.execute_update_returning(query, params)
         return User(
-            id=user['id'],
-            name=user['name'],
-            email=user['email'],
-            password=user['password'],
-            last_login=user['last_login']
+            id=user["id"],
+            name=user["name"],
+            email=user["email"],
+            password=user["password"],
+            last_login=user["last_login"],
         )
     except Exception as e:
         print(f"Error updating user: {e}")
         return None
+
 
 def delete_user(user_id: int) -> bool:
     try:
@@ -93,22 +108,26 @@ def delete_user(user_id: int) -> bool:
         print(f"Error deleting user: {e}")
         return False
 
+
 def authenticate_user(email: str, password: str) -> Optional[User]:
     try:
         result = db_manager.execute_select(
-            "SELECT * FROM users WHERE email = ? AND password = ?",
-            (email, password)
+            "SELECT * FROM users WHERE email = ? AND password = ?", (email, password)
         )
         if not result:
-            raise NoResultFoundError("No user found with the given email and password.", "SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
+            raise NoResultFoundError(
+                "No user found with the given email and password.",
+                "SELECT * FROM users WHERE email = ? AND password = ?",
+                (email, password),
+            )
 
         user_data = result[0]
         return User(
-            id=user_data['id'],
-            name=user_data['name'],
-            email=user_data['email'],
-            password=user_data['password'],
-            last_login=user_data['last_login']
+            id=user_data["id"],
+            name=user_data["name"],
+            email=user_data["email"],
+            password=user_data["password"],
+            last_login=user_data["last_login"],
         )
     except NoResultFoundError as e:
         print(f"Error: {e}")
@@ -120,9 +139,12 @@ def authenticate_user(email: str, password: str) -> Optional[User]:
         print(f"Unexpected error: {e}")
         return None
 
+
 def update_last_login(user_id: int, login_time: datetime) -> bool:
     try:
-        user = db_manager.execute_update("UPDATE users SET last_login = ? WHERE id = ?", (login_time, user_id))
+        user = db_manager.execute_update(
+            "UPDATE users SET last_login = ? WHERE id = ?", (login_time, user_id)
+        )
         if user:
             return True
         return False

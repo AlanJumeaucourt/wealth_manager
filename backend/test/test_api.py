@@ -439,81 +439,81 @@ class TestTransactionAPI(unittest.TestCase):
             {
                 "description": "Invalid month",
                 "date": "2023-13-01T12:00:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Invalid day",
                 "date": "2023-12-32T12:00:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Invalid hour",
                 "date": "2023-12-01T25:00:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             # Invalid minutes and seconds
             {
                 "description": "Invalid minutes",
                 "date": "2023-12-01T12:60:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Invalid seconds",
                 "date": "2023-12-01T12:00:60",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             # Non-numeric values
             {
                 "description": "Non-numeric month",
                 "date": "2023-AA-01T12:00:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Non-numeric day",
                 "date": "2023-12-AAT12:00:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Non-numeric hour",
                 "date": "2023-12-01TAA:00:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Non-numeric minutes",
                 "date": "2023-12-01T12:AA:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Non-numeric seconds",
                 "date": "2023-12-01T12:00:AA",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "All letters",
                 "date": "YYYY-MM-DDTHH:MM:SS",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             # Special cases
             {
                 "description": "Empty string",
                 "date": "",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "None value",
                 "date": None,
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Whitespace only",
                 "date": "   ",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Random string",
                 "date": "not a date",
-                "date_accountability": "2023-12-01T12:00:00"
-            }
+                "date_accountability": "2023-12-01T12:00:00",
+            },
         ]
 
         base_data = {
@@ -523,7 +523,7 @@ class TestTransactionAPI(unittest.TestCase):
             "to_account_id": self.accounts[1],
             "type": "transfer",
             "category": "Test",
-            "subcategory": "Invalid"
+            "subcategory": "Invalid",
         }
 
         for case in invalid_dates:
@@ -535,7 +535,7 @@ class TestTransactionAPI(unittest.TestCase):
             self.assertEqual(
                 response.status_code,
                 422,  # Unprocessable Entity
-                f"Expected 422 status code for {case['description']}, got {response.status_code}. Response: {response.json()}"
+                f"Expected 422 status code for {case['description']}, got {response.status_code}. Response: {response.json()}",
             )
             self.assertIn("Validation error", response.json())
 
@@ -548,37 +548,37 @@ class TestTransactionAPI(unittest.TestCase):
             {
                 "description": "Full datetime",
                 "date": "2023-12-01T12:00:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "Date only",
                 "date": "2023-12-01",
-                "date_accountability": "2023-12-01"
+                "date_accountability": "2023-12-01",
             },
             {
                 "description": "Current datetime",
                 "date": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-                "date_accountability": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                "date_accountability": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
             },
             {
                 "description": "Current date only",
                 "date": datetime.now().strftime("%Y-%m-%d"),
-                "date_accountability": datetime.now().strftime("%Y-%m-%d")
+                "date_accountability": datetime.now().strftime("%Y-%m-%d"),
             },
-                        {
+            {
                 "description": "With Z timezone",
                 "date": "2023-12-01T12:00:00Z",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
-                                    {
+            {
                 "description": "With positive timezone",
                 "date": "2023-12-01T12:00:00+01:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
             {
                 "description": "With negative timezone",
                 "date": "2023-12-01T12:00:00-05:00",
-                "date_accountability": "2023-12-01T12:00:00"
+                "date_accountability": "2023-12-01T12:00:00",
             },
         ]
 
@@ -589,7 +589,7 @@ class TestTransactionAPI(unittest.TestCase):
             "to_account_id": self.accounts[1],
             "type": "transfer",
             "category": "Test",
-            "subcategory": "Valid"
+            "subcategory": "Valid",
         }
 
         for case in valid_dates:
@@ -601,7 +601,7 @@ class TestTransactionAPI(unittest.TestCase):
             self.assertEqual(
                 response.status_code,
                 201,
-                f"Expected 201 status code for {case['description']}, got {response.status_code}. Response: {response.json()}"
+                f"Expected 201 status code for {case['description']}, got {response.status_code}. Response: {response.json()}",
             )
             transaction = response.json()
             self.assertIn("date", transaction)
@@ -731,6 +731,7 @@ class TestAccountAPI(unittest.TestCase):
             url = f"{self.base_url}/users/{self.user_id}"
             headers = {"Authorization": f"Bearer {self.jwt_token}"}
             requests.delete(url, headers=headers)
+
 
 if __name__ == "__main__":
     unittest.main()

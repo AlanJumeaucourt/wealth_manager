@@ -7,7 +7,9 @@ import logging
 from datetime import timedelta
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 sentry_sdk.init(
     dsn="https://d12d7aa6d6edf166709997c29591227d@o4508077260996608.ingest.de.sentry.io/4508077266239568",
@@ -22,17 +24,22 @@ sentry_sdk.init(
     spotlight=bool(True),
 )
 
+
 def create_app():
     app = Flask(__name__)
     app.url_map.strict_slashes = False  # Add this line
     CORS(app, resources={r"/*": {"origins": "*"}})
 
     # Configure your JWT secret key
-    app.config['JWT_SECRET_KEY'] = 'your_secret_key'  # Change this to a strong secret key
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)  # Access token expiration
+    app.config["JWT_SECRET_KEY"] = (
+        "your_secret_key"  # Change this to a strong secret key
+    )
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
+        days=30
+    )  # Access token expiration
     jwt = JWTManager(app)
 
-    app.config['JSONIFY_MIMETYPE'] = 'application/json'
+    app.config["JSONIFY_MIMETYPE"] = "application/json"
 
     @app.before_request
     def log_request_info():
@@ -45,7 +52,7 @@ def create_app():
         logging.debug(f"Response: {response.status_code} {response.get_data()}")
         return response
 
-    # Import and register blueprints
+    # import and register blueprints
     from app.routes.user_routes import user_bp
     from app.routes.account_routes import account_bp
     from app.routes.bank_routes import bank_bp
@@ -56,28 +63,31 @@ def create_app():
     from app.routes.asset_routes import asset_bp
     from app.routes.account_asset_routes import account_asset_bp
 
-    app.register_blueprint(user_bp, url_prefix='/users')  # Register user routes
-    app.register_blueprint(account_bp, url_prefix='/accounts')  # Register account routes
-    app.register_blueprint(bank_bp, url_prefix='/banks')  # Register bank routes
-    app.register_blueprint(transaction_bp, url_prefix='/transactions')  # Register transaction routes
-    app.register_blueprint(budget_bp, url_prefix='/budgets')
-    app.register_blueprint(investment_bp, url_prefix='/investments')
-    app.register_blueprint(stock_bp, url_prefix='/stocks')
-    app.register_blueprint(asset_bp, url_prefix='/assets')
-    app.register_blueprint(account_asset_bp, url_prefix='/account_assets')
-    
+    app.register_blueprint(user_bp, url_prefix="/users")  # Register user routes
+    app.register_blueprint(
+        account_bp, url_prefix="/accounts"
+    )  # Register account routes
+    app.register_blueprint(bank_bp, url_prefix="/banks")  # Register bank routes
+    app.register_blueprint(
+        transaction_bp, url_prefix="/transactions"
+    )  # Register transaction routes
+    app.register_blueprint(budget_bp, url_prefix="/budgets")
+    app.register_blueprint(investment_bp, url_prefix="/investments")
+    app.register_blueprint(stock_bp, url_prefix="/stocks")
+    app.register_blueprint(asset_bp, url_prefix="/assets")
+    app.register_blueprint(account_asset_bp, url_prefix="/account_assets")
+
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string: str):
-        return jsonify({
-            'msg': 'Invalid token',
-            'error': str(error_string)
-        }), 401
+        return jsonify({"msg": "Invalid token", "error": str(error_string)}), 401
 
     @jwt.unauthorized_loader
     def unauthorized_callback(error_string: str):
-        return jsonify({
-            'msg': 'Missing Authorization Header',
-            'error': str(error_string)
-        }), 401
+        return (
+            jsonify(
+                {"msg": "Missing Authorization Header", "error": str(error_string)}
+            ),
+            401,
+        )
 
     return app

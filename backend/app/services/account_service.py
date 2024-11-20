@@ -5,9 +5,10 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 from app.exceptions import NoResultFoundError
 
+
 class AccountService(BaseService):
     def __init__(self):
-        super().__init__('accounts', Account)
+        super().__init__("accounts", Account)
 
     def get_by_id(self, id: int, user_id: int) -> Optional[Account]:
         account = super().get_by_id(id, user_id)
@@ -16,15 +17,27 @@ class AccountService(BaseService):
 
         return account
 
-    def get_all(self, user_id: int, page: int, per_page: int, filters: Dict[str, Any], sort_by: Optional[str], sort_order: Optional[str], fields: Optional[List[str]], search: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_all(
+        self,
+        user_id: int,
+        page: int,
+        per_page: int,
+        filters: Dict[str, Any],
+        sort_by: Optional[str],
+        sort_order: Optional[str],
+        fields: Optional[List[str]],
+        search: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Get all accounts with their current balances."""
         if fields:
-            fields = [field for field in fields if field in self.model_class.__annotations__]
+            fields = [
+                field for field in fields if field in self.model_class.__annotations__
+            ]
         else:
             fields = list(self.model_class.__annotations__.keys())
 
         # Modify the query to join with account_balances view
-        fields_str = ', '.join(f'a.{field}' for field in fields)
+        fields_str = ", ".join(f"a.{field}" for field in fields)
         query = f"""
             SELECT {fields_str}, ab.current_balance as balance
             FROM {self.table_name} a
@@ -67,12 +80,14 @@ class AccountService(BaseService):
         """
         try:
             result = self.db_manager.execute_select(query, (account_id,))
-            return round(result[0]['current_balance'] if result else 0, 2)
+            return round(result[0]["current_balance"] if result else 0, 2)
         except Exception as e:
             print(f"Error getting account balance: {e}")
             return 0
 
-    def sum_accounts_balances_over_days(self, user_id: int, start_date: str, end_date: str) -> Dict[str, float]:
+    def sum_accounts_balances_over_days(
+        self, user_id: int, start_date: str, end_date: str
+    ) -> Dict[str, float]:
         query = """
             WITH RECURSIVE date_range AS (
                 -- Start the recursion with the minimum transaction date
@@ -117,11 +132,14 @@ class AccountService(BaseService):
         params = [user_id, user_id, user_id, user_id, user_id, user_id, user_id]
         try:
             results = self.db_manager.execute_select(query, params)
-            return {row['date']: round(row['cumulative_balance'], 2) for row in results if start_date <= row['date'] <= end_date}
+            return {
+                row["date"]: round(row["cumulative_balance"], 2)
+                for row in results
+                if start_date <= row["date"] <= end_date
+            }
         except Exception as e:
             print("error in get_accounts_balance_over_days", e)
             return {}
-
 
     def get_wealth(self, user_id: int) -> Dict[str, Any]:
         query = """
@@ -217,10 +235,18 @@ class AccountService(BaseService):
             FROM cumulative_balances cb
             ORDER BY cb.date;
         """
-        params = [user_id, user_id, account_id, account_id, account_id, account_id, user_id]
+        params = [
+            user_id,
+            user_id,
+            account_id,
+            account_id,
+            account_id,
+            account_id,
+            user_id,
+        ]
         try:
             results = self.db_manager.execute_select(query, params)
-            return {row['date']: round(row['cumulative_balance'], 2) for row in results}
+            return {row["date"]: round(row["cumulative_balance"], 2) for row in results}
         except Exception as e:
             print("error in get_account_balance_over_days", e)
             return {}

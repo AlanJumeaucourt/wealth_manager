@@ -1,10 +1,12 @@
 import sqlite3
 from typing import Optional, Union, List, Dict, Any
 from enum import Enum
+
 if __name__ != "__main__":
     from app.exceptions import QueryExecutionError, NoResultFoundError
 else:
     from exceptions import QueryExecutionError, NoResultFoundError
+
 
 class QueryType(Enum):
     SELECT = "select"

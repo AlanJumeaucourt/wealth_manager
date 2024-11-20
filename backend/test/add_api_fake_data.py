@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timedelta
 import random
 
+
 class WealthManagerAPI:
     def __init__(self, base_url: str = "http://localhost:5000"):
         self.base_url = base_url
@@ -106,10 +107,7 @@ class WealthManagerAPI:
 
     def create_asset(self, symbol: str, name: str) -> Optional[int]:
         """Create an asset and return its ID"""
-        data = {
-            "symbol": symbol,
-            "name": name
-        }
+        data = {"symbol": symbol, "name": name}
         response = self._make_request("POST", "/assets/", data)
         return response.get("id")
 
@@ -299,32 +297,42 @@ class TestDataCreator:
             for i in range(num_grocery_trips):
                 grocery_amount = round(random.uniform(150, 300), 2)
                 grocery_day = random.randint(1, 28)
-                monthly_transactions.append({
-                    "amount": grocery_amount,
-                    "from_account": "Checking Account",
-                    "to_account": "Expenses Account",
-                    "transaction_type": "expense",
-                    "description": "Grocery Shopping",
-                    "category": "Alimentation & Restauration",
-                    "subcategory": "Supermarché / Epicerie",
-                    "date": (transaction_date.replace(day=1) + timedelta(days=grocery_day)).isoformat(),
-                })
+                monthly_transactions.append(
+                    {
+                        "amount": grocery_amount,
+                        "from_account": "Checking Account",
+                        "to_account": "Expenses Account",
+                        "transaction_type": "expense",
+                        "description": "Grocery Shopping",
+                        "category": "Alimentation & Restauration",
+                        "subcategory": "Supermarché / Epicerie",
+                        "date": (
+                            transaction_date.replace(day=1)
+                            + timedelta(days=grocery_day)
+                        ).isoformat(),
+                    }
+                )
 
             # Add random entertainment expenses (1-3 per month)
             num_entertainment = random.randint(1, 3)
             for i in range(num_entertainment):
                 entertainment_amount = round(random.uniform(20, 100), 2)
                 entertainment_day = random.randint(1, 28)
-                monthly_transactions.append({
-                    "amount": entertainment_amount,
-                    "from_account": "Checking Account",
-                    "to_account": "Expenses Account",
-                    "transaction_type": "expense",
-                    "description": "Entertainment",
-                    "category": "Loisirs & Sorties",
-                    "subcategory": "Bars / Clubs",
-                    "date": (transaction_date.replace(day=1) + timedelta(days=entertainment_day)).isoformat(),
-                })
+                monthly_transactions.append(
+                    {
+                        "amount": entertainment_amount,
+                        "from_account": "Checking Account",
+                        "to_account": "Expenses Account",
+                        "transaction_type": "expense",
+                        "description": "Entertainment",
+                        "category": "Loisirs & Sorties",
+                        "subcategory": "Bars / Clubs",
+                        "date": (
+                            transaction_date.replace(day=1)
+                            + timedelta(days=entertainment_day)
+                        ).isoformat(),
+                    }
+                )
 
             # Create all transactions for the month
             for transaction in monthly_transactions:
@@ -349,19 +357,19 @@ class TestDataCreator:
                 "symbol": "PE500.PA",
                 "name": "Amundi PEA S&P 500 ESG UCITS ETF Acc",
                 "initial_price": 100.50,
-                "monthly_trend": 0.008  # ~10% annual growth
+                "monthly_trend": 0.008,  # ~10% annual growth
             },
             {
                 "symbol": "LYPS.DE",
                 "name": "Amundi S&P 500 II UCITS ETF",
                 "initial_price": 95.75,
-                "monthly_trend": 0.007  # ~8.7% annual growth
+                "monthly_trend": 0.007,  # ~8.7% annual growth
             },
             {
                 "symbol": "IWDA.AS",
                 "name": "iShares Core MSCI World UCITS ETF USD (Acc)",
                 "initial_price": 78.25,
-                "monthly_trend": 0.006  # ~7.4% annual growth
+                "monthly_trend": 0.006,  # ~7.4% annual growth
             },
         ]
 
@@ -371,7 +379,9 @@ class TestDataCreator:
             asset_id = self.api.create_asset(str(asset["symbol"]), str(asset["name"]))
             if asset_id:
                 asset_ids[asset["symbol"]] = asset_id
-                print(f"Created asset '{asset['name']}' ({asset['symbol']}) with ID: {asset_id}")
+                print(
+                    f"Created asset '{asset['name']}' ({asset['symbol']}) with ID: {asset_id}"
+                )
             else:
                 print(f"Failed to create asset '{asset['symbol']}'")
                 return False
@@ -382,24 +392,26 @@ class TestDataCreator:
                 "symbol": "PE500.PA",
                 "monthly_base_amount": 1000.0,  # Base monthly investment
                 "fee": 1.50,
-                "tax": 0.0
+                "tax": 0.0,
             },
             {
                 "symbol": "LYPS.DE",
                 "monthly_base_amount": 500.0,
                 "fee": 1.25,
-                "tax": 0.0
+                "tax": 0.0,
             },
             {
                 "symbol": "IWDA.AS",
                 "monthly_base_amount": 250.0,
                 "fee": 1.75,
-                "tax": 0.0
-            }
+                "tax": 0.0,
+            },
         ]
 
         # Track total quantities owned for each asset
-        owned_quantities = {strategy["symbol"]: 0.0 for strategy in investment_strategies}
+        owned_quantities = {
+            strategy["symbol"]: 0.0 for strategy in investment_strategies
+        }
 
         # Generate transactions for the past year
         current_date = datetime.now()
@@ -420,7 +432,9 @@ class TestDataCreator:
                 price = float(asset["initial_price"] * trend_factor * market_factor)
 
                 # Regular monthly investment (with some randomness)
-                investment_amount = float(strategy["monthly_base_amount"] * random.uniform(0.8, 1.2))
+                investment_amount = float(
+                    strategy["monthly_base_amount"] * random.uniform(0.8, 1.2)
+                )
                 quantity = round(investment_amount / price, 6)
 
                 # Create buy transaction
@@ -433,13 +447,15 @@ class TestDataCreator:
                     unit_price=float(price),
                     fee=float(strategy["fee"]),
                     tax=float(strategy["tax"]),
-                    date=transaction_date.isoformat()
+                    date=transaction_date.isoformat(),
                 )
 
                 if buy_id:
                     owned_quantities[symbol] += quantity
                     total_amount = (quantity * price) + strategy["fee"]
-                    print(f"Created monthly buy: {quantity:.6f} {symbol} at {price:.2f}€ (Total: {total_amount:.2f}€)")
+                    print(
+                        f"Created monthly buy: {quantity:.6f} {symbol} at {price:.2f}€ (Total: {total_amount:.2f}€)"
+                    )
 
                     # Create corresponding money transfer
                     transfer_id = self.api.create_transaction(
@@ -450,7 +466,7 @@ class TestDataCreator:
                         description=f"Buy {quantity:.6f} {symbol}",
                         category="Banque",
                         subcategory="Services Bancaires",
-                        date=transaction_date.isoformat()
+                        date=transaction_date.isoformat(),
                     )
 
                     if not transfer_id:
@@ -466,7 +482,9 @@ class TestDataCreator:
                 if random.random() < 0.15 and market_factor < 0.98:
                     dip_date = transaction_date + timedelta(days=random.randint(5, 25))
                     dip_quantity = float(quantity * random.uniform(0.3, 0.7))
-                    dip_price = float(price * random.uniform(0.95, 0.98))  # Slight discount
+                    dip_price = float(
+                        price * random.uniform(0.95, 0.98)
+                    )  # Slight discount
 
                     dip_id = self.api.create_investment_transaction(
                         from_account="Checking Account",
@@ -477,20 +495,29 @@ class TestDataCreator:
                         unit_price=dip_price,
                         fee=float(strategy["fee"]),
                         tax=float(strategy["tax"]),
-                        date=dip_date.isoformat()
+                        date=dip_date.isoformat(),
                     )
 
                     if dip_id:
                         owned_quantities[symbol] += dip_quantity
                         dip_total = (dip_quantity * dip_price) + strategy["fee"]
-                        print(f"Created dip buy: {dip_quantity:.6f} {symbol} at {dip_price:.2f}€ (Total: {dip_total:.2f}€)")
-
+                        print(
+                            f"Created dip buy: {dip_quantity:.6f} {symbol} at {dip_price:.2f}€ (Total: {dip_total:.2f}€)"
+                        )
 
                 # 10% chance of taking profits if we have enough shares and price is up
-                if random.random() < 0.10 and owned_quantities[symbol] > quantity * 3 and market_factor > 1.02:
+                if (
+                    random.random() < 0.10
+                    and owned_quantities[symbol] > quantity * 3
+                    and market_factor > 1.02
+                ):
                     sell_date = transaction_date + timedelta(days=random.randint(5, 25))
-                    sell_quantity = float(owned_quantities[symbol] * random.uniform(0.1, 0.2))
-                    sell_price = float(price * random.uniform(1.02, 1.05))  # Slight premium
+                    sell_quantity = float(
+                        owned_quantities[symbol] * random.uniform(0.1, 0.2)
+                    )
+                    sell_price = float(
+                        price * random.uniform(1.02, 1.05)
+                    )  # Slight premium
 
                     sell_id = self.api.create_investment_transaction(
                         from_account="Investment Account",
@@ -501,13 +528,15 @@ class TestDataCreator:
                         unit_price=sell_price,
                         fee=float(strategy["fee"]),
                         tax=float(strategy["tax"]),
-                        date=sell_date.isoformat()
+                        date=sell_date.isoformat(),
                     )
 
                     if sell_id:
                         owned_quantities[symbol] -= sell_quantity
                         sell_total = (sell_quantity * sell_price) - strategy["fee"]
-                        print(f"Created profit taking: {sell_quantity:.6f} {symbol} at {sell_price:.2f}€ (Total: {sell_total:.2f}€)")
+                        print(
+                            f"Created profit taking: {sell_quantity:.6f} {symbol} at {sell_price:.2f}€ (Total: {sell_total:.2f}€)"
+                        )
 
                         # Create corresponding transfer
                         self.api.create_transaction(
@@ -518,7 +547,7 @@ class TestDataCreator:
                             description=f"Sell {sell_quantity:.6f} {symbol} (profit taking)",
                             category="Banque",
                             subcategory="Services Bancaires",
-                            date=sell_date.isoformat()
+                            date=sell_date.isoformat(),
                         )
 
         return True
@@ -607,7 +636,9 @@ class TestDataCreator:
         # Show investment positions
         print("\nInvestment Positions:")
         print("--------------------")
-        portfolio_response = self.api._make_request("GET", "/investments/portfolio/summary")
+        portfolio_response = self.api._make_request(
+            "GET", "/investments/portfolio/summary"
+        )
         if portfolio_response and "positions" in portfolio_response:
             for position in portfolio_response["positions"]:
                 print(f"- {position['asset_symbol']} ({position['asset_name']})")
