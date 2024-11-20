@@ -1,6 +1,8 @@
+from calendar import month
 import requests
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timedelta
+import random
 
 class WealthManagerAPI:
     def __init__(self, base_url: str = "http://localhost:5000"):
@@ -216,123 +218,157 @@ class TestDataCreator:
         return True
 
     def _create_transactions(self) -> bool:
-        """Create sample transactions"""
+        """Create sample transactions for the past year"""
         print("\nCreating sample transactions...")
 
-        # Sample transactions data
         current_date = datetime.now()
-        transactions = [
-            # Monthly salary
-            {
-                "amount": 5000.00,
-                "from_account": "Salary Account",
-                "to_account": "Checking Account",
-                "transaction_type": "income",
-                "description": "Monthly Salary",
-                "category": "Salaires",
-                "date": (current_date - timedelta(days=1)).isoformat(),
-            },
-            # Savings transfer
-            {
-                "amount": 1000.00,
-                "from_account": "Checking Account",
-                "to_account": "Savings Account",
-                "transaction_type": "transfer",
-                "description": "Monthly Savings",
-                "category": "Banque",
-                "subcategory": "Epargne",
-                "date": (current_date - timedelta(days=1)).isoformat(),
-            },
-            # Investment transfer
-            {
-                "amount": 500.00,
-                "from_account": "Checking Account",
-                "to_account": "Investment Account",
-                "transaction_type": "transfer",
-                "description": "Investment Contribution",
-                "category": "Banque",
-                "subcategory": "Services Bancaires",
-                "date": (current_date - timedelta(days=1)).isoformat(),
-            },
-            # Various expenses
-            {
-                "amount": 1200.00,
-                "from_account": "Checking Account",
-                "to_account": "Expenses Account",
-                "transaction_type": "expense",
-                "description": "Monthly Rent",
-                "category": "Logement",
-                "subcategory": "Loyer",
-                "date": current_date.isoformat(),
-            },
-            {
-                "amount": 200.00,
-                "from_account": "Checking Account",
-                "to_account": "Expenses Account",
-                "transaction_type": "expense",
-                "description": "Grocery Shopping",
-                "category": "Alimentation & Restauration",
-                "subcategory": "Supermarché / Epicerie",
-                "date": current_date.isoformat(),
-            },
-            {
-                "amount": 50.00,
-                "from_account": "Checking Account",
-                "to_account": "Expenses Account",
-                "transaction_type": "expense",
-                "description": "Internet Bill",
-                "category": "Abonnements",
-                "subcategory": "Internet",
-                "date": current_date.isoformat(),
-            },
-            {
-                "amount": 80.00,
-                "from_account": "Checking Account",
-                "to_account": "Expenses Account",
-                "transaction_type": "expense",
-                "description": "Mobile Phone Bill",
-                "category": "Abonnements",
-                "subcategory": "Téléphonie mobile",
-                "date": current_date.isoformat(),
-            },
-            {
-                "amount": 45.00,
-                "from_account": "Checking Account",
-                "to_account": "Expenses Account",
-                "transaction_type": "expense",
-                "description": "Electricity Bill",
-                "category": "Logement",
-                "subcategory": "Electricité",
-                "date": current_date.isoformat(),
-            },
-        ]
+        start_date = current_date - timedelta(days=365)
 
-        for transaction in transactions:
-            transaction_id = self.api.create_transaction(**transaction)
-            if transaction_id:
-                print(
-                    f"Created transaction: {transaction['description']} (ID: {transaction_id})"
-                )
-            else:
-                print(f"Failed to create transaction: {transaction['description']}")
-                return False
+        # Generate monthly transactions for the past year
+        for month_offset in range(12):
+            transaction_date = start_date + timedelta(days=30 * month_offset)
+
+            # Monthly transactions template
+            monthly_transactions = [
+                # Monthly salary
+                {
+                    "amount": 5000.00,
+                    "from_account": "Salary Account",
+                    "to_account": "Checking Account",
+                    "transaction_type": "income",
+                    "description": "Monthly Salary",
+                    "category": "Salaires",
+                    "date": transaction_date.isoformat(),
+                },
+                # Savings transfer
+                {
+                    "amount": 1000.00,
+                    "from_account": "Checking Account",
+                    "to_account": "Savings Account",
+                    "transaction_type": "transfer",
+                    "description": "Monthly Savings",
+                    "category": "Banque",
+                    "subcategory": "Epargne",
+                    "date": (transaction_date + timedelta(days=2)).isoformat(),
+                },
+                # Fixed expenses
+                {
+                    "amount": 1200.00,
+                    "from_account": "Checking Account",
+                    "to_account": "Expenses Account",
+                    "transaction_type": "expense",
+                    "description": "Monthly Rent",
+                    "category": "Logement",
+                    "subcategory": "Loyer",
+                    "date": (transaction_date + timedelta(days=5)).isoformat(),
+                },
+                {
+                    "amount": 50.00,
+                    "from_account": "Checking Account",
+                    "to_account": "Expenses Account",
+                    "transaction_type": "expense",
+                    "description": "Internet Bill",
+                    "category": "Abonnements",
+                    "subcategory": "Internet",
+                    "date": (transaction_date + timedelta(days=7)).isoformat(),
+                },
+                {
+                    "amount": 80.00,
+                    "from_account": "Checking Account",
+                    "to_account": "Expenses Account",
+                    "transaction_type": "expense",
+                    "description": "Mobile Phone Bill",
+                    "category": "Abonnements",
+                    "subcategory": "Téléphonie mobile",
+                    "date": (transaction_date + timedelta(days=7)).isoformat(),
+                },
+                {
+                    "amount": 45.00,
+                    "from_account": "Checking Account",
+                    "to_account": "Expenses Account",
+                    "transaction_type": "expense",
+                    "description": "Electricity Bill",
+                    "category": "Logement",
+                    "subcategory": "Electricité",
+                    "date": (transaction_date + timedelta(days=10)).isoformat(),
+                },
+            ]
+
+            # Add variable expenses (2-4 grocery trips per month)
+            num_grocery_trips = random.randint(2, 4)
+            for i in range(num_grocery_trips):
+                grocery_amount = round(random.uniform(150, 300), 2)
+                grocery_day = random.randint(1, 28)
+                monthly_transactions.append({
+                    "amount": grocery_amount,
+                    "from_account": "Checking Account",
+                    "to_account": "Expenses Account",
+                    "transaction_type": "expense",
+                    "description": "Grocery Shopping",
+                    "category": "Alimentation & Restauration",
+                    "subcategory": "Supermarché / Epicerie",
+                    "date": (transaction_date.replace(day=1) + timedelta(days=grocery_day)).isoformat(),
+                })
+
+            # Add random entertainment expenses (1-3 per month)
+            num_entertainment = random.randint(1, 3)
+            for i in range(num_entertainment):
+                entertainment_amount = round(random.uniform(20, 100), 2)
+                entertainment_day = random.randint(1, 28)
+                monthly_transactions.append({
+                    "amount": entertainment_amount,
+                    "from_account": "Checking Account",
+                    "to_account": "Expenses Account",
+                    "transaction_type": "expense",
+                    "description": "Entertainment",
+                    "category": "Loisirs & Sorties",
+                    "subcategory": "Bars / Clubs",
+                    "date": (transaction_date.replace(day=1) + timedelta(days=entertainment_day)).isoformat(),
+                })
+
+            # Create all transactions for the month
+            for transaction in monthly_transactions:
+                transaction_id = self.api.create_transaction(**transaction)
+                if transaction_id:
+                    print(
+                        f"Created transaction: {transaction['description']} on {transaction['date'].split('T')[0]} (ID: {transaction_id})"
+                    )
+                else:
+                    print(f"Failed to create transaction: {transaction['description']}")
+                    return False
 
         return True
 
     def _create_investment_assets(self) -> bool:
-        """Create sample investment assets and positions"""
+        """Create sample investment assets and positions with periodic investments and some sells"""
         print("\nCreating investment assets...")
 
-        # Sample assets data
+        # Sample assets data with initial prices and monthly price trends
         assets = [
-            {"symbol": "PE500.PA", "name": "Amundi PEA S&P 500 ESG UCITS ETF Acc", "price": 100.50},
-            {"symbol": "LYPS.DE", "name": "Amundi S&P 500 II UCITS ETF", "price": 95.75},
-            {"symbol": "IWDA.AS", "name": "iShares Core MSCI World UCITS ETF USD (Acc)", "price": 78.25},
+            {
+                "symbol": "PE500.PA",
+                "name": "Amundi PEA S&P 500 ESG UCITS ETF Acc",
+                "initial_price": 100.50,
+                "monthly_trend": 0.008  # ~10% annual growth
+            },
+            {
+                "symbol": "LYPS.DE",
+                "name": "Amundi S&P 500 II UCITS ETF",
+                "initial_price": 95.75,
+                "monthly_trend": 0.007  # ~8.7% annual growth
+            },
+            {
+                "symbol": "IWDA.AS",
+                "name": "iShares Core MSCI World UCITS ETF USD (Acc)",
+                "initial_price": 78.25,
+                "monthly_trend": 0.006  # ~7.4% annual growth
+            },
         ]
 
+        # Create assets
         asset_ids = {}
         for asset in assets:
-            asset_id = self.api.create_asset(asset["symbol"], asset["name"])
+            asset_id = self.api.create_asset(str(asset["symbol"]), str(asset["name"]))
             if asset_id:
                 asset_ids[asset["symbol"]] = asset_id
                 print(f"Created asset '{asset['name']}' ({asset['symbol']}) with ID: {asset_id}")
@@ -340,52 +376,150 @@ class TestDataCreator:
                 print(f"Failed to create asset '{asset['symbol']}'")
                 return False
 
-        # Create investment transactions (buy orders)
-        print("\nCreating investment transactions...")
-        investment_positions = [
-            {"symbol": "PE500.PA", "quantity": 50.0, "price": 100.50, "fee": 1.50},  # About 5000€
-            {"symbol": "LYPS.DE", "quantity": 25.0, "price": 95.75, "fee": 1.25},    # About 2500€
-            {"symbol": "IWDA.AS", "quantity": 40.0, "price": 78.25, "fee": 1.75}     # About 3000€
+        # Investment strategy for each asset
+        investment_strategies = [
+            {
+                "symbol": "PE500.PA",
+                "monthly_base_amount": 1000.0,  # Base monthly investment
+                "fee": 1.50,
+                "tax": 0.0
+            },
+            {
+                "symbol": "LYPS.DE",
+                "monthly_base_amount": 500.0,
+                "fee": 1.25,
+                "tax": 0.0
+            },
+            {
+                "symbol": "IWDA.AS",
+                "monthly_base_amount": 250.0,
+                "fee": 1.75,
+                "tax": 0.0
+            }
         ]
 
+        # Track total quantities owned for each asset
+        owned_quantities = {strategy["symbol"]: 0.0 for strategy in investment_strategies}
+
+        # Generate transactions for the past year
         current_date = datetime.now()
-        for position in investment_positions:
-            # Create buy transaction
-            transaction_id = self.api.create_investment_transaction(
-                from_account="Checking Account",
-                to_account="Investment Account",
-                asset_id=asset_ids[position["symbol"]],
-                activity_type="buy",
-                quantity=position["quantity"],
-                unit_price=position["price"],
-                fee=position["fee"],
-                tax=0.0,
-                date=(current_date - timedelta(days=1)).isoformat()
-            )
+        start_date = current_date - timedelta(days=365)
 
-            if transaction_id:
-                total_amount = (position["quantity"] * position["price"]) + position["fee"]
-                print(f"Created buy order for {position['quantity']} {position['symbol']} at {position['price']}€ (Total: {total_amount:.2f}€)")
-            else:
-                print(f"Failed to create buy order for {position['symbol']}")
-                return False
+        # For each month in the past year
+        for month_offset in range(12):
+            transaction_date = start_date + timedelta(days=30 * month_offset)
 
-            # Create corresponding money transfer transaction
-            transfer = {
-                "amount": total_amount,
-                "from_account": "Checking Account",
-                "to_account": "Investment Account",
-                "transaction_type": "transfer",
-                "description": f"Buy {position['quantity']} {position['symbol']}",
-                "category": "Banque",
-                "subcategory": "Services Bancaires",
-                "date": (current_date - timedelta(days=1)).isoformat()
-            }
+            # Calculate market volatility for this month (-5% to +5% from trend)
+            market_factor = 1.0 + random.uniform(-0.05, 0.05)
 
-            transfer_id = self.api.create_transaction(**transfer)
-            if not transfer_id:
-                print(f"Failed to create transfer for {position['symbol']} purchase")
-                return False
+            for asset, strategy in zip(assets, investment_strategies):
+                symbol = strategy["symbol"]
+
+                # Calculate price with trend and volatility
+                trend_factor = 1.0 + (asset["monthly_trend"] * month_offset)
+                price = float(asset["initial_price"] * trend_factor * market_factor)
+
+                # Regular monthly investment (with some randomness)
+                investment_amount = float(strategy["monthly_base_amount"] * random.uniform(0.8, 1.2))
+                quantity = round(investment_amount / price, 6)
+
+                # Create buy transaction
+                buy_id = self.api.create_investment_transaction(
+                    from_account="Checking Account",
+                    to_account="Investment Account",
+                    asset_id=asset_ids[symbol],
+                    activity_type="buy",
+                    quantity=float(quantity),
+                    unit_price=float(price),
+                    fee=float(strategy["fee"]),
+                    tax=float(strategy["tax"]),
+                    date=transaction_date.isoformat()
+                )
+
+                if buy_id:
+                    owned_quantities[symbol] += quantity
+                    total_amount = (quantity * price) + strategy["fee"]
+                    print(f"Created monthly buy: {quantity:.6f} {symbol} at {price:.2f}€ (Total: {total_amount:.2f}€)")
+
+                    # Create corresponding money transfer
+                    transfer_id = self.api.create_transaction(
+                        amount=float(total_amount),
+                        from_account="Checking Account",
+                        to_account="Investment Account",
+                        transaction_type="transfer",
+                        description=f"Buy {quantity:.6f} {symbol}",
+                        category="Banque",
+                        subcategory="Services Bancaires",
+                        date=transaction_date.isoformat()
+                    )
+
+                    if not transfer_id:
+                        print(f"Failed to create transfer for {symbol} purchase")
+                        return False
+
+                else:
+                    print(f"Failed to create monthly buy for {symbol}")
+                    exit()
+                    return False
+
+                # 15% chance of additional purchase during market dips
+                if random.random() < 0.15 and market_factor < 0.98:
+                    dip_date = transaction_date + timedelta(days=random.randint(5, 25))
+                    dip_quantity = float(quantity * random.uniform(0.3, 0.7))
+                    dip_price = float(price * random.uniform(0.95, 0.98))  # Slight discount
+
+                    dip_id = self.api.create_investment_transaction(
+                        from_account="Checking Account",
+                        to_account="Investment Account",
+                        asset_id=asset_ids[symbol],
+                        activity_type="buy",
+                        quantity=dip_quantity,
+                        unit_price=dip_price,
+                        fee=float(strategy["fee"]),
+                        tax=float(strategy["tax"]),
+                        date=dip_date.isoformat()
+                    )
+
+                    if dip_id:
+                        owned_quantities[symbol] += dip_quantity
+                        dip_total = (dip_quantity * dip_price) + strategy["fee"]
+                        print(f"Created dip buy: {dip_quantity:.6f} {symbol} at {dip_price:.2f}€ (Total: {dip_total:.2f}€)")
+
+
+                # 10% chance of taking profits if we have enough shares and price is up
+                if random.random() < 0.10 and owned_quantities[symbol] > quantity * 3 and market_factor > 1.02:
+                    sell_date = transaction_date + timedelta(days=random.randint(5, 25))
+                    sell_quantity = float(owned_quantities[symbol] * random.uniform(0.1, 0.2))
+                    sell_price = float(price * random.uniform(1.02, 1.05))  # Slight premium
+
+                    sell_id = self.api.create_investment_transaction(
+                        from_account="Investment Account",
+                        to_account="Checking Account",
+                        asset_id=asset_ids[symbol],
+                        activity_type="sell",
+                        quantity=sell_quantity,
+                        unit_price=sell_price,
+                        fee=float(strategy["fee"]),
+                        tax=float(strategy["tax"]),
+                        date=sell_date.isoformat()
+                    )
+
+                    if sell_id:
+                        owned_quantities[symbol] -= sell_quantity
+                        sell_total = (sell_quantity * sell_price) - strategy["fee"]
+                        print(f"Created profit taking: {sell_quantity:.6f} {symbol} at {sell_price:.2f}€ (Total: {sell_total:.2f}€)")
+
+                        # Create corresponding transfer
+                        self.api.create_transaction(
+                            amount=float(sell_total),
+                            from_account="Investment Account",
+                            to_account="Checking Account",
+                            transaction_type="transfer",
+                            description=f"Sell {sell_quantity:.6f} {symbol} (profit taking)",
+                            category="Banque",
+                            subcategory="Services Bancaires",
+                            date=sell_date.isoformat()
+                        )
 
         return True
 
