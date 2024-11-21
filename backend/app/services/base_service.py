@@ -2,6 +2,7 @@ from typing import Optional, List, Dict, Any
 from app.database import DatabaseManager
 from app.exceptions import NoResultFoundError, QueryExecutionError
 
+
 class BaseService:
     def __init__(self, table_name: str, model_class: Any):
         self.db_manager = DatabaseManager()
@@ -10,10 +11,12 @@ class BaseService:
 
     def create(self, data: Dict[str, Any]) -> Optional[Any]:
         try:
-            columns = ', '.join(data.keys())
-            placeholders = ', '.join(['?' for _ in data])
+            columns = ", ".join(data.keys())
+            placeholders = ", ".join(["?" for _ in data])
             query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
-            result = self.db_manager.execute_insert_returning(query, tuple(data.values()))
+            result = self.db_manager.execute_insert_returning(
+                query, tuple(data.values())
+            )
             return self.model_class(**result)
         except Exception as e:
             print(f"Error creating {self.table_name}: {e}")
@@ -51,43 +54,48 @@ class BaseService:
             return False
 
     def get_all(
-        self, 
-        user_id: int, 
-        page: int, 
-        per_page: int, 
-        filters: Dict[str, Any], 
-        sort_by: Optional[str], 
-        sort_order: Optional[str], 
+        self,
+        user_id: int,
+        page: int,
+        per_page: int,
+        filters: Dict[str, Any],
+        sort_by: Optional[str],
+        sort_order: Optional[str],
         fields: Optional[List[str]],
-        search: Optional[str] = None 
+        search: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         try:
             if fields:
-                fields = [field for field in fields if field in self.model_class.__annotations__]
+                fields = [
+                    field
+                    for field in fields
+                    if field in self.model_class.__annotations__
+                ]
             else:
                 fields = list(self.model_class.__annotations__.keys())
-                print("fields :", fields)
-    
-            query = f"SELECT {', '.join(fields)} FROM {self.table_name} WHERE user_id = ?"
+
+            query = (
+                f"SELECT {', '.join(fields)} FROM {self.table_name} WHERE user_id = ?"
+            )
             params = [user_id]
-    
+
             for key, value in filters.items():
                 if value is not None:
                     query += f" AND {key} = ?"
                     params.append(value)
-                
+
                 # {{ edit_add_search_condition }}
                 if search:
                     search = f"%{search}%"
                     query += " AND (description LIKE ?)"
                     params.append(search)
-    
+
             if sort_by and sort_order:
                 query += f" ORDER BY {sort_by} {sort_order}"
-    
+
             query += " LIMIT ? OFFSET ?"
             params.extend([per_page, (page - 1) * per_page])
-    
+
             try:
                 return self.db_manager.execute_select(query, params)
             except NoResultFoundError as e:

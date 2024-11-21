@@ -65,15 +65,6 @@ export type InvestmentStackParamList = {
     InvestmentTransactionList: undefined;
 };
 
-// Component prop types
-export interface StockDetailProps {
-    route: {
-        params: {
-            symbol: string;
-            name: string;
-        };
-    };
-}
 
 export interface StockPositionItemProps {
     position: PortfolioPosition;
