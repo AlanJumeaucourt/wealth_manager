@@ -2,18 +2,20 @@ from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, ov
 from flask import Flask, Response
 from werkzeug.datastructures import Headers
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 class Namespace:
-    def __init__(self, name: str, description: str = "", path: Optional[str] = None) -> None: ...
-    
-    def route(self, *urls: str, **kwargs: Any) -> Callable[[Type[Resource]], Type[Resource]]: ...
-    
+    def __init__(
+        self, name: str, description: str = "", path: Optional[str] = None
+    ) -> None: ...
+    def route(
+        self, *urls: str, **kwargs: Any
+    ) -> Callable[[Type[Resource]], Type[Resource]]: ...
     def model(self, name: str, model: Dict[str, Any]) -> Any: ...
-    
     def expect(self, model: Any) -> Callable[[T], T]: ...
-    
-    def doc(self, shortcut: Optional[str] = None, **kwargs: Any) -> Callable[[T], T]: ...
+    def doc(
+        self, shortcut: Optional[str] = None, **kwargs: Any
+    ) -> Callable[[T], T]: ...
 
 class Resource:
     def get(self, *args: Any, **kwargs: Any) -> Union[Response, tuple[Any, int]]: ...
@@ -31,7 +33,6 @@ class Api:
         doc: str = "/doc",
         **kwargs: Any
     ) -> None: ...
-    
     def add_namespace(self, ns: Namespace, path: Optional[str] = None) -> None: ...
 
 class fields:

@@ -1,4 +1,4 @@
-import { createInvestmentTransaction, updateInvestmentTransaction } from '@/app/api/bankApi';
+import { createAsset, createInvestmentTransaction, fetchAssets, updateInvestmentTransaction } from '@/app/api/bankApi';
 import { BackButton } from '@/app/components/BackButton';
 import SearchableModal from '@/app/components/SearchableModal';
 import StockSearchModal from '@/app/components/StockSearchModal';
@@ -7,16 +7,17 @@ import { sharedStyles } from '@/styles/sharedStyles';
 import { Account } from '@/types/account';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Button, Surface, Text, TextInput } from 'react-native-paper';
 import { useSelector } from 'react-redux';
 
 interface InvestmentTransaction {
     id: number;
-    account_id: number;
-    account_name: string;
+    from_account_id: number;
+    to_account_id: number;
+    asset_id: number;
     asset_symbol: string;
     asset_name: string;
     activity_type: 'buy' | 'sell' | 'deposit' | 'withdrawal';
@@ -45,6 +46,20 @@ interface StockSearchModalProps {
     label: string;
 }
 
+// Add RootState type for useSelector
+interface RootState {
+    accounts: {
+        accounts: Account[];
+    };
+}
+
+// Add interface for Asset
+interface Asset {
+    id: number;
+    symbol: string;
+    name: string;
+}
+
 export default function AddInvestmentTransactionScreen() {
     const params = useLocalSearchParams();
     const router = useRouter();
@@ -57,16 +72,24 @@ export default function AddInvestmentTransactionScreen() {
         transaction = undefined;
     }
 
-    const accounts = useSelector((state) =>
-        state.accounts.accounts.filter((account: Account) => 
-            transaction ? account.id === transaction.account_id : true
+    // Fix the useSelector type
+    const accounts = useSelector((state: RootState) =>
+        state.accounts.accounts.filter((account: Account) =>
+            transaction ? account.id === transaction.from_account_id : true
         )
     );
 
-    // Initialize state with transaction data if editing
-    const [accountId, setAccountId] = useState<number | null>(transaction ? transaction.account_id : null);
+    // Add state for selected account name
     const [selectedAccountName, setSelectedAccountName] = useState<string>(
-        transaction ? accounts.find((acc: Account) => acc.id === transaction.account_id)?.name || '' : ''
+        transaction ? accounts.find((acc: Account) => acc.id === transaction.from_account_id)?.name || '' : ''
+    );
+
+    // Initialize state with transaction data if editing
+    const [fromAccountId, setFromAccountId] = useState<number | null>(
+        transaction ? transaction.from_account_id : null
+    );
+    const [toAccountId, setToAccountId] = useState<number | null>(
+        transaction ? transaction.to_account_id : null
     );
     const [assetSymbol, setAssetSymbol] = useState(transaction ? transaction.asset_symbol : '');
     const [assetName, setAssetName] = useState(transaction ? transaction.asset_name : '');
@@ -82,6 +105,48 @@ export default function AddInvestmentTransactionScreen() {
     const [tax, setTax] = useState(transaction ? transaction.tax.toString() : '0');
     const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
 
+    // Add new state for assets
+    const [assets, setAssets] = useState<Asset[]>([]);
+    const [selectedAssetId, setSelectedAssetId] = useState<number | null>(
+        transaction ? transaction.asset_id : null
+    );
+
+    // Add useEffect to fetch assets
+    useEffect(() => {
+        const loadAssets = async () => {
+            try {
+                const fetchedAssets = await fetchAssets();
+                setAssets(fetchedAssets);
+            } catch (error) {
+                console.error('Error loading assets:', error);
+            }
+        };
+        loadAssets();
+    }, []);
+
+    // Add function to handle asset selection
+    const handleAssetSelect = async (symbol: string, name: string) => {
+        setAssetSymbol(symbol);
+        setAssetName(name);
+
+        // Find existing asset or create new one
+        let asset = assets.find(a => a.symbol === symbol);
+
+        if (!asset) {
+            try {
+                // Create new asset if it doesn't exist
+                asset = await createAsset({ symbol, name });
+                setAssets([...assets, asset]);
+            } catch (error) {
+                console.error('Error creating asset:', error);
+                Alert.alert('Error', 'Failed to create asset');
+                return;
+            }
+        }
+
+        setSelectedAssetId(asset.id);
+    };
+
     const showDatePicker = () => {
         setDatePickerVisibility(true);
     };
@@ -96,15 +161,20 @@ export default function AddInvestmentTransactionScreen() {
     };
 
     const handleSubmit = async () => {
-        if (!accountId) {
-            Alert.alert('Error', 'Please select an account');
+        if (!fromAccountId || !toAccountId) {
+            Alert.alert('Error', 'Please select source and destination accounts');
+            return;
+        }
+
+        if (!selectedAssetId) {
+            Alert.alert('Error', 'Please select an asset');
             return;
         }
 
         const transactionData = {
-            account_id: accountId,
-            asset_symbol: assetSymbol,
-            asset_name: assetName,
+            from_account_id: fromAccountId,
+            to_account_id: toAccountId,
+            asset_id: selectedAssetId,
             activity_type: activityType,
             date: transactionDate.toISOString(),
             quantity: parseFloat(quantity),
@@ -115,11 +185,9 @@ export default function AddInvestmentTransactionScreen() {
 
         try {
             if (transaction) {
-                // Update existing transaction
                 await updateInvestmentTransaction(transaction.id, transactionData);
                 Alert.alert('Success', 'Investment transaction updated successfully!');
             } else {
-                // Create new transaction
                 await createInvestmentTransaction(transactionData);
                 Alert.alert('Success', 'Investment transaction created successfully!');
             }
@@ -157,15 +225,23 @@ export default function AddInvestmentTransactionScreen() {
         router.back();
     };
 
+    const getAccountsByType = (type: string) => {
+        return accounts.filter((account: Account) => account.type === type);
+    };
+
     return (
         <View style={sharedStyles.container}>
             <View style={sharedStyles.header}>
-                <BackButton onPress={handleClose} />
-                <Text style={styles.title}>
-                    {transaction ? 'Edit Investment Transaction' : 'Add Investment Transaction'}
-                </Text>
+                <BackButton />
+                <View style={sharedStyles.headerTitleContainer}>
+                    <Text style={sharedStyles.headerTitle}>{transaction ? `Edit Investment Transaction` : 'Add New Investment Transaction'}</Text>
+                </View>
+                <Image
+                    source={require('@/assets/images/logo-removebg-white.png')}
+                    style={{ width: 30, height: 30 }}
+                    resizeMode="contain"
+                />
             </View>
-
             <ScrollView style={styles.scrollContainer}>
                 <Surface style={styles.card}>
                     {/* Activity Type Selection */}
@@ -203,32 +279,56 @@ export default function AddInvestmentTransactionScreen() {
 
                     {/* Account and Asset Selection */}
                     <View style={styles.section}>
+                        {/* From Account Selection */}
                         <SearchableModal
-                            data={accounts}
+                            data={getAccountsByType('investment')}
                             onSelect={(value) => {
                                 if (typeof value === 'string') {
                                     setSelectedAccountName(value);
-                                    setAccountId(null);
+                                    setFromAccountId(null);
                                 } else {
-                                    setAccountId(value);
+                                    setFromAccountId(value);
                                     const selectedAccount = accounts.find((account: Account) => account.id === value);
                                     setSelectedAccountName(selectedAccount ? selectedAccount.name : '');
                                 }
                             }}
-                            placeholder={selectedAccountName || "Select an investment account"}
-                            label="Investment Account"
+                            placeholder={selectedAccountName || "Select source account"}
+                            label={activityType === 'buy' || activityType === 'deposit' ?
+                                "From (Source) Account" :
+                                "Investment Account"
+                            }
                             allowCustomValue={false}
-                            containerStyle={styles.input}
                         />
 
-                        <StockSearchModal
-                            onSelect={(symbol, name) => {
-                                setAssetSymbol(symbol);
-                                setAssetName(name);
+                        {/* To Account Selection */}
+                        <SearchableModal
+                            data={activityType === 'buy' || activityType === 'deposit' ?
+                                getAccountsByType('investment') :
+                                getAccountsByType('expense')
+                            }
+                            onSelect={(value) => {
+                                if (typeof value === 'string') {
+                                    setToAccountId(null);
+                                } else {
+                                    setToAccountId(value);
+                                }
                             }}
+                            placeholder={
+                                accounts.find((acc: Account) => acc.id === toAccountId)?.name ||
+                                "Select destination account"
+                            }
+                            label={activityType === 'buy' || activityType === 'deposit' ?
+                                "To (Investment) Account" :
+                                "To (Expense) Account"
+                            }
+                            allowCustomValue={false}
+                        />
+
+                        {/* Asset Selection */}
+                        <StockSearchModal
+                            onSelect={handleAssetSelect}
                             placeholder={assetSymbol || "Search for a stock or ETF"}
                             label="Asset"
-                            containerStyle={styles.input}
                         />
                     </View>
 
@@ -444,5 +544,13 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         marginTop: 16,
+    },
+    helperText: {
+        fontSize: 12,
+        color: darkTheme.colors.textSecondary,
+        marginTop: 4,
+        marginBottom: 16,
+        textAlign: 'center',
+        fontStyle: 'italic',
     },
 });

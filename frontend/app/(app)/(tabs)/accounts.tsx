@@ -144,11 +144,11 @@ export default function AccountsScreen() {
 
   const formatCompactNumber = (number: number) => {
     if (number >= 1_000_000) {
-      return (number / 1_000_000).toFixed(1) + 'M';
+      return (number / 1_000_000).toFixed(2) + 'M';
     } else if (number >= 1_000) {
-      return (number / 1_000).toFixed(1) + 'k';
+      return (number / 1_000).toFixed(2) + 'k';
     }
-    return number.toString();
+    return number.toFixed(2);
   };
 
   const totalBalance = useMemo(() => {
@@ -332,6 +332,10 @@ export default function AccountsScreen() {
         return require('@/assets/images/credit_agricole.png');
       case 'fortuneo':
         return require('@/assets/images/fortuneo.png');
+      case 'bank of america':
+        return require('@/assets/images/bank_of_america.png');
+      case 'chase bank':
+        return require('@/assets/images/chase_bank.png');
       default:
         return require('@/assets/images/icon.png');
     }

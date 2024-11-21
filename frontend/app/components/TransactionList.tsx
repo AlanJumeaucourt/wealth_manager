@@ -20,11 +20,11 @@ interface TransactionResponse {
   count: number;
 }
 
-const getIconName = (transaction: Transaction) => {
+const getIconName = (transaction: Transaction): keyof typeof Ionicons.glyphMap => {
   if (transaction.subcategory) {
-    return findCategoryByName(transaction.category)?.subCategories?.find((sub: any) => sub.name === transaction.subcategory)?.iconName || "help-circle-outline";
+    return (findCategoryByName(transaction.category)?.subCategories?.find((sub: any) => sub.name === transaction.subcategory)?.iconName || "help-circle-outline") as keyof typeof Ionicons.glyphMap;
   }
-  return findCategoryByName(transaction.category)?.iconName || "help-circle-outline";
+  return (findCategoryByName(transaction.category)?.iconName || "help-circle-outline") as keyof typeof Ionicons.glyphMap;
 };
 
 const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
@@ -36,6 +36,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
   const [searchQuery, setSearchQuery] = useState(''); // Reintroduce searchQuery without debounce
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchStats, setSearchStats] = useState<{ total: number; count: number } | null>(null);
+  const [forceShowSearch, setForceShowSearch] = useState(false);
 
   // Fetch transactions when the component mounts or when the page or search query changes
   useEffect(() => {
@@ -135,8 +136,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
     setSearchQuery(query);
     setPage(1);
     setTransactions([]);
-    // Reset search stats when starting a new search
     setSearchStats(null);
+    if (query.length > 0) {
+      setForceShowSearch(true);
+    } else {
+      setForceShowSearch(false);
+    }
   };
 
   // Add this component to display search results
@@ -145,15 +150,25 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
 
     return (
       <View style={styles.searchStatsContainer}>
-        <Text style={styles.searchStatsText}>
-          Found {searchStats.count} transactions
-        </Text>
-        <Text style={[
-          styles.searchStatsAmount,
-          searchStats.total >= 0 ? styles.positiveTotal : styles.negativeTotal
-        ]}>
-          Total: {formatAmount(Math.abs(searchStats.total), searchStats.total >= 0 ? 'income' : 'expense')}
-        </Text>
+        <View style={styles.searchStatsContent}>
+          <Ionicons
+            name="information-circle-outline"
+            size={20}
+            color={darkTheme.colors.textSecondary}
+            style={styles.searchStatsIcon}
+          />
+          <View>
+            <Text style={styles.searchStatsText}>
+              Found <Text style={styles.searchStatsHighlight}>{searchStats.count}</Text> transactions
+            </Text>
+            <Text style={[
+              styles.searchStatsAmount,
+              searchStats.total >= 0 ? styles.positiveTotal : styles.negativeTotal
+            ]}>
+              Total: {formatAmount(Math.abs(searchStats.total), searchStats.total >= 0 ? 'income' : 'expense')}
+            </Text>
+          </View>
+        </View>
       </View>
     );
   };
@@ -240,19 +255,35 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
 
   return (
     <>
-      {isSearchVisible && (
+      {(isSearchVisible || forceShowSearch || searchStats) && (
         <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search Transactions"
-            value={searchQuery}
-            onChangeText={handleSearch} // Update search handling
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => handleSearch('')} style={styles.searchClearButton}>
-              <Ionicons name="close-circle-outline" size={20} color={"red"} />
-            </TouchableOpacity>
-          )}
+          <View style={styles.searchInputWrapper}>
+            <Ionicons
+              name="search-outline"
+              size={20}
+              color={darkTheme.colors.textSecondary}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search transactions..."
+              placeholderTextColor={darkTheme.colors.textSecondary}
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => handleSearch('')}
+                style={styles.searchClearButton}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={20}
+                  color={darkTheme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
       {renderSearchStats()}
@@ -271,12 +302,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
                 </Text>
               </View>
               <View style={styles.transactionsContainer}>
-                {transactions.map((item) => (
-                  <TransactionItem
-                    key={item.id}
-                    item={item}
-                    onPress={() => handlePress(item)}
-                  />
+                {transactions.map((item, index) => (
+                  <React.Fragment key={item.id}>
+                    <TransactionItem
+                      item={item}
+                      onPress={() => handlePress(item)}
+                    />
+                    {index < transactions.length - 1 && (
+                      <View style={styles.transactionDivider} />
+                    )}
+                  </React.Fragment>
                 ))}
               </View>
             </View>
@@ -287,12 +322,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
         contentContainerStyle={styles.contentTransactionList}
         ListFooterComponent={renderFooter}
         onScroll={({ nativeEvent }) => {
-          if (nativeEvent.contentOffset.y < -50) { // Adjust threshold as needed
+          if (nativeEvent.contentOffset.y < -50) {
             setIsSearchVisible(true);
           }
         }}
         onScrollEndDrag={({ nativeEvent }) => {
-          if (nativeEvent.contentOffset.y >= 0) {
+          if (nativeEvent.contentOffset.y >= 0 && !forceShowSearch && !searchStats) {
             setIsSearchVisible(false);
           }
         }}
@@ -405,51 +440,58 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   searchContainer: {
+    margin: darkTheme.spacing.m,
     backgroundColor: darkTheme.colors.surface,
-    padding: darkTheme.spacing.m,
-    borderRadius: darkTheme.borderRadius.m,
-    marginBottom: darkTheme.spacing.m,
+    borderRadius: darkTheme.borderRadius.l,
+    overflow: 'hidden',
+    ...darkTheme.shadows.medium,
+  },
+  searchInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginHorizontal: darkTheme.spacing.m, // Added horizontal margin
+    backgroundColor: darkTheme.colors.surface,
+    paddingHorizontal: darkTheme.spacing.m,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: darkTheme.spacing.s,
   },
   searchInput: {
     flex: 1,
-    height: 40,
-    backgroundColor: darkTheme.colors.background,
-    borderRadius: darkTheme.borderRadius.m,
-    paddingHorizontal: darkTheme.spacing.m,
     color: darkTheme.colors.text,
     fontSize: 16,
+    height: '100%',
+    paddingVertical: 0, // Remove default padding
   },
   searchClearButton: {
-    padding: darkTheme.spacing.s,
-    marginLeft: darkTheme.spacing.s,
+    padding: darkTheme.spacing.xs,
+    marginLeft: darkTheme.spacing.xs,
   },
   searchStatsContainer: {
-    backgroundColor: darkTheme.colors.surface,
-    padding: darkTheme.spacing.m,
-    borderRadius: darkTheme.borderRadius.m,
+    marginHorizontal: darkTheme.spacing.m,
     marginBottom: darkTheme.spacing.m,
+    backgroundColor: darkTheme.colors.surface,
+    borderRadius: darkTheme.borderRadius.l,
+    overflow: 'hidden',
+    ...darkTheme.shadows.medium,
+  },
+  searchStatsContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginHorizontal: darkTheme.spacing.m, // Added horizontal margin
+    backgroundColor: `${darkTheme.colors.primary}10`,
+    padding: darkTheme.spacing.m,
+  },
+  searchStatsIcon: {
+    marginRight: darkTheme.spacing.m,
   },
   searchStatsText: {
     fontSize: 14,
     color: darkTheme.colors.textSecondary,
-    fontWeight: '500',
+    marginBottom: darkTheme.spacing.xs,
+  },
+  searchStatsHighlight: {
+    color: darkTheme.colors.text,
+    fontWeight: '600',
   },
   searchStatsAmount: {
     fontSize: 16,
@@ -466,6 +508,11 @@ const styles = StyleSheet.create({
     color: darkTheme.colors.textSecondary,
     textAlign: 'center',
     marginTop: darkTheme.spacing.m,
+  },
+  transactionDivider: {
+    height: 1,
+    backgroundColor: `${darkTheme.colors.text}10`,
+    marginHorizontal: darkTheme.spacing.m,
   },
 });
 

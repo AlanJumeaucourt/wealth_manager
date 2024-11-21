@@ -21,8 +21,11 @@ export const sharedStyles = StyleSheet.create({
     },
     headerTitleContainer: {
         flex: 1,
+        alignContent: 'center',
         alignItems: 'center',
+        textAlign: 'center',
         marginRight: 30, // This offsets the logo width to ensure true center alignment
+        paddingLeft: darkTheme.spacing.m,
     },
     headerTitle: {
         fontSize: 20,

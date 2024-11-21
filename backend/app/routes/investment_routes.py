@@ -5,26 +5,31 @@ from app.services.investment_service import InvestmentService
 from app.schemas import InvestmentTransactionSchema
 
 investment_service = InvestmentService()
-investment_routes = BaseRoutes('investment', investment_service, InvestmentTransactionSchema())
+investment_routes = BaseRoutes(
+    "investment", investment_service, InvestmentTransactionSchema()
+)
 investment_bp = investment_routes.bp
 
-@investment_bp.route('/portfolio/summary', methods=['GET'])
+
+@investment_bp.route("/portfolio/summary", methods=["GET"])
 @jwt_required()
 def get_portfolio_summary():
     user_id = get_jwt_identity()
-    account_id = request.args.get('account_id', type=int)
+    account_id = request.args.get("account_id", type=int)
     summary = investment_service.get_portfolio_summary(user_id, account_id)
     return jsonify(summary)
 
-@investment_bp.route('/portfolio/performance', methods=['GET'])
+
+@investment_bp.route("/portfolio/performance", methods=["GET"])
 @jwt_required()
 def get_portfolio_performance():
     user_id = get_jwt_identity()
-    period = request.args.get('period', '1Y')
+    period = request.args.get("period", "1Y")
     performance = investment_service.get_portfolio_performance(user_id, period)
     return jsonify(performance)
 
-@investment_bp.route('/assets/<symbol>/transactions', methods=['GET'])
+
+@investment_bp.route("/assets/<symbol>/transactions", methods=["GET"])
 @jwt_required()
 def get_asset_transactions(symbol: str):
     user_id = get_jwt_identity()
