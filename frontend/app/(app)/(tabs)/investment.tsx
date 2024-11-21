@@ -208,7 +208,7 @@ const InvestmentOverview: React.FC = () => {
 
     // Add spacing calculation
     const calculateSpacing = (width: number, dataLength: number): number => {
-        const minSpacing = 1;
+        const minSpacing = 0.1;
         const maxSpacing = 10;
         const calculatedSpacing = Math.max(minSpacing, Math.min(maxSpacing, (width - 60) / (dataLength + 1)));
         return calculatedSpacing;
