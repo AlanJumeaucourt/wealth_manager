@@ -47,7 +47,7 @@ def get_wealth():
 
 @account_bp.route("/<int:id>/balance", methods=["GET"])
 @jwt_required()
-def get_account_balance(id):
+def get_account_balance(id: int):
     user_id = get_jwt_identity()
     balance = account_service.get_account_balance(user_id, id)
     return jsonify(balance)

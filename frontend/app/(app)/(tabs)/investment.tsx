@@ -495,8 +495,8 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: darkTheme.colors.background,
     },
-    flex: 1,
     container: {
+        flex: 1,
     },
     header: {
         padding: darkTheme.spacing.s,

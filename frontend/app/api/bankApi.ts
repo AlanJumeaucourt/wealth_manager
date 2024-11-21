@@ -141,6 +141,15 @@ export const updateAccount = async (accountId: number, accountData: Account) => 
   }
 };
 
+export const getAccountBalance = async (accountId: number) => {
+  try {
+    const response = await apiClient.get(`/accounts/${accountId}/balance`);
+    return response.data;
+  } catch (error) {
+    return handleApiError(error, 'Error fetching account balance');
+  }
+};
+
 export const updateTransaction = async (transactionId: number, transactionData: Transaction) => {
   try {
     const response = await apiClient.put(`/transactions/${transactionId}`, transactionData, {

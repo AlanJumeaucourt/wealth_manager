@@ -200,6 +200,7 @@ class AccountService(BaseService):
                 SELECT MIN(date) AS date
                 FROM transactions
                 WHERE user_id = ?
+                AND (from_account_id = ? OR to_account_id = ?)
 
                 UNION ALL
 
@@ -237,6 +238,8 @@ class AccountService(BaseService):
         """
         params = [
             user_id,
+            account_id,
+            account_id,
             user_id,
             account_id,
             account_id,
@@ -246,6 +249,10 @@ class AccountService(BaseService):
         ]
         try:
             results = self.db_manager.execute_select(query, params)
+
+            # Sort results by date
+            results.sort(key=lambda x: x["date"])
+
             return {row["date"]: round(row["cumulative_balance"], 2) for row in results}
         except Exception as e:
             print("error in get_account_balance_over_days", e)

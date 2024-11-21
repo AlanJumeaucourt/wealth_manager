@@ -73,7 +73,6 @@ class BaseService:
                 ]
             else:
                 fields = list(self.model_class.__annotations__.keys())
-                print("fields :", fields)
 
             query = (
                 f"SELECT {', '.join(fields)} FROM {self.table_name} WHERE user_id = ?"
