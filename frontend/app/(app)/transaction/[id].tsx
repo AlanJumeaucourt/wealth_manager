@@ -98,7 +98,6 @@ export default function TransactionDetailsScreen() {
           style: 'destructive',
           onPress: async () => {
             await deleteTransaction(transaction.id);
-            dispatch(fetchTransactions());
             router.back();
           },
         },
@@ -168,13 +167,13 @@ export default function TransactionDetailsScreen() {
             <DetailRow icon="exchange" label="Type" value={capitalizeFirstLetter(transaction.type)} />
             <Pressable onPress={() => router.push({
               pathname: '/account/[id]',
-              params: { account: JSON.stringify(accounts.find(account => account.id === transaction.from_account_id)) }
+              params: { account: JSON.stringify(accounts.find((account: Account) => account.id === transaction.from_account_id)) }
             })}>
               <DetailRow icon="arrow-right" label="From" value={accountNameFromId(transaction.from_account_id, accounts)} />
             </Pressable>
             <Pressable onPress={() => router.push({
               pathname: '/account/[id]',
-              params: { account: JSON.stringify(accounts.find(account => account.id === transaction.to_account_id)) }
+              params: { account: JSON.stringify(accounts.find((account: Account) => account.id === transaction.to_account_id)) }
             })}>
               <DetailRow icon="arrow-left" label="To" value={accountNameFromId(transaction.to_account_id, accounts)} />
             </Pressable>

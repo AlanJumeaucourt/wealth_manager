@@ -225,7 +225,17 @@ export const fetchInvestmentTransactions = async (perPage: number, page: number,
   }
 };
 
-export const createInvestmentTransaction = async (transactionData: Omit<InvestmentTransaction, 'id' | 'user_id' | 'account_name'>) => {
+export const createInvestmentTransaction = async (transactionData: {
+  from_account_id: number;
+  to_account_id: number;
+  asset_id: number;
+  activity_type: 'buy' | 'sell' | 'deposit' | 'withdrawal';
+  date: string;
+  quantity: number;
+  unit_price: number;
+  fee: number;
+  tax: number;
+}) => {
   try {
     const response = await apiClient.post('/investments', transactionData);
     return response.data;
@@ -292,9 +302,9 @@ export const searchStocks = async (query: string) => {
   }
 };
 
-export const getStockInfo = async (symbol: string) => {
+export const getStockInfo = async (symbol: string): Promise<StockInfo> => {
   try {
-    const response = await apiClient.get(`/stocks/${encodeURIComponent(symbol)}`);
+    const response = await apiClient.get(`/stocks/${encodeURIComponent(symbol)}/details`);
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching stock info');
@@ -336,5 +346,32 @@ export const getCurrentHistory = async (symbol: string) => {
     return response.data.price;
   } catch (error) {
     return handleApiError(error, 'Error fetching current stock price');
+  }
+};
+
+export const fetchAssets = async () => {
+  try {
+    const response = await apiClient.get('/assets');
+    return response.data;
+  } catch (error) {
+    return handleApiError(error, 'Error fetching assets');
+  }
+};
+
+export const createAsset = async (assetData: { symbol: string; name: string }) => {
+  try {
+    const response = await apiClient.post('/assets', assetData);
+    return response.data;
+  } catch (error) {
+    return handleApiError(error, 'Error creating asset');
+  }
+};
+
+export const getAssetById = async (assetId: number) => {
+  try {
+    const response = await apiClient.get(`/assets/${assetId}`);
+    return response.data;
+  } catch (error) {
+    return handleApiError(error, 'Error fetching asset details');
   }
 };

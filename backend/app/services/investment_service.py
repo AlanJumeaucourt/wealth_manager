@@ -95,7 +95,6 @@ class InvestmentService(BaseService):
                     stock_info = self.stock_service.get_asset_info(
                         position["asset_symbol"]
                     )
-                    print(f"stock_info: {stock_info}")
                     # Set default to 0 if current_price is None
                     current_price = (
                         stock_info.get("previous_close", 0) if stock_info else 0
@@ -253,7 +252,6 @@ class InvestmentService(BaseService):
 
         try:
             transactions = self.db_manager.execute_select(query, (user_id, user_id))
-            logger.info(f"transactions: {transactions}")
 
             if not transactions:
                 return {

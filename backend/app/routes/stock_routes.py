@@ -47,14 +47,11 @@ def get_stock_history(symbol: str):
     return jsonify(history)
 
 
-@stock_bp.route("/<symbol>/prices", methods=["GET"])
+@stock_bp.route("/<symbol>/details", methods=["GET"])
 @jwt_required_wrapper
-def get_stock_prices(symbol: str):
-    """Get historical price data for a stock."""
-    period = request.args.get("period", "1Y")  # Default to 1 year
-    prices = stock_service.get_historical_prices(symbol, period)
-
-    if not prices:
-        return jsonify({"error": "Failed to fetch stock prices"}), 404
-
-    return jsonify({"symbol": symbol, "period": period, "prices": prices})
+def get_stock_details(symbol: str):
+    """Get comprehensive details about a stock or ETF."""
+    details = stock_service.get_stock_details(symbol)
+    if details is None:
+        return jsonify({"error": "Failed to fetch stock details"}), 404
+    return jsonify(details)

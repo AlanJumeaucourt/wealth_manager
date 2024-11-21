@@ -1,4 +1,4 @@
-import { getInvestmentTransactions } from '@/app/api/bankApi';
+import { getAssetById, getInvestmentTransactions } from '@/app/api/bankApi';
 import { BackButton } from '@/app/components/BackButton';
 import { darkTheme } from '@/constants/theme';
 import { sharedStyles } from '@/styles/sharedStyles';
@@ -11,6 +11,7 @@ import { ActivityIndicator, Text } from 'react-native-paper';
 interface InvestmentTransaction {
     id: number;
     account_id: number;
+    asset_id: number;
     asset_symbol: string;
     asset_name: string;
     activity_type: 'buy' | 'sell' | 'deposit' | 'withdrawal';
@@ -21,10 +22,17 @@ interface InvestmentTransaction {
     tax: number;
 }
 
+interface Asset {
+    id: number;
+    symbol: string;
+    name: string;
+}
+
 export default function InvestmentTransactionListScreen() {
     const [transactions, setTransactions] = useState<InvestmentTransaction[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const [assetsCache, setAssetsCache] = useState<Record<number, Asset>>({});
 
     useEffect(() => {
         fetchTransactions();
@@ -40,6 +48,40 @@ export default function InvestmentTransactionListScreen() {
             setLoading(false);
         }
     };
+
+    const fetchAssetDetails = async (assetId: number) => {
+        if (assetsCache[assetId]) {
+            return assetsCache[assetId];
+        }
+
+        try {
+            const asset = await getAssetById(assetId);
+            setAssetsCache(prev => ({
+                ...prev,
+                [assetId]: asset
+            }));
+            return asset;
+        } catch (error) {
+            console.error('Error fetching asset details:', error);
+            return null;
+        }
+    };
+
+    useEffect(() => {
+        const loadAssetDetails = async () => {
+            const assetIds = transactions
+                .map(t => t.asset_id)
+                .filter((id, index, self) => self.indexOf(id) === index);
+
+            for (const assetId of assetIds) {
+                await fetchAssetDetails(assetId);
+            }
+        };
+
+        if (transactions.length > 0) {
+            loadAssetDetails();
+        }
+    }, [transactions]);
 
     const getActivityTypeColor = (type: string) => {
         switch (type) {
@@ -63,9 +105,12 @@ export default function InvestmentTransactionListScreen() {
         }).format(amount);
     };
 
+    console.log(transactions);
+
     const renderTransaction = ({ item }: { item: InvestmentTransaction }) => {
         const totalValue = item.quantity * item.unit_price;
         const totalCost = totalValue + item.fee + item.tax;
+        const asset = assetsCache[item.asset_id];
 
         return (
             <Pressable
@@ -80,7 +125,8 @@ export default function InvestmentTransactionListScreen() {
             >
                 <View style={styles.transactionHeader}>
                     <View style={styles.symbolContainer}>
-                        <Text style={styles.symbolText}>{item.asset_symbol}</Text>
+                        <Text style={styles.symbolText}>{asset?.symbol || 'Loading...'}</Text>
+
                         <Text style={styles.dateText}>
                             {new Date(item.date).toLocaleDateString()}
                         </Text>
@@ -96,7 +142,7 @@ export default function InvestmentTransactionListScreen() {
                 </View>
 
                 <Text style={styles.assetName} numberOfLines={1}>
-                    {item.asset_name}
+                    {asset?.name || 'Loading...'}
                 </Text>
 
                 <View style={styles.detailsContainer}>

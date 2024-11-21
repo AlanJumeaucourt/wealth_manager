@@ -203,8 +203,9 @@ class DatabaseManager:
                 CREATE TABLE IF NOT EXISTS assets (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
-                    symbol TEXT NOT NULL UNIQUE,
+                    symbol TEXT NOT NULL,
                     name TEXT NOT NULL,
+                    UNIQUE(symbol, user_id)
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 );
             """,
@@ -242,12 +243,12 @@ class DatabaseManager:
                 );
             """,
             """--sql
-                CREATE TABLE IF NOT EXISTS stock_cache (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                CREATE TABLE stock_cache (
                     symbol TEXT NOT NULL,
+                    cache_type TEXT NOT NULL,
                     data TEXT NOT NULL,
-                    last_updated TIMESTAMP NOT NULL,
-                    UNIQUE(symbol)
+                    last_updated TEXT NOT NULL,
+                    PRIMARY KEY (symbol, cache_type)
                 );
             """,
         ]
@@ -371,6 +372,7 @@ class DatabaseManager:
             "CREATE INDEX idx_investment_transactions_user_asset ON investment_transactions(user_id, asset_id);",
             "CREATE INDEX idx_account_assets_account_id ON account_assets(account_id);",
             "CREATE INDEX idx_account_assets_asset_id ON account_assets(asset_id);",
+            "CREATE INDEX idx_stock_cache_lookup ON stock_cache(symbol, cache_type);",
         ]
 
         with self.connect_to_database() as connection:
