@@ -81,7 +81,8 @@ class CacheManager:
                 last_updated = excluded.last_updated
             """
             self.db_manager.execute_update(
-                query, (symbol, cache_type, json.dumps(data), datetime.now().isoformat())
+                query,
+                (symbol, cache_type, json.dumps(data), datetime.now().isoformat()),
             )
             logger.info(f"Cache UPDATED for {symbol} ({cache_type})")
         except Exception as e:
@@ -213,6 +214,7 @@ class StockService:
             ]
 
             # Update cache in background
+            return result
             self._fetch_and_cache(cache_key, result, "historical_prices")
             return result
 

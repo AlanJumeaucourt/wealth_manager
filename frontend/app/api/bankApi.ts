@@ -342,7 +342,7 @@ type StockPeriod = '1d' | '5d' | '7d' | '60d' | '1mo' | '3mo' | '6mo' | '1y' | '
 
 export const getStockPrices = async (symbol: string, period: StockPeriod) => {
   try {
-    const response = await apiClient.get(`/stocks/${encodeURIComponent(symbol)}/prices?period=${period}`);
+    const response = await apiClient.get(`/stocks/${encodeURIComponent(symbol)}/history?period=${period}`);
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching stock prices');

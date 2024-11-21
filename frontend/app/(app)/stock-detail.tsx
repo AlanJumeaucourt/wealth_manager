@@ -136,17 +136,21 @@ export const StockDetails: React.FC = () => {
                 if (stockInfoData?.info?.longName) {
                     setStockName(stockInfoData.info.longName);
                 }
+                console.log(pricesData);
 
                 if (transactionsData && 'buys' in transactionsData && Array.isArray(transactionsData.buys)) {
                     const firstBuyDate = transactionsData.buys.reduce((minDate: string, current: AssetTransaction) =>
                         current.date < minDate ? current.date : minDate,
                         transactionsData.buys[0]?.date
                     );
-                    const filteredPrices = pricesData.prices.filter((price: { date: string }) =>
-                        price.date >= firstBuyDate
-                    );
+                    if (pricesData && pricesData) {
+                        const filteredPrices = pricesData.filter((price: { date: string }) =>
+                            price.date >= firstBuyDate
+                        );
+                        setHistoricalPrices(filteredPrices || []);
+                    }
                     setTransactions(transactionsData);
-                    setHistoricalPrices(filteredPrices || []);
+
                 } else {
                     setTransactions(null);
                     setHistoricalPrices([]);
@@ -219,12 +223,6 @@ export const StockDetails: React.FC = () => {
                 date: buy.date,
                 showDataPoint: true,
                 dataPointColor: darkTheme.colors.success,
-                dataPointShape: 'custom',
-                customDataPoint: () => (
-                    <View style={[styles.transactionPoint, { backgroundColor: darkTheme.colors.success }]}>
-                        <Text style={styles.transactionPointText}>{buy.price.toLocaleString()}</Text>
-                    </View>
-                )
             });
         });
 
