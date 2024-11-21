@@ -21,7 +21,7 @@ type Props = {
 
 const DonutChart = ({
   n,
-  gap = 0, // Set default gap to 0
+  gap = 0,
   decimals,
   colors,
   totalValue,
@@ -38,7 +38,12 @@ const DonutChart = ({
   const path = Skia.Path.Make();
   path.addCircle(radius, radius, innerRadius);
 
-  const targetText = Math.round(totalValue).toString()
+  const targetText = Math.round(totalValue).toString();
+
+  const totalTextWidth = smallFont?.measureText(totalText)?.width ?? 0;
+  const totalTextY = smallFont?.measureText(totalText)?.y ?? 0;
+  const targetTextWidth = font?.measureText(targetText)?.width ?? 0;
+  const targetTextY = font?.measureText(targetText)?.y ?? 0;
 
   return (
     <View style={styles.container}>
@@ -53,38 +58,40 @@ const DonutChart = ({
           start={0}
           end={1}
         />
-        {array.map((_, index) => {
-          return (
-            <DonutPath
-              key={index}
-              radius={radius}
-              strokeWidth={strokeWidth}
-              outerStrokeWidth={outerStrokeWidth}
-              color={colors[index]}
-              decimals={decimals}
-              index={index}
-              gap={gap} // Pass the gap value here
-            />
-          );
-        })}
-        <Text
-          x={radius - smallFont.measureText(totalText).width / 2}
-          y={radius - smallFont.measureText(totalText).y + 10}
-          text={totalText}
-          font={smallFont}
-          color={darkTheme.colors.text}
-          align="center"
-          horizontalAlign="center"
-        />
-        <Text
-          x={radius - font.measureText(targetText).width / 2}
-          y={radius + font.measureText(targetText).y / 2 + 15}
-          text={targetText}
-          font={font}
-          color={darkTheme.colors.text}
-          align="center"
-          horizontalAlign="center"
-        />
+        {array.map((_, index) => (
+          <DonutPath
+            key={index}
+            radius={radius}
+            strokeWidth={strokeWidth}
+            outerStrokeWidth={outerStrokeWidth}
+            color={colors[index]}
+            decimals={decimals}
+            index={index}
+            gap={gap}
+          />
+        ))}
+        {smallFont && (
+          <Text
+            x={radius - totalTextWidth / 2}
+            y={radius - totalTextY + 10}
+            text={totalText}
+            font={smallFont}
+            color={darkTheme.colors.text}
+            align="center"
+            horizontalAlign="center"
+          />
+        )}
+        {font && (
+          <Text
+            x={radius - targetTextWidth / 2}
+            y={radius + targetTextY / 2 + 15}
+            text={targetText}
+            font={font}
+            color={darkTheme.colors.text}
+            align="center"
+            horizontalAlign="center"
+          />
+        )}
       </Canvas>
     </View>
   );
