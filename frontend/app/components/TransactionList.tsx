@@ -36,6 +36,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
   const [searchQuery, setSearchQuery] = useState(''); // Reintroduce searchQuery without debounce
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchStats, setSearchStats] = useState<{ total: number; count: number } | null>(null);
+  const [forceShowSearch, setForceShowSearch] = useState(false);
 
   // Fetch transactions when the component mounts or when the page or search query changes
   useEffect(() => {
@@ -135,8 +136,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
     setSearchQuery(query);
     setPage(1);
     setTransactions([]);
-    // Reset search stats when starting a new search
     setSearchStats(null);
+    if (query.length > 0) {
+      setForceShowSearch(true);
+    } else {
+      setForceShowSearch(false);
+    }
   };
 
   // Add this component to display search results
@@ -250,7 +255,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
 
   return (
     <>
-      {isSearchVisible && (
+      {(isSearchVisible || forceShowSearch || searchStats) && (
         <View style={styles.searchContainer}>
           <View style={styles.searchInputWrapper}>
             <Ionicons
@@ -317,12 +322,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
         contentContainerStyle={styles.contentTransactionList}
         ListFooterComponent={renderFooter}
         onScroll={({ nativeEvent }) => {
-          if (nativeEvent.contentOffset.y < -50) { // Adjust threshold as needed
+          if (nativeEvent.contentOffset.y < -50) {
             setIsSearchVisible(true);
           }
         }}
         onScrollEndDrag={({ nativeEvent }) => {
-          if (nativeEvent.contentOffset.y >= 0) {
+          if (nativeEvent.contentOffset.y >= 0 && !forceShowSearch && !searchStats) {
             setIsSearchVisible(false);
           }
         }}
