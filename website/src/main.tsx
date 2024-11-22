@@ -9,9 +9,8 @@ window.addEventListener('load', () => {
   document.documentElement.classList.remove('no-transitions')
 })
 
-// Check for saved theme preference
-const darkMode = localStorage.getItem('darkMode') === 'true'
-if (darkMode) {
+// Check system dark mode preference
+if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
   document.documentElement.classList.add('dark')
 }
 
