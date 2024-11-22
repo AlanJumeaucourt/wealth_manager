@@ -6,6 +6,8 @@
 
 A comprehensive personal finance management application built with React Native and Expo, designed to help users take control of their financial lives with powerful features and an intuitive interface.
 
+🌐 **[View Live Demo & Showcase](https://alanjumeaucourt.github.io/wealth_manager/)**
+
 ## 📱 Mobile App Features
 
 See our detailed [Mobile App Documentation](frontend/README.md) for complete feature list and screenshots.
@@ -41,3 +43,15 @@ See our detailed [Mobile App Documentation](frontend/README.md) for complete fea
 - npm or yarn
 - Expo CLI
 - Python 3.8+ (for backend)
+
+## 🌐 Website
+
+The project includes a showcase website built with React + Vite + TypeScript. Visit the [website directory](website/) for setup instructions.
+
+Quick start:
+```bash
+cd website
+npm install
+npm run dev
+```
+
