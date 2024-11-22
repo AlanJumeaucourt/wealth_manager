@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react';
 export const ThemeToggle = () => {
   const [isDark, setIsDark] = useState(false);
 
+  const updateFavicon = (isDark: boolean) => {
+    const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
+    if (favicon) {
+      favicon.href = isDark
+        ? '/assets/images/logo-removebg-white.png'
+        : '/assets/images/logo-removebg-preview.png';
+    }
+  };
+
   useEffect(() => {
     // Check if user has OS-level dark mode preference
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -12,12 +21,14 @@ export const ThemeToggle = () => {
     setIsDark(mediaQuery.matches);
     if (mediaQuery.matches) {
       document.documentElement.classList.add('dark');
+      updateFavicon(true);
     }
 
     // Listen for changes in system dark mode preference
     const listener = (e: MediaQueryListEvent) => {
       setIsDark(e.matches);
       document.documentElement.classList.toggle('dark', e.matches);
+      updateFavicon(e.matches);
     };
 
     mediaQuery.addEventListener('change', listener);
@@ -25,8 +36,10 @@ export const ThemeToggle = () => {
   }, []);
 
   const toggleTheme = () => {
-    setIsDark(!isDark);
+    const newIsDark = !isDark;
+    setIsDark(newIsDark);
     document.documentElement.classList.toggle('dark');
+    updateFavicon(newIsDark);
   };
 
   return (
