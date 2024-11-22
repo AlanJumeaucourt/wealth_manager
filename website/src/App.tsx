@@ -10,34 +10,34 @@ const App = () => {
       title: "Account Tracking",
       description: "Monitor balances and transactions across multiple bank accounts and investment portfolios in one place.",
       icon: <Wallet className="w-6 h-6 mb-4 text-blue-600 dark:text-blue-400" />,
-      image: "/homescreen-portrait.png",
+      image: "/wealth_manager/homescreen-portrait.png",
       status: "In Development"
     },
     {
       title: "Investment Management",
       description: "View and analyze investment performance, asset allocation, and stock positions with detailed insights.",
       icon: <PieChart className="w-6 h-6 mb-4 text-blue-600 dark:text-blue-400" />,
-      image: "/investments_1-portrait.png"
+      image: "/wealth_manager/investments_1-portrait.png"
     },
     {
       title: "Smart Budgeting",
       description: "Set and track budgets for different expense categories, helping you manage spending effectively.",
       icon: <Calendar className="w-6 h-6 mb-4 text-blue-600 dark:text-blue-400" />,
-      image: "/budget_expense-portrait.png"
+      image: "/wealth_manager/budget_expense-portrait.png"
     },
     {
       title: "Transaction History",
       description: "Access detailed view of all financial transactions, categorized and easily searchable.",
       icon: <Clock className="w-6 h-6 mb-4 text-blue-600 dark:text-blue-400" />,
-      image: "/transactions-portrait.png"
+      image: "/wealth_manager/transactions-portrait.png"
     }
   ];
 
   const showcaseImages = [
-    { src: "/stock_details_1-portrait.png", title: "Stock Details" },
-    { src: "/investments_2-portrait.png", title: "Portfolio Overview" },
-    { src: "/budget_income-portrait.png", title: "Income Tracking" },
-    { src: "/add-investment-transaction-portrait.png", title: "Easy Investment Management" }
+    { src: "/wealth_manager/stock_details_1-portrait.png", title: "Stock Details" },
+    { src: "/wealth_manager/investments_2-portrait.png", title: "Portfolio Overview" },
+    { src: "/wealth_manager/budget_income-portrait.png", title: "Income Tracking" },
+    { src: "/wealth_manager/add-investment-transaction-portrait.png", title: "Easy Investment Management" }
   ];
 
   return (
@@ -138,7 +138,7 @@ const App = () => {
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl opacity-20 blur-lg"></div>
                 <img
-                  src="/homescreen-portrait.png"
+                  src="/wealth_manager/homescreen-portrait.png"
                   alt="WealthManager App"
                   className="relative rounded-2xl shadow-xl w-full h-auto max-h-[600px] object-contain"
                 />
