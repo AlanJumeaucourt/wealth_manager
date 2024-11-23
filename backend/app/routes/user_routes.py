@@ -12,9 +12,9 @@ from app.services.user_service import (
 )
 from app.routes.route_utils import process_request
 import sentry_sdk
-from flask_jwt_extended import jwt_required, create_access_token
+from flask_jwt_extended import jwt_required, create_access_token, create_refresh_token
 from app.exceptions import DuplicateUserError
-from datetime import datetime
+from datetime import datetime, timezone
 
 user_bp = Blueprint("user", __name__)
 user_schema = UserSchema()
@@ -55,26 +55,47 @@ def register():
 
 @user_bp.route("/login", methods=["POST"])
 def login():
-    data = request.json
-    required_fields = ["email", "password"]
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    elif not all(field in data for field in required_fields):
-        return (
-            jsonify(
-                {"error": f"Missing required fields: {', '.join(required_fields)}"}
-            ),
-            400,
-        )
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        password = data.get("password")
 
-    user = authenticate_user(data["email"], data["password"])
-    if user:
-        access_token = create_access_token(identity=user.id)
-        sentry_sdk.set_user({"id": f"{user.id}"})  # Set user context in Sentry
-        update_last_login(user.id, datetime.now())
-        return jsonify(access_token=access_token), 200
-    else:
-        return jsonify({"error": "Invalid credentials"}), 401
+        user = authenticate_user(email, password)
+        if user:
+            user_dict = {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name
+            }
+
+            access_token = create_access_token(
+                identity=str(user_dict["id"]),
+                additional_claims={
+                    "email": user_dict["email"],
+                    "name": user_dict["name"]
+                }
+            )
+            refresh_token = create_refresh_token(
+                identity=str(user_dict["id"])
+            )
+
+            return jsonify({
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "user": user_dict
+            }), 200
+        else:
+            return jsonify({
+                "msg": "Invalid credentials",
+                "error": "authentication_failed"
+            }), 401
+
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return jsonify({
+            "msg": "Login failed",
+            "error": str(e)
+        }), 500
 
 
 @user_bp.route("/<int:user_id>", methods=["GET"])
