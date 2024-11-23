@@ -22,11 +22,15 @@ def get_budget_summary(start_date: str, end_date: str, user_id: int):
     """
 
     try:
-        results = db_manager.execute_select(query, (start_date, end_date, user_id))
+        results = db_manager.execute_select(
+            query=query, params=[start_date, end_date, user_id]
+        )
     except NoResultFoundError:
         return []
     # Organize results by category and subcategory
-    category_summary = defaultdict(lambda: {"amount": 0, "subcategories": {}})
+    category_summary = defaultdict(
+        lambda: {"amount": 0, "subcategories": defaultdict(dict)}
+    )
 
     for row in results:
         category = row["category"]
@@ -50,7 +54,7 @@ def get_budget_summary(start_date: str, end_date: str, user_id: int):
         ].extend(transactions_related)
 
     # Convert to desired output format
-    summary = [
+    return [
         {
             "category": category,
             "amount": sum(sub["amount"] for sub in data["subcategories"].values()),
@@ -65,5 +69,3 @@ def get_budget_summary(start_date: str, end_date: str, user_id: int):
         }
         for category, data in category_summary.items()
     ]
-
-    return summary

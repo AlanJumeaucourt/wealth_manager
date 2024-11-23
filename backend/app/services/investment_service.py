@@ -28,8 +28,10 @@ class HistoricalPrice(TypedDict):
 
 
 class InvestmentService(BaseService):
-    def __init__(self):
-        super().__init__("investment_transactions", InvestmentTransaction)
+    def __init__(self) -> None:
+        super().__init__(
+            table_name="investment_transactions", model_class=InvestmentTransaction
+        )
         self.db_manager = DatabaseManager()
         self.stock_service = StockService()
         self.transaction_service = TransactionService()
@@ -88,7 +90,7 @@ class InvestmentService(BaseService):
             query = query.format("")
 
         try:
-            positions = self.db_manager.execute_select(query, tuple(params))
+            positions = self.db_manager.execute_select(query=query, params=params)
 
             # Get current market prices for all positions
             for position in positions:
@@ -144,19 +146,20 @@ class InvestmentService(BaseService):
                 total_value += position["total_value"]
                 total_gain += position["unrealized_gain"]
 
-            return {
-                "positions": positions,
-                "total_invested": total_invested,
-                "total_value": total_value,
-                "total_gain": total_gain,
-            }
-
         except NoResultFoundError:
             return {
                 "positions": [],
                 "total_invested": 0,
                 "total_value": 0,
                 "total_gain": 0,
+            }
+
+        else:
+            return {
+                "positions": positions,
+                "total_invested": total_invested,
+                "total_value": total_value,
+                "total_gain": total_gain,
             }
 
     def get_asset_transactions(
@@ -184,7 +187,7 @@ class InvestmentService(BaseService):
 
         try:
             transactions = self.db_manager.execute_select(
-                query, (user_id, asset_symbol)
+                query=query, params=[user_id, asset_symbol]
             )
 
             # Initialize result with empty lists for each activity type
@@ -213,9 +216,11 @@ class InvestmentService(BaseService):
                         }
                     )
 
-            return result
         except NoResultFoundError:
             return {"buys": [], "sells": [], "deposits": [], "withdrawals": []}
+
+        else:
+            return result
 
     def get_portfolio_performance(
         self, user_id: int, period: str = "1Y"
@@ -252,7 +257,9 @@ class InvestmentService(BaseService):
         """
 
         try:
-            transactions = self.db_manager.execute_select(query, (user_id, user_id))
+            transactions = self.db_manager.execute_select(
+                query=query, params=[user_id, user_id]
+            )
 
             if not transactions:
                 return {
@@ -312,14 +319,14 @@ class InvestmentService(BaseService):
 
             # Get all dates where we have either transactions or prices
             all_dates = sorted(
-                set(
+                {
                     date
                     for dates in [
                         daily_positions.keys(),
                         *(prices.keys() for prices in prices_by_symbol.values()),
                     ]
                     for date in dates
-                )
+                }
             )
 
             # Calculate daily portfolio values
@@ -361,7 +368,6 @@ class InvestmentService(BaseService):
             logger.info(
                 f"Returning performance data with {len(performance_data)} points"
             )
-            return {"performance_data": performance_data}
 
         except Exception as e:
             logger.error(f"Error in get_portfolio_performance: {e}", exc_info=True)
@@ -373,6 +379,9 @@ class InvestmentService(BaseService):
                     }
                 ]
             }
+
+        else:
+            return {"performance_data": performance_data}
 
     def create(self, data: dict[str, Any]) -> InvestmentTransaction | None:
         """Create investment transaction and associated transfer transaction if needed."""
@@ -400,7 +409,7 @@ class InvestmentService(BaseService):
                 placeholders = ", ".join(["?" for _ in investment_data])
                 query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
                 investment_result = self.db_manager.execute_insert_returning(
-                    query, tuple(investment_data.values())
+                    query=query, params=list(investment_data.values())
                 )
 
                 # Calculate quantity change based on activity type
@@ -450,7 +459,7 @@ class InvestmentService(BaseService):
                 return self.model_class(**investment_result)
 
         except Exception as e:
-            if "connection" in locals():
+            if connection is not None:
                 connection.rollback()
             logger.error(f"Error creating investment transaction: {e}")
             raise

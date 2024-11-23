@@ -49,7 +49,7 @@ class Transaction:
     subcategory: str | None = field(default=None)
     id: int | None = field(default=None)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.type not in ["expense", "income", "transfer", "refund"]:
             raise ValueError("Invalid transaction type.")
 
@@ -81,7 +81,7 @@ class InvestmentTransaction:
     total_paid: float | None = field(default=None)
     id: int | None = field(default=None)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.activity_type not in ["buy", "sell", "deposit", "withdrawal"]:
             raise ValueError("Invalid activity type.")
 

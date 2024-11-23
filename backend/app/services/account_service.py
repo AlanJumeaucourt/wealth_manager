@@ -6,13 +6,13 @@ from app.services.base_service import BaseService
 
 
 class AccountService(BaseService):
-    def __init__(self):
-        super().__init__("accounts", Account)
+    def __init__(self) -> None:
+        super().__init__(table_name="accounts", model_class=Account)
 
-    def get_by_id(self, id: int, user_id: int) -> Account | None:
-        account = super().get_by_id(id, user_id)
+    def get_by_id(self, item_id: int, user_id: int) -> Account | None:
+        account = super().get_by_id(item_id=item_id, user_id=user_id)
         if account:
-            account.balance = self.calculate_balance(id)
+            account.balance = self.calculate_balance(account_id=item_id)
 
         return account
 
@@ -42,8 +42,8 @@ class AccountService(BaseService):
             FROM {self.table_name} a
             LEFT JOIN account_balances ab ON a.id = ab.account_id
             WHERE a.user_id = ?
-        """
-        params = [user_id]
+        """  # noqa: S608 fields are sanitized by the schema
+        params: list[Any] = [user_id]
 
         # Handle other filters
         for key, value in filters.items():
@@ -65,10 +65,11 @@ class AccountService(BaseService):
 
         try:
             results = self.db_manager.execute_select(query, params)
-            return results if results else []
         except Exception as e:
             print(f"Error in get_all: {e}")
             return []
+        else:
+            return results
 
     def calculate_balance(self, account_id: int) -> float:
         """Get account balance from the account_balances view."""
@@ -78,7 +79,7 @@ class AccountService(BaseService):
         WHERE account_id = ?
         """
         try:
-            result = self.db_manager.execute_select(query, (account_id,))
+            result = self.db_manager.execute_select(query=query, params=[account_id])
             return round(result[0]["current_balance"] if result else 0, 2)
         except Exception as e:
             print(f"Error getting account balance: {e}")
@@ -183,7 +184,7 @@ class AccountService(BaseService):
         WHERE a.user_id = ?
         """
         try:
-            result = self.db_manager.execute_select(query, (user_id,))
+            result = self.db_manager.execute_select(query=query, params=[user_id])
         except NoResultFoundError as e:
             print("error in get_wealth", e)
             return {}

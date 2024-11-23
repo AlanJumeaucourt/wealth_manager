@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from .exceptions import NoResultFoundError, QueryExecutionError
@@ -18,102 +19,128 @@ class QueryType(Enum):
 class DatabaseManager:
     """Manages database connections and executes raw SQL queries."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.db_dir = os.environ.get(
             "SQLITE_DB_DIR",
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), "instance"),
+            str(Path(__file__).parent.parent / "instance"),
         )
-        self.db_name = os.path.join(self.db_dir, "wealth_manager.db")
+        self.db_name = str(Path(self.db_dir) / "wealth_manager.db")
 
         # Ensure directory exists with proper permissions
-        os.makedirs(self.db_dir, exist_ok=True)
+        Path(self.db_dir).mkdir(parents=True, exist_ok=True)
 
         # Set permissions if running as root (development only)
         if os.geteuid() == 0:  # Only run if root
-            os.chmod(self.db_dir, 0o777)
+            Path(self.db_dir).chmod(0o777)
 
-    def connect_to_database(self):
+    def connect_to_database(self) -> sqlite3.Connection:
         """Establish a connection to the SQLite database.
 
         :return: A connection object to the SQLite database.
         """
         try:
             connection = sqlite3.connect(self.db_name)
-            # sqlite3.register_adapter(datetime, lambda dt: dt.isoformat())
-            # sqlite3.register_converter(
-            #     "timestamp", lambda s: datetime.fromisoformat(s.decode())
-            # )
             connection.execute("PRAGMA foreign_keys = ON;")
-            return connection
         except sqlite3.OperationalError as e:
             print(f"Error connecting to database: {e}")
             print(f"Database directory: {self.db_dir}")
             print(f"Database path: {self.db_name}")
-            print(f"Directory exists: {os.path.exists(self.db_dir)}")
-            print(f"Directory permissions: {oct(os.stat(self.db_dir).st_mode)[-3:]}")
+            print(f"Directory exists: {Path(self.db_dir).exists()}")
+            print(
+                f"Directory permissions: {oct(Path(self.db_dir).stat().st_mode)[-3:]}"
+            )
             raise
+        else:
+            return connection
 
     def execute_select(
-        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
+        self, query: str, params: list[Any] | None = None
     ) -> list[dict[str, Any]]:
-        result = self.__execute_raw_sql(query, QueryType.SELECT, params)
+        result = self.__execute_raw_sql(
+            query=query, query_type=QueryType.SELECT, params=params
+        )
         if not result:
-            raise NoResultFoundError("No result found for select query", query, params)
+            raise NoResultFoundError(
+                message="No result found for select query",
+                query=query,
+                params=params or [],
+            )
         return result
 
-    def execute_insert(
-        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
-    ) -> int:
-        result = self.__execute_raw_sql(query, QueryType.INSERT, params)
+    def execute_insert(self, query: str, params: list[Any] | None = None) -> int:
+        result = self.__execute_raw_sql(
+            query=query, query_type=QueryType.INSERT, params=params or []
+        )
         if not result:
-            raise NoResultFoundError("No result found for insert query", query, params)
+            raise NoResultFoundError(
+                message="No result found for insert query",
+                query=query,
+                params=params or [],
+            )
         return result
 
     def execute_insert_returning(
-        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
+        self, query: str, params: list[Any] | None = None
     ) -> dict[str, Any]:
-        result = self.__execute_raw_sql(query, QueryType.INSERT_RETURNING, params)
+        result = self.__execute_raw_sql(
+            query=query, query_type=QueryType.INSERT_RETURNING, params=params
+        )
         if not result:
             raise NoResultFoundError(
-                "No result found for insert returning query", query, params
+                message="No result found for insert returning query",
+                query=query,
+                params=params or [],
             )
         return result
 
-    def execute_update(
-        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
-    ) -> int:
-        result = self.__execute_raw_sql(query, QueryType.UPDATE, params)
+    def execute_update(self, query: str, params: list[Any] | None = None) -> int:
+        result = self.__execute_raw_sql(
+            query=query, query_type=QueryType.UPDATE, params=params or []
+        )
         if not result:
-            raise NoResultFoundError("No result found for update query", query, params)
+            raise NoResultFoundError(
+                message="No result found for update query",
+                query=query,
+                params=params or [],
+            )
         return result
 
     def execute_update_returning(
-        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
+        self, query: str, params: list[Any] | None = None
     ) -> dict[str, Any]:
-        result = self.__execute_raw_sql(query, QueryType.UPDATE_RETURNING, params)
+        result = self.__execute_raw_sql(
+            query=query, query_type=QueryType.UPDATE_RETURNING, params=params
+        )
         if not result:
             raise NoResultFoundError(
-                "No result found for update returning query", query, params
+                message="No result found for update returning query",
+                query=query,
+                params=params or [],
             )
         return result
 
-    def execute_delete(
-        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
-    ) -> bool:
-        result = self.__execute_raw_sql(query, QueryType.DELETE, params)
+    def execute_delete(self, query: str, params: list[Any] | None = None) -> bool:
+        result = self.__execute_raw_sql(
+            query=query, query_type=QueryType.DELETE, params=params or []
+        )
         if not result:
-            raise NoResultFoundError("No result found for delete query", query, params)
+            raise NoResultFoundError(
+                message="No result found for delete query",
+                query=query,
+                params=params or [],
+            )
         return result
 
     def __execute_raw_sql(
         self,
         query: str,
         query_type: QueryType,
-        params: tuple[Any, ...] | list[Any] | None = None,
+        params: list[Any] | None = None,
     ) -> Any:
         """Execute a raw SQL query and return the results.
 
         :param query: The SQL query to execute.
+        :param query_type: The type of query to execute.
         :param params: Optional parameters for the SQL query.
         :return: The results of the query, or the last row ID for insert operations.
         """
@@ -156,12 +183,14 @@ class DatabaseManager:
 
             except Exception as err:
                 raise QueryExecutionError(
-                    f"Error executing query: {err}", query, params
-                )
+                    message=f"Error executing query: {err}",
+                    query=query,
+                    params=params or [],
+                ) from err
             finally:
                 cursor.close()
 
-    def create_tables(self):
+    def create_tables(self) -> None:
         """Create the necessary tables, views, triggers and indexes in the database if they do not exist."""
         tables = [
             """--sql
@@ -584,15 +613,15 @@ class DatabaseManager:
             finally:
                 cursor.close()
 
-    def update_user_login(self, user_id: int, current_password: str):
+    def update_user_login(self, user_id: int, current_password: str) -> None:
         """Update user's last login time via trigger.
 
         :param user_id: The ID of the user who is logging in
         :param current_password: The user's current password (for trigger condition)
         """
         self.execute_update(
-            "UPDATE users SET password = ? WHERE id = ? AND password = ?",
-            [current_password, user_id, current_password],
+            query="UPDATE users SET password = ? WHERE id = ? AND password = ?",
+            params=[current_password, user_id, current_password],
         )
 
 

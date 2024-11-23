@@ -23,7 +23,7 @@ user_schema = UserSchema()
 
 
 @user_bp.route("/register", methods=["POST"])
-def register():
+def register() -> tuple[Any, int]:
     data = request.json
     required_fields = ["name", "email", "password"]
 
@@ -44,7 +44,9 @@ def register():
 
     try:
         user = create_user(
-            validated_data["name"], validated_data["email"], validated_data["password"]
+            name=validated_data["name"],
+            email=validated_data["email"],
+            password=validated_data["password"],
         )
         if user:
             sentry_sdk.set_user({"id": f"{user.id}"})
@@ -55,13 +57,13 @@ def register():
 
 
 @user_bp.route("/login", methods=["POST"])
-def login():
+def login() -> tuple[Any, int]:
     try:
         data = request.get_json()
         email = data.get("email")
         password = data.get("password")
 
-        user = authenticate_user(email, password)
+        user = authenticate_user(email=email, password=password)
         if user:
             user_dict = {"id": user.id, "email": user.email, "name": user.name}
 
@@ -96,67 +98,67 @@ def login():
 
 @user_bp.route("/<int:user_id>", methods=["GET"])
 @jwt_required()
-def get_user_admin(user_id: int):
+def get_user_admin(user_id: int) -> tuple[Any, int]:
     user_id_from_tokens, _, error, code = process_request(type_of_request="GET")
 
     if int(user_id_from_tokens) != user_id:
         return jsonify({"error": "Unauthorized, cannot access this user"}), 403
 
-    if error:
+    if error and code:
         return error, code
 
     user = get_user_by_id(user_id)
-    return jsonify(user.__dict__) if user else ("", 404)
+    return (jsonify(user.__dict__), 200) if user else ("", 404)
 
 
 @user_bp.route("/", methods=["GET"])
 @jwt_required()
-def get_user():
+def get_user() -> tuple[Any, int]:
     user_id_from_tokens, _, error, code = process_request(type_of_request="GET")
 
-    if error:
+    if error and code:
         return error, code
 
-    user = get_user_by_id(user_id_from_tokens)
-    update_last_login(user_id_from_tokens, datetime.now())
-    return jsonify(user.__dict__) if user else ("", 404)
+    user = get_user_by_id(user_id=user_id_from_tokens)
+    update_last_login(user_id=user_id_from_tokens, login_time=datetime.now())
+    return (jsonify(user.__dict__), 200) if user else ("", 404)
 
 
 @user_bp.route("/<int:user_id>", methods=["PUT"])
 @jwt_required()
-def update_user_route(user_id: int):
+def update_user_route(user_id: int) -> tuple[Any, int]:
     user_id_from_tokens, data, error, code = process_request(
         ["name", "email", "password"], type_of_request="PUT"
     )
 
-    if error:
+    if error and code:
         return error, code
 
     if int(user_id_from_tokens) != user_id:
         return jsonify({"error": "Unauthorized, cannot update this user"}), 403
 
     try:
-        validated_data: Any = user_schema.load(data, partial=True)
+        validated_data: Any = user_schema.load(data, partial=True)  # type: ignore[data-type]
     except ValidationError as err:
         return jsonify({"Validation error": err.messages}), 400
 
     user = update_user(
-        user_id,
-        validated_data.get("name"),
-        validated_data.get("email"),
-        validated_data.get("password"),
+        user_id=user_id,
+        name=validated_data.get("name"),
+        email=validated_data.get("email"),
+        password=validated_data.get("password"),
     )
     if user:
-        return jsonify(user.__dict__)
+        return jsonify(user.__dict__), 200
     return jsonify({"error": "Failed to update user"}), 500
 
 
 @user_bp.route("/<int:user_id>", methods=["DELETE"])
 @jwt_required()
-def delete_user_route(user_id: int):
+def delete_user_route(user_id: int) -> tuple[Any, int]:
     user_id_from_tokens, _, error, code = process_request(type_of_request="DELETE")
 
-    if error:
+    if error and code:
         return error, code
     if int(user_id_from_tokens) != user_id:
         return jsonify({"error": "Unauthorized"}), 403
@@ -167,19 +169,19 @@ def delete_user_route(user_id: int):
 
 @user_bp.route("/", methods=["DELETE"])
 @jwt_required()
-def self_delete_user_route():
+def self_delete_user_route() -> tuple[Any, int]:
     user_id_from_tokens, _, error, code = process_request(type_of_request="DELETE")
-    if error:
+    if error and code:
         return error, code
-    success = delete_user(user_id_from_tokens)
+    success = delete_user(user_id=user_id_from_tokens)
     return ("", 204) if success else (jsonify({"error": "Failed to delete user"}), 500)
 
 
 @user_bp.route("/verify-token", methods=["GET"])
 @jwt_required()
-def verify_token():
+def verify_token() -> tuple[Any, int]:
     user_id_from_tokens, _, error, code = process_request(type_of_request="GET")
-    if error:
+    if error and code:
         return error, code
-    update_last_login(user_id_from_tokens, datetime.now())
+    update_last_login(user_id=user_id_from_tokens, login_time=datetime.now())
     return jsonify({"message": "Token is valid"}), 200

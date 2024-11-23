@@ -10,8 +10,8 @@ db_manager = DatabaseManager()
 def create_user(name: str, email: str, password: str) -> User | None:
     try:
         user = db_manager.execute_insert_returning(
-            "INSERT INTO users (name, email, password, last_login) VALUES (?, ?, ?, ?) RETURNING *",
-            (name, email, password, datetime.now(UTC)),
+            query="INSERT INTO users (name, email, password, last_login) VALUES (?, ?, ?, ?) RETURNING *",
+            params=(name, email, password, datetime.now(UTC)),
         )
         return User(
             id=user["id"],
@@ -33,13 +33,14 @@ def create_user(name: str, email: str, password: str) -> User | None:
 def get_user_by_id(user_id: int) -> User | None:
     try:
         result = db_manager.execute_select(
-            "SELECT * FROM users WHERE id = ?", (user_id,)
+            query="SELECT * FROM users WHERE id = ?",
+            params=[user_id],
         )
         if not result:
             raise NoResultFoundError(
-                "No user found with the given ID.",
-                "SELECT * FROM users WHERE id = ?",
-                (user_id,),
+                message="No user found with the given ID.",
+                query="SELECT * FROM users WHERE id = ?",
+                params=[user_id],
             )
 
         user_data = result[0]
@@ -86,7 +87,7 @@ def update_user(
 
         query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = ? RETURNING *"
         params.extend([user_id])
-        user = db_manager.execute_update_returning(query, params)
+        user = db_manager.execute_update_returning(query=query, params=params)
         return User(
             id=user["id"],
             name=user["name"],
@@ -111,13 +112,14 @@ def delete_user(user_id: int) -> bool:
 def authenticate_user(email: str, password: str) -> User | None:
     try:
         result = db_manager.execute_select(
-            "SELECT * FROM users WHERE email = ? AND password = ?", (email, password)
+            query="SELECT * FROM users WHERE email = ? AND password = ?",
+            params=[email, password],
         )
         if not result:
             raise NoResultFoundError(
-                "No user found with the given email and password.",
-                "SELECT * FROM users WHERE email = ? AND password = ?",
-                (email, password),
+                message="No user found with the given email and password.",
+                query="SELECT * FROM users WHERE email = ? AND password = ?",
+                params=[email, password],
             )
 
         user_data = result[0]
@@ -142,7 +144,8 @@ def authenticate_user(email: str, password: str) -> User | None:
 def update_last_login(user_id: int, login_time: datetime) -> bool:
     try:
         user = db_manager.execute_update(
-            "UPDATE users SET last_login = ? WHERE id = ?", (login_time, user_id)
+            query="UPDATE users SET last_login = ? WHERE id = ?",
+            params=[login_time, user_id],
         )
         if user:
             return True

@@ -3,5 +3,5 @@ from app.services.base_service import BaseService
 
 
 class AccountAssetService(BaseService):
-    def __init__(self):
-        super().__init__("account_assets", AccountAsset)
+    def __init__(self) -> None:
+        super().__init__(table_name="account_assets", model_class=AccountAsset)

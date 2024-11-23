@@ -48,9 +48,9 @@ class AssetSearchResult(TypedDict):
 
 
 class CacheManager:
-    """Manages cache operations in a separate thread"""
+    """Manages cache operations in a separate thread."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.queue: Queue[tuple[Callable[..., Any], tuple, dict]] = Queue()
         self.worker = threading.Thread(target=self._process_queue, daemon=True)
         self.worker.start()
@@ -69,11 +69,11 @@ class CacheManager:
                 logger.error(f"Error processing cache task: {e}")
 
     def add_task(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
-        """Add a task to the queue"""
+        """Add a task to the queue."""
         self.queue.put((func, args, kwargs))
 
     def _update_cache(self, symbol: str, data: dict[str, Any], cache_type: str) -> None:
-        """Update the cache with new data"""
+        """Update the cache with new data."""
         try:
             query = """
             INSERT INTO stock_cache (symbol, cache_type, data, last_updated)
@@ -83,15 +83,20 @@ class CacheManager:
                 last_updated = excluded.last_updated
             """
             self.db_manager.execute_update(
-                query,
-                (symbol, cache_type, json.dumps(data), datetime.now().isoformat()),
+                query=query,
+                params=[
+                    symbol,
+                    cache_type,
+                    json.dumps(data),
+                    datetime.now().isoformat(),
+                ],
             )
             logger.info(f"Cache UPDATED for {symbol} ({cache_type})")
         except Exception as e:
             logger.error(f"Error updating cache for {symbol} ({cache_type}): {e}")
 
     def _get_cached_data(self, symbol: str, cache_type: str) -> dict[str, Any] | None:
-        """Get data from cache"""
+        """Get data from cache."""
         try:
             query = """
             SELECT data, last_updated
@@ -154,7 +159,9 @@ class StockService:
         cache_key = f"{symbol}_basic_info"
 
         try:
-            cached_data = self.cache_manager._get_cached_data(cache_key, "basic_info")
+            cached_data = self.cache_manager._get_cached_data(
+                symbol=cache_key, cache_type="basic_info"
+            )
             if cached_data:
                 logger.info(f"Cache HIT for {symbol}")
                 return cached_data
@@ -182,12 +189,16 @@ class StockService:
             }
 
             # Update cache in background with new cache key
-            self._fetch_and_cache(cache_key, result, "basic_info")
-            return result
+            self._fetch_and_cache(
+                symbol=cache_key, data=result, cache_type="basic_info"
+            )
 
         except Exception as e:
             logger.error(f"Error in get_asset_info for {symbol}: {e!s}")
             return None
+
+        else:
+            return result
 
     def get_historical_prices(
         self, symbol: str, period: str | None = "max"
@@ -214,9 +225,9 @@ class StockService:
             ]
 
             # Update cache in background
-            return result
-            self._fetch_and_cache(cache_key, result, "historical_prices")
-            return result
+            self._fetch_and_cache(
+                symbol=cache_key, data=result, cache_type="historical_prices"
+            )
 
         except Exception as e:
             logger.error(f"Error in get_historical_prices for {symbol}: {e!s}")
@@ -230,6 +241,9 @@ class StockService:
                 )
                 return cached_data
             return []
+
+        else:
+            return result
 
     def search_assets(self, query: str) -> list[AssetSearchResult]:
         """Search for stocks and ETFs."""
@@ -376,7 +390,7 @@ class StockService:
                             ),
                             "value": float(holder[3]) if holder[3] else None,
                         }
-                        for holder in ticker.institutional_holders.values.tolist()
+                        for holder in ticker.institutional_holders.to_numpy().tolist()
                     ]
                     if hasattr(ticker, "institutional_holders")
                     and ticker.institutional_holders is not None

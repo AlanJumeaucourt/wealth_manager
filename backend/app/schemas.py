@@ -10,7 +10,8 @@ from marshmallow import (
 
 
 def validate_date_format(date_str: str) -> bool:
-    """Validate that the date string matches accepted formats:
+    """Validate that the date string matches accepted formats.
+
     - 'YYYY-MM-DDThh:mm:ss'
     - 'YYYY-MM-DDThh:mm:ss.mmmmmm' (isoformat with microseconds)
     - 'YYYY-MM-DD'
@@ -47,7 +48,7 @@ def validate_date_format(date_str: str) -> bool:
 
 
 class DateField(fields.Str):
-    """Custom field for date validation"""
+    """Custom field for date validation."""
 
     def _deserialize(self, value: str, attr: str, data: dict, **kwargs) -> str:
         if value is None:

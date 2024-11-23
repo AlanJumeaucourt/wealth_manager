@@ -13,14 +13,14 @@ class TransactionData(TypedDict):
 
 
 class TransactionService(BaseService):
-    def __init__(self):
-        super().__init__("transactions", Transaction)
+    def __init__(self) -> None:
+        super().__init__(table_name="transactions", model_class=Transaction)
 
     def validate_transaction(self, data: dict[str, Any]) -> None:
         """Validate transaction data based on account types and transaction type."""
         # First validate dates
-        validate_date_format(data["date"])
-        validate_date_format(data["date_accountability"])
+        validate_date_format(date_str=data["date"])
+        validate_date_format(date_str=data["date_accountability"])
 
         try:
             # Get account types
@@ -29,10 +29,15 @@ class TransactionService(BaseService):
                 WHERE id IN (?, ?) AND user_id = ?
             """
             accounts = self.db_manager.execute_select(
-                query, (data["from_account_id"], data["to_account_id"], data["user_id"])
+                query=query,
+                params=[
+                    data["from_account_id"],
+                    data["to_account_id"],
+                    data["user_id"],
+                ],
             )
-
-            if len(accounts) != 2:
+            number_of_accounts_for_transaction = 2
+            if len(accounts) != number_of_accounts_for_transaction:
                 raise TransactionValidationError(
                     "Invalid account IDs or unauthorized access"
                 )
@@ -117,7 +122,7 @@ class TransactionService(BaseService):
             fields = list(self.model_class.__annotations__.keys())
 
         # Base query for transactions
-        query = f"SELECT {', '.join(fields)} FROM {self.table_name} WHERE user_id = ?"
+        query = f"SELECT {', '.join(fields)} FROM {self.table_name} WHERE user_id = ?"  # noqa: S608 because fields are sanitized with class annotations
         # Query for total amount
         total_query = f"""
             SELECT

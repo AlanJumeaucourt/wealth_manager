@@ -7,20 +7,24 @@ from typing import Any
 import sentry_sdk
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from marshmallow import ValidationError
+from marshmallow import Schema, ValidationError
+
+from app.services.base_service import BaseService
 
 logger = getLogger(__name__)
 
 
 class BaseRoutes:
-    def __init__(self, blueprint_name: str, service: Any, schema: Any):
+    def __init__(
+        self, blueprint_name: str, service: BaseService, schema: Schema
+    ) -> None:
         self.bp = Blueprint(blueprint_name, __name__)
         self.service = service
         self.schema = schema
 
         self.register_routes()
 
-    def register_routes(self):
+    def register_routes(self) -> None:
         self.bp.route("/", methods=["POST"])(self.create)
         self.bp.route("/<int:id>", methods=["GET"])(self.get)
         self.bp.route("/<int:id>", methods=["PUT"])(self.update)
@@ -28,7 +32,7 @@ class BaseRoutes:
         self.bp.route("/", methods=["GET"])(self.get_all)
 
     @jwt_required()
-    def create(self):
+    def create(self) -> tuple[Any, int]:
         user_id = get_jwt_identity()
         sentry_sdk.set_user({"id": str(user_id)})
         data = request.json
@@ -46,7 +50,7 @@ class BaseRoutes:
         data["user_id"] = user_id
 
         try:
-            validated_data: Any = self.schema.load(data)
+            validated_data: dict[str, Any] = self.schema.load(data)  # type: ignore[data-type]
         except ValidationError as err:
             # Changed status code from 400 to 422 for validation errors
             return jsonify({"Validation error": err.messages}), 422
@@ -114,7 +118,7 @@ class BaseRoutes:
         sentry_sdk.set_user({"id": str(user_id)})
         filters: dict[str, Any] = {
             field: request.args.get(field)
-            for field in self.schema.fields.keys()
+            for field in self.schema.fields
             if field in request.args
         }
 
@@ -140,7 +144,8 @@ class BaseRoutes:
 
 
 def validate_date_format(date_str: str) -> tuple[bool, str | None]:
-    """Validate that the date string matches accepted formats:
+    """Validate that the date string matches accepted formats.
+
     - 'YYYY-MM-DDThh:mm:ss'
     - 'YYYY-MM-DDThh:mm:ss.mmmmmm' (isoformat with microseconds)
     - 'YYYY-MM-DD'
