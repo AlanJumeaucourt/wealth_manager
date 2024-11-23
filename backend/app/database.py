@@ -379,7 +379,6 @@ class DatabaseManager:
 
         indexes = [
             # Users table - email is used for login/authentication
-            "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);",
             "CREATE INDEX IF NOT EXISTS idx_banks_user_id ON banks(user_id);",
             "CREATE INDEX IF NOT EXISTS idx_accounts_user_type ON accounts(user_id, type);",
             "CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);",
@@ -387,9 +386,6 @@ class DatabaseManager:
             "CREATE INDEX IF NOT EXISTS idx_transactions_accounts ON transactions(from_account_id, to_account_id);",
             "CREATE INDEX IF NOT EXISTS idx_investment_transactions_user_date ON investment_transactions(user_id, date);",
             "CREATE INDEX IF NOT EXISTS idx_investment_transactions_user_asset ON investment_transactions(user_id, asset_id);",
-            "CREATE INDEX IF NOT EXISTS idx_account_assets_account_id ON account_assets(account_id);",
-            "CREATE INDEX IF NOT EXISTS idx_account_assets_asset_id ON account_assets(asset_id);",
-            "CREATE INDEX IF NOT EXISTS idx_stock_cache_lookup ON stock_cache(symbol, cache_type);",
         ]
 
         with self.connect_to_database() as connection:
