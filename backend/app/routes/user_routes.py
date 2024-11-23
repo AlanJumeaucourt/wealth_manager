@@ -62,40 +62,38 @@ def login():
 
         user = authenticate_user(email, password)
         if user:
-            user_dict = {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name
-            }
+            user_dict = {"id": user.id, "email": user.email, "name": user.name}
 
             access_token = create_access_token(
                 identity=str(user_dict["id"]),
                 additional_claims={
                     "email": user_dict["email"],
-                    "name": user_dict["name"]
-                }
+                    "name": user_dict["name"],
+                },
             )
-            refresh_token = create_refresh_token(
-                identity=str(user_dict["id"])
-            )
+            refresh_token = create_refresh_token(identity=str(user_dict["id"]))
 
-            return jsonify({
-                "access_token": access_token,
-                "refresh_token": refresh_token,
-                "user": user_dict
-            }), 200
+            return (
+                jsonify(
+                    {
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "user": user_dict,
+                    }
+                ),
+                200,
+            )
         else:
-            return jsonify({
-                "msg": "Invalid credentials",
-                "error": "authentication_failed"
-            }), 401
+            return (
+                jsonify(
+                    {"msg": "Invalid credentials", "error": "authentication_failed"}
+                ),
+                401,
+            )
 
     except Exception as e:
         sentry_sdk.capture_exception(e)
-        return jsonify({
-            "msg": "Login failed",
-            "error": str(e)
-        }), 500
+        return jsonify({"msg": "Login failed", "error": str(e)}), 500
 
 
 @user_bp.route("/<int:user_id>", methods=["GET"])
@@ -103,7 +101,7 @@ def login():
 def get_user_admin(user_id: int):
     user_id_from_tokens, _, error, code = process_request(type_of_request="GET")
 
-    if user_id_from_tokens != user_id:
+    if int(user_id_from_tokens) != user_id:
         return jsonify({"error": "Unauthorized, cannot access this user"}), 403
 
     if error:
@@ -136,7 +134,7 @@ def update_user_route(user_id: int):
     if error:
         return error, code
 
-    if user_id_from_tokens != user_id:
+    if int(user_id_from_tokens) != user_id:
         return jsonify({"error": "Unauthorized, cannot update this user"}), 403
 
     try:
@@ -163,8 +161,7 @@ def delete_user_route(user_id: int):
 
     if error:
         return error, code
-
-    if user_id_from_tokens != user_id:
+    if int(user_id_from_tokens) != user_id:
         return jsonify({"error": "Unauthorized"}), 403
     success = delete_user(user_id)
     # To do: revoke token and check it in all code
