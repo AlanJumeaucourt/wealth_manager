@@ -1,7 +1,9 @@
 import os
 import sqlite3
-from typing import Optional, Union, List, Dict, Any
 from enum import Enum
+from typing import Any
+
+from .exceptions import NoResultFoundError, QueryExecutionError
 
 
 class QueryType(Enum):
@@ -31,8 +33,7 @@ class DatabaseManager:
             os.chmod(self.db_dir, 0o777)
 
     def connect_to_database(self):
-        """
-        Establish a connection to the SQLite database.
+        """Establish a connection to the SQLite database.
 
         :return: A connection object to the SQLite database.
         """
@@ -53,15 +54,15 @@ class DatabaseManager:
             raise
 
     def execute_select(
-        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
-    ) -> List[Dict[str, Any]]:
+        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
+    ) -> list[dict[str, Any]]:
         result = self.__execute_raw_sql(query, QueryType.SELECT, params)
         if not result:
             raise NoResultFoundError("No result found for select query", query, params)
         return result
 
     def execute_insert(
-        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
+        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
     ) -> int:
         result = self.__execute_raw_sql(query, QueryType.INSERT, params)
         if not result:
@@ -69,8 +70,8 @@ class DatabaseManager:
         return result
 
     def execute_insert_returning(
-        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
-    ) -> Dict[str, Any]:
+        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
+    ) -> dict[str, Any]:
         result = self.__execute_raw_sql(query, QueryType.INSERT_RETURNING, params)
         if not result:
             raise NoResultFoundError(
@@ -79,7 +80,7 @@ class DatabaseManager:
         return result
 
     def execute_update(
-        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
+        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
     ) -> int:
         result = self.__execute_raw_sql(query, QueryType.UPDATE, params)
         if not result:
@@ -87,8 +88,8 @@ class DatabaseManager:
         return result
 
     def execute_update_returning(
-        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
-    ) -> Dict[str, Any]:
+        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
+    ) -> dict[str, Any]:
         result = self.__execute_raw_sql(query, QueryType.UPDATE_RETURNING, params)
         if not result:
             raise NoResultFoundError(
@@ -97,7 +98,7 @@ class DatabaseManager:
         return result
 
     def execute_delete(
-        self, query: str, params: Optional[Union[tuple[Any, ...], list[Any]]] = None
+        self, query: str, params: tuple[Any, ...] | list[Any] | None = None
     ) -> bool:
         result = self.__execute_raw_sql(query, QueryType.DELETE, params)
         if not result:
@@ -108,10 +109,9 @@ class DatabaseManager:
         self,
         query: str,
         query_type: QueryType,
-        params: Optional[Union[tuple[Any, ...], list[Any]]] = None,
+        params: tuple[Any, ...] | list[Any] | None = None,
     ) -> Any:
-        """
-        Execute a raw SQL query and return the results.
+        """Execute a raw SQL query and return the results.
 
         :param query: The SQL query to execute.
         :param params: Optional parameters for the SQL query.
@@ -132,25 +132,25 @@ class DatabaseManager:
                     results = cursor.fetchall()
                     return [dict(row) for row in results]
 
-                elif query_type == QueryType.INSERT:
+                if query_type == QueryType.INSERT:
                     connection.commit()
                     return cursor.lastrowid
 
-                elif query_type == QueryType.INSERT_RETURNING:
+                if query_type == QueryType.INSERT_RETURNING:
                     result = cursor.fetchall()
                     connection.commit()
                     return dict(result[0])
 
-                elif query_type == QueryType.UPDATE:
+                if query_type == QueryType.UPDATE:
                     connection.commit()
                     return cursor.lastrowid
 
-                elif query_type == QueryType.UPDATE_RETURNING:
+                if query_type == QueryType.UPDATE_RETURNING:
                     result = cursor.fetchall()
                     connection.commit()
                     return dict(result[0])
 
-                elif query_type == QueryType.DELETE:
+                if query_type == QueryType.DELETE:
                     connection.commit()
                     return True
 
@@ -162,9 +162,7 @@ class DatabaseManager:
                 cursor.close()
 
     def create_tables(self):
-        """
-        Create the necessary tables, views, triggers and indexes in the database if they do not exist.
-        """
+        """Create the necessary tables, views, triggers and indexes in the database if they do not exist."""
         tables = [
             """--sql
                 CREATE TABLE IF NOT EXISTS users (
@@ -188,7 +186,9 @@ class DatabaseManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
-                    type TEXT NOT NULL CHECK (type IN ('investment', 'income', 'expense', 'checking', 'savings')),
+                    type TEXT NOT NULL CHECK (type IN (
+                        'investment', 'income', 'expense', 'checking', 'savings'
+                    )),
                     bank_id INTEGER NOT NULL,
                     UNIQUE(user_id, bank_id, name),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -207,7 +207,9 @@ class DatabaseManager:
                     to_account_id INTEGER NOT NULL,
                     category TEXT NOT NULL,
                     subcategory TEXT,
-                    type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'transfer')),
+                    type TEXT NOT NULL CHECK (type IN (
+                        'expense', 'income', 'transfer'
+                    )),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (from_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
                     FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE
@@ -230,7 +232,9 @@ class DatabaseManager:
                     from_account_id INTEGER NOT NULL,
                     to_account_id INTEGER NOT NULL,
                     asset_id INTEGER NOT NULL,
-                    activity_type TEXT NOT NULL CHECK (activity_type IN ('buy', 'sell', 'deposit', 'withdrawal')),
+                    activity_type TEXT NOT NULL CHECK (activity_type IN (
+                        'buy', 'sell', 'deposit', 'withdrawal'
+                    )),
                     date TIMESTAMP NOT NULL,
                     quantity DECIMAL(10,6) NOT NULL,
                     unit_price DECIMAL(10,2) NOT NULL,
@@ -321,7 +325,9 @@ class DatabaseManager:
                     CASE
                         -- Validate income transactions
                         WHEN NEW.type = 'income' AND (
-                            (SELECT to_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
+                            (SELECT to_type FROM account_types) NOT IN (
+                                'checking', 'savings', 'investment'
+                            )
                         ) THEN
                             RAISE(ABORT, 'Income cannot be received in this type of account')
                         WHEN NEW.type = 'income' AND (
@@ -331,7 +337,9 @@ class DatabaseManager:
 
                         -- Validate expense transactions
                         WHEN NEW.type = 'expense' AND (
-                            (SELECT from_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
+                            (SELECT from_type FROM account_types) NOT IN (
+                                'checking', 'savings', 'investment'
+                            )
                         ) THEN
                             RAISE(ABORT, 'Expenses cannot be paid from this type of account')
                         WHEN NEW.type = 'expense' AND (
@@ -341,11 +349,15 @@ class DatabaseManager:
 
                         -- Validate transfer transactions
                         WHEN NEW.type = 'transfer' AND (
-                            (SELECT from_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
+                            (SELECT from_type FROM account_types) NOT IN (
+                                'checking', 'savings', 'investment'
+                            )
                         ) THEN
                             RAISE(ABORT, 'Cannot transfer from this type of account')
                         WHEN NEW.type = 'transfer' AND (
-                            (SELECT to_type FROM account_types) NOT IN ('checking', 'savings', 'investment')
+                            (SELECT to_type FROM account_types) NOT IN (
+                                'checking', 'savings', 'investment'
+                            )
                         ) THEN
                             RAISE(ABORT, 'Cannot transfer to this type of account')
                     END;
@@ -573,8 +585,7 @@ class DatabaseManager:
                 cursor.close()
 
     def update_user_login(self, user_id: int, current_password: str):
-        """
-        Update user's last login time via trigger.
+        """Update user's last login time via trigger.
 
         :param user_id: The ID of the user who is logging in
         :param current_password: The user's current password (for trigger condition)
