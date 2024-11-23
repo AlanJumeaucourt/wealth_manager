@@ -1,9 +1,8 @@
-import time
 import unittest
 import requests
 from faker import Faker
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple, Union
 
 fake = Faker()
 
@@ -682,6 +681,143 @@ class TestTransactionAPI(TestBase):
                     response_data = response.json()
                     self.assertIsInstance(response_data.get("amount"), float)
                     self.assertEqual(response_data.get("amount"), case["amount"])
+
+    def test_transaction_description_validation(self):
+        """Test transaction description validation"""
+        url = f"{self.base_url}/transactions"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        test_cases = [
+            {"description": None, "expected_status": 422, "desc": "None description"},
+            {
+                "description": "Valid description",
+                "expected_status": 201,
+                "desc": "Valid description",
+            },
+        ]
+
+        base_data = {
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "amount": 100.00,
+            "from_account_id": self.accounts[0],
+            "to_account_id": self.accounts[1],
+            "type": "transfer",
+            "category": "Test",
+            "subcategory": "Test",
+        }
+
+        for case in test_cases:
+            with self.subTest(msg=f"Testing {case['desc']}"):
+                data = base_data.copy()
+                if case["description"] is not None:
+                    data["description"] = str(case["description"])
+
+                response = requests.post(url, headers=headers, json=data)
+                self.assertEqual(
+                    response.status_code,
+                    case["expected_status"],
+                    f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+                )
+
+    def test_transaction_account_validation(self):
+        """Test transaction account validation"""
+        url = f"{self.base_url}/transactions"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        test_cases = [
+            {
+                "from_account_id": None,
+                "to_account_id": self.accounts[1],
+                "expected_status": 422,
+                "desc": "Missing from_account",
+            },
+            {
+                "from_account_id": self.accounts[0],
+                "to_account_id": None,
+                "expected_status": 422,
+                "desc": "Missing to_account",
+            },
+            {
+                "from_account_id": 99999,
+                "to_account_id": self.accounts[1],
+                "expected_status": 422,
+                "desc": "Invalid from_account",
+            },
+            {
+                "from_account_id": self.accounts[0],
+                "to_account_id": 99999,
+                "expected_status": 422,
+                "desc": "Invalid to_account",
+            },
+            {
+                "from_account_id": self.accounts[0],
+                "to_account_id": self.accounts[0],
+                "expected_status": 422,
+                "desc": "Same account transfer",
+            },
+        ]
+
+        base_data = {
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "description": "Test transaction",
+            "amount": 100.00,
+            "type": "transfer",
+            "category": "Test",
+            "subcategory": "Test",
+        }
+
+        for case in test_cases:
+            with self.subTest(msg=f"Testing {case['desc']}"):
+                data = base_data.copy()
+                if case["from_account_id"] is not None:
+                    data["from_account_id"] = int(case["from_account_id"])
+                if case["to_account_id"] is not None:
+                    data["to_account_id"] = int(case["to_account_id"])
+
+                response = requests.post(url, headers=headers, json=data)
+                self.assertEqual(
+                    response.status_code,
+                    case["expected_status"],
+                    f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+                )
+
+    def test_transaction_type_validation(self):
+        """Test transaction type validation"""
+        url = f"{self.base_url}/transactions"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        test_cases = [
+            {"type": None, "expected_status": 422, "desc": "Missing type"},
+            {"type": "", "expected_status": 422, "desc": "Empty type"},
+            {"type": "invalid", "expected_status": 422, "desc": "Invalid type"},
+            {"type": "transfer", "expected_status": 201, "desc": "Valid transfer type"},
+        ]
+
+        base_data = {
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "description": "Test transaction",
+            "amount": 100.00,
+            "from_account_id": self.accounts[0],
+            "to_account_id": self.accounts[1],
+            "category": "Test",
+            "subcategory": "Test",
+        }
+
+        for case in test_cases:
+            with self.subTest(msg=f"Testing {case['desc']}"):
+                data = base_data.copy()
+                if case["type"] is not None:
+                    data["type"] = str(case["type"])
+
+                response = requests.post(url, headers=headers, json=data)
+                self.assertEqual(
+                    response.status_code,
+                    case["expected_status"],
+                    f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+                )
 
 
 class TestAccountAPI(TestBase):
