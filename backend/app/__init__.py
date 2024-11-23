@@ -5,7 +5,8 @@ import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 import logging
 from datetime import timedelta
-
+from app.database import DatabaseManager
+import os
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -26,17 +27,21 @@ sentry_sdk.init(
 
 
 def create_app():
+    db = DatabaseManager()
+    db.create_tables()
+
     app = Flask(__name__)
     app.url_map.strict_slashes = False  # Add this line
     CORS(app, resources={r"/*": {"origins": "*"}})
 
-    # Configure your JWT secret key
-    app.config["JWT_SECRET_KEY"] = (
-        "your_secret_key"  # Change this to a strong secret key
-    )
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
-        days=30
-    )  # Access token expiration
+    # JWT Configuration
+    app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "fallback-secret-key-for-development")
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(seconds=int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 3600)))
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(seconds=int(os.environ.get("JWT_REFRESH_TOKEN_EXPIRES", 2592000)))
+    app.config["JWT_TOKEN_LOCATION"] = ["headers"]
+    app.config["JWT_HEADER_NAME"] = "Authorization"
+    app.config["JWT_HEADER_TYPE"] = "Bearer"
+
     jwt = JWTManager(app)
 
     app.config["JSONIFY_MIMETYPE"] = "application/json"
@@ -78,16 +83,24 @@ def create_app():
     app.register_blueprint(account_asset_bp, url_prefix="/account_assets")
 
     @jwt.invalid_token_loader
-    def invalid_token_callback(error_string: str):
-        return jsonify({"msg": "Invalid token", "error": str(error_string)}), 401
+    def invalid_token_callback(error_string):
+        return jsonify({
+            "msg": "Invalid token",
+            "error": str(error_string)
+        }), 401
 
     @jwt.unauthorized_loader
-    def unauthorized_callback(error_string: str):
-        return (
-            jsonify(
-                {"msg": "Missing Authorization Header", "error": str(error_string)}
-            ),
-            401,
-        )
+    def unauthorized_callback(error_string):
+        return jsonify({
+            "msg": "Missing Authorization Header",
+            "error": str(error_string)
+        }), 401
+
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_data):
+        return jsonify({
+            "msg": "Token has expired",
+            "error": "token_expired"
+        }), 401
 
     return app

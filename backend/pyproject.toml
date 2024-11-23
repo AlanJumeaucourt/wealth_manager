@@ -1,0 +1,16 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "flask-cors>=5.0.0",
+    "flask>=3.1.0",
+    "flask-jwt-extended>=4.7.1",
+    "sentry-sdk>=2.19.0",
+    "marshmallow>=3.23.1",
+    "yfinance>=0.2.50",
+    "requests>=2.32.3",
+    "faker>=33.0.0",
+]

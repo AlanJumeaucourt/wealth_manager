@@ -1,0 +1,68 @@
+version: "3.8"
+
+services:
+  expo_app:
+    container_name: expo_app
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+    environment:
+      - NODE_ENV=development
+      - EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./frontend:/home:delegated
+      - /home/node_modules
+      - /home/appuser/.expo
+    user: "1001:1001"
+    restart: unless-stopped
+    networks:
+      - app-network
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+        - action: rebuild
+          path: ./pyproject.toml
+        - action: rebuild
+          path: ./uv.lock
+
+  flask_backend:
+    container_name: flask_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - sqlite_data:/app/instance
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - PYTHONUNBUFFERED=1
+      - JWT_SECRET_KEY=your-super-secret-key-change-this-in-production
+      - JWT_ACCESS_TOKEN_EXPIRES=3600
+      - JWT_REFRESH_TOKEN_EXPIRES=2592000
+    user: "1001:1001"
+    restart: unless-stopped
+    networks:
+      - app-network
+    env_file:
+      - ./backend/.env
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  sqlite_data:

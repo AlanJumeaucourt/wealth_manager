@@ -5,3 +5,4 @@
 nohup.out
 backend/app/wealthmanager.db
 node_modules
+.venv

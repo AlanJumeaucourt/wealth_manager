@@ -52,6 +52,7 @@ class WealthManagerAPI:
         response = self._make_request("POST", "/users/login", data)
         if "access_token" in response:
             self.jwt_token = response["access_token"]
+            print(f"Logged in with JWT token: {self.jwt_token}")
             return True
         return False
 
