@@ -3,11 +3,6 @@ import sqlite3
 from typing import Optional, Union, List, Dict, Any
 from enum import Enum
 
-if __name__ != "__main__":
-    from app.exceptions import QueryExecutionError, NoResultFoundError
-else:
-    from exceptions import QueryExecutionError, NoResultFoundError
-
 
 class QueryType(Enum):
     SELECT = "select"
@@ -184,6 +179,7 @@ class DatabaseManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
+                    UNIQUE(user_id, name),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 );
             """,
@@ -194,6 +190,7 @@ class DatabaseManager:
                     name TEXT NOT NULL,
                     type TEXT NOT NULL CHECK (type IN ('investment', 'income', 'expense', 'checking', 'savings')),
                     bank_id INTEGER NOT NULL,
+                    UNIQUE(user_id, bank_id, name),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE CASCADE
                 );
@@ -211,9 +208,9 @@ class DatabaseManager:
                     category TEXT NOT NULL,
                     subcategory TEXT,
                     type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'transfer')),
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                FOREIGN KEY (from_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
-                FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (from_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+                    FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE
                 );
             """,
             """--sql
@@ -253,7 +250,7 @@ class DatabaseManager:
                     account_id INTEGER NOT NULL,
                     asset_id INTEGER NOT NULL,
                     quantity DECIMAL(10,6) NOT NULL,
-                    UNIQUE(account_id, asset_id),
+                    UNIQUE(user_id, account_id, asset_id),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
                     FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
@@ -356,7 +353,7 @@ class DatabaseManager:
 
             """,
             """--sql
-                CREATE TRIGGER IF NOT EXISTS trg_calculate_total_paid_investment_transaction
+                CREATE TRIGGER IF NOT EXISTS trg_calculate_total_paid_investment_transaction_insert
                 AFTER INSERT ON investment_transactions
                 FOR EACH ROW
                 BEGIN
@@ -373,6 +370,165 @@ class DatabaseManager:
                     UPDATE investment_transactions
                     SET total_paid = (NEW.quantity * NEW.unit_price) + NEW.fee + NEW.tax
                     WHERE id = NEW.id;
+                END;
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_validate_account_bank_ownership_insert
+                BEFORE INSERT ON accounts
+                BEGIN
+                    SELECT CASE
+                        WHEN (
+                            SELECT user_id
+                            FROM banks
+                            WHERE id = NEW.bank_id
+                        ) != NEW.user_id
+                        THEN RAISE(ABORT, 'Cannot insert account with bank owned by different user')
+                    END;
+                END;
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_validate_account_bank_ownership_update
+                BEFORE UPDATE ON accounts
+                WHEN NEW.bank_id != OLD.bank_id
+                BEGIN
+                    SELECT CASE
+                        WHEN (
+                            SELECT user_id
+                            FROM banks
+                            WHERE id = NEW.bank_id
+                        ) != NEW.user_id
+                        THEN RAISE(ABORT, 'Cannot update account to use bank owned by different user')
+                    END;
+                END;
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_validate_transaction_account_ownership_insert
+                BEFORE INSERT ON transactions
+                BEGIN
+                    SELECT CASE
+                        WHEN (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.from_account_id
+                        ) != NEW.user_id OR
+                        (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.to_account_id
+                        ) != NEW.user_id
+                        THEN RAISE(ABORT, 'Cannot insert transaction with accounts owned by different user')
+                    END;
+                END;
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_validate_transaction_account_ownership_update
+                BEFORE UPDATE ON transactions
+                WHEN NEW.from_account_id != OLD.from_account_id OR NEW.to_account_id != OLD.to_account_id
+                BEGIN
+                    SELECT CASE
+                        WHEN (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.from_account_id
+                        ) != NEW.user_id OR
+                        (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.to_account_id
+                        ) != NEW.user_id
+                        THEN RAISE(ABORT, 'Cannot update transaction to use accounts owned by different user')
+                    END;
+                END;
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_validate_investment_transaction_ownership_insert
+                BEFORE INSERT ON investment_transactions
+                BEGIN
+                    SELECT CASE
+                        WHEN (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.from_account_id
+                        ) != NEW.user_id OR
+                        (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.to_account_id
+                        ) != NEW.user_id OR
+                        (
+                            SELECT user_id
+                            FROM assets
+                            WHERE id = NEW.asset_id
+                        ) != NEW.user_id
+                        THEN RAISE(ABORT, 'Cannot insert investment transaction with assets/accounts owned by different user')
+                    END;
+                END;
+
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_validate_investment_transaction_ownership_update
+                BEFORE UPDATE ON investment_transactions
+                WHEN NEW.from_account_id != OLD.from_account_id
+                    OR NEW.to_account_id != OLD.to_account_id
+                    OR NEW.asset_id != OLD.asset_id
+                BEGIN
+                    SELECT CASE
+                        WHEN (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.from_account_id
+                        ) != NEW.user_id OR
+                        (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.to_account_id
+                        ) != NEW.user_id OR
+                        (
+                            SELECT user_id
+                            FROM assets
+                            WHERE id = NEW.asset_id
+                        ) != NEW.user_id
+                        THEN RAISE(ABORT, 'Cannot update investment transaction to use assets/accounts owned by different user')
+                    END;
+                END;
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_validate_account_asset_ownership_insert
+                BEFORE INSERT ON account_assets
+                BEGIN
+                    SELECT CASE
+                        WHEN (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.account_id
+                        ) != NEW.user_id OR
+                        (
+                            SELECT user_id
+                            FROM assets
+                            WHERE id = NEW.asset_id
+                        ) != NEW.user_id
+                        THEN RAISE(ABORT, 'Cannot insert account asset with account/asset owned by different user')
+                    END;
+                END;
+            """,
+            """--sql
+                CREATE TRIGGER IF NOT EXISTS trg_validate_account_asset_ownership_update
+                BEFORE UPDATE ON account_assets
+                WHEN NEW.account_id != OLD.account_id OR NEW.asset_id != OLD.asset_id
+                BEGIN
+                    SELECT CASE
+                        WHEN (
+                            SELECT user_id
+                            FROM accounts
+                            WHERE id = NEW.account_id
+                        ) != NEW.user_id OR
+                        (
+                            SELECT user_id
+                            FROM assets
+                            WHERE id = NEW.asset_id
+                        ) != NEW.user_id
+                        THEN RAISE(ABORT, 'Cannot update account asset to use account/asset owned by different user')
+                    END;
                 END;
             """,
         ]

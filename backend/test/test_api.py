@@ -2,7 +2,7 @@ import unittest
 import requests
 from faker import Faker
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union, Any, TypedDict, cast
+from typing import Dict, List, Optional, Tuple, Union, Any, TypedDict, cast, Literal
 import time
 
 fake = Faker()
@@ -18,7 +18,7 @@ BankProvider = DynamicProvider(
         "HSBC",
         "Chase",
         "Bank of America",
-        "HSBC",
+        "Goldman Sachs",
     ],
 )
 
@@ -41,6 +41,18 @@ TransactionData = TypedDict(
         "subcategory": Optional[str],
     },
 )
+
+AccountData = TypedDict(
+    "AccountData",
+    {
+        "name": str,
+        "type": str,
+        "bank_id": int,
+    },
+)
+
+# Add new type alias for account types
+AccountType = Literal["checking", "savings", "investment", "expense", "income"]
 
 
 class TestBase(unittest.TestCase):
@@ -165,11 +177,16 @@ class TestDataFactory:
         self.base_url = base_url
         self.headers = {"Authorization": f"Bearer {jwt_token}"}
 
-    def create_bank(self, name: str) -> int:
+    def create_bank(self, name: Optional[str] = None) -> int:
+        """Create a bank with a unique name"""
+        bank_name = name if name else f"{fake.bank_name()} {fake.uuid4()}"
         response = requests.post(
-            f"{self.base_url}/banks/", headers=self.headers, json={"name": name}
+            f"{self.base_url}/banks/",
+            headers=self.headers,
+            json={"name": bank_name}
         )
-        assert response.status_code == 201
+        if response.status_code != 201:
+            raise Exception(f"Failed to create bank: {response.json()}")
         return cast(int, response.json()["id"])
 
     def create_account(self, name: str, acc_type: str, bank_id: int) -> int:
@@ -354,10 +371,10 @@ class TestBankAPI(TestBase):
     jwt_token = None
 
     def setUp(self):
-        self.name: str = fake.name()
-        self.email: str = fake.email()
-        self.password: str = fake.password()
-        self.bank_name: str = fake.company()
+        self.name = fake.name()
+        self.email = fake.email()
+        self.password = fake.password()
+        self.bank_name = f"{fake.bank_name()} {fake.uuid4()}"
         self.create_user()
         self.login_user()
 
@@ -410,7 +427,8 @@ class TestBankAPI(TestBase):
         faulty_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
         self.delete_bank_with_faulty_token(faulty_token, bank_id)
 
-    def create_bank(self):
+    def create_bank(self) -> int:
+        """Create a bank with a unique name"""
         url = f"{self.base_url}/banks/"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
         data = {"name": self.bank_name}
@@ -431,7 +449,7 @@ class TestBankAPI(TestBase):
     def update_bank(self, bank_id: int):
         url = f"{self.base_url}/banks/{bank_id}"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        new_bank_name = fake.company()
+        new_bank_name = fake.bank_name()
         data = {"name": new_bank_name}
         response = requests.put(url, headers=headers, json=data)
         self.assertEqual(response.status_code, 200)
@@ -462,7 +480,7 @@ class TestBankAPI(TestBase):
     def update_bank_with_faulty_token(self, faulty_token: str, bank_id: int):
         url = f"{self.base_url}/banks/{bank_id}"
         headers = {"Authorization": f"Bearer {faulty_token}"}
-        new_bank_name = fake.company()
+        new_bank_name = fake.bank_name()
         data = {"name": new_bank_name}
         response = requests.put(url, headers=headers, json=data)
         self.assertEqual(response.status_code, 401)
@@ -478,6 +496,7 @@ class TestBankAPI(TestBase):
 
 class TestTransactionAPI(TestBase):
     jwt_token = None
+    accounts: List[AccountId] = []  # Type annotation for accounts list
 
     def setUp(self) -> None:
         self.name = fake.name()
@@ -485,9 +504,6 @@ class TestTransactionAPI(TestBase):
         self.password = fake.password()
         self.create_user_and_login()
         self.setup_accounts()
-        self.test_data = TestDataFactory(self.base_url, cast(str, self.jwt_token))
-        self.bank_id = self.test_data.create_bank(fake.bank_name())
-        self.accounts = self.create_test_accounts(self.bank_id, ["checking", "savings"])
 
     def create_user_and_login(self) -> None:
         data = {"name": self.name, "email": self.email, "password": self.password}
@@ -496,26 +512,29 @@ class TestTransactionAPI(TestBase):
         self.jwt_token = token
 
     def setup_accounts(self) -> None:
+        """Set up test accounts with unique names"""
         # Create a bank
         url = f"{self.base_url}/banks/"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        data = {"name": fake.bank_name()}
+        bank_name = f"{fake.bank_name()} {fake.uuid4()}"
+        data = {"name": bank_name}
         response = requests.post(url, headers=headers, json=data)
         self.assertEqual(response.status_code, 201)
         self.bank_id = response.json()["id"]
 
-        # Create two accounts
+        # Create accounts
         url = f"{self.base_url}/accounts"
-        self.accounts: List[int] = []
+        self.accounts = []
         for acc_type in ["checking", "savings"]:
-            data = {
-                "name": f"Test {acc_type.capitalize()}",
+            account_name = f"Test {acc_type.capitalize()} {fake.uuid4()}"
+            data: AccountData = {
+                "name": account_name,
                 "type": acc_type,
                 "bank_id": self.bank_id,
             }
             response = requests.post(url, headers=headers, json=data)
             self.assertEqual(response.status_code, 201)
-            self.accounts.append(response.json()["id"])
+            self.accounts.append(cast(AccountId, response.json()["id"]))
 
     def test_create_transaction(self):
         url = f"{self.base_url}/transactions"
@@ -814,9 +833,8 @@ class TestTransactionAPI(TestBase):
         url = f"{self.base_url}/transactions"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
-        # Add a small delay between requests for the dev server
-        # can be set to 0 for production wsgi server
-        REQUEST_DELAY = 0.05  # 100ms delay
+        # Add delay between requests
+        REQUEST_DELAY = 0.1  # 100ms delay
 
         test_cases = [
             {
@@ -839,20 +857,6 @@ class TestTransactionAPI(TestBase):
                 "expected_status": 201,
                 "desc": "Valid type - transfer",
             },
-            {
-                "type": "income",
-                "expected_status": 201,
-                "desc": "Valid type - income",
-                "from_account_type": "income",  # Add account type for income transaction
-                "to_account_type": "checking",  # Income must go to checking/savings
-            },
-            {
-                "type": "expense",
-                "expected_status": 201,
-                "desc": "Valid type - expense",
-                "from_account_type": "checking",  # Expense must come from checking/savings
-                "to_account_type": "expense",  # Must go to expense account
-            },
         ]
 
         base_data = {
@@ -864,63 +868,66 @@ class TestTransactionAPI(TestBase):
             "subcategory": "Test",
         }
 
+        # Create accounts for specific transaction types
+        account_types = {
+            "checking": None,
+            "savings": None,
+            "income": None,
+            "expense": None,
+        }
+
+        for acc_type in account_types:
+            account_name = f"Test {acc_type.capitalize()} {fake.uuid4()}"
+            data: AccountData = {
+                "name": account_name,
+                "type": acc_type,
+                "bank_id": self.bank_id,
+            }
+            time.sleep(REQUEST_DELAY)  # Add delay before account creation
+            response = requests.post(
+                f"{self.base_url}/accounts",
+                headers=headers,
+                json=data
+            )
+            self.assertEqual(response.status_code, 201,
+                f"Failed to create {acc_type} account: {response.json()}")
+            account_types[acc_type] = cast(AccountId, response.json()["id"])
+
+        # Add test cases for income and expense
+        test_cases.extend([
+            {
+                "type": "income",
+                "expected_status": 201,
+                "desc": "Valid type - income",
+                "from_account_id": account_types["income"],
+                "to_account_id": account_types["checking"],
+            },
+            {
+                "type": "expense",
+                "expected_status": 201,
+                "desc": "Valid type - expense",
+                "from_account_id": account_types["checking"],
+                "to_account_id": account_types["expense"],
+            },
+        ])
+
         for case in test_cases:
-            with self.subTest(msg=f"Testing {case['desc']}"):
-                # Add delay before each test case
-                time.sleep(REQUEST_DELAY)
-
-                # Create appropriate accounts for this test case if needed
-                from_account_id = self.accounts[0]
-                to_account_id = self.accounts[1]
-
-                # For income/expense tests, create specific account types
-                if "from_account_type" in case:
-                    time.sleep(REQUEST_DELAY)  # Add delay before account creation
-                    response = requests.post(
-                        f"{self.base_url}/accounts",
-                        headers=headers,
-                        json={
-                            "name": f"Test {case['from_account_type']} Account",
-                            "type": case["from_account_type"],
-                            "bank_id": self.bank_id,
-                        },
-                    )
-                    if response.status_code != 201:
-                        print(f"Failed to create from_account: {response.json()}")
-                        self.fail(f"Could not create from_account: {response.json()}")
-                    from_account_id = response.json()["id"]
-
-                if "to_account_type" in case:
-                    time.sleep(REQUEST_DELAY)  # Add delay before account creation
-                    response = requests.post(
-                        f"{self.base_url}/accounts",
-                        headers=headers,
-                        json={
-                            "name": f"Test {case['to_account_type']} Account",
-                            "type": case["to_account_type"],
-                            "bank_id": self.bank_id,
-                        },
-                    )
-                    if response.status_code != 201:
-                        print(f"Failed to create to_account: {response.json()}")
-                        self.fail(f"Could not create to_account: {response.json()}")
-                    to_account_id = response.json()["id"]
-
-                # Add delay before transaction creation
-                time.sleep(REQUEST_DELAY)
-
+            with self.subTest(msg=case["desc"]):
                 data = base_data.copy()
                 if case["type"] is not None:
                     data["type"] = case["type"]
-                data["from_account_id"] = from_account_id
-                data["to_account_id"] = to_account_id
 
+                # Use specific accounts for income/expense if provided
+                data["from_account_id"] = case.get("from_account_id", self.accounts[0])
+                data["to_account_id"] = case.get("to_account_id", self.accounts[1])
+
+                time.sleep(REQUEST_DELAY)  # Add delay before transaction creation
                 response = requests.post(url, headers=headers, json=data)
                 try:
                     self.assertEqual(
                         response.status_code,
                         case["expected_status"],
-                        f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+                        f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}. Response: {response.json()}",
                     )
                 except AssertionError:
                     print(f"\nTest case: {case['desc']}")
@@ -1031,7 +1038,8 @@ class TestTransactionAPI(TestBase):
 
 
 class TestAccountAPI(TestBase):
-    jwt_token = None
+    jwt_token: Optional[str] = None
+    accounts: List[AccountId] = []  # Type annotation for accounts list
 
     def setUp(self):
         self.name = fake.name()
@@ -1054,43 +1062,47 @@ class TestAccountAPI(TestBase):
         self.assertEqual(response.status_code, 201)
         self.bank_id = response.json()["id"]
 
-    def test_create_account_types(self):
+    def create_account(self, acc_type: str, bank_id: int) -> AccountId:
+        """Create an account with a unique name"""
         url = f"{self.base_url}/accounts"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
+        account_name = f"Test {acc_type.capitalize()} {fake.uuid4()}"
+        data: AccountData = {
+            "name": account_name,
+            "type": acc_type,
+            "bank_id": bank_id,
+        }
+        response = requests.post(url, headers=headers, json=data)
+        self.assertEqual(response.status_code, 201)
+        return cast(AccountId, response.json()["id"])
 
-        # Test creating different types of accounts
+    def test_create_account_types(self):
+        """Test creating different types of accounts"""
         account_types = ["checking", "savings", "investment", "expense", "income"]
         for acc_type in account_types:
-            data = {
-                "name": f"Test {acc_type.capitalize()}",
-                "type": acc_type,
-                "bank_id": self.bank_id,
-            }
-            response = requests.post(url, headers=headers, json=data)
-            self.assertEqual(response.status_code, 201)
-            account = response.json()
-            self.assertEqual(account["type"], acc_type)
+            account_id = self.create_account(acc_type, self.bank_id)
+            self.accounts.append(account_id)
+
+            # Verify account was created correctly
+            url = f"{self.base_url}/accounts/{account_id}"
+            headers = {"Authorization": f"Bearer {self.jwt_token}"}
+            response = requests.get(url, headers=headers)
+            self.assertEqual(response.status_code, 200)
+            account_data = response.json()
+            self.assertIn("type", account_data)
+            self.assertEqual(account_data["type"], acc_type)
 
     def test_get_account_balance(self):
-        # Create an account and some transactions
-        url = f"{self.base_url}/accounts"
-        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+        """Test getting account balance"""
+        # Create two accounts with unique names
+        accounts: List[AccountId] = []
+        for acc_type in ["checking", "savings"]:
+            account_id = self.create_account(acc_type, self.bank_id)
+            accounts.append(account_id)
 
-        # Create two accounts
-        accounts = []
-        for i in range(2):
-            data = {
-                "name": f"Test Account {i}",
-                "type": "checking",
-                "bank_id": self.bank_id,
-            }
-            response = requests.post(url, headers=headers, json=data)
-            self.assertEqual(response.status_code, 201)
-            accounts.append(response.json()["id"])
-
-        # Create some transactions
+        # Create a transaction
         transaction_url = f"{self.base_url}/transactions"
-        transaction_data = {
+        transaction_data: TransactionData = {
             "date": datetime.now().isoformat(),
             "date_accountability": datetime.now().isoformat(),
             "description": "Test transaction",
@@ -1099,30 +1111,34 @@ class TestAccountAPI(TestBase):
             "to_account_id": accounts[1],
             "type": "transfer",
             "category": "transfer",
+            "subcategory": None,
         }
         response = requests.post(
-            transaction_url, headers=headers, json=transaction_data
+            transaction_url, headers={"Authorization": f"Bearer {self.jwt_token}"}, json=transaction_data
         )
         self.assertEqual(response.status_code, 201)
 
-        # Get account balance
-        response = requests.get(f"{url}/{accounts[0]}", headers=headers)
+        # Check account balance
+        url = f"{self.base_url}/accounts/{accounts[0]}"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+        response = requests.get(url, headers=headers)
         self.assertEqual(response.status_code, 200)
         account = response.json()
         self.assertIn("balance", account)
 
     def test_get_wealth_summary(self):
-        # Create accounts and transactions first
-        self.test_get_account_balance()
+        """Test getting wealth summary"""
+        # Create accounts first
+        for acc_type in ["checking", "savings", "investment"]:
+            account_id = self.create_account(acc_type, self.bank_id)
+            self.accounts.append(account_id)
 
         url = f"{self.base_url}/accounts/wealth"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
-
         response = requests.get(url, headers=headers)
         self.assertEqual(response.status_code, 200)
         data = response.json()
 
-        # Check for required fields in wealth summary
         required_fields = [
             "total_balance",
             "checking_balance",
@@ -1149,10 +1165,11 @@ class TestValidation(TestBase):
         self.jwt_token = token
 
     def setup_test_data(self):
-        # Create a bank
+        """Set up test data with unique bank name"""
         url = f"{self.base_url}/banks/"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        data = {"name": fake.bank_name()}
+        bank_name = f"{fake.bank_name()} {fake.uuid4()}"
+        data = {"name": bank_name}
         response = requests.post(url, headers=headers, json=data)
         self.assertEqual(response.status_code, 201)
         self.bank_id = response.json()["id"]
