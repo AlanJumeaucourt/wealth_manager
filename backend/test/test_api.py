@@ -627,6 +627,62 @@ class TestTransactionAPI(TestBase):
             self.assertIn("date", transaction)
             self.assertIn("date_accountability", transaction)
 
+    def test_transaction_amount_validation(self):
+        """Test transaction amount validation"""
+        url = f"{self.base_url}/transactions"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        # Define test cases with expected status codes
+        test_cases = [
+            {"amount": -100.00, "expected_status": 422, "desc": "Negative amount"},
+            {"amount": 0.00, "expected_status": 422, "desc": "Zero amount"},
+            {"amount": "invalid", "expected_status": 422, "desc": "Invalid string"},
+            {"amount": "", "expected_status": 422, "desc": "Empty string"},
+            {"amount": None, "expected_status": 422, "desc": "None value"},
+            {
+                "amount": 100.00,
+                "expected_status": 201,
+                "desc": "Valid amount",
+            },  # Valid case
+        ]
+
+        base_data = {
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "description": "Test transaction",
+            "from_account_id": self.accounts[0],
+            "to_account_id": self.accounts[1],
+            "type": "transfer",
+            "category": "Test",
+            "subcategory": "Test",
+        }
+
+        for case in test_cases:
+            with self.subTest(msg=f"Testing {case['desc']}"):
+                data = base_data.copy()
+                # Cast amount to appropriate type for request
+                if case["amount"] is not None:
+                    data["amount"] = (
+                        float(case["amount"])
+                        if isinstance(case["amount"], (int, float))
+                        else case["amount"]
+                    )
+                else:
+                    data["amount"] = None
+
+                response = requests.post(url, headers=headers, json=data)
+                self.assertEqual(
+                    response.status_code,
+                    case["expected_status"],
+                    f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+                )
+
+                # Additional validation for successful cases
+                if case["expected_status"] == 201:
+                    response_data = response.json()
+                    self.assertIsInstance(response_data.get("amount"), float)
+                    self.assertEqual(response_data.get("amount"), case["amount"])
+
 
 class TestAccountAPI(TestBase):
     jwt_token = None

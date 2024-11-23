@@ -22,6 +22,10 @@ class TransactionService(BaseService):
         validate_date_format(data["date"])
         validate_date_format(data["date_accountability"])
 
+        # Validate amount is not negative
+        if not data.get("amount") or float(data["amount"]) < 0:
+            raise TransactionValidationError("Transaction amount cannot be negative")
+
         try:
             # Get account types
             query = """

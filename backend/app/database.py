@@ -205,7 +205,7 @@ class DatabaseManager:
                     date TIMESTAMP NOT NULL,
                     date_accountability TIMESTAMP NOT NULL,
                     description TEXT NOT NULL,
-                    amount DECIMAL(10,2) NOT NULL,
+                    amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
                     from_account_id INTEGER NOT NULL,
                     to_account_id INTEGER NOT NULL,
                     category TEXT NOT NULL,
