@@ -42,7 +42,7 @@ See our detailed [Mobile App Documentation](frontend/README.md) for complete fea
 - Node.js (v18 or higher)
 - npm or yarn
 - Expo CLI
-- Python 3.8+ (for backend)
+- Python 3.12+ (for backend)
 
 ## 🌐 Website
 
