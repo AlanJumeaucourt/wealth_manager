@@ -1,9 +1,10 @@
-from datetime import datetime
 import logging
-from typing import List, Dict, Any, Optional, TypedDict
-from app.models import InvestmentTransaction
+from datetime import datetime
+from typing import Any, TypedDict
+
 from app.database import DatabaseManager
 from app.exceptions import NoResultFoundError
+from app.models import InvestmentTransaction
 from app.services.base_service import BaseService
 from app.services.stock_service import StockService
 from app.services.transaction_service import TransactionService
@@ -18,7 +19,7 @@ class PerformanceDataPoint(TypedDict):
 
 
 class PortfolioPerformance(TypedDict):
-    performance_data: List[PerformanceDataPoint]
+    performance_data: list[PerformanceDataPoint]
 
 
 class HistoricalPrice(TypedDict):
@@ -34,8 +35,8 @@ class InvestmentService(BaseService):
         self.transaction_service = TransactionService()
 
     def get_portfolio_summary(
-        self, user_id: int, account_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        self, user_id: int, account_id: int | None = None
+    ) -> dict[str, Any]:
         """Get summary of current portfolio positions with average price and current market price."""
         query = """
         WITH position_summary AS (
@@ -160,7 +161,7 @@ class InvestmentService(BaseService):
 
     def get_asset_transactions(
         self, user_id: int, asset_symbol: str
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """Get all transactions for a specific asset."""
         query = """
         SELECT
@@ -264,10 +265,10 @@ class InvestmentService(BaseService):
                 }
 
             # Get unique symbols and track positions
-            positions: Dict[str, float] = {}  # symbol -> quantity
-            daily_positions: Dict[str, Dict[str, float]] = (
-                {}
-            )  # date -> {symbol -> quantity}
+            positions: dict[str, float] = {}  # symbol -> quantity
+            daily_positions: dict[
+                str, dict[str, float]
+            ] = {}  # date -> {symbol -> quantity}
             symbols = {str(t["asset_symbol"]) for t in transactions}
 
             # Calculate positions for each day based on transactions
@@ -288,7 +289,7 @@ class InvestmentService(BaseService):
                     daily_positions[date][symbol] = positions[symbol]
 
             # Get historical prices for all symbols
-            prices_by_symbol: Dict[str, Dict[str, float]] = {}
+            prices_by_symbol: dict[str, dict[str, float]] = {}
             for symbol in symbols:
                 try:
                     historical_data = self.stock_service.get_historical_prices(
@@ -322,7 +323,7 @@ class InvestmentService(BaseService):
             )
 
             # Calculate daily portfolio values
-            performance_data: List[PerformanceDataPoint] = []
+            performance_data: list[PerformanceDataPoint] = []
             current_positions = {symbol: 0.0 for symbol in symbols}
 
             for date in all_dates:
@@ -373,7 +374,7 @@ class InvestmentService(BaseService):
                 ]
             }
 
-    def create(self, data: Dict[str, Any]) -> Optional[InvestmentTransaction]:
+    def create(self, data: dict[str, Any]) -> InvestmentTransaction | None:
         """Create investment transaction and associated transfer transaction if needed."""
         try:
             # Start transaction
@@ -406,7 +407,9 @@ class InvestmentService(BaseService):
                 quantity_change = (
                     data["quantity"]
                     if data["activity_type"] == "buy"
-                    else -data["quantity"] if data["activity_type"] == "sell" else 0
+                    else -data["quantity"]
+                    if data["activity_type"] == "sell"
+                    else 0
                 )
 
                 # First try to update existing record

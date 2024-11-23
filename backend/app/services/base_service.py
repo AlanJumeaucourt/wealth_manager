@@ -1,4 +1,5 @@
-from typing import Optional, List, Dict, Any
+from typing import Any
+
 from app.database import DatabaseManager
 from app.exceptions import NoResultFoundError, QueryExecutionError
 
@@ -9,7 +10,7 @@ class BaseService:
         self.table_name = table_name
         self.model_class = model_class
 
-    def create(self, data: Dict[str, Any]) -> Optional[Any]:
+    def create(self, data: dict[str, Any]) -> Any | None:
         try:
             columns = ", ".join(data.keys())
             placeholders = ", ".join(["?" for _ in data])
@@ -22,7 +23,7 @@ class BaseService:
             print(f"Error creating {self.table_name}: {e}")
             return None
 
-    def get_by_id(self, id: int, user_id: int) -> Optional[Any]:
+    def get_by_id(self, id: int, user_id: int) -> Any | None:
         try:
             query = f"SELECT * FROM {self.table_name} WHERE id = ? AND user_id = ?"
             result = self.db_manager.execute_select(query, (id, user_id))
@@ -33,9 +34,9 @@ class BaseService:
             print(f"Error getting {self.table_name}: {e}")
             return None
 
-    def update(self, id: int, user_id: int, data: Dict[str, Any]) -> Optional[Any]:
+    def update(self, id: int, user_id: int, data: dict[str, Any]) -> Any | None:
         try:
-            update_fields = [f"{key} = ?" for key in data.keys()]
+            update_fields = [f"{key} = ?" for key in data]
             query = f"UPDATE {self.table_name} SET {', '.join(update_fields)} WHERE id = ? AND user_id = ? RETURNING *"
             params = list(data.values()) + [id, user_id]
             result = self.db_manager.execute_update_returning(query, params)
@@ -58,12 +59,12 @@ class BaseService:
         user_id: int,
         page: int,
         per_page: int,
-        filters: Dict[str, Any],
-        sort_by: Optional[str],
-        sort_order: Optional[str],
-        fields: Optional[List[str]],
-        search: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any],
+        sort_by: str | None,
+        sort_order: str | None,
+        fields: list[str] | None,
+        search: str | None = None,
+    ) -> list[dict[str, Any]]:
         try:
             if fields:
                 fields = [

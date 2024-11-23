@@ -1,12 +1,14 @@
-from flask import Flask, request, jsonify
+import logging
+import os
+from datetime import timedelta
+
+import sentry_sdk
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
-import logging
-from datetime import timedelta
+
 from app.database import DatabaseManager
-import os
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -22,7 +24,7 @@ sentry_sdk.init(
     # We recommend adjusting this value in production.
     profiles_sample_rate=1.0,
     integrations=[FlaskIntegration()],
-    spotlight=bool(True),
+    spotlight=True,
 )
 
 
@@ -35,9 +37,15 @@ def create_app():
     CORS(app, resources={r"/*": {"origins": "*"}})
 
     # JWT Configuration
-    app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "fallback-secret-key-for-development")
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(seconds=int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 3600)))
-    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(seconds=int(os.environ.get("JWT_REFRESH_TOKEN_EXPIRES", 2592000)))
+    app.config["JWT_SECRET_KEY"] = os.environ.get(
+        "JWT_SECRET_KEY", "fallback-secret-key-for-development"
+    )
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
+        seconds=int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 3600))
+    )
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(
+        seconds=int(os.environ.get("JWT_REFRESH_TOKEN_EXPIRES", 2592000))
+    )
     app.config["JWT_TOKEN_LOCATION"] = ["headers"]
     app.config["JWT_HEADER_NAME"] = "Authorization"
     app.config["JWT_HEADER_TYPE"] = "Bearer"
@@ -58,15 +66,15 @@ def create_app():
         return response
 
     # import and register blueprints
-    from app.routes.user_routes import user_bp
+    from app.routes.account_asset_routes import account_asset_bp
     from app.routes.account_routes import account_bp
+    from app.routes.asset_routes import asset_bp
     from app.routes.bank_routes import bank_bp
-    from app.routes.transaction_routes import transaction_bp
     from app.routes.budget_routes import budget_bp
     from app.routes.investment_routes import investment_bp
     from app.routes.stock_routes import stock_bp
-    from app.routes.asset_routes import asset_bp
-    from app.routes.account_asset_routes import account_asset_bp
+    from app.routes.transaction_routes import transaction_bp
+    from app.routes.user_routes import user_bp
 
     app.register_blueprint(user_bp, url_prefix="/users")  # Register user routes
     app.register_blueprint(
@@ -84,23 +92,16 @@ def create_app():
 
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string):
-        return jsonify({
-            "msg": "Invalid token",
-            "error": str(error_string)
-        }), 401
+        return jsonify({"msg": "Invalid token", "error": str(error_string)}), 401
 
     @jwt.unauthorized_loader
     def unauthorized_callback(error_string):
-        return jsonify({
-            "msg": "Missing Authorization Header",
-            "error": str(error_string)
-        }), 401
+        return jsonify(
+            {"msg": "Missing Authorization Header", "error": str(error_string)}
+        ), 401
 
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_data):
-        return jsonify({
-            "msg": "Token has expired",
-            "error": "token_expired"
-        }), 401
+        return jsonify({"msg": "Token has expired", "error": "token_expired"}), 401
 
     return app

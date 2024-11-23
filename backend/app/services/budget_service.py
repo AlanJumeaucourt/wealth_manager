@@ -1,6 +1,6 @@
-from app.database import DatabaseManager
 from collections import defaultdict
-from flask import jsonify
+
+from app.database import DatabaseManager
 from app.exceptions import NoResultFoundError
 
 db_manager = DatabaseManager()

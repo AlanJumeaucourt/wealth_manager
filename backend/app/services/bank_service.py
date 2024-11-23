@@ -1,5 +1,5 @@
-from app.services.base_service import BaseService
 from app.models import Bank
+from app.services.base_service import BaseService
 
 
 class BankService(BaseService):

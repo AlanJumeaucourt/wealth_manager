@@ -1,20 +1,22 @@
+from datetime import datetime
 from typing import Any
-from flask import Blueprint, request, jsonify
+
+import sentry_sdk
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required
 from marshmallow import ValidationError
+
+from app.exceptions import DuplicateUserError
+from app.routes.route_utils import process_request
 from app.schemas import UserSchema
 from app.services.user_service import (
-    create_user,
-    get_user_by_id,
-    update_user,
-    delete_user,
     authenticate_user,
+    create_user,
+    delete_user,
+    get_user_by_id,
     update_last_login,
+    update_user,
 )
-from app.routes.route_utils import process_request
-import sentry_sdk
-from flask_jwt_extended import jwt_required, create_access_token, create_refresh_token
-from app.exceptions import DuplicateUserError
-from datetime import datetime, timezone
 
 user_bp = Blueprint("user", __name__)
 user_schema = UserSchema()
@@ -27,7 +29,7 @@ def register():
 
     if not data:
         return jsonify({"error": "No data provided"}), 400
-    elif not all(field in data for field in required_fields):
+    if not all(field in data for field in required_fields):
         return (
             jsonify(
                 {"error": f"Missing required fields: {', '.join(required_fields)}"}
@@ -47,8 +49,7 @@ def register():
         if user:
             sentry_sdk.set_user({"id": f"{user.id}"})
             return jsonify(user.__dict__), 201
-        else:
-            return jsonify({"error": "Failed to create user"}), 500
+        return jsonify({"error": "Failed to create user"}), 500
     except DuplicateUserError as e:
         return jsonify({"error": str(e)}), 422
 
@@ -83,13 +84,10 @@ def login():
                 ),
                 200,
             )
-        else:
-            return (
-                jsonify(
-                    {"msg": "Invalid credentials", "error": "authentication_failed"}
-                ),
-                401,
-            )
+        return (
+            jsonify({"msg": "Invalid credentials", "error": "authentication_failed"}),
+            401,
+        )
 
     except Exception as e:
         sentry_sdk.capture_exception(e)
@@ -150,8 +148,7 @@ def update_user_route(user_id: int):
     )
     if user:
         return jsonify(user.__dict__)
-    else:
-        return jsonify({"error": "Failed to update user"}), 500
+    return jsonify({"error": "Failed to update user"}), 500
 
 
 @user_bp.route("/<int:user_id>", methods=["DELETE"])

@@ -1,8 +1,9 @@
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
+
 from app.routes.base_routes import BaseRoutes
-from app.services.investment_service import InvestmentService
 from app.schemas import InvestmentTransactionSchema
+from app.services.investment_service import InvestmentService
 
 investment_service = InvestmentService()
 investment_routes = BaseRoutes(

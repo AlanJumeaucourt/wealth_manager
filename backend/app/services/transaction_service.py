@@ -1,13 +1,13 @@
-from app.services.base_service import BaseService
+from typing import Any, TypedDict
+
+from app.exceptions import TransactionValidationError
 from app.models import Transaction
-from app.exceptions import NoResultFoundError, TransactionValidationError
-from typing import Dict, Any, Optional, List, TypedDict, Union
-from datetime import datetime
 from app.routes.base_routes import validate_date_format
+from app.services.base_service import BaseService
 
 
 class TransactionData(TypedDict):
-    transactions: List[Dict[str, Any]]
+    transactions: list[dict[str, Any]]
     total_amount: float
     count: int
 
@@ -16,7 +16,7 @@ class TransactionService(BaseService):
     def __init__(self):
         super().__init__("transactions", Transaction)
 
-    def validate_transaction(self, data: Dict[str, Any]) -> None:
+    def validate_transaction(self, data: dict[str, Any]) -> None:
         """Validate transaction data based on account types and transaction type."""
         # First validate dates
         validate_date_format(data["date"])
@@ -89,9 +89,9 @@ class TransactionService(BaseService):
         except TransactionValidationError:
             raise
         except Exception as e:
-            raise TransactionValidationError(f"Validation error: {str(e)}")
+            raise TransactionValidationError(f"Validation error: {e!s}")
 
-    def create(self, data: Dict[str, Any]) -> Optional[Transaction]:
+    def create(self, data: dict[str, Any]) -> Transaction | None:
         """Create a transaction with validation."""
         # Validate transaction
         self.validate_transaction(data)
@@ -102,11 +102,11 @@ class TransactionService(BaseService):
         user_id: int,
         page: int,
         per_page: int,
-        filters: Dict[str, Any],
-        sort_by: Optional[str] = None,
-        sort_order: Optional[str] = None,
-        fields: Optional[List[str]] = None,
-        search: Optional[str] = None,
+        filters: dict[str, Any],
+        sort_by: str | None = None,
+        sort_order: str | None = None,
+        fields: list[str] | None = None,
+        search: str | None = None,
     ) -> TransactionData:
         """Get all transactions with filtering and pagination."""
         if fields:
@@ -119,20 +119,18 @@ class TransactionService(BaseService):
         # Base query for transactions
         query = f"SELECT {', '.join(fields)} FROM {self.table_name} WHERE user_id = ?"
         # Query for total amount
-        total_query = """
+        total_query = f"""
             SELECT
                 COALESCE(SUM(CASE WHEN type = 'expense' THEN -amount
                                 WHEN type = 'income' THEN amount
                                 ELSE 0 END), 0) as total_amount,
                 COUNT(*) as count
-            FROM {table_name}
+            FROM {self.table_name}
             WHERE user_id = ?
-        """.format(
-            table_name=self.table_name
-        )
+        """
 
-        params: List[Union[int, str]] = [user_id]
-        total_params: List[Union[int, str]] = [user_id]
+        params: list[int | str] = [user_id]
+        total_params: list[int | str] = [user_id]
 
         # Handle the account_id filter
         account_id = filters.get("account_id")

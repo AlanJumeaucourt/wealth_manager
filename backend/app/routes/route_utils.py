@@ -1,15 +1,15 @@
-from typing import Any, Optional, Literal
-from flask import jsonify, request, Response
-from flask_jwt_extended import get_jwt_identity
+from typing import Any, Literal
+
 import sentry_sdk
+from flask import Response, jsonify, request
+from flask_jwt_extended import get_jwt_identity
 
 
 def process_request(
-    required_fields: Optional[list[str]] = None,
+    required_fields: list[str] | None = None,
     type_of_request: Literal["GET", "POST", "PUT", "DELETE"] = "GET",
-) -> tuple[int, Optional[dict[str, Any]], Optional[Response], Optional[int]]:
-    """
-    Processes a request based on the specified type and required fields.
+) -> tuple[int, dict[str, Any] | None, Response | None, int | None]:
+    """Processes a request based on the specified type and required fields.
 
     This function handles the processing of incoming requests based on the request type (GET, POST, PUT, DELETE) and checks for required fields in the request data. It returns the user ID, processed data, an error response if any, and the error status code if any.
 
@@ -19,8 +19,8 @@ def process_request(
 
     Returns:
         tuple[int, Optional[dict[str, Any]], Optional[Response], Optional[int]]: A tuple containing the user ID, processed data, an error response if any, and the error status code if any.
-    """
 
+    """
     user_id = get_jwt_identity()
     sentry_sdk.set_user({"id": f"{user_id}"})
 

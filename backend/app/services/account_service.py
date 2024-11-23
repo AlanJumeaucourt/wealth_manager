@@ -1,16 +1,15 @@
-from unittest import result
-from app.services.base_service import BaseService
-from app.models import Account
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
+from typing import Any
+
 from app.exceptions import NoResultFoundError
+from app.models import Account
+from app.services.base_service import BaseService
 
 
 class AccountService(BaseService):
     def __init__(self):
         super().__init__("accounts", Account)
 
-    def get_by_id(self, id: int, user_id: int) -> Optional[Account]:
+    def get_by_id(self, id: int, user_id: int) -> Account | None:
         account = super().get_by_id(id, user_id)
         if account:
             account.balance = self.calculate_balance(id)
@@ -22,12 +21,12 @@ class AccountService(BaseService):
         user_id: int,
         page: int,
         per_page: int,
-        filters: Dict[str, Any],
-        sort_by: Optional[str],
-        sort_order: Optional[str],
-        fields: Optional[List[str]],
-        search: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any],
+        sort_by: str | None,
+        sort_order: str | None,
+        fields: list[str] | None,
+        search: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get all accounts with their current balances."""
         if fields:
             fields = [
@@ -87,7 +86,7 @@ class AccountService(BaseService):
 
     def sum_accounts_balances_over_days(
         self, user_id: int, start_date: str, end_date: str
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         query = """
             WITH RECURSIVE date_range AS (
                 -- Start the recursion with the minimum transaction date
@@ -141,7 +140,7 @@ class AccountService(BaseService):
             print("error in get_accounts_balance_over_days", e)
             return {}
 
-    def get_wealth(self, user_id: int) -> Dict[str, Any]:
+    def get_wealth(self, user_id: int) -> dict[str, Any]:
         query = """
         SELECT
             SUM(CASE WHEN type IN ('checking', 'savings', 'investment') THEN
@@ -193,7 +192,7 @@ class AccountService(BaseService):
             return {}
         return result[0] if result else {}
 
-    def get_account_balance(self, user_id: int, account_id: int) -> Dict[str, float]:
+    def get_account_balance(self, user_id: int, account_id: int) -> dict[str, float]:
         query = """
             WITH RECURSIVE date_range AS (
                 -- Start the recursion with the minimum transaction date

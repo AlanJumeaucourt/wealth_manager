@@ -1,12 +1,13 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from marshmallow import ValidationError
-from typing import Any, Dict, Optional, Tuple
-import sentry_sdk
 import json
-from datetime import datetime
 import re
+from datetime import datetime
 from logging import getLogger
+from typing import Any
+
+import sentry_sdk
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from marshmallow import ValidationError
 
 logger = getLogger(__name__)
 
@@ -53,11 +54,10 @@ class BaseRoutes:
         item = self.service.create(validated_data)
         if item:
             return jsonify(self.schema.dump(item)), 201
-        else:
-            return (
-                jsonify({"error": f"Failed to create {self.service.table_name}"}),
-                500,
-            )
+        return (
+            jsonify({"error": f"Failed to create {self.service.table_name}"}),
+            500,
+        )
 
     @jwt_required()
     def get(self, id: int):
@@ -68,8 +68,7 @@ class BaseRoutes:
             if hasattr(item, "date"):
                 item.date = datetime.fromisoformat(item.date.rstrip("Z"))
             return jsonify(self.schema.dump(item))
-        else:
-            return ("", 404)
+        return ("", 404)
 
     @jwt_required()
     def update(self, id: int):
@@ -90,11 +89,10 @@ class BaseRoutes:
             if hasattr(item, "date"):
                 item.date = datetime.fromisoformat(item.date.rstrip("Z"))
             return jsonify(self.schema.dump(item))
-        else:
-            return (
-                jsonify({"error": f"Failed to update {self.service.table_name}"}),
-                500,
-            )
+        return (
+            jsonify({"error": f"Failed to update {self.service.table_name}"}),
+            500,
+        )
 
     @jwt_required()
     def delete(self, id: int):
@@ -114,7 +112,7 @@ class BaseRoutes:
     def get_all(self):
         user_id = get_jwt_identity()
         sentry_sdk.set_user({"id": str(user_id)})
-        filters: Dict[str, Any] = {
+        filters: dict[str, Any] = {
             field: request.args.get(field)
             for field in self.schema.fields.keys()
             if field in request.args
@@ -141,9 +139,8 @@ class BaseRoutes:
         return jsonify(results)
 
 
-def validate_date_format(date_str: str) -> Tuple[bool, Optional[str]]:
-    """
-    Validate that the date string matches accepted formats:
+def validate_date_format(date_str: str) -> tuple[bool, str | None]:
+    """Validate that the date string matches accepted formats:
     - 'YYYY-MM-DDThh:mm:ss'
     - 'YYYY-MM-DDThh:mm:ss.mmmmmm' (isoformat with microseconds)
     - 'YYYY-MM-DD'
@@ -153,6 +150,7 @@ def validate_date_format(date_str: str) -> Tuple[bool, Optional[str]]:
 
     Returns:
         Tuple[bool, Optional[str]]: (is_valid, error_message)
+
     """
     if not date_str:
         return False, "Date string cannot be empty"
@@ -172,16 +170,15 @@ def validate_date_format(date_str: str) -> Tuple[bool, Optional[str]]:
             if re.match(full_datetime_pattern, date_str):
                 datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
                 return True, None
-            elif re.match(date_only_pattern, date_str):
+            if re.match(date_only_pattern, date_str):
                 datetime.strptime(date_str, "%Y-%m-%d")
                 return True, None
-            else:
-                return (
-                    False,
-                    "Date must be in format 'YYYY-MM-DD' or 'YYYY-MM-DDThh:mm:ss'",
-                )
+            return (
+                False,
+                "Date must be in format 'YYYY-MM-DD' or 'YYYY-MM-DDThh:mm:ss'",
+            )
 
     except ValueError as e:
-        return False, f"Invalid date values: {str(e)}"
+        return False, f"Invalid date values: {e!s}"
     except Exception as e:
-        return False, f"Invalid date values: {str(e)}"
+        return False, f"Invalid date values: {e!s}"

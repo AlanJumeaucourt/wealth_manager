@@ -1,7 +1,9 @@
-from flask import Blueprint, jsonify, request
-from app.services.stock_service import StockService
-from flask_jwt_extended import jwt_required
 from functools import wraps
+
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required
+
+from app.services.stock_service import StockService
 
 stock_bp = Blueprint("stock", __name__)
 stock_service = StockService()

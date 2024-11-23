@@ -1,9 +1,11 @@
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.routes.base_routes import BaseRoutes
-from app.services.account_service import AccountService
-from app.schemas import AccountSchema
 from datetime import datetime
+
+from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
+
+from app.routes.base_routes import BaseRoutes
+from app.schemas import AccountSchema
+from app.services.account_service import AccountService
 
 account_service = AccountService()
 account_routes = BaseRoutes("account", account_service, AccountSchema())

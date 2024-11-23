@@ -1,17 +1,17 @@
+from datetime import UTC, datetime
+
 from app.database import DatabaseManager
+from app.exceptions import DuplicateUserError, NoResultFoundError, QueryExecutionError
 from app.models import User
-from datetime import datetime, timezone
-from typing import Optional
-from app.exceptions import QueryExecutionError, NoResultFoundError, DuplicateUserError
 
 db_manager = DatabaseManager()
 
 
-def create_user(name: str, email: str, password: str) -> Optional[User]:
+def create_user(name: str, email: str, password: str) -> User | None:
     try:
         user = db_manager.execute_insert_returning(
             "INSERT INTO users (name, email, password, last_login) VALUES (?, ?, ?, ?) RETURNING *",
-            (name, email, password, datetime.now(timezone.utc)),
+            (name, email, password, datetime.now(UTC)),
         )
         return User(
             id=user["id"],
@@ -30,7 +30,7 @@ def create_user(name: str, email: str, password: str) -> Optional[User]:
         return None
 
 
-def get_user_by_id(user_id: int) -> Optional[User]:
+def get_user_by_id(user_id: int) -> User | None:
     try:
         result = db_manager.execute_select(
             "SELECT * FROM users WHERE id = ?", (user_id,)
@@ -63,12 +63,11 @@ def get_user_by_id(user_id: int) -> Optional[User]:
 
 def update_user(
     user_id: int,
-    name: Optional[str] = None,
-    email: Optional[str] = None,
-    password: Optional[str] = None,
-) -> Optional[User]:
+    name: str | None = None,
+    email: str | None = None,
+    password: str | None = None,
+) -> User | None:
     try:
-
         update_fields: list[str] = []
         params: list[str | int] = []
 
@@ -109,7 +108,7 @@ def delete_user(user_id: int) -> bool:
         return False
 
 
-def authenticate_user(email: str, password: str) -> Optional[User]:
+def authenticate_user(email: str, password: str) -> User | None:
     try:
         result = db_manager.execute_select(
             "SELECT * FROM users WHERE email = ? AND password = ?", (email, password)

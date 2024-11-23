@@ -1,9 +1,10 @@
+import time
 import unittest
+from datetime import datetime
+from typing import Any, Literal, TypedDict, cast
+
 import requests
 from faker import Faker
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union, Any, TypedDict, cast, Literal
-import time
 
 fake = Faker()
 
@@ -25,31 +26,27 @@ BankProvider = DynamicProvider(
 fake.add_provider(BankProvider)
 
 # Type aliases
-JsonDict = Dict[str, Any]
+JsonDict = dict[str, Any]
 AccountId = int
-TransactionData = TypedDict(
-    "TransactionData",
-    {
-        "date": str,
-        "date_accountability": str,
-        "description": str,
-        "amount": float,
-        "from_account_id": int,
-        "to_account_id": int,
-        "type": str,
-        "category": str,
-        "subcategory": Optional[str],
-    },
-)
 
-AccountData = TypedDict(
-    "AccountData",
-    {
-        "name": str,
-        "type": str,
-        "bank_id": int,
-    },
-)
+
+class TransactionData(TypedDict):
+    date: str
+    date_accountability: str
+    description: str
+    amount: float
+    from_account_id: int
+    to_account_id: int
+    type: str
+    category: str
+    subcategory: str | None
+
+
+class AccountData(TypedDict):
+    name: str
+    type: str
+    bank_id: int
+
 
 # Add new type alias for account types
 AccountType = Literal["checking", "savings", "investment", "expense", "income"]
@@ -59,14 +56,14 @@ class TestBase(unittest.TestCase):
     """Base test class with common functionality"""
 
     base_url = "http://localhost:5000"
-    _test_users: List[Dict[str, Union[int, str]]] = []
-    jwt_token: Optional[str] = None
+    _test_users: list[dict[str, int | str]] = []
+    jwt_token: str | None = None
 
     def assert_response(
         self,
         response: requests.Response,
         expected_status: int,
-        message: Optional[str] = None,
+        message: str | None = None,
     ):
         """Assert response status code and optionally check response content"""
         try:
@@ -80,7 +77,7 @@ class TestBase(unittest.TestCase):
             raise
 
     def assert_valid_response(
-        self, response: requests.Response, expected_fields: Optional[List[str]] = None
+        self, response: requests.Response, expected_fields: list[str] | None = None
     ):
         """Assert response is valid and contains expected fields"""
         self.assert_response(response, 200)
@@ -90,7 +87,7 @@ class TestBase(unittest.TestCase):
                 self.assertIn(field, data, f"Missing field: {field}")
 
     def assert_created(
-        self, response: requests.Response, expected_fields: Optional[List[str]] = None
+        self, response: requests.Response, expected_fields: list[str] | None = None
     ):
         """Assert resource was created and contains expected fields"""
         self.assert_response(response, 201)
@@ -100,15 +97,15 @@ class TestBase(unittest.TestCase):
                 self.assertIn(field, data, f"Missing field: {field}")
 
     def assert_validation_error(
-        self, response: requests.Response, message: Optional[str] = None
+        self, response: requests.Response, message: str | None = None
     ):
         """Assert response is a validation error"""
         self.assert_response(response, 422, message)
         self.assertIn("Validation error", response.json())
 
     def register_test_user(
-        self, user_data: Dict[str, str]
-    ) -> Tuple[Optional[int], Optional[str]]:
+        self, user_data: dict[str, str]
+    ) -> tuple[int | None, str | None]:
         """Register a test user and store their credentials"""
         url = f"{self.base_url}/users/register"
         register_response = requests.post(url, json=user_data)
@@ -138,9 +135,9 @@ class TestBase(unittest.TestCase):
                 )
         cls._test_users.clear()
 
-    def create_test_accounts(self, bank_id: int, types: List[str]) -> List[int]:
+    def create_test_accounts(self, bank_id: int, types: list[str]) -> list[int]:
         """Helper to create multiple test accounts"""
-        accounts: List[int] = []
+        accounts: list[int] = []
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
         for acc_type in types:
@@ -177,13 +174,11 @@ class TestDataFactory:
         self.base_url = base_url
         self.headers = {"Authorization": f"Bearer {jwt_token}"}
 
-    def create_bank(self, name: Optional[str] = None) -> int:
+    def create_bank(self, name: str | None = None) -> int:
         """Create a bank with a unique name"""
         bank_name = name if name else f"{fake.bank_name()} {fake.uuid4()}"
         response = requests.post(
-            f"{self.base_url}/banks/",
-            headers=self.headers,
-            json={"name": bank_name}
+            f"{self.base_url}/banks/", headers=self.headers, json={"name": bank_name}
         )
         if response.status_code != 201:
             raise Exception(f"Failed to create bank: {response.json()}")
@@ -496,7 +491,7 @@ class TestBankAPI(TestBase):
 
 class TestTransactionAPI(TestBase):
     jwt_token = None
-    accounts: List[AccountId] = []  # Type annotation for accounts list
+    accounts: list[AccountId] = []  # Type annotation for accounts list
 
     def setUp(self) -> None:
         self.name = fake.name()
@@ -564,7 +559,7 @@ class TestTransactionAPI(TestBase):
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
         # Test different filters
-        filters: List[Dict[str, Union[int, str]]] = [
+        filters: list[dict[str, int | str]] = [
             {"account_id": self.accounts[0]},
             {"type": "transfer"},
             {"category": "Transfer"},
@@ -804,7 +799,7 @@ class TestTransactionAPI(TestBase):
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
         base_data = cast(
-            Dict[str, Any],
+            dict[str, Any],
             {
                 "date": datetime.now().isoformat(),
                 "date_accountability": datetime.now().isoformat(),
@@ -818,7 +813,7 @@ class TestTransactionAPI(TestBase):
             },
         )
 
-        invalid_amounts: List[Union[int, str, None]] = [-100, 0, "invalid", None, ""]
+        invalid_amounts: list[int | str | None] = [-100, 0, "invalid", None, ""]
 
         for amount in invalid_amounts:
             data = base_data.copy()
@@ -885,31 +880,34 @@ class TestTransactionAPI(TestBase):
             }
             time.sleep(REQUEST_DELAY)  # Add delay before account creation
             response = requests.post(
-                f"{self.base_url}/accounts",
-                headers=headers,
-                json=data
+                f"{self.base_url}/accounts", headers=headers, json=data
             )
-            self.assertEqual(response.status_code, 201,
-                f"Failed to create {acc_type} account: {response.json()}")
+            self.assertEqual(
+                response.status_code,
+                201,
+                f"Failed to create {acc_type} account: {response.json()}",
+            )
             account_types[acc_type] = cast(AccountId, response.json()["id"])
 
         # Add test cases for income and expense
-        test_cases.extend([
-            {
-                "type": "income",
-                "expected_status": 201,
-                "desc": "Valid type - income",
-                "from_account_id": account_types["income"],
-                "to_account_id": account_types["checking"],
-            },
-            {
-                "type": "expense",
-                "expected_status": 201,
-                "desc": "Valid type - expense",
-                "from_account_id": account_types["checking"],
-                "to_account_id": account_types["expense"],
-            },
-        ])
+        test_cases.extend(
+            [
+                {
+                    "type": "income",
+                    "expected_status": 201,
+                    "desc": "Valid type - income",
+                    "from_account_id": account_types["income"],
+                    "to_account_id": account_types["checking"],
+                },
+                {
+                    "type": "expense",
+                    "expected_status": 201,
+                    "desc": "Valid type - expense",
+                    "from_account_id": account_types["checking"],
+                    "to_account_id": account_types["expense"],
+                },
+            ]
+        )
 
         for case in test_cases:
             with self.subTest(msg=case["desc"]):
@@ -1038,8 +1036,8 @@ class TestTransactionAPI(TestBase):
 
 
 class TestAccountAPI(TestBase):
-    jwt_token: Optional[str] = None
-    accounts: List[AccountId] = []  # Type annotation for accounts list
+    jwt_token: str | None = None
+    accounts: list[AccountId] = []  # Type annotation for accounts list
 
     def setUp(self):
         self.name = fake.name()
@@ -1095,7 +1093,7 @@ class TestAccountAPI(TestBase):
     def test_get_account_balance(self):
         """Test getting account balance"""
         # Create two accounts with unique names
-        accounts: List[AccountId] = []
+        accounts: list[AccountId] = []
         for acc_type in ["checking", "savings"]:
             account_id = self.create_account(acc_type, self.bank_id)
             accounts.append(account_id)
@@ -1114,7 +1112,9 @@ class TestAccountAPI(TestBase):
             "subcategory": None,
         }
         response = requests.post(
-            transaction_url, headers={"Authorization": f"Bearer {self.jwt_token}"}, json=transaction_data
+            transaction_url,
+            headers={"Authorization": f"Bearer {self.jwt_token}"},
+            json=transaction_data,
         )
         self.assertEqual(response.status_code, 201)
 

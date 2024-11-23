@@ -4,8 +4,6 @@ from typing import Any
 class DatabaseError(Exception):
     """Base class for database-related exceptions."""
 
-    pass
-
 
 class QueryExecutionError(DatabaseError):
     """Raised when a query execution fails."""
