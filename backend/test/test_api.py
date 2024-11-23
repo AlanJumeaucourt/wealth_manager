@@ -2,7 +2,7 @@ import unittest
 import requests
 from faker import Faker
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any, TypedDict, cast
 import time
 
 fake = Faker()
@@ -24,13 +24,75 @@ BankProvider = DynamicProvider(
 
 fake.add_provider(BankProvider)
 
+# Type aliases
+JsonDict = Dict[str, Any]
+AccountId = int
+TransactionData = TypedDict(
+    "TransactionData",
+    {
+        "date": str,
+        "date_accountability": str,
+        "description": str,
+        "amount": float,
+        "from_account_id": int,
+        "to_account_id": int,
+        "type": str,
+        "category": str,
+        "subcategory": Optional[str],
+    },
+)
+
 
 class TestBase(unittest.TestCase):
     """Base test class with common functionality"""
 
     base_url = "http://localhost:5000"
-    # Class variable to store all created users
     _test_users: List[Dict[str, Union[int, str]]] = []
+    jwt_token: Optional[str] = None
+
+    def assert_response(
+        self,
+        response: requests.Response,
+        expected_status: int,
+        message: Optional[str] = None,
+    ):
+        """Assert response status code and optionally check response content"""
+        try:
+            self.assertEqual(
+                response.status_code,
+                expected_status,
+                f"{message or 'Unexpected status code'}: expected {expected_status}, got {response.status_code}. Response: {response.json()}",
+            )
+        except AssertionError:
+            print(f"\nResponse body: {response.json()}")
+            raise
+
+    def assert_valid_response(
+        self, response: requests.Response, expected_fields: Optional[List[str]] = None
+    ):
+        """Assert response is valid and contains expected fields"""
+        self.assert_response(response, 200)
+        if expected_fields:
+            data = response.json()
+            for field in expected_fields:
+                self.assertIn(field, data, f"Missing field: {field}")
+
+    def assert_created(
+        self, response: requests.Response, expected_fields: Optional[List[str]] = None
+    ):
+        """Assert resource was created and contains expected fields"""
+        self.assert_response(response, 201)
+        if expected_fields:
+            data = response.json()
+            for field in expected_fields:
+                self.assertIn(field, data, f"Missing field: {field}")
+
+    def assert_validation_error(
+        self, response: requests.Response, message: Optional[str] = None
+    ):
+        """Assert response is a validation error"""
+        self.assert_response(response, 422, message)
+        self.assertIn("Validation error", response.json())
 
     def register_test_user(
         self, user_data: Dict[str, str]
@@ -55,7 +117,7 @@ class TestBase(unittest.TestCase):
     def tearDownClass(cls):
         """Clean up all test users after all tests are done"""
         for user in cls._test_users:
-            url = f"{cls.base_url}/users"
+            url = f"{cls.base_url}/users/{user['id']}"
             headers = {"Authorization": f"Bearer {user['token']}"}
             response = requests.delete(url, headers=headers)
             if response.status_code != 204:
@@ -63,6 +125,68 @@ class TestBase(unittest.TestCase):
                     f"Warning: Failed to delete user {user['id']}, status: {response.status_code}"
                 )
         cls._test_users.clear()
+
+    def create_test_accounts(self, bank_id: int, types: List[str]) -> List[int]:
+        """Helper to create multiple test accounts"""
+        accounts: List[int] = []
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        for acc_type in types:
+            response = requests.post(
+                f"{self.base_url}/accounts",
+                headers=headers,
+                json={"name": f"Test {acc_type}", "type": acc_type, "bank_id": bank_id},
+            )
+            self.assertEqual(response.status_code, 201)
+            accounts.append(cast(int, response.json()["id"]))
+
+        return accounts
+
+    def create_base_transaction_data(self, from_id: int, to_id: int) -> TransactionData:
+        """Create base transaction data with proper typing"""
+        return {
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "description": "Test transaction",
+            "amount": 100.00,
+            "from_account_id": from_id,
+            "to_account_id": to_id,
+            "type": "transfer",
+            "category": "Test",
+            "subcategory": None,
+        }
+
+
+# Add helper class for test data creation
+class TestDataFactory:
+    """Factory class for creating test data with proper typing"""
+
+    def __init__(self, base_url: str, jwt_token: str):
+        self.base_url = base_url
+        self.headers = {"Authorization": f"Bearer {jwt_token}"}
+
+    def create_bank(self, name: str) -> int:
+        response = requests.post(
+            f"{self.base_url}/banks/", headers=self.headers, json={"name": name}
+        )
+        assert response.status_code == 201
+        return cast(int, response.json()["id"])
+
+    def create_account(self, name: str, acc_type: str, bank_id: int) -> int:
+        response = requests.post(
+            f"{self.base_url}/accounts",
+            headers=self.headers,
+            json={"name": name, "type": acc_type, "bank_id": bank_id},
+        )
+        assert response.status_code == 201
+        return cast(int, response.json()["id"])
+
+    def create_transaction(self, data: TransactionData) -> JsonDict:
+        response = requests.post(
+            f"{self.base_url}/transactions", headers=self.headers, json=data
+        )
+        assert response.status_code == 201
+        return response.json()
 
 
 class TestUserAPI(TestBase):
@@ -361,6 +485,9 @@ class TestTransactionAPI(TestBase):
         self.password = fake.password()
         self.create_user_and_login()
         self.setup_accounts()
+        self.test_data = TestDataFactory(self.base_url, cast(str, self.jwt_token))
+        self.bank_id = self.test_data.create_bank(fake.bank_name())
+        self.accounts = self.create_test_accounts(self.bank_id, ["checking", "savings"])
 
     def create_user_and_login(self) -> None:
         data = {"name": self.name, "email": self.email, "password": self.password}
@@ -400,9 +527,9 @@ class TestTransactionAPI(TestBase):
             "amount": 100.00,
             "from_account_id": self.accounts[0],
             "to_account_id": self.accounts[1],
+            "type": "transfer",
             "category": "Transfer",
             "subcategory": "Test",
-            "type": "transfer",
         }
         response = requests.post(url, headers=headers, json=data)
         self.assertEqual(response.status_code, 201)
@@ -657,51 +784,30 @@ class TestTransactionAPI(TestBase):
         url = f"{self.base_url}/transactions"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
-        test_cases = [
+        base_data = cast(
+            Dict[str, Any],
             {
-                "amount": 0,
-                "expected_status": 422,
-                "desc": "Zero amount",
-            },
-            {
-                "amount": -100,
-                "expected_status": 422,
-                "desc": "Negative amount",
-            },
-            {
-                "amount": "invalid",
-                "expected_status": 422,
-                "desc": "Invalid amount type",
-            },
-            {
+                "date": datetime.now().isoformat(),
+                "date_accountability": datetime.now().isoformat(),
+                "description": "Test transaction",
                 "amount": 100.00,
-                "expected_status": 201,
-                "desc": "Valid amount",
+                "from_account_id": self.accounts[0],
+                "to_account_id": self.accounts[1],
+                "type": "transfer",
+                "category": "Test",
+                "subcategory": None,
             },
-        ]
+        )
 
-        base_data = {
-            "date": datetime.now().isoformat(),
-            "date_accountability": datetime.now().isoformat(),
-            "description": "Test transaction",
-            "from_account_id": self.accounts[0],
-            "to_account_id": self.accounts[1],
-            "type": "transfer",
-            "category": "Test",
-            "subcategory": "Test",
-        }
+        invalid_amounts: List[Union[int, str, None]] = [-100, 0, "invalid", None, ""]
 
-        for case in test_cases:
-            with self.subTest(msg=f"Testing {case['desc']}"):
-                data = base_data.copy()
-                data["amount"] = case["amount"]
-
-                response = requests.post(url, headers=headers, json=data)
-                self.assertEqual(
-                    response.status_code,
-                    case["expected_status"],
-                    f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
-                )
+        for amount in invalid_amounts:
+            data = base_data.copy()
+            data["amount"] = amount
+            response = requests.post(url, headers=headers, json=data)
+            self.assert_validation_error(
+                response, f"Expected validation error for amount {amount}"
+            )
 
     def test_transaction_type_validation(self):
         """Test transaction type validation"""
@@ -899,15 +1005,7 @@ class TestTransactionAPI(TestBase):
             data = base_data.copy()
             data["description"] = desc
             response = requests.post(url, headers=headers, json=data)
-            try:
-                self.assertEqual(
-                    response.status_code,
-                    201,
-                    f"Failed to create test transaction. Response: {response.json()}",
-                )
-            except AssertionError:
-                print(f"Response for failed transaction creation: {response.json()}")
-                raise
+            self.assert_created(response)
 
         # Test search functionality
         search_tests = [
@@ -923,17 +1021,13 @@ class TestTransactionAPI(TestBase):
                     headers=headers,
                     params={"search": test["search"]},
                 )
-                try:
-                    self.assertEqual(response.status_code, 200)
-                    data = response.json()
-                    self.assertEqual(
-                        len(data["transactions"]),
-                        test["expected_count"],
-                        f"Expected {test['expected_count']} results for search term '{test['search']}', got {len(data['transactions'])}. Response: {data}",
-                    )
-                except AssertionError:
-                    print(f"Response for failed search test: {response.json()}")
-                    raise
+                self.assert_valid_response(response, ["transactions"])
+                data = response.json()
+                self.assertEqual(
+                    len(data["transactions"]),
+                    test["expected_count"],
+                    f"Expected {test['expected_count']} results for search term '{test['search']}'",
+                )
 
 
 class TestAccountAPI(TestBase):
@@ -1037,6 +1131,197 @@ class TestAccountAPI(TestBase):
         ]
         for field in required_fields:
             self.assertIn(field, data)
+
+
+# Add new test class for validation scenarios
+class TestValidation(TestBase):
+    def setUp(self):
+        self.name = fake.name()
+        self.email = fake.email()
+        self.password = fake.password()
+        self.create_user_and_login()
+        self.setup_test_data()
+
+    def create_user_and_login(self):
+        data = {"name": self.name, "email": self.email, "password": self.password}
+        user_id, token = self.register_test_user(data)
+        self.user_id = user_id
+        self.jwt_token = token
+
+    def setup_test_data(self):
+        # Create a bank
+        url = f"{self.base_url}/banks/"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+        data = {"name": fake.bank_name()}
+        response = requests.post(url, headers=headers, json=data)
+        self.assertEqual(response.status_code, 201)
+        self.bank_id = response.json()["id"]
+
+    def test_invalid_account_type(self):
+        """Test creating account with invalid type"""
+        url = f"{self.base_url}/accounts"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        invalid_types = ["invalid", "", None, "credit", 123]
+        for invalid_type in invalid_types:
+            data = {
+                "name": "Test Account",
+                "type": invalid_type,
+                "bank_id": self.bank_id,
+            }
+            response = requests.post(url, headers=headers, json=data)
+            self.assertEqual(response.status_code, 422)
+            self.assertIn("Validation error", response.json())
+
+    def test_invalid_transaction_amount(self):
+        """Test creating transaction with invalid amount"""
+        # First create accounts
+        url = f"{self.base_url}/accounts"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        accounts = []
+        for acc_type in ["checking", "savings"]:
+            data = {
+                "name": f"Test {acc_type}",
+                "type": acc_type,
+                "bank_id": self.bank_id,
+            }
+            response = requests.post(url, headers=headers, json=data)
+            self.assert_created(response, ["id"])
+            accounts.append(response.json()["id"])
+
+        # Test invalid amounts
+        url = f"{self.base_url}/transactions"
+        invalid_amounts = [-100, 0, "invalid", None, ""]
+
+        base_data = {
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "description": "Test transaction",
+            "from_account_id": accounts[0],
+            "to_account_id": accounts[1],
+            "type": "transfer",
+            "category": "Test",
+        }
+
+        for amount in invalid_amounts:
+            data = base_data.copy()
+            data["amount"] = amount
+            response = requests.post(url, headers=headers, json=data)
+            self.assert_validation_error(
+                response, f"Expected validation error for amount {amount}"
+            )
+
+    def test_invalid_date_formats(self):
+        """Test transactions with invalid date formats"""
+        # Create test accounts first
+        url = f"{self.base_url}/accounts"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        accounts = []
+        for acc_type in ["checking", "savings"]:
+            data = {
+                "name": f"Test {acc_type}",
+                "type": acc_type,
+                "bank_id": self.bank_id,
+            }
+            response = requests.post(url, headers=headers, json=data)
+            self.assertEqual(response.status_code, 201)
+            accounts.append(response.json()["id"])
+
+        # Test invalid date formats
+        url = f"{self.base_url}/transactions"
+        invalid_dates = [
+            "2024/01/01",
+            "01-01-2024",
+            "2024-13-01",  # invalid month
+            "2024-01-32",  # invalid day
+            None,
+            "",
+            "invalid",
+        ]
+
+        base_data = {
+            "description": "Test transaction",
+            "amount": 100.00,
+            "from_account_id": accounts[0],
+            "to_account_id": accounts[1],
+            "type": "transfer",
+            "category": "Test",
+        }
+
+        for date in invalid_dates:
+            data = base_data.copy()
+            data["date"] = date
+            data["date_accountability"] = datetime.now().isoformat()
+
+            response = requests.post(url, headers=headers, json=data)
+            self.assertEqual(
+                response.status_code,
+                422,
+                f"Expected 422 for date {date}, got {response.status_code}",
+            )
+            self.assertIn("Validation error", response.json())
+
+    def test_search_special_characters(self):
+        """Test search functionality with special characters"""
+        # Create test accounts
+        url = f"{self.base_url}/accounts"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        accounts = []
+        for acc_type in ["checking", "savings"]:
+            data = {
+                "name": f"Test {acc_type}",
+                "type": acc_type,
+                "bank_id": self.bank_id,
+            }
+            response = requests.post(url, headers=headers, json=data)
+            self.assertEqual(response.status_code, 201)
+            accounts.append(response.json()["id"])
+
+        # Create transactions with special characters
+        url = f"{self.base_url}/transactions"
+        special_descriptions = [
+            "Test % transaction",
+            "Test _ transaction",
+            "Test & transaction",
+            "Test ' transaction",
+            'Test " transaction',
+            "Test ; transaction",
+        ]
+
+        base_data = {
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "amount": 100.00,
+            "from_account_id": accounts[0],
+            "to_account_id": accounts[1],
+            "type": "transfer",
+            "category": "Test",
+        }
+
+        # Create transactions
+        for desc in special_descriptions:
+            data = base_data.copy()
+            data["description"] = desc
+            response = requests.post(url, headers=headers, json=data)
+            self.assertEqual(response.status_code, 201)
+
+        # Test searching with special characters
+        search_terms = ["%", "_", "&", "'", '"', ";"]
+        for term in search_terms:
+            response = requests.get(url, headers=headers, params={"search": term})
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertIn("transactions", data)
+            # Verify at least one transaction contains the search term
+            found = False
+            for transaction in data["transactions"]:
+                if term in transaction["description"]:
+                    found = True
+                    break
+            self.assertTrue(found, f"No transaction found containing term '{term}'")
 
 
 if __name__ == "__main__":
