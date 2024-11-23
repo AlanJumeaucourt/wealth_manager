@@ -3,6 +3,7 @@ import unittest
 import requests
 from faker import Faker
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple, Any, Union
 
 fake = Faker()
 
@@ -24,8 +25,47 @@ BankProvider = DynamicProvider(
 fake.add_provider(BankProvider)
 
 
-class TestUserAPI(unittest.TestCase):
+class TestBase(unittest.TestCase):
+    """Base test class with common functionality"""
+
     base_url = "http://localhost:5000"
+    # Class variable to store all created users
+    _test_users: List[Dict[str, Union[int, str]]] = []
+
+    def register_test_user(
+        self, user_data: Dict[str, str]
+    ) -> Tuple[Optional[int], Optional[str]]:
+        """Register a test user and store their credentials"""
+        url = f"{self.base_url}/users/register"
+        register_response = requests.post(url, json=user_data)
+        if register_response.status_code == 201:
+            user_id = register_response.json()["id"]
+            # Login to get token
+            login_response = requests.post(
+                f"{self.base_url}/users/login",
+                json={"email": user_data["email"], "password": user_data["password"]},
+            )
+            if login_response.status_code == 200:
+                token = login_response.json()["access_token"]
+                self._test_users.append({"id": user_id, "token": token})
+                return user_id, token
+        return None, None
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up all test users after all tests are done"""
+        for user in cls._test_users:
+            url = f"{cls.base_url}/users"
+            headers = {"Authorization": f"Bearer {user['token']}"}
+            response = requests.delete(url, headers=headers)
+            if response.status_code != 204:
+                print(
+                    f"Warning: Failed to delete user {user['id']}, status: {response.status_code}"
+                )
+        cls._test_users.clear()
+
+
+class TestUserAPI(TestBase):
     jwt_token = None
 
     def setUp(self):
@@ -51,13 +91,19 @@ class TestUserAPI(unittest.TestCase):
         # 5. Delete user
         self.delete_user()
 
-    def create_user(self):
-        url = f"{self.base_url}/users/register"
+    def create_user(self) -> None:
         data = {"name": self.name, "email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 201)
+        user_id, token = self.register_test_user(data)
+        self.user_id = user_id
+        self.jwt_token = token
+
+        # Make a new request to get user data since we need the response
+        url = f"{self.base_url}/users/{self.user_id}"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+        response = requests.get(url, headers=headers)
+
+        self.assertEqual(response.status_code, 200)
         user_data = response.json()
-        self.user_id = user_data["id"]
         self.assertEqual(user_data["email"], self.email)
         self.assertEqual(user_data["name"], self.name)
         self.assertIn("id", user_data)
@@ -74,6 +120,7 @@ class TestUserAPI(unittest.TestCase):
         self.assertIn("access_token", login_data)
         self.assertIsInstance(login_data["access_token"], str)
         self.jwt_token = login_data["access_token"]
+        print(self.jwt_token)
 
     def get_user(self):
         url = f"{self.base_url}/users/{self.user_id}"
@@ -178,15 +225,8 @@ class TestUserAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"message": "Token is valid"})
 
-    def tearDown(self):
-        if hasattr(self, "jwt_token") and hasattr(self, "user_id"):
-            url = f"{self.base_url}/users/{self.user_id}"
-            headers = {"Authorization": f"Bearer {self.jwt_token}"}
-            requests.delete(url, headers=headers)
 
-
-class TestBankAPI(unittest.TestCase):
-    base_url = "http://localhost:5000"
+class TestBankAPI(TestBase):
     jwt_token = None
 
     def setUp(self):
@@ -198,12 +238,10 @@ class TestBankAPI(unittest.TestCase):
         self.login_user()
 
     def create_user(self):
-        url = f"{self.base_url}/users/register"
         data = {"name": self.name, "email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 201)
-        user_data = response.json()
-        self.user_id = user_data["id"]
+        user_id, token = self.register_test_user(data)
+        self.user_id = user_id
+        self.jwt_token = token
 
     def login_user(self):
         url = f"{self.base_url}/users/login"
@@ -313,42 +351,24 @@ class TestBankAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertIn("msg", response.json())
 
-    def tearDown(self):
-        # Clean up: delete the user and associated data
-        if hasattr(self, "jwt_token") and hasattr(self, "user_id"):
-            url = f"{self.base_url}/users/{self.user_id}"
-            headers = {"Authorization": f"Bearer {self.jwt_token}"}
-            requests.delete(url, headers=headers)
 
-
-class TestTransactionAPI(unittest.TestCase):
-    base_url = "http://localhost:5000"
+class TestTransactionAPI(TestBase):
     jwt_token = None
 
-    def setUp(self):
-        # Create test user and get token
+    def setUp(self) -> None:
         self.name = fake.name()
         self.email = fake.email()
         self.password = fake.password()
         self.create_user_and_login()
         self.setup_accounts()
 
-    def create_user_and_login(self):
-        # Create user
-        url = f"{self.base_url}/users/register"
+    def create_user_and_login(self) -> None:
         data = {"name": self.name, "email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 201)
-        self.user_id = response.json()["id"]
+        user_id, token = self.register_test_user(data)
+        self.user_id = user_id
+        self.jwt_token = token
 
-        # Login
-        url = f"{self.base_url}/users/login"
-        data = {"email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 200)
-        self.jwt_token = response.json()["access_token"]
-
-    def setup_accounts(self):
+    def setup_accounts(self) -> None:
         # Create a bank
         url = f"{self.base_url}/banks/"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
@@ -359,7 +379,7 @@ class TestTransactionAPI(unittest.TestCase):
 
         # Create two accounts
         url = f"{self.base_url}/accounts"
-        self.accounts = []
+        self.accounts: List[int] = []
         for acc_type in ["checking", "savings"]:
             data = {
                 "name": f"Test {acc_type.capitalize()}",
@@ -390,7 +410,7 @@ class TestTransactionAPI(unittest.TestCase):
         self.assertEqual(transaction["amount"], 100.00)
         self.assertEqual(transaction["description"], "Test transaction")
 
-    def test_get_transactions_with_filters(self):
+    def test_get_transactions_with_filters(self) -> None:
         # Create a test transaction first
         self.test_create_transaction()
 
@@ -398,7 +418,7 @@ class TestTransactionAPI(unittest.TestCase):
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
         # Test different filters
-        filters = [
+        filters: List[Dict[str, Union[int, str]]] = [
             {"account_id": self.accounts[0]},
             {"type": "transfer"},
             {"category": "Transfer"},
@@ -607,15 +627,8 @@ class TestTransactionAPI(unittest.TestCase):
             self.assertIn("date", transaction)
             self.assertIn("date_accountability", transaction)
 
-    def tearDown(self):
-        if hasattr(self, "jwt_token") and hasattr(self, "user_id"):
-            url = f"{self.base_url}/users/{self.user_id}"
-            headers = {"Authorization": f"Bearer {self.jwt_token}"}
-            requests.delete(url, headers=headers)
 
-
-class TestAccountAPI(unittest.TestCase):
-    base_url = "http://localhost:5000"
+class TestAccountAPI(TestBase):
     jwt_token = None
 
     def setUp(self):
@@ -625,20 +638,11 @@ class TestAccountAPI(unittest.TestCase):
         self.create_user_and_login()
         self.create_bank()
 
-    def create_user_and_login(self):
-        # Create user
-        url = f"{self.base_url}/users/register"
+    def create_user_and_login(self) -> None:
         data = {"name": self.name, "email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 201)
-        self.user_id = response.json()["id"]
-
-        # Login
-        url = f"{self.base_url}/users/login"
-        data = {"email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 200)
-        self.jwt_token = response.json()["access_token"]
+        user_id, token = self.register_test_user(data)
+        self.user_id = user_id
+        self.jwt_token = token
 
     def create_bank(self):
         url = f"{self.base_url}/banks/"
@@ -725,12 +729,6 @@ class TestAccountAPI(unittest.TestCase):
         ]
         for field in required_fields:
             self.assertIn(field, data)
-
-    def tearDown(self):
-        if hasattr(self, "jwt_token") and hasattr(self, "user_id"):
-            url = f"{self.base_url}/users/{self.user_id}"
-            headers = {"Authorization": f"Bearer {self.jwt_token}"}
-            requests.delete(url, headers=headers)
 
 
 if __name__ == "__main__":
