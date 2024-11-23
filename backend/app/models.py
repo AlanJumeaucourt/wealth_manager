@@ -46,7 +46,7 @@ class Transaction:
     from_account_id: int
     to_account_id: int
     type: str
-    category: Optional[str] = field(default=None)
+    category: str
     subcategory: Optional[str] = field(default=None)
     id: Optional[int] = field(default=None)
 

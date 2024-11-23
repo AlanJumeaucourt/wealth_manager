@@ -83,7 +83,7 @@ class UserSchema(Schema):
 class BankSchema(Schema):
     id = fields.Int(dump_only=True)
     user_id = fields.Int(required=True)
-    name = fields.Str(required=True)
+    name = fields.Str(required=True, validate=validate.Length(min=1))
 
 
 class AccountSchema(Schema):
@@ -112,11 +112,11 @@ class TransactionSchema(Schema):
     user_id = fields.Int(required=True)
     date = DateField(required=True)
     date_accountability = DateField(required=True)
-    description = fields.Str(required=True)
+    description = fields.Str(required=True, validate=validate.Length(min=1))
     amount = fields.Float(required=True)
     from_account_id = fields.Int(required=True)
     to_account_id = fields.Int(required=True)
-    category = fields.Str(allow_none=True, required=False)
+    category = fields.Str(required=True, validate=validate.Length(min=1))
     subcategory = fields.Str(allow_none=True, required=False)
     type = fields.Str(
         required=True,
@@ -127,8 +127,8 @@ class TransactionSchema(Schema):
 class AssetSchema(Schema):
     user_id = fields.Int(required=True)
     id = fields.Int(dump_only=True)
-    symbol = fields.Str(required=True)
-    name = fields.Str(required=True)
+    symbol = fields.Str(required=True, validate=validate.Length(min=1))
+    name = fields.Str(required=True, validate=validate.Length(min=1))
 
 
 class InvestmentTransactionSchema(Schema):
