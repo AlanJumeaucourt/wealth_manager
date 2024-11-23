@@ -113,7 +113,9 @@ class TransactionSchema(Schema):
     date = DateField(required=True)
     date_accountability = DateField(required=True)
     description = fields.Str(required=True, validate=validate.Length(min=1))
-    amount = fields.Float(required=True)
+    amount = fields.Float(
+        required=True, validate=validate.Range(min=0, min_inclusive=False)
+    )
     from_account_id = fields.Int(required=True)
     to_account_id = fields.Int(required=True)
     category = fields.Str(required=True, validate=validate.Length(min=1))
