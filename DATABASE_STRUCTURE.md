@@ -5,6 +5,7 @@ This document outlines the database schema for the WealthManager application. Th
 ## 🏗 Schema Overview
 
 ### 👤 Users Table
+
 Primary table for user management and authentication.
 
 | Field | Type | Description | Constraints |
@@ -16,6 +17,7 @@ Primary table for user management and authentication.
 | `last_login` | TIMESTAMP | Last login timestamp | |
 
 ### 🏦 Banks Table
+
 Stores information about financial institutions.
 
 | Field | Type | Description | Constraints |
@@ -25,6 +27,7 @@ Stores information about financial institutions.
 | `name` | TEXT | Bank's name | NOT NULL |
 
 ### 💰 Accounts Table
+
 Manages different types of financial accounts.
 
 | Field | Type | Description | Constraints |
@@ -36,6 +39,7 @@ Manages different types of financial accounts.
 | `bank_id` | INTEGER | Reference to bank | FOREIGN KEY, NOT NULL |
 
 ### 💸 Transactions Table
+
 Records all financial transactions.
 
 | Field | Type | Description | Constraints |
@@ -53,6 +57,7 @@ Records all financial transactions.
 | `type` | TEXT | Transaction type | CHECK(type IN ('expense', 'income', 'transfer')), NOT NULL |
 
 ### 📈 Assets Table
+
 Stores information about investment assets.
 
 | Field | Type | Description | Constraints |
@@ -63,6 +68,7 @@ Stores information about investment assets.
 | `name` | TEXT | Asset name | NOT NULL |
 
 ### 💹 Investment Transactions Table
+
 Records investment-related transactions.
 
 | Field | Type | Description | Constraints |
@@ -81,6 +87,7 @@ Records investment-related transactions.
 | `total_paid` | DECIMAL(10,2) | Total amount paid | |
 
 ### 📊 Account Assets Table
+
 Tracks asset holdings in accounts.
 
 | Field | Type | Description | Constraints |
@@ -91,12 +98,17 @@ Tracks asset holdings in accounts.
 | `asset_id` | INTEGER | Reference to asset | FOREIGN KEY, NOT NULL |
 | `quantity` | DECIMAL(10,6) | Number of units held | NOT NULL |
 
+- `(symbol, user_id)` combination must be unique
+- `(account_id, asset_id)` combination must be unique
+
 ## 📊 Views
 
 ### account_balances
+
 Calculates current balance for each account based on all transactions.
 
 This view:
+
 - Combines incoming and outgoing transactions for each account
 - Handles different transaction types (income, expense, transfer)
 - Returns current balance by summing all transaction impacts
@@ -138,9 +150,11 @@ GROUP BY a.id, a.user_id, a.name, a.type
 ## 🔫 Triggers
 
 ### trg_validate_transaction
+
 Validates transaction types and account combinations before insertion.
 
 This trigger ensures:
+
 - Income transactions:
   - Can only be received in checking, savings, or investment accounts
   - Must originate from an income account
@@ -151,14 +165,17 @@ This trigger ensures:
   - Can only occur between checking, savings, or investment accounts
 
 ### trg_calculate_total_paid_investment_transaction
+
 Automatically calculates the total amount paid for investment transactions.
 
 This trigger:
+
 - Fires after INSERT on investment_transactions
 - Calculates total_paid as: (quantity × unit_price) + fee + tax
 - Updates the record with the calculated total
 
 ### trg_calculate_total_paid_investment_transaction_update
+
 Similar to above, but fires after UPDATE operations to maintain accuracy.
 
 ## 🔗 Entity Relationships
