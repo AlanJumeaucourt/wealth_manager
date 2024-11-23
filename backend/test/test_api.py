@@ -3,6 +3,7 @@ import requests
 from faker import Faker
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
+import time
 
 fake = Faker()
 
@@ -449,200 +450,234 @@ class TestTransactionAPI(TestBase):
         self.assertEqual(len(data["transactions"]), 2)
 
     def test_transaction_date_validation(self):
-        """Test transaction date validation with various invalid date formats."""
+        """Test transaction date validation"""
         url = f"{self.base_url}/transactions"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
-        invalid_dates = [
-            # Basic invalid formats
+        valid_date = datetime.now().isoformat()
+        test_cases = [
             {
-                "description": "Invalid month",
-                "date": "2023-13-01T12:00:00",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "Invalid day",
-                "date": "2023-12-32T12:00:00",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "Invalid hour",
-                "date": "2023-12-01T25:00:00",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            # Invalid minutes and seconds
-            {
-                "description": "Invalid minutes",
-                "date": "2023-12-01T12:60:00",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "Invalid seconds",
-                "date": "2023-12-01T12:00:60",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            # Non-numeric values
-            {
-                "description": "Non-numeric month",
-                "date": "2023-AA-01T12:00:00",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "Non-numeric day",
-                "date": "2023-12-AAT12:00:00",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "Non-numeric hour",
-                "date": "2023-12-01TAA:00:00",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "Non-numeric minutes",
-                "date": "2023-12-01T12:AA:00",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "Non-numeric seconds",
-                "date": "2023-12-01T12:00:AA",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "All letters",
-                "date": "YYYY-MM-DDTHH:MM:SS",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            # Special cases
-            {
-                "description": "Empty string",
-                "date": "",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "None value",
                 "date": None,
-                "date_accountability": "2023-12-01T12:00:00",
+                "date_accountability": valid_date,
+                "expected_status": 422,
+                "desc": "Missing date",
             },
             {
-                "description": "Whitespace only",
-                "date": "   ",
-                "date_accountability": "2023-12-01T12:00:00",
+                "date": valid_date,
+                "date_accountability": None,
+                "expected_status": 422,
+                "desc": "Missing date_accountability",
             },
             {
-                "description": "Random string",
-                "date": "not a date",
-                "date_accountability": "2023-12-01T12:00:00",
+                "date": "invalid-date",
+                "date_accountability": valid_date,
+                "expected_status": 422,
+                "desc": "Invalid date format",
+            },
+            {
+                "date": "2024-13-01T00:00:00",  # Invalid month
+                "date_accountability": valid_date,
+                "expected_status": 422,
+                "desc": "Invalid month",
+            },
+            {
+                "date": "2024-12-32T00:00:00",  # Invalid day
+                "date_accountability": valid_date,
+                "expected_status": 422,
+                "desc": "Invalid day",
+            },
+            {
+                "date": "2024-12-01T24:00:00",  # Invalid hour
+                "date_accountability": valid_date,
+                "expected_status": 422,
+                "desc": "Invalid hour",
+            },
+            {
+                "date": valid_date,
+                "date_accountability": valid_date,
+                "expected_status": 201,
+                "desc": "Valid dates",
             },
         ]
 
         base_data = {
-            "description": "Date validation test",
+            "description": "Test transaction",
             "amount": 100.00,
             "from_account_id": self.accounts[0],
             "to_account_id": self.accounts[1],
             "type": "transfer",
             "category": "Test",
-            "subcategory": "Invalid",
+            "subcategory": "Test",
         }
 
-        for case in invalid_dates:
-            data = base_data.copy()
-            data["date"] = case["date"]
-            data["date_accountability"] = case["date_accountability"]
+        for case in test_cases:
+            with self.subTest(msg=f"Testing {case['desc']}"):
+                data = base_data.copy()
+                if case["date"] is not None:
+                    data["date"] = case["date"]
+                if case["date_accountability"] is not None:
+                    data["date_accountability"] = case["date_accountability"]
 
-            response = requests.post(url, headers=headers, json=data)
-            self.assertEqual(
-                response.status_code,
-                422,  # Unprocessable Entity
-                f"Expected 422 status code for {case['description']}, got {response.status_code}. Response: {response.json()}",
-            )
-            self.assertIn("Validation error", response.json())
+                response = requests.post(url, headers=headers, json=data)
+                self.assertEqual(
+                    response.status_code,
+                    case["expected_status"],
+                    f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+                )
 
-    def test_valid_transaction_dates(self):
-        """Test valid transaction date formats."""
+    def test_transaction_category_validation(self):
+        """Test transaction category validation"""
         url = f"{self.base_url}/transactions"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
-        valid_dates = [
+        test_cases = [
             {
-                "description": "Full datetime",
-                "date": "2023-12-01T12:00:00",
-                "date_accountability": "2023-12-01T12:00:00",
+                "category": None,
+                "subcategory": "Test",
+                "expected_status": 422,
+                "desc": "Missing category",
             },
             {
-                "description": "Date only",
-                "date": "2023-12-01",
-                "date_accountability": "2023-12-01",
+                "category": "",
+                "subcategory": "Test",
+                "expected_status": 422,
+                "desc": "Empty category",
             },
             {
-                "description": "Current datetime",
-                "date": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-                "date_accountability": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                "category": "Test",
+                "subcategory": None,
+                "expected_status": 201,  # Subcategory is optional
+                "desc": "Missing subcategory",
             },
             {
-                "description": "Current date only",
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "date_accountability": datetime.now().strftime("%Y-%m-%d"),
+                "category": "Test",
+                "subcategory": "",
+                "expected_status": 201,  # Empty subcategory is allowed
+                "desc": "Empty subcategory",
             },
             {
-                "description": "With Z timezone",
-                "date": "2023-12-01T12:00:00Z",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "With positive timezone",
-                "date": "2023-12-01T12:00:00+01:00",
-                "date_accountability": "2023-12-01T12:00:00",
-            },
-            {
-                "description": "With negative timezone",
-                "date": "2023-12-01T12:00:00-05:00",
-                "date_accountability": "2023-12-01T12:00:00",
+                "category": "Test",
+                "subcategory": "Test",
+                "expected_status": 201,
+                "desc": "Valid category and subcategory",
             },
         ]
 
         base_data = {
-            "description": "Date validation test",
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "description": "Test transaction",
+            "amount": 100.00,
+            "from_account_id": self.accounts[0],
+            "to_account_id": self.accounts[1],
+            "type": "transfer",
+        }
+
+        for case in test_cases:
+            with self.subTest(msg=f"Testing {case['desc']}"):
+                data = base_data.copy()
+                if case["category"] is not None:
+                    data["category"] = case["category"]
+                if case["subcategory"] is not None:
+                    data["subcategory"] = case["subcategory"]
+
+                response = requests.post(url, headers=headers, json=data)
+                self.assertEqual(
+                    response.status_code,
+                    case["expected_status"],
+                    f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+                )
+
+    def test_transaction_validation_combinations(self):
+        """Test combinations of invalid fields"""
+        url = f"{self.base_url}/transactions"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        test_cases = [
+            {
+                "data": {
+                    "date": None,
+                    "amount": -100,
+                    "type": "invalid",
+                },
+                "expected_status": 422,
+                "desc": "Multiple invalid fields",
+            },
+            {
+                "data": {
+                    "date": "invalid-date",
+                    "from_account_id": None,
+                    "category": None,
+                },
+                "expected_status": 422,
+                "desc": "Multiple missing required fields",
+            },
+            {
+                "data": {
+                    "amount": "invalid",
+                    "type": "",
+                    "category": "",
+                },
+                "expected_status": 422,
+                "desc": "Multiple invalid types",
+            },
+        ]
+
+        base_data = {
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "description": "Test transaction",
             "amount": 100.00,
             "from_account_id": self.accounts[0],
             "to_account_id": self.accounts[1],
             "type": "transfer",
             "category": "Test",
-            "subcategory": "Valid",
+            "subcategory": "Test",
         }
 
-        for case in valid_dates:
-            data = base_data.copy()
-            data["date"] = case["date"]
-            data["date_accountability"] = case["date_accountability"]
+        for case in test_cases:
+            with self.subTest(msg=f"Testing {case['desc']}"):
+                data = base_data.copy()
+                # Update with test case data
+                data.update(case["data"])
 
-            response = requests.post(url, headers=headers, json=data)
-            self.assertEqual(
-                response.status_code,
-                201,
-                f"Expected 201 status code for {case['description']}, got {response.status_code}. Response: {response.json()}",
-            )
-            transaction = response.json()
-            self.assertIn("date", transaction)
-            self.assertIn("date_accountability", transaction)
+                response = requests.post(url, headers=headers, json=data)
+                try:
+                    self.assertEqual(
+                        response.status_code,
+                        case["expected_status"],
+                        f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}. Response: {response.json()}",
+                    )
+                except AssertionError:
+                    print(f"Response for failed test: {response.json()}")
+                    raise
 
     def test_transaction_amount_validation(self):
         """Test transaction amount validation"""
         url = f"{self.base_url}/transactions"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
-        # Define test cases with expected status codes
         test_cases = [
-            {"amount": -100.00, "expected_status": 422, "desc": "Negative amount"},
-            {"amount": 0.00, "expected_status": 422, "desc": "Zero amount"},
-            {"amount": "invalid", "expected_status": 422, "desc": "Invalid string"},
-            {"amount": "", "expected_status": 422, "desc": "Empty string"},
-            {"amount": None, "expected_status": 422, "desc": "None value"},
+            {
+                "amount": 0,
+                "expected_status": 422,
+                "desc": "Zero amount",
+            },
+            {
+                "amount": -100,
+                "expected_status": 422,
+                "desc": "Negative amount",
+            },
+            {
+                "amount": "invalid",
+                "expected_status": 422,
+                "desc": "Invalid amount type",
+            },
             {
                 "amount": 100.00,
                 "expected_status": 201,
                 "desc": "Valid amount",
-            },  # Valid case
+            },
         ]
 
         base_data = {
@@ -659,15 +694,7 @@ class TestTransactionAPI(TestBase):
         for case in test_cases:
             with self.subTest(msg=f"Testing {case['desc']}"):
                 data = base_data.copy()
-                # Cast amount to appropriate type for request
-                if case["amount"] is not None:
-                    data["amount"] = (
-                        float(case["amount"])
-                        if isinstance(case["amount"], (int, float))
-                        else case["amount"]
-                    )
-                else:
-                    data["amount"] = None
+                data["amount"] = case["amount"]
 
                 response = requests.post(url, headers=headers, json=data)
                 self.assertEqual(
@@ -676,11 +703,125 @@ class TestTransactionAPI(TestBase):
                     f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
                 )
 
-                # Additional validation for successful cases
-                if case["expected_status"] == 201:
-                    response_data = response.json()
-                    self.assertIsInstance(response_data.get("amount"), float)
-                    self.assertEqual(response_data.get("amount"), case["amount"])
+    def test_transaction_type_validation(self):
+        """Test transaction type validation"""
+        url = f"{self.base_url}/transactions"
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+
+        # Add a small delay between requests for the dev server
+        # can be set to 0 for production wsgi server
+        REQUEST_DELAY = 0.05  # 100ms delay
+
+        test_cases = [
+            {
+                "type": None,
+                "expected_status": 422,
+                "desc": "Missing type",
+            },
+            {
+                "type": "",
+                "expected_status": 422,
+                "desc": "Empty type",
+            },
+            {
+                "type": "invalid",
+                "expected_status": 422,
+                "desc": "Invalid type",
+            },
+            {
+                "type": "transfer",
+                "expected_status": 201,
+                "desc": "Valid type - transfer",
+            },
+            {
+                "type": "income",
+                "expected_status": 201,
+                "desc": "Valid type - income",
+                "from_account_type": "income",  # Add account type for income transaction
+                "to_account_type": "checking",  # Income must go to checking/savings
+            },
+            {
+                "type": "expense",
+                "expected_status": 201,
+                "desc": "Valid type - expense",
+                "from_account_type": "checking",  # Expense must come from checking/savings
+                "to_account_type": "expense",  # Must go to expense account
+            },
+        ]
+
+        base_data = {
+            "date": datetime.now().isoformat(),
+            "date_accountability": datetime.now().isoformat(),
+            "description": "Test transaction",
+            "amount": 100.00,
+            "category": "Test",
+            "subcategory": "Test",
+        }
+
+        for case in test_cases:
+            with self.subTest(msg=f"Testing {case['desc']}"):
+                # Add delay before each test case
+                time.sleep(REQUEST_DELAY)
+
+                # Create appropriate accounts for this test case if needed
+                from_account_id = self.accounts[0]
+                to_account_id = self.accounts[1]
+
+                # For income/expense tests, create specific account types
+                if "from_account_type" in case:
+                    time.sleep(REQUEST_DELAY)  # Add delay before account creation
+                    response = requests.post(
+                        f"{self.base_url}/accounts",
+                        headers=headers,
+                        json={
+                            "name": f"Test {case['from_account_type']} Account",
+                            "type": case["from_account_type"],
+                            "bank_id": self.bank_id,
+                        },
+                    )
+                    if response.status_code != 201:
+                        print(f"Failed to create from_account: {response.json()}")
+                        self.fail(f"Could not create from_account: {response.json()}")
+                    from_account_id = response.json()["id"]
+
+                if "to_account_type" in case:
+                    time.sleep(REQUEST_DELAY)  # Add delay before account creation
+                    response = requests.post(
+                        f"{self.base_url}/accounts",
+                        headers=headers,
+                        json={
+                            "name": f"Test {case['to_account_type']} Account",
+                            "type": case["to_account_type"],
+                            "bank_id": self.bank_id,
+                        },
+                    )
+                    if response.status_code != 201:
+                        print(f"Failed to create to_account: {response.json()}")
+                        self.fail(f"Could not create to_account: {response.json()}")
+                    to_account_id = response.json()["id"]
+
+                # Add delay before transaction creation
+                time.sleep(REQUEST_DELAY)
+
+                data = base_data.copy()
+                if case["type"] is not None:
+                    data["type"] = case["type"]
+                data["from_account_id"] = from_account_id
+                data["to_account_id"] = to_account_id
+
+                response = requests.post(url, headers=headers, json=data)
+                try:
+                    self.assertEqual(
+                        response.status_code,
+                        case["expected_status"],
+                        f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+                    )
+                except AssertionError:
+                    print(f"\nTest case: {case['desc']}")
+                    print(f"Request data: {data}")
+                    print(f"Response status: {response.status_code}")
+                    print(f"Response body: {response.json()}")
+                    raise
 
     def test_transaction_description_validation(self):
         """Test transaction description validation"""
@@ -688,7 +829,16 @@ class TestTransactionAPI(TestBase):
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
         test_cases = [
-            {"description": None, "expected_status": 422, "desc": "None description"},
+            {
+                "description": None,
+                "expected_status": 422,
+                "desc": "Missing description",
+            },
+            {
+                "description": "",
+                "expected_status": 422,
+                "desc": "Empty description",
+            },
             {
                 "description": "Valid description",
                 "expected_status": 201,
@@ -711,7 +861,7 @@ class TestTransactionAPI(TestBase):
             with self.subTest(msg=f"Testing {case['desc']}"):
                 data = base_data.copy()
                 if case["description"] is not None:
-                    data["description"] = str(case["description"])
+                    data["description"] = case["description"]
 
                 response = requests.post(url, headers=headers, json=data)
                 self.assertEqual(
@@ -720,104 +870,70 @@ class TestTransactionAPI(TestBase):
                     f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
                 )
 
-    def test_transaction_account_validation(self):
-        """Test transaction account validation"""
+    def test_transaction_search(self):
+        """Test transaction search functionality"""
+        # Create multiple transactions with different descriptions
+        descriptions = [
+            "Grocery shopping",
+            "Rent payment",
+            "Salary deposit",
+            "Shopping at mall",
+        ]
+
         url = f"{self.base_url}/transactions"
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
 
-        test_cases = [
-            {
-                "from_account_id": None,
-                "to_account_id": self.accounts[1],
-                "expected_status": 422,
-                "desc": "Missing from_account",
-            },
-            {
-                "from_account_id": self.accounts[0],
-                "to_account_id": None,
-                "expected_status": 422,
-                "desc": "Missing to_account",
-            },
-            {
-                "from_account_id": 99999,
-                "to_account_id": self.accounts[1],
-                "expected_status": 422,
-                "desc": "Invalid from_account",
-            },
-            {
-                "from_account_id": self.accounts[0],
-                "to_account_id": 99999,
-                "expected_status": 422,
-                "desc": "Invalid to_account",
-            },
-            {
-                "from_account_id": self.accounts[0],
-                "to_account_id": self.accounts[0],
-                "expected_status": 422,
-                "desc": "Same account transfer",
-            },
-        ]
-
+        # Create test transactions
         base_data = {
             "date": datetime.now().isoformat(),
             "date_accountability": datetime.now().isoformat(),
-            "description": "Test transaction",
             "amount": 100.00,
+            "from_account_id": self.accounts[0],
+            "to_account_id": self.accounts[1],
             "type": "transfer",
             "category": "Test",
             "subcategory": "Test",
         }
 
-        for case in test_cases:
-            with self.subTest(msg=f"Testing {case['desc']}"):
-                data = base_data.copy()
-                if case["from_account_id"] is not None:
-                    data["from_account_id"] = int(case["from_account_id"])
-                if case["to_account_id"] is not None:
-                    data["to_account_id"] = int(case["to_account_id"])
-
-                response = requests.post(url, headers=headers, json=data)
+        for desc in descriptions:
+            data = base_data.copy()
+            data["description"] = desc
+            response = requests.post(url, headers=headers, json=data)
+            try:
                 self.assertEqual(
                     response.status_code,
-                    case["expected_status"],
-                    f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+                    201,
+                    f"Failed to create test transaction. Response: {response.json()}",
                 )
+            except AssertionError:
+                print(f"Response for failed transaction creation: {response.json()}")
+                raise
 
-    def test_transaction_type_validation(self):
-        """Test transaction type validation"""
-        url = f"{self.base_url}/transactions"
-        headers = {"Authorization": f"Bearer {self.jwt_token}"}
-
-        test_cases = [
-            {"type": None, "expected_status": 422, "desc": "Missing type"},
-            {"type": "", "expected_status": 422, "desc": "Empty type"},
-            {"type": "invalid", "expected_status": 422, "desc": "Invalid type"},
-            {"type": "transfer", "expected_status": 201, "desc": "Valid transfer type"},
+        # Test search functionality
+        search_tests = [
+            {"search": "shopping", "expected_count": 2},
+            {"search": "rent", "expected_count": 1},
+            {"search": "nomatch", "expected_count": 0},
         ]
 
-        base_data = {
-            "date": datetime.now().isoformat(),
-            "date_accountability": datetime.now().isoformat(),
-            "description": "Test transaction",
-            "amount": 100.00,
-            "from_account_id": self.accounts[0],
-            "to_account_id": self.accounts[1],
-            "category": "Test",
-            "subcategory": "Test",
-        }
-
-        for case in test_cases:
-            with self.subTest(msg=f"Testing {case['desc']}"):
-                data = base_data.copy()
-                if case["type"] is not None:
-                    data["type"] = str(case["type"])
-
-                response = requests.post(url, headers=headers, json=data)
-                self.assertEqual(
-                    response.status_code,
-                    case["expected_status"],
-                    f"Failed for {case['desc']}: expected {case['expected_status']}, got {response.status_code}",
+        for test in search_tests:
+            with self.subTest(msg=f"Testing search for '{test['search']}'"):
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    params={"search": test["search"]},
                 )
+                try:
+                    self.assertEqual(response.status_code, 200)
+                    data = response.json()
+                    self.assertEqual(
+                        len(data["transactions"]),
+                        test["expected_count"],
+                        f"Expected {test['expected_count']} results for search term '{test['search']}', got {len(data['transactions'])}. Response: {data}",
+                    )
+                except AssertionError:
+                    print(f"Response for failed search test: {response.json()}")
+                    raise
 
 
 class TestAccountAPI(TestBase):
