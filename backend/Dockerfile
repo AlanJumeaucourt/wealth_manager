@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 
 # Install curl for healthcheck and sqlite3 for database
 RUN apt-get update && \
@@ -8,34 +8,32 @@ RUN apt-get update && \
     libsqlite3-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user with explicit UID/GID
-RUN groupadd -r appuser --gid 1001 && useradd -r -g appuser --uid 1001 appuser
+# Create non-root user
+RUN groupadd -r appuser --gid 1001 && \
+    useradd -r -g appuser --uid 1001 -m appuser
 
 WORKDIR /app
 
-# Install dependencies first to leverage cache
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    rm -rf /root/.cache/pip/*
+# Enable bytecode compilation and system Python for better performance
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_SYSTEM_PYTHON=1
 
-# Create instance directory and set permissions
-RUN mkdir -p /app/instance && \
-    chown -R appuser:appuser /app && \
-    chmod 777 /app/instance
-
-# Copy application code
-COPY --chown=appuser:appuser . .
+# Set up permissions for the app directory
+RUN chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
 
-# Environment variables
-ENV FLASK_APP=app.py \
-    FLASK_ENV=development \
-    FLASK_DEBUG=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+# Copy pyproject.toml and install dependencies
+COPY --chown=appuser:appuser pyproject.toml uv.lock .
+
+# Clean any existing venv and run sync
+RUN rm -rf /app/.venv && \
+    uv sync --frozen
+
+# Copy application code
+COPY --chown=appuser:appuser . .
 
 EXPOSE 5000
 
-CMD ["flask", "run", "--host=0.0.0.0"]
+CMD ["uv", "run", "run.py", "--host=0.0.0.0"]

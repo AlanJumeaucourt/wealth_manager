@@ -23,6 +23,17 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+        - action: rebuild
+          path: ./pyproject.toml
+        - action: rebuild
+          path: ./uv.lock
 
   flask_backend:
     container_name: flask_backend

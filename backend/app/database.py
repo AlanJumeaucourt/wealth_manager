@@ -3,6 +3,8 @@ import sqlite3
 from typing import Optional, Union, List, Dict, Any
 from enum import Enum
 
+from .exceptions import QueryExecutionError, NoResultFoundError
+
 
 class QueryType(Enum):
     SELECT = "select"
