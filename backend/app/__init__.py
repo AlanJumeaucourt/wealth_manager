@@ -2,31 +2,17 @@ import logging
 import os
 from datetime import timedelta
 
-import sentry_sdk
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from sentry_sdk.integrations.flask import FlaskIntegration
 
 from app.database import DatabaseManager
+from app.middleware import log_request, log_response
+from app.logger import logger
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
-
-sentry_sdk.init(
-    dsn="https://d12d7aa6d6edf166709997c29591227d@o4508077260996608.ingest.de.sentry.io/4508077266239568",
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=1.0,
-    # Set profiles_sample_rate to 1.0 to profile 100%
-    # of sampled transactions.
-    # We recommend adjusting this value in production.
-    profiles_sample_rate=1.0,
-    integrations=[FlaskIntegration()],
-    spotlight=True,
-)
-
 
 def create_app():
     db = DatabaseManager()
@@ -35,6 +21,13 @@ def create_app():
     app = Flask(__name__)
     app.url_map.strict_slashes = False  # Add this line
     CORS(app, resources={r"/*": {"origins": "*"}})
+
+    # Register logging middleware
+    app.before_request(log_request)
+    app.after_request(log_response)
+
+    # Log application startup
+    logger.info('Application starting up')
 
     # JWT Configuration
     app.config["JWT_SECRET_KEY"] = os.environ.get(
@@ -54,16 +47,11 @@ def create_app():
 
     app.config["JSONIFY_MIMETYPE"] = "application/json"
 
-    @app.before_request
-    def log_request_info():
-        logging.debug(f"Request: {request.method} {request.url}")
-        logging.debug(f"Headers: {request.headers}")
-        logging.debug(f"Body: {request.get_data()}")
-
-    @app.after_request
-    def log_response_info(response):
-        logging.debug(f"Response: {response.status_code} {response.get_data()}")
-        return response
+    # Register error handlers
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        logger.error('Unhandled exception', exc_info=True)
+        return {"error": str(e)}, 500
 
     # import and register blueprints
     from app.routes.account_asset_routes import account_asset_bp
@@ -104,4 +92,5 @@ def create_app():
     def expired_token_callback(jwt_header, jwt_data):
         return jsonify({"msg": "Token has expired", "error": "token_expired"}), 401
 
+    logger.info('Application initialized successfully')
     return app

@@ -1,6 +1,6 @@
 flask
 flask_cors
 flask_jwt_extended
-sentry_sdk
 marshmallow
 yfinance
+python-json-logger

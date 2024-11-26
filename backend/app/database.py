@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .exceptions import NoResultFoundError, QueryExecutionError
+from .logger import logger
 
 
 class QueryType(Enum):
