@@ -111,9 +111,12 @@ def get_transactions_by_categories(
     ORDER BY t.category, t.subcategory
     """
 
-    results = db.execute_select(
-        query=query, params=[user_id, transaction_type, start_date, end_date]
-    )
+    try:
+        results = db.execute_select(
+            query=query, params=[user_id, transaction_type, start_date, end_date]
+        )
+    except NoResultFoundError:
+        return {}
 
     # Transform the results into the required format
     categorized_data = {}
