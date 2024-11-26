@@ -1,9 +1,15 @@
 from collections import defaultdict
+from typing import Literal, TypedDict
 
 from app.database import DatabaseManager
 from app.exceptions import NoResultFoundError
 
 db_manager = DatabaseManager()
+
+
+class TransactionSummary(TypedDict):
+    amount: float
+    count: int
 
 
 def get_budget_summary(start_date: str, end_date: str, user_id: int):
@@ -69,3 +75,58 @@ def get_budget_summary(start_date: str, end_date: str, user_id: int):
         }
         for category, data in category_summary.items()
     ]
+
+
+def get_transactions_by_categories(
+    start_date: str,
+    end_date: str,
+    user_id: int,
+    transaction_type: Literal["income", "expense", "transfer"],
+) -> dict[str, TransactionSummary]:
+    db = DatabaseManager()
+
+    query = """
+    SELECT
+        t.category,
+        t.subcategory,
+        SUM(t.amount) as total_amount,
+        COUNT(*) as transaction_count,
+        GROUP_CONCAT(json_object(
+            'id', t.id,
+            'date', t.date,
+            'date_accountability', t.date_accountability,
+            'description', t.description,
+            'amount', t.amount,
+            'from_account_id', t.from_account_id,
+            'to_account_id', t.to_account_id,
+            'category', t.category,
+            'subcategory', t.subcategory
+        )) as transactions_json
+    FROM transactions t
+    WHERE
+        t.user_id = ?
+        AND t.type = ?
+        AND t.date_accountability BETWEEN ? AND ?
+    GROUP BY t.category, t.subcategory
+    ORDER BY t.category, t.subcategory
+    """
+
+    results = db.execute_select(
+        query=query, params=[user_id, transaction_type, start_date, end_date]
+    )
+
+    # Transform the results into the required format
+    categorized_data = {}
+    for row in results:
+        category = row["category"]
+        if category not in categorized_data:
+            categorized_data[category] = {"amount": 0, "count": 0, "transactions": []}
+
+        # Parse the transactions JSON string into a list
+        transactions = eval("[" + row["transactions_json"] + "]")
+
+        categorized_data[category]["amount"] += row["total_amount"]
+        categorized_data[category]["count"] += row["transaction_count"]
+        categorized_data[category]["transactions"].extend(transactions)
+
+    return categorized_data

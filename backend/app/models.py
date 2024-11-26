@@ -19,6 +19,7 @@ class Bank:
 
     user_id: int
     name: str
+    website: str | None = field(default=None)
     id: int | None = field(default=None)  # Added id field
 
 

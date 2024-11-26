@@ -3,8 +3,15 @@ from datetime import UTC, datetime
 from app.database import DatabaseManager
 from app.exceptions import DuplicateUserError, NoResultFoundError, QueryExecutionError
 from app.models import User
+from app.services.base_service import BaseService
 
 db_manager = DatabaseManager()
+
+
+class UserService(BaseService):
+    def __init__(self):
+        super().__init__("users", User)
+        self.searchable_fields = ["username", "email", "full_name"]
 
 
 def create_user(name: str, email: str, password: str) -> User | None:

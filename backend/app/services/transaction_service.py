@@ -3,7 +3,7 @@ from typing import Any, TypedDict
 from app.exceptions import TransactionValidationError
 from app.models import Transaction
 from app.routes.base_routes import validate_date_format
-from app.services.base_service import BaseService
+from app.services.base_service import BaseService, ListQueryParams
 
 
 class TransactionData(TypedDict):
@@ -102,89 +102,57 @@ class TransactionService(BaseService):
         self.validate_transaction(data)
         return super().create(data)
 
-    def get_all(
-        self,
-        user_id: int,
-        page: int,
-        per_page: int,
-        filters: dict[str, Any],
-        sort_by: str | None = None,
-        sort_order: str | None = None,
-        fields: list[str] | None = None,
-        search: str | None = None,
-    ) -> TransactionData:
-        """Get all transactions with filtering and pagination."""
-        if fields:
-            fields = [
-                field for field in fields if field in self.model_class.__annotations__
-            ]
-        else:
-            fields = list(self.model_class.__annotations__.keys())
+    def get_all(self, user_id: int, query_params: ListQueryParams) -> dict[str, Any]:
+        # Get transactions using parent method
+        transactions = super().get_all(user_id, query_params)
 
-        # Base query for transactions
-        query = f"SELECT {', '.join(fields)} FROM {self.table_name} WHERE user_id = ?"  # noqa: S608 because fields are sanitized with class annotations
-        # Query for total amount
-        total_query = f"""
-            SELECT
-                COALESCE(SUM(CASE WHEN type = 'expense' THEN -amount
-                                WHEN type = 'income' THEN amount
-                                ELSE 0 END), 0) as total_amount,
-                COUNT(*) as count
-            FROM {self.table_name}
-            WHERE user_id = ?
-        """
-
-        params: list[int | str] = [user_id]
-        total_params: list[int | str] = [user_id]
-
-        # Handle the account_id filter
-        account_id = filters.get("account_id")
-        if account_id:
-            account_condition = " AND (from_account_id = ? OR to_account_id = ?)"
-            query += account_condition
-            total_query += account_condition
-            params.extend([account_id, account_id])
-            total_params.extend([account_id, account_id])
-
-        # Handle search
-        if search:
-            search_pattern = f"%{search}%"
-            search_condition = (
-                " AND (description LIKE ? OR category LIKE ? OR subcategory LIKE ?)"
-            )
-            query += search_condition
-            total_query += search_condition
-            params.extend([search_pattern, search_pattern, search_pattern])
-            total_params.extend([search_pattern, search_pattern, search_pattern])
-
-        # Handle other filters
-        for key, value in filters.items():
-            if value is not None and key != "account_id":
-                filter_condition = f" AND {key} = ?"
-                query += filter_condition
-                total_query += filter_condition
-                params.append(value)
-                total_params.append(value)
-
-        if sort_by and sort_order:
-            query += f" ORDER BY {sort_by} {sort_order}"
-
-        query += " LIMIT ? OFFSET ?"
-        params.extend([per_page, (page - 1) * per_page])
-
+        # Calculate total amount for the filtered transactions
         try:
-            # Get transactions
-            transactions = self.db_manager.execute_select(query, params)
-            # Get total amount and count
-            total_result = self.db_manager.execute_select(total_query, total_params)
+            # Build the base query for total amount
+            total_query = (
+                "SELECT SUM(amount) as total FROM transactions WHERE user_id = ?"
+            )
+            total_params: list[Any] = [user_id]
 
-            return {
-                "transactions": transactions if transactions else [],
-                "total_amount": total_result[0]["total_amount"] if total_result else 0,
-                "count": total_result[0]["count"] if total_result else 0,
-            }
+            # Apply the same filters as the main query
+            total_query, total_params = self._build_filter_conditions(
+                total_query, total_params, query_params.filters
+            )
+            total_query, total_params = self._build_search_conditions(
+                total_query,
+                total_params,
+                query_params.search,
+                query_params.search_fields,
+            )
+
+            # Execute the total amount query
+            result = self.db_manager.execute_select(total_query, total_params)
+            total_amount = result[0]["total"] if result[0]["total"] else 0
+
+            # Add total_amount to the response
+            return {**transactions, "total_amount": float(total_amount)}
+
         except Exception as e:
-            print(f"Error in get_all: {e}")
-            return {"transactions": [], "total_amount": 0, "count": 0}
+            print(f"Error calculating total amount: {e}")
+            return {**transactions, "total_amount": 0}
+
+    def _build_filter_conditions(
+        self, query: str, params: list[Any], filters: dict[str, Any]
+    ) -> tuple[str, list[Any]]:
+        # Create a copy of filters to avoid modifying the original
+        filters_copy = filters.copy()
+
+        # Handle account_id filter specially
+        if "account_id" in filters_copy:
+            account_id = filters_copy.pop("account_id")
+            if account_id is not None:
+                # Remove from_account_id and to_account_id filters if they exist
+                filters_copy.pop("from_account_id", None)
+                filters_copy.pop("to_account_id", None)
+                query += " AND (from_account_id = ? OR to_account_id = ?)"
+                params.extend([account_id, account_id])
+
+        # Call parent class method with the modified filters
+        return super()._build_filter_conditions(query, params, filters_copy)
 
     # Add any other transaction-specific methods here

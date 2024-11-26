@@ -594,7 +594,7 @@ class TestDataCreator:
         print("------")
         banks_response = self.api._make_request("GET", "/banks/")
         if banks_response:
-            for bank in banks_response:
+            for bank in banks_response["items"]:
                 print(f"- {bank['name']} (ID: {bank['id']})")
 
         # Show accounts with balances
@@ -602,7 +602,7 @@ class TestDataCreator:
         print("---------")
         accounts_response = self.api._make_request("GET", "/accounts")
         if accounts_response:
-            for account in accounts_response:
+            for account in accounts_response["items"]:
                 print(f"- {account['name']} ({account['type'].capitalize()})")
                 print(f"  Balance: ${account.get('balance', 0):.2f}")
 

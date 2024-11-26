@@ -2,7 +2,7 @@ from typing import Any
 
 from app.exceptions import NoResultFoundError
 from app.models import Account
-from app.services.base_service import BaseService
+from app.services.base_service import BaseService, ListQueryParams
 
 
 class AccountService(BaseService):
@@ -19,57 +19,13 @@ class AccountService(BaseService):
     def get_all(
         self,
         user_id: int,
-        page: int,
-        per_page: int,
-        filters: dict[str, Any],
-        sort_by: str | None,
-        sort_order: str | None,
-        fields: list[str] | None,
-        search: str | None = None,
-    ) -> list[dict[str, Any]]:
-        """Get all accounts with their current balances."""
-        if fields:
-            fields = [
-                field for field in fields if field in self.model_class.__annotations__
-            ]
-        else:
-            fields = list(self.model_class.__annotations__.keys())
-
-        # Modify the query to join with account_balances view
-        fields_str = ", ".join(f"a.{field}" for field in fields)
-        query = f"""
-            SELECT {fields_str}, ab.current_balance as balance
-            FROM {self.table_name} a
-            LEFT JOIN account_balances ab ON a.id = ab.account_id
-            WHERE a.user_id = ?
-        """  # noqa: S608 fields are sanitized by the schema
-        params: list[Any] = [user_id]
-
-        # Handle other filters
-        for key, value in filters.items():
-            if value is not None:
-                query += f" AND a.{key} = ?"
-                params.append(value)
-
-        # Handle search
-        if search:
-            search = f"%{search}%"
-            query += " AND (a.name LIKE ?)"
-            params.append(search)
-
-        if sort_by and sort_order:
-            query += f" ORDER BY a.{sort_by} {sort_order}"
-
-        query += " LIMIT ? OFFSET ?"
-        params.extend([per_page, (page - 1) * per_page])
-
-        try:
-            results = self.db_manager.execute_select(query, params)
-        except Exception as e:
-            print(f"Error in get_all: {e}")
-            return []
-        else:
-            return results
+        query_params: ListQueryParams,
+    ) -> dict[str, Any]:
+        result = super().get_all(user_id, query_params)
+        # Update balances for items
+        for account in result["items"]:
+            account["balance"] = self.calculate_balance(account_id=account["id"])
+        return result
 
     def calculate_balance(self, account_id: int) -> float:
         """Get account balance from the account_balances view."""
@@ -86,15 +42,18 @@ class AccountService(BaseService):
             return 0
 
     def sum_accounts_balances_over_days(
-        self, user_id: int, start_date: str, end_date: str
+        self,
+        user_id: int,
+        start_date: str,
+        end_date: str,
+        account_id: int | None = None,
     ) -> dict[str, float]:
-        query = """
+        query = """--sql
             WITH RECURSIVE date_range AS (
                 -- Start the recursion with the minimum transaction date
                 SELECT MIN(date) AS date
                 FROM transactions
                 WHERE user_id = ?
-
                 UNION ALL
 
                 -- Recursively generate the next date by adding 1 day
@@ -129,7 +88,58 @@ class AccountService(BaseService):
             FROM cumulative_balances cb
             ORDER BY cb.date;
         """
-        params = [user_id, user_id, user_id, user_id, user_id, user_id, user_id]
+        params = [*([user_id] * 7)]
+
+        if account_id:
+            query = """--sql
+                WITH RECURSIVE date_range AS (
+                    -- Start the recursion with the minimum transaction date
+                    SELECT MIN(date) AS date
+                    FROM transactions
+                    WHERE user_id = ?
+                    AND (from_account_id = ? OR to_account_id = ?)
+                    UNION ALL
+
+                    -- Recursively generate the next date by adding 1 day
+                    SELECT date(date, '+1 day')
+                    FROM date_range
+                    WHERE date < (SELECT MAX(date) FROM transactions WHERE user_id = ?)
+                ),
+                daily_balances AS (
+                    SELECT
+                        dr.date,
+                        COALESCE(SUM(CASE
+                            WHEN t.type = 'income' AND t.to_account_id = ? THEN t.amount
+                            WHEN t.type = 'expense' AND t.from_account_id = ? THEN -t.amount
+                            WHEN t.type = 'transfer' AND t.to_account_id = ? THEN t.amount
+                            WHEN t.type = 'transfer' AND t.from_account_id = ? THEN -t.amount
+                            ELSE 0
+                        END), 0) AS daily_balance
+                    FROM date_range dr
+                    LEFT JOIN transactions t
+                        ON dr.date = DATE(t.date) AND t.user_id = ?
+                    GROUP BY dr.date
+                ),
+                cumulative_balances AS (
+                    SELECT
+                        db.date,
+                        SUM(db.daily_balance) OVER (ORDER BY db.date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_balance
+                    FROM daily_balances db
+                )
+                SELECT
+                    cb.date,
+                    cb.cumulative_balance
+                FROM cumulative_balances cb
+                ORDER BY cb.date;
+            """
+            params = [
+                user_id,
+                *([account_id] * 2),
+                user_id,
+                *([account_id] * 4),
+                user_id,
+            ]
+
         try:
             results = self.db_manager.execute_select(query, params)
             return {

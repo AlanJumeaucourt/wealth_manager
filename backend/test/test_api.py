@@ -569,10 +569,9 @@ class TestTransactionAPI(TestBase):
             response = requests.get(url, headers=headers, params=filter_params)
             assert response.status_code == 200
             data = response.json()
-            assert "transactions" in data
+            assert "items" in data
             assert "total_amount" in data
-            assert "count" in data
-            assert len(data["transactions"]) > 0
+            assert "total" in data
 
     def test_transaction_pagination(self):
         # Create multiple transactions
@@ -587,7 +586,7 @@ class TestTransactionAPI(TestBase):
         response = requests.get(url, headers=headers, params=params)
         assert response.status_code == 200
         data = response.json()
-        assert len(data["transactions"]) == 2
+        assert len(data["items"]) == 2
 
     def test_transaction_date_validation(self):
         """Test transaction date validation"""
@@ -1013,10 +1012,10 @@ class TestTransactionAPI(TestBase):
                     headers=headers,
                     params={"search": test["search"]},
                 )
-                self.assert_valid_response(response, ["transactions"])
+                self.assert_valid_response(response, ["items"])
                 data = response.json()
                 assert (
-                    len(data["transactions"]) == test["expected_count"]
+                    len(data["items"]) == test["expected_count"]
                 ), f"Expected {test['expected_count']} results for search term '{test['search']}'"
 
 
@@ -1314,10 +1313,10 @@ class TestValidation(TestBase):
             response = requests.get(url, headers=headers, params={"search": term})
             assert response.status_code == 200
             data = response.json()
-            assert "transactions" in data
+            assert "items" in data
             # Verify at least one transaction contains the search term
             found = False
-            for transaction in data["transactions"]:
+            for transaction in data["items"]:
                 if term in transaction["description"]:
                     found = True
                     break

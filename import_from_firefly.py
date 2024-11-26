@@ -165,7 +165,7 @@ def get_banks_from_api() -> list[dict[str, Any]]:
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200 or response.status_code == 201:
-        return response.json()  # Assuming the response is a list of banks
+        return response.json()["items"]  # Assuming the response is a list of banks
     logging.error(f"Failed to retrieve banks: {response.status_code}, {response.text}")
     return []
 
@@ -188,7 +188,7 @@ def get_accounts_from_api() -> list[dict[str, Any]]:
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200 or response.status_code == 201:
-        return response.json()  # Assuming the response is a list of accounts
+        return response.json()["items"]  # Assuming the response is a list of accounts
     logging.error(
         f"Failed to retrieve accounts: {response.status_code}, {response.text}"
     )

@@ -9,7 +9,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from marshmallow import Schema, ValidationError
 
-from app.services.base_service import BaseService
+from app.services.base_service import BaseService, ListQueryParams
 
 logger = getLogger(__name__)
 
@@ -116,6 +116,8 @@ class BaseRoutes:
     def get_all(self):
         user_id = get_jwt_identity()
         sentry_sdk.set_user({"id": str(user_id)})
+
+        # Extract query parameters
         filters: dict[str, Any] = {
             field: request.args.get(field)
             for field in self.schema.fields
@@ -126,20 +128,22 @@ class BaseRoutes:
         if "account_id" in request.args:
             filters["account_id"] = request.args.get("account_id")
 
-        page = int(request.args.get("page", 1))
-        per_page = int(request.args.get("per_page", 10))
-        sort_by = request.args.get("sort_by")
-        sort_order = request.args.get("sort_order")
-        fields = (
-            request.args.get("fields", "").split(",")
-            if request.args.get("fields")
-            else None
+        # Create ListQueryParams object
+        query_params = ListQueryParams(
+            page=int(request.args.get("page", 1)),
+            per_page=int(request.args.get("per_page", 10)),
+            filters=filters,
+            sort_by=request.args.get("sort_by"),
+            sort_order=request.args.get("sort_order"),
+            fields=(
+                request.args.get("fields", "").split(",")
+                if request.args.get("fields")
+                else None
+            ),
+            search=request.args.get("search"),
         )
-        search = request.args.get("search", None)
 
-        results = self.service.get_all(
-            user_id, page, per_page, filters, sort_by, sort_order, fields, search
-        )
+        results = self.service.get_all(user_id, query_params)
         return jsonify(results)
 
 

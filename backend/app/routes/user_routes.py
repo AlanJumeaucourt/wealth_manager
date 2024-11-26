@@ -3,7 +3,12 @@ from typing import Any
 
 import sentry_sdk
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    get_jwt_identity,
+    jwt_required,
+)
 from marshmallow import ValidationError
 
 from app.exceptions import DuplicateUserError
@@ -73,8 +78,11 @@ def login() -> tuple[Any, int]:
                     "email": user_dict["email"],
                     "name": user_dict["name"],
                 },
+                fresh=True,
             )
             refresh_token = create_refresh_token(identity=str(user_dict["id"]))
+
+            update_last_login(user_id=user.id, login_time=datetime.now())
 
             return (
                 jsonify(
@@ -82,6 +90,7 @@ def login() -> tuple[Any, int]:
                         "access_token": access_token,
                         "refresh_token": refresh_token,
                         "user": user_dict,
+                        "token_type": "bearer",
                     }
                 ),
                 200,
@@ -94,6 +103,42 @@ def login() -> tuple[Any, int]:
     except Exception as e:
         sentry_sdk.capture_exception(e)
         return jsonify({"msg": "Login failed", "error": str(e)}), 500
+
+
+@user_bp.route("/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh() -> tuple[Any, int]:
+    """Endpoint to refresh the access token using a valid refresh token.
+    Returns a new access token if the refresh token is valid.
+    """
+    try:
+        # Get the user's identity from the refresh token
+        user_id = get_jwt_identity()
+
+        # Get the user details to include in the new access token
+        user = get_user_by_id(int(user_id))
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Create new access token
+        access_token = create_access_token(
+            identity=str(user.id),
+            additional_claims={
+                "email": user.email,
+                "name": user.name,
+            },
+        )
+
+        return jsonify(
+            {
+                "access_token": access_token,
+                "user": {"id": user.id, "email": user.email, "name": user.name},
+            }
+        ), 200
+
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return jsonify({"error": "Token refresh failed", "details": str(e)}), 500
 
 
 @user_bp.route("/<int:user_id>", methods=["GET"])

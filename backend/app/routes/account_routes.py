@@ -53,3 +53,28 @@ def get_account_balance(id: int):
     user_id = get_jwt_identity()
     balance = account_service.get_account_balance(user_id, id)
     return jsonify(balance)
+
+
+@account_bp.route("/<int:id>/balance_over_time", methods=["GET"])
+@jwt_required()
+def get_account_balance_over_time(id: int):
+    user_id = get_jwt_identity()
+    start_date = request.args.get("start_date", type=str)
+    end_date = request.args.get("end_date", type=str)
+
+    if not start_date or not end_date:
+        return (
+            jsonify({"error": "Start and end dates are required query parameters"}),
+            400,
+        )
+
+    try:
+        datetime.strptime(start_date, "%Y-%m-%d")
+        datetime.strptime(end_date, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    balance_over_time = account_service.sum_accounts_balances_over_days(
+        user_id, start_date, end_date, account_id=id
+    )
+    return jsonify(balance_over_time)

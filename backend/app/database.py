@@ -206,6 +206,7 @@ class DatabaseManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
+                    website TEXT,
                     UNIQUE(user_id, name),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 );
@@ -219,7 +220,7 @@ class DatabaseManager:
                         'investment', 'income', 'expense', 'checking', 'savings'
                     )),
                     bank_id INTEGER NOT NULL,
-                    UNIQUE(user_id, bank_id, name),
+                    UNIQUE(user_id, bank_id, name, type),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE CASCADE
                 );

@@ -39,6 +39,14 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Add new interface for paginated response
+interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
 export const fetchBanks = async () => {
   try {
     const response = await apiClient.get('/banks');
@@ -77,7 +85,7 @@ export const deleteBank = async (bankId: number) => {
   }
 };
 
-export const fetchAccounts = async (perPage: number, page: number, search?: string) => {
+export const fetchAccounts = async (perPage: number, page: number, search?: string): Promise<PaginatedResponse<Account>> => {
   try {
     const params = new URLSearchParams({
       per_page: perPage.toString(),
@@ -164,9 +172,18 @@ export const updateTransaction = async (transactionId: number, transactionData: 
   }
 }
 
-export const fetchTransactions = async (perPage: number, page: number, accountId?: number, search?: string) => {
+export const fetchTransactions = async (
+  perPage: number,
+  page: number,
+  accountId?: number,
+  search?: string
+): Promise<PaginatedResponse<Transaction>> => {
   try {
-    const response = await apiClient.get(`/transactions?per_page=${perPage}&page=${page}&sort_by=date&sort_order=desc${accountId ? `&account_id=${accountId}` : ''}${search ? `&search=${search}` : ''}`);
+    const response = await apiClient.get(
+      `/transactions?per_page=${perPage}&page=${page}&sort_by=date&sort_order=desc${
+        accountId ? `&account_id=${accountId}` : ''
+      }${search ? `&search=${search}` : ''}`
+    );
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching transactions');
@@ -224,9 +241,17 @@ export const fetchBudgetSummary = async (startDate: string, endDate: string) => 
 };
 
 // Investment API calls
-export const fetchInvestmentTransactions = async (perPage: number, page: number, accountId?: number) => {
+export const fetchInvestmentTransactions = async (
+  perPage: number,
+  page: number,
+  accountId?: number
+): Promise<PaginatedResponse<InvestmentTransaction>> => {
   try {
-    const response = await apiClient.get(`/investments?per_page=${perPage}&page=${page}${accountId ? `&account_id=${accountId}` : ''}`);
+    const response = await apiClient.get(
+      `/investments?per_page=${perPage}&page=${page}${
+        accountId ? `&account_id=${accountId}` : ''
+      }`
+    );
     console.log('Investment transactions response:', response.data);
     return response.data;
   } catch (error) {

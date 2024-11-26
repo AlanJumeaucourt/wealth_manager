@@ -80,6 +80,7 @@ class BankSchema(Schema):
     id = fields.Int(dump_only=True)
     user_id = fields.Int(required=True)
     name = fields.Str(required=True, validate=validate.Length(min=1))
+    website = fields.Str(allow_none=True, required=False)
 
 
 class AccountSchema(Schema):
