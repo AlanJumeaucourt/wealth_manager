@@ -19,7 +19,7 @@ logging.basicConfig(
 
 class CategoryInfo(TypedDict):
     category: str
-    subCategory: str
+    subCategory: str | None
 
 
 # Define the mapping of budgets to categories and subcategories
@@ -325,7 +325,9 @@ def csv_firefly_to_api(file_path: str):
             unique_budgets = df["budget"].unique()
             # logging.info(f"Different Budgets: {unique_budgets}")
             # Transform budgets to categories
-            transformed_categories = transform_budgets_to_categories(unique_budgets)
+            transformed_categories = transform_budgets_to_categories(
+                unique_budgets, "income"
+            )
             # logging.info(f"Transformed Categories: {transformed_categories}")
         else:
             logging.warning("Error: 'budget' column not found in the CSV file.")
@@ -374,12 +376,12 @@ def csv_firefly_to_api(file_path: str):
                     )
                     continue
 
-                category = transform_budget_to_categories(str(row["budget"]))[
-                    "category"
-                ]
-                sub_category = transform_budget_to_categories(str(row["budget"]))[
-                    "subCategory"
-                ]
+                category = transform_budget_to_categories(
+                    str(row["budget"]), transaction_type
+                )["category"]
+                sub_category = transform_budget_to_categories(
+                    str(row["budget"]), transaction_type
+                )["subCategory"]
 
                 if transaction_type == "income":
                     category = category_to_category_mapping.get(
@@ -426,7 +428,7 @@ def csv_firefly_to_api(file_path: str):
         raise
 
 
-def transform_budget_to_categories(budget: str) -> CategoryInfo:
+def transform_budget_to_categories(budget: str, transaction_type: str) -> CategoryInfo:
     """Transforms a budget string into a dictionary containing category and subcategory information.
 
     Args:
@@ -437,18 +439,24 @@ def transform_budget_to_categories(budget: str) -> CategoryInfo:
 
     """
     if pd.isna(budget):
+        if transaction_type == "income":
+            return {"category": "Autres rentrées", "subCategory": None}
         return {"category": "Divers", "subCategory": "A catégoriser"}
     category_info = budget_to_category_mapping.get(budget)
     # print(f"{category_info=}")
     if category_info:
         return category_info
+    if transaction_type == "income":
+        return {"category": "Autres rentrées", "subCategory": None}
     return {"category": "Divers", "subCategory": "A catégoriser"}
 
 
-def transform_budgets_to_categories(budgets: list[str]) -> list[CategoryInfo]:
+def transform_budgets_to_categories(
+    budgets: list[str], transaction_type: str
+) -> list[CategoryInfo]:
     categories: list[CategoryInfo] = []
     for budget in budgets:
-        categories.append(transform_budget_to_categories(budget))
+        categories.append(transform_budget_to_categories(budget, transaction_type))
     return categories
 
 
@@ -654,10 +662,12 @@ def process_batch(
             "type": handle_transaction_type(row["type"]),
             "date": row["date"][:10],
             "date_accountability": row["date"][:10],
-            "category": transform_budget_to_categories(str(row["budget"]))["category"],
-            "subcategory": transform_budget_to_categories(str(row["budget"]))[
-                "subCategory"
+            "category": transform_budget_to_categories(str(row["budget"]), row["type"])[
+                "category"
             ],
+            "subcategory": transform_budget_to_categories(
+                str(row["budget"]), row["type"]
+            )["subCategory"],
         }
 
         if row["destination_name"] == "Prêt Etudiant CA":

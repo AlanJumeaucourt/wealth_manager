@@ -11,7 +11,9 @@ from ..category import (
 )
 from ..services.budget_service import (
     TransactionSummary,
+    calculate_period_boundaries,
     get_budget_summary,
+    get_next_period_start,
     get_transactions_by_categories,
 )
 
@@ -119,3 +121,76 @@ def category_summary():
     }
 
     return jsonify(response)
+
+
+@budget_bp.route("/summary/period", methods=["GET"])
+@jwt_required()
+def budget_summary_by_period():
+    user_id = get_jwt_identity()
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    period = request.args.get("period")
+
+    if not all([start_date, end_date, period]):
+        return jsonify({"error": "start_date, end_date, and period are required"}), 400
+
+    # Type check period before using it
+    period = period if period in ("week", "month", "quarter", "year") else None
+    if period is None:
+        return jsonify(
+            {"error": "period must be one of: week, month, quarter, year"}
+        ), 400
+
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        end = datetime.strptime(end_date, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    if start > end:
+        return jsonify({"error": "start_date must be before end_date"}), 400
+
+    # Initialize the response data
+    period_summaries = []
+
+    # Get the aligned start date for the period
+    current_start, _ = calculate_period_boundaries(start, period)
+
+    # Generate summaries for each period
+    while current_start < end:
+        # Calculate period end based on the period type
+        _, current_end = calculate_period_boundaries(current_start, period)
+
+        # Get income and expense data separately
+        income_data = get_transactions_by_categories(
+            start_date=current_start.strftime("%Y-%m-%d"),
+            end_date=current_end.strftime("%Y-%m-%d"),
+            user_id=user_id,
+            transaction_type="income",
+        )
+        expense_data = get_transactions_by_categories(
+            start_date=current_start.strftime("%Y-%m-%d"),
+            end_date=current_end.strftime("%Y-%m-%d"),
+            user_id=user_id,
+            transaction_type="expense",
+        )
+
+        period_summaries.append(
+            {
+                "start_date": current_start.strftime("%Y-%m-%d"),
+                "end_date": current_end.strftime("%Y-%m-%d"),
+                "income": {
+                    "total": sum(cat["amount"] for cat in income_data.values()),
+                    "by_category": income_data,
+                },
+                "expense": {
+                    "total": sum(cat["amount"] for cat in expense_data.values()),
+                    "by_category": expense_data,
+                },
+            }
+        )
+
+        # Move to next period
+        current_start = get_next_period_start(current_start, period)
+
+    return jsonify({"period": period, "summaries": period_summaries})

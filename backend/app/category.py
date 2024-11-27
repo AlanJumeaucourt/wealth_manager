@@ -816,6 +816,16 @@ expense_categories: list[Category] = [
 income_categories: list[Category] = [
     {
         "name": {
+            "fr": "Investissements",
+            "en": "Investments",
+        },
+        "color": "#4FA81C",
+        "iconName": "cash-outline",
+        "iconSet": "Ionicons",
+        "subCategories": None,
+    },
+    {
+        "name": {
             "fr": "Allocations et pensions",
             "en": "Allocations and pensions",
         },
