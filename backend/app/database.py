@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 from .exceptions import NoResultFoundError, QueryExecutionError
-from .logger import logger
 
 
 class QueryType(Enum):
@@ -305,36 +304,24 @@ class DatabaseManager:
         views = [
             """--sql
                 CREATE VIEW IF NOT EXISTS account_balances AS
-                WITH transaction_impacts AS (
-                    -- Incoming transactions (positive impact)
-                    SELECT
-                        to_account_id as account_id,
-                        CASE
-                            WHEN type = 'income' THEN amount
-                            WHEN type = 'transfer' THEN amount
-                            ELSE 0
-                        END as amount
-                    FROM transactions
-                UNION ALL
-                -- Outgoing transactions (negative impact)
-                SELECT
-                    from_account_id as account_id,
-                    CASE
-                        WHEN type = 'expense' THEN -amount
-                        WHEN type = 'transfer' THEN -amount
-                        ELSE 0
-                    END as amount
-                FROM transactions
-                )
                 SELECT
                     a.id as account_id,
                     a.user_id,
                     a.name as account_name,
                     a.type as account_type,
-                    COALESCE(SUM(ti.amount), 0) as current_balance
+                    COALESCE(
+                        (SELECT SUM(
+                            CASE
+                                WHEN from_account_id = a.id THEN -amount
+                                WHEN to_account_id = a.id THEN amount
+                            END
+                        )
+                        FROM transactions
+                        WHERE from_account_id = a.id OR to_account_id = a.id
+                        ), 0
+                    ) as current_balance
                 FROM accounts a
-                    LEFT JOIN transaction_impacts ti ON a.id = ti.account_id
-                    GROUP BY a.id, a.user_id, a.name, a.type;
+                GROUP BY a.id, a.user_id, a.name, a.type;
             """,
         ]
 
