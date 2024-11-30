@@ -7,12 +7,13 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
 from app.database import DatabaseManager
-from app.middleware import log_request, log_response
 from app.logger import logger
+from app.middleware import log_request, log_response
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
 
 def create_app():
     db = DatabaseManager()
@@ -27,7 +28,7 @@ def create_app():
     app.after_request(log_response)
 
     # Log application startup
-    logger.info('Application starting up')
+    logger.info("Application starting up")
 
     # JWT Configuration
     app.config["JWT_SECRET_KEY"] = os.environ.get(
@@ -50,7 +51,7 @@ def create_app():
     # Register error handlers
     @app.errorhandler(Exception)
     def handle_exception(e):
-        logger.error('Unhandled exception', exc_info=True)
+        logger.error("Unhandled exception", exc_info=True)
         return {"error": str(e)}, 500
 
     # import and register blueprints
@@ -60,6 +61,8 @@ def create_app():
     from app.routes.bank_routes import bank_bp
     from app.routes.budget_routes import budget_bp
     from app.routes.investment_routes import investment_bp
+    from app.routes.refund_group import refund_group_bp
+    from app.routes.refund_item import refund_item_bp
     from app.routes.stock_routes import stock_bp
     from app.routes.transaction_routes import transaction_bp
     from app.routes.user_routes import user_bp
@@ -77,6 +80,12 @@ def create_app():
     app.register_blueprint(stock_bp, url_prefix="/stocks")
     app.register_blueprint(asset_bp, url_prefix="/assets")
     app.register_blueprint(account_asset_bp, url_prefix="/account_assets")
+    app.register_blueprint(
+        refund_item_bp, url_prefix="/refund_items"
+    )
+    app.register_blueprint(
+        refund_group_bp, url_prefix="/refund_groups"
+    )
 
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string):
@@ -92,5 +101,5 @@ def create_app():
     def expired_token_callback(jwt_header, jwt_data):
         return jsonify({"msg": "Token has expired", "error": "token_expired"}), 401
 
-    logger.info('Application initialized successfully')
+    logger.info("Application initialized successfully")
     return app

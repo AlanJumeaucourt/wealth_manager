@@ -9,7 +9,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from marshmallow import Schema, ValidationError
 
-from app.services.base_service import BaseService, ListQueryParams
+from app.services.base_service import BaseService, ListQueryParams, QueryExecutionError
 
 logger = getLogger(__name__)
 
@@ -117,34 +117,39 @@ class BaseRoutes:
         user_id = get_jwt_identity()
         sentry_sdk.set_user({"id": str(user_id)})
 
-        # Extract query parameters
-        filters: dict[str, Any] = {
-            field: request.args.get(field)
-            for field in self.schema.fields
-            if field in request.args
-        }
+        try:
+            # Extract query parameters
+            filters: dict[str, Any] = {
+                field: request.args.get(field)
+                for field in self.schema.fields
+                if field in request.args
+            }
 
-        # Add account_id to filters if it's in the request args
-        if "account_id" in request.args:
-            filters["account_id"] = request.args.get("account_id")
+            # Add account_id to filters if it's in the request args
+            if "account_id" in request.args:
+                filters["account_id"] = request.args.get("account_id")
 
-        # Create ListQueryParams object
-        query_params = ListQueryParams(
-            page=int(request.args.get("page", 1)),
-            per_page=int(request.args.get("per_page", 10)),
-            filters=filters,
-            sort_by=request.args.get("sort_by"),
-            sort_order=request.args.get("sort_order"),
-            fields=(
-                request.args.get("fields", "").split(",")
-                if request.args.get("fields")
-                else None
-            ),
-            search=request.args.get("search"),
-        )
+            # Create ListQueryParams object
+            query_params = ListQueryParams(
+                page=int(request.args.get("page", 1)),
+                per_page=int(request.args.get("per_page", 10)),
+                filters=filters,
+                sort_by=request.args.get("sort_by"),
+                sort_order=request.args.get("sort_order"),
+                fields=(
+                    request.args.get("fields", "").split(",")
+                    if request.args.get("fields")
+                    else None
+                ),
+                search=request.args.get("search"),
+            )
 
-        results = self.service.get_all(user_id, query_params)
-        return jsonify(results)
+            results = self.service.get_all(user_id, query_params)
+            return jsonify(results)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except QueryExecutionError as e:
+            return jsonify({"error": str(e)}), 500
 
 
 def validate_date_format(date_str: str) -> tuple[bool, str | None]:

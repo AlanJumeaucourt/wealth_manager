@@ -6,6 +6,7 @@ from marshmallow import (
     ValidationError,
     fields,
     validate,
+    validates_schema,
 )
 
 
@@ -154,3 +155,30 @@ class AccountAssetSchema(Schema):
     account_id = fields.Int(required=True)
     asset_id = fields.Int(required=True)
     quantity = fields.Float(required=True)
+
+
+class RefundGroupSchema(Schema):
+    id = fields.Int(dump_only=True)
+    user_id = fields.Int(required=True)
+    name = fields.Str(required=True, validate=validate.Length(min=1))
+    description = fields.Str(allow_none=True, required=False)
+
+
+class RefundItemSchema(Schema):
+    id = fields.Int(dump_only=True)
+    user_id = fields.Int(required=True)
+    income_transaction_id = fields.Int(required=True)
+    expense_transaction_id = fields.Int(required=True)
+    amount = fields.Float(
+        required=True, validate=validate.Range(min=0, min_inclusive=False)
+    )
+    refund_group_id = fields.Int(allow_none=True, required=False)
+    description = fields.Str(allow_none=True, required=False)
+
+    @validates_schema
+    def validate_transactions(self, data, **kwargs):
+        """Validate that income and expense transaction IDs are different."""
+        if data.get("income_transaction_id") == data.get("expense_transaction_id"):
+            raise ValidationError(
+                "Income and expense transaction IDs must be different"
+            )

@@ -299,6 +299,30 @@ class DatabaseManager:
                     PRIMARY KEY (symbol, cache_type)
                 );
             """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS refund_groups (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS refund_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    income_transaction_id INTEGER NOT NULL,
+                    expense_transaction_id INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    refund_group_id INTEGER,
+                    description TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                    FOREIGN KEY (income_transaction_id) REFERENCES transactions (id) ON DELETE CASCADE,
+                    FOREIGN KEY (expense_transaction_id) REFERENCES transactions (id) ON DELETE CASCADE,
+                    FOREIGN KEY (refund_group_id) REFERENCES refund_groups (id) ON DELETE CASCADE
+                )
+            """,
         ]
 
         views = [

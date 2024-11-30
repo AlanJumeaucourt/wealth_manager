@@ -15,6 +15,8 @@ class TransactionData(TypedDict):
 class TransactionService(BaseService):
     def __init__(self) -> None:
         super().__init__(table_name="transactions", model_class=Transaction)
+        # Define custom allowed filters for transactions
+        self.custom_allowed_filters = ["account_id"]
 
     def validate_transaction(self, data: dict[str, Any]) -> None:
         """Validate transaction data based on account types and transaction type."""

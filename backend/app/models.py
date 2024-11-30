@@ -51,7 +51,7 @@ class Transaction:
     id: int | None = field(default=None)
 
     def __post_init__(self) -> None:
-        if self.type not in ["expense", "income", "transfer", "refund"]:
+        if self.type not in ["expense", "income", "transfer"]:
             raise ValueError("Invalid transaction type.")
 
 
@@ -95,4 +95,27 @@ class AccountAsset:
     account_id: int
     asset_id: int
     quantity: float
+    id: int | None = field(default=None)
+
+
+@dataclass
+class RefundGroup:
+    """Represents a group of related refunds."""
+
+    user_id: int
+    name: str
+    description: str | None = field(default=None)
+    id: int | None = field(default=None)
+
+
+@dataclass
+class RefundItem:
+    """Represents a refund linking an income transaction to an expense transaction."""
+
+    user_id: int
+    income_transaction_id: int
+    expense_transaction_id: int
+    amount: float
+    refund_group_id: int | None = field(default=None)
+    description: str | None = field(default=None)
     id: int | None = field(default=None)

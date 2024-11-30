@@ -73,13 +73,37 @@ class BaseService:
             return False
 
     def _get_valid_fields(self, requested_fields: list[str] | None) -> list[str]:
+        valid_fields = list(self.model_class.__annotations__.keys())
         if requested_fields:
-            return [
-                field
-                for field in requested_fields
-                if field in self.model_class.__annotations__
+            invalid_fields = [
+                field for field in requested_fields if field not in valid_fields
             ]
-        return list(self.model_class.__annotations__.keys())
+            if invalid_fields:
+                raise ValueError(
+                    f"Invalid fields requested: {', '.join(invalid_fields)}"
+                )
+            return [field for field in requested_fields if field in valid_fields]
+        return valid_fields
+
+    def _validate_sort_field(self, sort_by: str | None) -> None:
+        if sort_by and sort_by not in self.model_class.__annotations__:
+            raise ValueError(f"Invalid sort field: {sort_by}")
+
+    def _validate_filter_fields(self, filters: dict[str, Any]) -> None:
+        # Get valid fields from the model
+        valid_fields = self.model_class.__annotations__.keys()
+
+        # Get custom allowed filters for specific services
+        custom_allowed_filters = getattr(self, "custom_allowed_filters", [])
+
+        # Combine model fields and custom allowed filters
+        all_valid_fields = set(valid_fields) | set(custom_allowed_filters)
+
+        # Check for invalid fields
+        invalid_fields = [key for key in filters if key not in all_valid_fields]
+        if invalid_fields:
+            print(f"Invalid filter fields: {', '.join(invalid_fields)}")
+            raise ValueError(f"Invalid filter fields: {', '.join(invalid_fields)}")
 
     def _build_filter_conditions(
         self, query: str, params: list[Any], filters: dict[str, Any]
@@ -137,7 +161,10 @@ class BaseService:
         query_params: ListQueryParams,
     ) -> dict[str, Any]:
         try:
+            # Validate fields before proceeding
             fields = self._get_valid_fields(query_params.fields)
+            self._validate_sort_field(query_params.sort_by)
+            self._validate_filter_fields(query_params.filters)
 
             # Build count query
             count_query = (
@@ -175,30 +202,26 @@ class BaseService:
                 query, params, query_params.page, query_params.per_page
             )
 
-            try:
-                total_count = self.db_manager.execute_select(count_query, count_params)[
-                    0
-                ]["total"]
-                items = self.db_manager.execute_select(query, params)
-                return {
-                    "items": items,
-                    "total": total_count,
-                    "page": query_params.page,
-                    "per_page": query_params.per_page,
-                }
-            except (NoResultFoundError, QueryExecutionError) as e:
-                print(f"Database error: {e}")
-                return {
-                    "items": [],
-                    "total": 0,
-                    "page": query_params.page,
-                    "per_page": query_params.per_page,
-                }
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+            total_count = self.db_manager.execute_select(count_query, count_params)[0][
+                "total"
+            ]
+            items = self.db_manager.execute_select(query, params)
+            return {
+                "items": items,
+                "total": total_count,
+                "page": query_params.page,
+                "per_page": query_params.per_page,
+            }
+        except ValueError as e:
+            raise ValueError(str(e)) from e
+        except NoResultFoundError:
             return {
                 "items": [],
                 "total": 0,
                 "page": query_params.page,
                 "per_page": query_params.per_page,
             }
+        except Exception as e:
+            raise QueryExecutionError(
+                f"Database error: {e!s}", query=query, params=params
+            ) from e
