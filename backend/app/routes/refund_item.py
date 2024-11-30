@@ -1,5 +1,5 @@
 from app.routes.base_routes import BaseRoutes
-from app.schemas import RefundItemSchema
+from app.schemas.schema_registry import RefundItemSchema
 from app.services.refund_item import RefundItemService
 
 refund_item_routes = BaseRoutes(

@@ -2,13 +2,14 @@ import logging
 import os
 from datetime import timedelta
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
 from app.database import DatabaseManager
 from app.logger import logger
 from app.middleware import log_request, log_response
+from app.swagger import API_URL, SWAGGER_URL, spec, swagger_ui_blueprint
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -22,6 +23,16 @@ def create_app():
     app = Flask(__name__)
     app.url_map.strict_slashes = False  # Add this line
     CORS(app, resources={r"/*": {"origins": "*"}})
+
+    # Register Swagger UI blueprint
+    app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
+
+    # Create static directory if it doesn't exist
+    os.makedirs(os.path.join(app.root_path, "static"), exist_ok=True)
+
+    @app.route("/static/swagger.json")
+    def create_swagger_spec():
+        return jsonify(spec.to_dict())
 
     # Register logging middleware
     app.before_request(log_request)
@@ -80,12 +91,8 @@ def create_app():
     app.register_blueprint(stock_bp, url_prefix="/stocks")
     app.register_blueprint(asset_bp, url_prefix="/assets")
     app.register_blueprint(account_asset_bp, url_prefix="/account_assets")
-    app.register_blueprint(
-        refund_item_bp, url_prefix="/refund_items"
-    )
-    app.register_blueprint(
-        refund_group_bp, url_prefix="/refund_groups"
-    )
+    app.register_blueprint(refund_item_bp, url_prefix="/refund_items")
+    app.register_blueprint(refund_group_bp, url_prefix="/refund_groups")
 
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string):

@@ -4,6 +4,8 @@ from typing import TypedDict
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
+from app.swagger import spec
+
 from ..category import (
     expense_categories,
     income_categories,
@@ -29,6 +31,353 @@ class BudgetCategorySummary(TypedDict):
     income: CategorySummary
     expense: CategorySummary
     transfer: CategorySummary
+
+
+def register_budget_swagger_docs():
+    # Document budget summary endpoint
+    spec.path(
+        path="/budgets/summary",
+        operations={
+            "get": {
+                "tags": ["Budget"],
+                "summary": "Get budget summary for a date range",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "string", "format": "date"},
+                        "description": "Start date in YYYY-MM-DD format",
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "string", "format": "date"},
+                        "description": "End date in YYYY-MM-DD format",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Budget summary data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "total": {"type": "number"},
+                                        "income": {"type": "number"},
+                                        "expense": {"type": "number"},
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "400": {"description": "Invalid date format or missing parameters"},
+                    "401": {"description": "Unauthorized"},
+                },
+            }
+        },
+    )
+
+    # Document get all categories endpoint
+    spec.path(
+        path="/budgets/categories",
+        operations={
+            "get": {
+                "tags": ["Budget"],
+                "summary": "Get all available categories",
+                "responses": {
+                    "200": {
+                        "description": "Categories grouped by type",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "expense": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                        "income": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                        "transfer": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        },
+    )
+
+    # Document get categories by type endpoint
+    spec.path(
+        path="/budgets/categories/{category_type}",
+        operations={
+            "get": {
+                "tags": ["Budget"],
+                "summary": "Get categories for a specific type",
+                "parameters": [
+                    {
+                        "name": "category_type",
+                        "in": "path",
+                        "required": True,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["expense", "income", "transfer"],
+                        },
+                        "description": "Category type",
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of categories",
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "array", "items": {"type": "string"}}
+                            }
+                        },
+                    },
+                    "400": {"description": "Invalid category type"},
+                },
+            }
+        },
+    )
+
+    # Document category summary endpoint
+    spec.path(
+        path="/budgets/categories/summary",
+        operations={
+            "get": {
+                "tags": ["Budget"],
+                "summary": "Get transaction summary by categories",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "string", "format": "date"},
+                        "description": "Start date in YYYY-MM-DD format",
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "string", "format": "date"},
+                        "description": "End date in YYYY-MM-DD format",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Category summary data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "income": {
+                                            "type": "object",
+                                            "properties": {
+                                                "total": {"type": "number"},
+                                                "by_category": {
+                                                    "type": "object",
+                                                    "additionalProperties": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "amount": {
+                                                                "type": "number"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        "expense": {
+                                            "type": "object",
+                                            "properties": {
+                                                "total": {"type": "number"},
+                                                "by_category": {
+                                                    "type": "object",
+                                                    "additionalProperties": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "amount": {
+                                                                "type": "number"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        "transfer": {
+                                            "type": "object",
+                                            "properties": {
+                                                "total": {"type": "number"},
+                                                "by_category": {
+                                                    "type": "object",
+                                                    "additionalProperties": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "amount": {
+                                                                "type": "number"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "400": {"description": "Invalid date format or missing parameters"},
+                    "401": {"description": "Unauthorized"},
+                },
+            }
+        },
+    )
+
+    # Document budget summary by period endpoint
+    spec.path(
+        path="/budgets/summary/period",
+        operations={
+            "get": {
+                "tags": ["Budget"],
+                "summary": "Get budget summary broken down by time periods",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "string", "format": "date"},
+                        "description": "Start date in YYYY-MM-DD format",
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "string", "format": "date"},
+                        "description": "End date in YYYY-MM-DD format",
+                    },
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "required": True,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["week", "month", "quarter", "year"],
+                        },
+                        "description": "Time period for grouping",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Period-wise budget summary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "period": {
+                                            "type": "string",
+                                            "enum": [
+                                                "week",
+                                                "month",
+                                                "quarter",
+                                                "year",
+                                            ],
+                                        },
+                                        "summaries": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "start_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                    },
+                                                    "end_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                    },
+                                                    "income": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "total": {"type": "number"},
+                                                            "by_category": {
+                                                                "type": "object",
+                                                                "additionalProperties": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "amount": {
+                                                                            "type": "number"
+                                                                        },
+                                                                        "count": {
+                                                                            "type": "integer"
+                                                                        },
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                    "expense": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "total": {"type": "number"},
+                                                            "by_category": {
+                                                                "type": "object",
+                                                                "additionalProperties": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "amount": {
+                                                                            "type": "number"
+                                                                        },
+                                                                        "count": {
+                                                                            "type": "integer"
+                                                                        },
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "400": {"description": "Invalid parameters or date format"},
+                    "401": {"description": "Unauthorized"},
+                },
+            }
+        },
+    )
+
+
+# Register Swagger documentation
+register_budget_swagger_docs()
 
 
 @budget_bp.route("/summary", methods=["GET"])
@@ -93,6 +442,12 @@ def category_summary():
 
     if not start_date or not end_date:
         return jsonify({"error": "start_date and end_date are required"}), 400
+
+    try:
+        datetime.strptime(start_date, "%Y-%m-%d")
+        datetime.strptime(end_date, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
 
     # You'll need to implement these service functions
     income_data = get_transactions_by_categories(

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import sentry_sdk
 from flask import Blueprint, jsonify, request
@@ -13,7 +13,7 @@ from marshmallow import ValidationError
 
 from app.exceptions import DuplicateUserError
 from app.routes.route_utils import process_request
-from app.schemas import UserSchema
+from app.schemas.schema_registry import UserSchema
 from app.services.user_service import (
     authenticate_user,
     create_user,
@@ -22,9 +22,270 @@ from app.services.user_service import (
     update_last_login,
     update_user,
 )
+from app.swagger import spec
 
 user_bp = Blueprint("user", __name__)
 user_schema = UserSchema()
+
+
+def register_user_swagger_docs():
+    # Document register endpoint
+    spec.path(
+        path="/users/register",
+        operations={
+            "post": {
+                "tags": ["Users"],
+                "summary": "Register a new user",
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["name", "email", "password"],
+                                "properties": {
+                                    "name": {"type": "string"},
+                                    "email": {"type": "string", "format": "email"},
+                                    "password": {"type": "string", "format": "password"}
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "User created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": user_schema
+                            }
+                        }
+                    },
+                    "400": {"description": "Invalid input or missing fields"},
+                    "422": {"description": "User already exists"},
+                    "500": {"description": "Server error"}
+                }
+            }
+        }
+    )
+
+    # Document login endpoint
+    spec.path(
+        path="/users/login",
+        operations={
+            "post": {
+                "tags": ["Users"],
+                "summary": "Login user and get access token",
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["email", "password"],
+                                "properties": {
+                                    "email": {"type": "string", "format": "email"},
+                                    "password": {"type": "string", "format": "password"}
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "access_token": {"type": "string"},
+                                        "refresh_token": {"type": "string"},
+                                        "token_type": {"type": "string"},
+                                        "user": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {"type": "integer"},
+                                                "email": {"type": "string"},
+                                                "name": {"type": "string"}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {"description": "Invalid credentials"},
+                    "500": {"description": "Server error"}
+                }
+            }
+        }
+    )
+
+    # Document refresh token endpoint
+    spec.path(
+        path="/users/refresh",
+        operations={
+            "post": {
+                "tags": ["Users"],
+                "summary": "Refresh access token",
+                "security": [{"bearerAuth": []}],
+                "responses": {
+                    "200": {
+                        "description": "Token refreshed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "access_token": {"type": "string"},
+                                        "user": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {"type": "integer"},
+                                                "email": {"type": "string"},
+                                                "name": {"type": "string"}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {"description": "Invalid refresh token"},
+                    "404": {"description": "User not found"},
+                    "500": {"description": "Server error"}
+                }
+            }
+        }
+    )
+
+    # Document get user endpoints
+    spec.path(
+        path="/users/{user_id}",
+        operations={
+            "get": {
+                "tags": ["Users"],
+                "summary": "Get user by ID",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "description": "User ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User details",
+                        "content": {
+                            "application/json": {
+                                "schema": user_schema
+                            }
+                        }
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "403": {"description": "Forbidden"},
+                    "404": {"description": "User not found"}
+                }
+            },
+            "put": {
+                "tags": ["Users"],
+                "summary": "Update user",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "description": "User ID"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"type": "string"},
+                                    "email": {"type": "string", "format": "email"},
+                                    "password": {"type": "string", "format": "password"}
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": user_schema
+                            }
+                        }
+                    },
+                    "400": {"description": "Invalid input"},
+                    "401": {"description": "Unauthorized"},
+                    "403": {"description": "Forbidden"},
+                    "500": {"description": "Server error"}
+                }
+            },
+            "delete": {
+                "tags": ["Users"],
+                "summary": "Delete user",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "description": "User ID"
+                    }
+                ],
+                "responses": {
+                    "204": {"description": "User deleted successfully"},
+                    "401": {"description": "Unauthorized"},
+                    "403": {"description": "Forbidden"},
+                    "500": {"description": "Server error"}
+                }
+            }
+        }
+    )
+
+    # Document verify token endpoint
+    spec.path(
+        path="/users/verify-token",
+        operations={
+            "get": {
+                "tags": ["Users"],
+                "summary": "Verify JWT token",
+                "security": [{"bearerAuth": []}],
+                "responses": {
+                    "200": {
+                        "description": "Token is valid",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {"type": "string"}
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {"description": "Invalid token"}
+                }
+            }
+        }
+    )
+
+# Register Swagger documentation
+register_user_swagger_docs()
 
 
 @user_bp.route("/register", methods=["POST"])
@@ -82,7 +343,9 @@ def login() -> tuple[Any, int]:
             )
             refresh_token = create_refresh_token(identity=str(user_dict["id"]))
 
-            update_last_login(user_id=user.id, login_time=datetime.now())
+            # Fix type error by ensuring user.id is not None
+            if user.id is not None:
+                update_last_login(user_id=user.id, login_time=datetime.now())
 
             return (
                 jsonify(
@@ -165,7 +428,8 @@ def get_user() -> tuple[Any, int]:
         return error, code
 
     user = get_user_by_id(user_id=user_id_from_tokens)
-    update_last_login(user_id=user_id_from_tokens, login_time=datetime.now())
+    # Cast to int to fix type error
+    update_last_login(user_id=cast(int, user_id_from_tokens), login_time=datetime.now())
     return (jsonify(user.__dict__), 200) if user else ("", 404)
 
 
@@ -218,7 +482,8 @@ def self_delete_user_route() -> tuple[Any, int]:
     user_id_from_tokens, _, error, code = process_request(type_of_request="DELETE")
     if error and code:
         return error, code
-    success = delete_user(user_id=user_id_from_tokens)
+    # Cast to int to fix type error
+    success = delete_user(user_id=cast(int, user_id_from_tokens))
     return ("", 204) if success else (jsonify({"error": "Failed to delete user"}), 500)
 
 
@@ -228,5 +493,6 @@ def verify_token() -> tuple[Any, int]:
     user_id_from_tokens, _, error, code = process_request(type_of_request="GET")
     if error and code:
         return error, code
-    update_last_login(user_id=user_id_from_tokens, login_time=datetime.now())
+    # Cast to int to fix type error
+    update_last_login(user_id=cast(int, user_id_from_tokens), login_time=datetime.now())
     return jsonify({"message": "Token is valid"}), 200

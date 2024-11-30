@@ -10,6 +10,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from marshmallow import Schema, ValidationError
 
 from app.services.base_service import BaseService, ListQueryParams, QueryExecutionError
+from app.swagger import spec
 
 logger = getLogger(__name__)
 
@@ -23,6 +24,182 @@ class BaseRoutes:
         self.schema = schema
 
         self.register_routes()
+        self.register_swagger_docs()
+
+    def register_swagger_docs(self) -> None:
+        """Register Swagger documentation for common endpoints"""
+        base_path = f"/{self.bp.name}"
+
+        # Document POST endpoint
+        spec.path(
+            path=f"{base_path}s/",
+            operations={
+                "post": {
+                    "tags": [self.bp.name.capitalize()],
+                    "summary": f"Create a new {self.bp.name}",
+                    "security": [{"bearerAuth": []}],
+                    "requestBody": {
+                        "content": {"application/json": {"schema": self.schema}}
+                    },
+                    "responses": {
+                        "201": {
+                            "description": f"{self.bp.name.capitalize()} created successfully",
+                            "content": {"application/json": {"schema": self.schema}},
+                        },
+                        "400": {"description": "Invalid input"},
+                        "401": {"description": "Unauthorized"},
+                        "422": {"description": "Validation error"},
+                    },
+                }
+            },
+        )
+
+        # Document GET endpoint
+        spec.path(
+            path=f"{base_path}s/{{id}}",
+            operations={
+                "get": {
+                    "tags": [self.bp.name.capitalize()],
+                    "summary": f"Get a {self.bp.name} by ID",
+                    "security": [{"bearerAuth": []}],
+                    "parameters": [
+                        {
+                            "name": "id",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": "integer"},
+                        }
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": f"Return {self.bp.name}",
+                            "content": {"application/json": {"schema": self.schema}},
+                        },
+                        "401": {"description": "Unauthorized"},
+                        "404": {"description": "Not found"},
+                    },
+                },
+                "put": {
+                    "tags": [self.bp.name.capitalize()],
+                    "summary": f"Update a {self.bp.name}",
+                    "security": [{"bearerAuth": []}],
+                    "parameters": [
+                        {
+                            "name": "id",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": "integer"},
+                        }
+                    ],
+                    "requestBody": {
+                        "content": {"application/json": {"schema": self.schema}}
+                    },
+                    "responses": {
+                        "200": {
+                            "description": f"{self.bp.name.capitalize()} updated successfully",
+                            "content": {"application/json": {"schema": self.schema}},
+                        },
+                        "400": {"description": "Invalid input"},
+                        "401": {"description": "Unauthorized"},
+                        "404": {"description": "Not found"},
+                        "422": {"description": "Validation error"},
+                    },
+                },
+                "delete": {
+                    "tags": [self.bp.name.capitalize()],
+                    "summary": f"Delete a {self.bp.name}",
+                    "security": [{"bearerAuth": []}],
+                    "parameters": [
+                        {
+                            "name": "id",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": "integer"},
+                        }
+                    ],
+                    "responses": {
+                        "204": {"description": "No content"},
+                        "401": {"description": "Unauthorized"},
+                        "404": {"description": "Not found"},
+                        "500": {"description": "Internal server error"},
+                    },
+                },
+            },
+        )
+
+        # Document GET all endpoint
+        spec.path(
+            path=f"{base_path}s/",
+            operations={
+                "get": {
+                    "tags": [self.bp.name.capitalize()],
+                    "summary": f"Get all {self.bp.name}s",
+                    "security": [{"bearerAuth": []}],
+                    "parameters": [
+                        {
+                            "name": "page",
+                            "in": "query",
+                            "schema": {"type": "integer", "default": 1},
+                            "description": "Page number",
+                        },
+                        {
+                            "name": "per_page",
+                            "in": "query",
+                            "schema": {"type": "integer", "default": 10},
+                            "description": "Items per page",
+                        },
+                        {
+                            "name": "sort_by",
+                            "in": "query",
+                            "schema": {"type": "string"},
+                            "description": "Field to sort by",
+                        },
+                        {
+                            "name": "sort_order",
+                            "in": "query",
+                            "schema": {"type": "string", "enum": ["asc", "desc"]},
+                            "description": "Sort order (asc or desc)",
+                        },
+                        {
+                            "name": "fields",
+                            "in": "query",
+                            "schema": {"type": "string"},
+                            "description": "Comma-separated list of fields to return",
+                        },
+                        {
+                            "name": "search",
+                            "in": "query",
+                            "schema": {"type": "string"},
+                            "description": "Search query",
+                        },
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": f"List of {self.bp.name}s",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "items": {
+                                                "type": "array",
+                                                "items": self.schema,
+                                            },
+                                            "total": {"type": "integer"},
+                                            "page": {"type": "integer"},
+                                            "per_page": {"type": "integer"},
+                                            "pages": {"type": "integer"},
+                                        },
+                                    }
+                                }
+                            },
+                        },
+                        "401": {"description": "Unauthorized"},
+                        "500": {"description": "Internal server error"},
+                    },
+                }
+            },
+        )
 
     def register_routes(self) -> None:
         self.bp.route("/", methods=["POST"])(self.create)

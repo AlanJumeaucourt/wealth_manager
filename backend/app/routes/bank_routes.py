@@ -1,5 +1,5 @@
 from app.routes.base_routes import BaseRoutes
-from app.schemas import BankSchema
+from app.schemas.schema_registry import BankSchema
 from app.services.bank_service import BankService
 
 bank_routes = BaseRoutes(
