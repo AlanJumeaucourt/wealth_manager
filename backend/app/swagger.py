@@ -17,7 +17,7 @@ spec = APISpec(
     },
     servers=[
         {
-            "url": "https://wealthmanager.myfunnycluster.dynamic-dns.net",
+            "url": "http://100.121.97.42:5000",
             "description": "Development server",
         }
     ],

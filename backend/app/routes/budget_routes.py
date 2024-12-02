@@ -449,7 +449,6 @@ def category_summary():
     except ValueError:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
 
-    # You'll need to implement these service functions
     income_data = get_transactions_by_categories(
         start_date, end_date, user_id, "income"
     )
@@ -462,15 +461,24 @@ def category_summary():
 
     response: BudgetCategorySummary = {
         "income": {
-            "total": sum(cat["amount"] for cat in income_data.values()),
+            "total": {
+                "net": sum(cat["net_amount"] for cat in income_data.values()),
+                "original": sum(cat["original_amount"] for cat in income_data.values()),
+            },
             "by_category": income_data,
         },
         "expense": {
-            "total": sum(cat["amount"] for cat in expense_data.values()),
+            "total": {
+                "net": sum(cat["net_amount"] for cat in expense_data.values()),
+                "original": sum(cat["original_amount"] for cat in expense_data.values()),
+            },
             "by_category": expense_data,
         },
         "transfer": {
-            "total": sum(cat["amount"] for cat in transfer_data.values()),
+            "total": {
+                "net": sum(cat["net_amount"] for cat in transfer_data.values()),
+                "original": sum(cat["original_amount"] for cat in transfer_data.values()),
+            },
             "by_category": transfer_data,
         },
     }
@@ -535,11 +543,17 @@ def budget_summary_by_period():
                 "start_date": current_start.strftime("%Y-%m-%d"),
                 "end_date": current_end.strftime("%Y-%m-%d"),
                 "income": {
-                    "total": sum(cat["amount"] for cat in income_data.values()),
+                    "total": {
+                        "net": sum(cat["net_amount"] for cat in income_data.values()),
+                        "original": sum(cat["original_amount"] for cat in income_data.values()),
+                    },
                     "by_category": income_data,
                 },
                 "expense": {
-                    "total": sum(cat["amount"] for cat in expense_data.values()),
+                    "total": {
+                        "net": sum(cat["net_amount"] for cat in expense_data.values()),
+                        "original": sum(cat["original_amount"] for cat in expense_data.values()),
+                    },
                     "by_category": expense_data,
                 },
             }

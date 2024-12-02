@@ -55,7 +55,7 @@ class BaseService:
     def update(self, item_id: int, user_id: int, data: dict[str, Any]) -> Any | None:
         try:
             update_fields = [f"{key} = ?" for key in data]
-            query = f"UPDATE {self.table_name} SET {', '.join(update_fields)} WHERE id = ? AND user_id = ? RETURNING *"
+            query = f"UPDATE {self.table_name} SET {', '.join(update_fields)} WHERE id = ? AND user_id = ? RETURNING *"  # noqa: S608
             params = [*data.values(), item_id, user_id]
             result = self.db_manager.execute_update_returning(query, params)
             return self.model_class(**result)
@@ -73,7 +73,11 @@ class BaseService:
             return False
 
     def _get_valid_fields(self, requested_fields: list[str] | None) -> list[str]:
-        valid_fields = list(self.model_class.__annotations__.keys())
+        valid_fields = [
+            field
+            for field in self.model_class.__annotations__.keys()
+            if field != "user_id"
+        ]
         if requested_fields:
             invalid_fields = [
                 field for field in requested_fields if field not in valid_fields

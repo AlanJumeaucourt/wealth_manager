@@ -739,9 +739,7 @@ def process_investment_csv(csv_data: str, account_name: str):
             investment_data = {
                 "from_account_id": from_id,
                 "to_account_id": to_id,
-                "asset_id": get_or_create_asset(
-                    row["symbol"]
-                ),  # You'll need to implement this
+                "asset_id": get_or_create_asset(row["symbol"]),
                 "activity_type": row["activityType"].lower(),
                 "date": row["date"][:10],
                 "quantity": float(row["quantity"]),
@@ -833,8 +831,8 @@ def get_or_create_asset(symbol: str) -> int:
 
     if response.status_code == 200:
         assets = response.json()
-        if assets:
-            return assets[0]["id"]
+        if len(assets["items"]) > 0:
+            return assets["items"][0]["id"]
 
     # If not found, create it
     url = "http://100.121.97.42:5000/assets"

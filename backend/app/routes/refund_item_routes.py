@@ -1,6 +1,6 @@
 from app.routes.base_routes import BaseRoutes
 from app.schemas.schema_registry import RefundItemSchema
-from app.services.refund_item import RefundItemService
+from app.services.refund_item_service import RefundItemService
 
 refund_item_routes = BaseRoutes(
     blueprint_name="refund_item",
