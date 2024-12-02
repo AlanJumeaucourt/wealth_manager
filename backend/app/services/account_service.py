@@ -67,8 +67,17 @@ class AccountService(BaseService):
                     COALESCE(SUM(CASE
                         WHEN t.type = 'income' AND t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN t.amount
                         WHEN t.type = 'expense' AND t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN -t.amount
-                        WHEN t.type = 'transfer' AND t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN t.amount
-                        WHEN t.type = 'transfer' AND t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN -t.amount
+                        WHEN t.type = 'transfer' THEN (
+                            CASE
+                                WHEN t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment'))
+                                AND t.from_account_id NOT IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment'))
+                                THEN t.amount
+                                WHEN t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment'))
+                                AND t.to_account_id NOT IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment'))
+                                THEN -t.amount
+                                ELSE 0
+                            END
+                        )
                         ELSE 0
                     END), 0) AS daily_balance
                 FROM date_range dr
@@ -88,7 +97,7 @@ class AccountService(BaseService):
             FROM cumulative_balances cb
             ORDER BY cb.date;
         """
-        params = [*([user_id] * 7)]
+        params = [*([user_id] * 9)]
 
         if account_id:
             query = """--sql
