@@ -5,16 +5,178 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.database import DatabaseManager
+from app.exceptions import QueryExecutionError
+from app.models import InvestmentTransaction
 from app.schemas.schema_registry import InvestmentTransactionSchema
-from app.services.base_service import BaseService
+from app.services.base_service import BaseService, ListQueryParams
 
 logger = logging.getLogger(__name__)
 
 
 class InvestmentService(BaseService):
     def __init__(self):
+        super().__init__(
+            table_name="investment_details", model_class=InvestmentTransaction
+        )
         self.db_manager = DatabaseManager()
         self.schema = InvestmentTransactionSchema()
+
+    def get_all(
+        self,
+        user_id: int,
+        query_params: ListQueryParams,
+    ) -> dict[str, Any]:
+        """Override get_all to handle sorting by date using transactions table."""
+        try:
+            # Determine which fields to select
+            requested_fields = query_params.fields or []
+            transaction_fields = {"date", "date_accountability", "description", "from_account_id", "to_account_id"}
+            investment_fields = {"asset_id", "quantity", "unit_price", "fee", "tax", "total_paid", "transaction_id"}
+
+            # If no fields specified, select all fields
+            if not requested_fields:
+                select_fields = ["i.*", "t.date", "t.date_accountability", "t.description",
+                               "t.from_account_id", "t.to_account_id", "t.user_id"]
+            else:
+                select_fields = []
+                for field in requested_fields:
+                    if field in transaction_fields:
+                        select_fields.append(f"t.{field}")
+                    elif field in investment_fields:
+                        select_fields.append(f"i.{field}")
+
+            # Build count query
+            count_query = """
+                SELECT COUNT(*) as total
+                FROM investment_details i
+                JOIN transactions t ON i.transaction_id = t.id
+                WHERE t.user_id = ? AND t.is_investment = TRUE
+            """
+            count_params: list[Any] = [user_id]
+
+            # Get filters from query_params.filters
+            filters = query_params.filters or {}
+
+            # Debug log
+            logger.info(f"Filters received: {filters}")
+
+            # Add filter conditions to count query
+            for key, value in filters.items():
+                if value is not None and key != "user_id":
+                    if key in transaction_fields:
+                        count_query += f" AND t.{key} = ?"
+                    elif key in investment_fields:
+                        count_query += f" AND i.{key} = ?"
+                    count_params.append(value)
+
+            # Add search conditions to count query
+            if query_params.search:
+                search_value = f"%{query_params.search}%"
+                count_query += """ AND (
+                    t.description LIKE ? OR
+                    CAST(i.quantity AS TEXT) LIKE ? OR
+                    CAST(i.unit_price AS TEXT) LIKE ?
+                )"""
+                count_params.extend([search_value for _ in range(3)])
+
+            # Debug log
+            logger.info(f"Count query: {count_query}")
+            logger.info(f"Count params: {count_params}")
+
+            # Execute count query first
+            total_count = self.db_manager.execute_select(count_query, count_params)[0]["total"]
+
+            # Debug log
+            logger.info(f"Total count: {total_count}")
+
+            # If total count is 0, return empty result
+            if total_count == 0:
+                return {
+                    "items": [],
+                    "total": 0,
+                    "page": query_params.page,
+                    "per_page": query_params.per_page,
+                }
+
+            # Build main query
+            query = f"""
+                SELECT {', '.join(select_fields)}
+                FROM investment_details i
+                JOIN transactions t ON i.transaction_id = t.id
+                WHERE t.user_id = ? AND t.is_investment = TRUE
+            """
+            params: list[Any] = [user_id]
+
+            # Add filter conditions
+            for key, value in filters.items():
+                if value is not None and key != "user_id":
+                    if key in transaction_fields:
+                        query += f" AND t.{key} = ?"
+                    elif key in investment_fields:
+                        query += f" AND i.{key} = ?"
+                    params.append(value)
+
+            # Add search conditions
+            if query_params.search:
+                search_value = f"%{query_params.search}%"
+                query += """ AND (
+                    t.description LIKE ? OR
+                    CAST(i.quantity AS TEXT) LIKE ? OR
+                    CAST(i.unit_price AS TEXT) LIKE ?
+                )"""
+                params.extend([search_value for _ in range(3)])
+
+            # Add sorting
+            if query_params.sort_by:
+                sort_order = query_params.sort_order or "ASC"
+                if query_params.sort_by in transaction_fields:
+                    query += f" ORDER BY t.{query_params.sort_by} {sort_order}"
+                else:
+                    query += f" ORDER BY i.{query_params.sort_by} {sort_order}"
+
+            # Add pagination
+            query += " LIMIT ? OFFSET ?"
+            params.extend([
+                query_params.per_page,
+                (query_params.page - 1) * query_params.per_page
+            ])
+
+            # Debug log
+            logger.info(f"Main query: {query}")
+            logger.info(f"Main params: {params}")
+
+            try:
+                # Execute main query
+                items = self.db_manager.execute_select(query, params)
+
+                # Debug log
+                logger.info(f"Items found: {len(items)}")
+
+                return {
+                    "items": items,
+                    "total": total_count,
+                    "page": query_params.page,
+                    "per_page": query_params.per_page,
+                }
+            except Exception as e:
+                logger.error(f"Error executing main query: {e}")
+                # If no results found, return empty result instead of error
+                if "No result found" in str(e):
+                    return {
+                        "items": [],
+                        "total": 0,
+                        "page": query_params.page,
+                        "per_page": query_params.per_page,
+                    }
+                raise
+
+        except Exception as e:
+            logger.error(f"Error in get_all: {e}")
+            raise QueryExecutionError(
+                f"Database error: {e!s}",
+                query=locals().get("query", "Query not built"),
+                params=locals().get("params", [])
+            )
 
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
         """Create investment transaction and associated details."""
