@@ -29,7 +29,7 @@ class AccountService(BaseService):
 
     def calculate_balance(self, account_id: int) -> float:
         """Get account balance from the account_balances view."""
-        query = """
+        query = """--sql
         SELECT current_balance
         FROM account_balances
         WHERE account_id = ?
@@ -161,7 +161,7 @@ class AccountService(BaseService):
             return {}
 
     def get_wealth(self, user_id: int) -> dict[str, Any]:
-        query = """
+        query = """--sql
         SELECT
             SUM(CASE WHEN type IN ('checking', 'savings', 'investment') THEN
                 (SELECT COALESCE(SUM(CASE
@@ -213,7 +213,7 @@ class AccountService(BaseService):
         return result[0] if result else {}
 
     def get_account_balance(self, user_id: int, account_id: int) -> dict[str, float]:
-        query = """
+        query = """--sql
             WITH RECURSIVE date_range AS (
                 -- Start the recursion with the minimum transaction date
                 SELECT MIN(date) AS date

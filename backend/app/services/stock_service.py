@@ -75,7 +75,7 @@ class CacheManager:
     def _update_cache(self, symbol: str, data: dict[str, Any], cache_type: str) -> None:
         """Update the cache with new data."""
         try:
-            query = """
+            query = """--sql
             INSERT INTO stock_cache (symbol, cache_type, data, last_updated)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(symbol, cache_type) DO UPDATE SET
@@ -98,7 +98,7 @@ class CacheManager:
     def _get_cached_data(self, symbol: str, cache_type: str) -> dict[str, Any] | None:
         """Get data from cache."""
         try:
-            query = """
+            query = """--sql
             SELECT data, last_updated
             FROM stock_cache
             WHERE symbol = ? AND cache_type = ?

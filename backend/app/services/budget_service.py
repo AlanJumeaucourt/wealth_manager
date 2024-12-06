@@ -75,7 +75,7 @@ def get_next_period_start(
 
 
 def get_budget_summary(start_date: str, end_date: str, user_id: int):
-    query = """
+    query = """--sql
     WITH transaction_refunds AS (
         SELECT
             t.id as transaction_id,
@@ -182,7 +182,7 @@ def get_transactions_by_categories(
     db = DatabaseManager()
 
     # Base query with refund adjustments
-    query = """
+    query = """--sql
     WITH transaction_refunds AS (
         SELECT
             t.id as transaction_id,

@@ -16,7 +16,7 @@ class TransactionService(BaseService):
     def __init__(self) -> None:
         super().__init__(table_name="transactions", model_class=Transaction)
         # Define custom allowed filters for transactions
-        self.custom_allowed_filters = ["account_id"]
+        self.custom_allowed_filters = ["account_id", "has_refund"]
 
     def validate_transaction(self, data: dict[str, Any]) -> None:
         """Validate transaction data based on account types and transaction type."""
@@ -26,7 +26,7 @@ class TransactionService(BaseService):
 
         try:
             # Get account types
-            query = """
+            query = """--sql
                 SELECT id, type, name FROM accounts
                 WHERE id IN (?, ?) AND user_id = ?
             """
@@ -105,38 +105,61 @@ class TransactionService(BaseService):
         return super().create(data)
 
     def get_all(self, user_id: int, query_params: ListQueryParams) -> dict[str, Any]:
-        # Get transactions using parent method
-        transactions = super().get_all(user_id, query_params)
+        # First get filtered transactions using parent method to maintain original filtering
+        base_results = super().get_all(user_id, query_params)
+        transactions = base_results["items"]
 
-        # Calculate total amount for the filtered transactions
-        try:
-            # Build the base query for total amount
-            total_query = (
-                "SELECT SUM(amount) as total FROM transactions WHERE user_id = ?"
-            )
-            total_params: list[Any] = [user_id]
+        # Now enrich the transactions with refund information
+        if transactions:
+            transaction_ids = [str(t["id"]) for t in transactions]
+            refund_query = """--sql
+                SELECT t.id as transaction_id,
+                    ri.id as refund_id,
+                    ri.amount as refund_amount,
+                    ri.description as refund_description,
+                    it.date as refund_date,
+                    ri.refund_group_id
+                FROM transactions t
+                LEFT JOIN refund_items ri ON (t.id = ri.expense_transaction_id OR t.id = ri.income_transaction_id)
+                    AND ri.user_id = t.user_id
+                LEFT JOIN transactions it ON ri.income_transaction_id = it.id
+                WHERE t.id IN ({}) AND t.user_id = ?
+            """.format(",".join(["?"] * len(transaction_ids)))  # noqa: S608
 
-            # Apply the same filters as the main query
-            total_query, total_params = self._build_filter_conditions(
-                total_query, total_params, query_params.filters
-            )
-            total_query, total_params = self._build_search_conditions(
-                total_query,
-                total_params,
-                query_params.search,
-                query_params.search_fields,
-            )
+            params = [*transaction_ids, user_id]
+            refund_results = self.db_manager.execute_select(refund_query, params)
 
-            # Execute the total amount query
-            result = self.db_manager.execute_select(total_query, total_params)
-            total_amount = result[0]["total"] if result[0]["total"] else 0
+            # Group refunds by transaction
+            refunds_by_transaction = {}
+            for refund in refund_results:
+                transaction_id = refund["transaction_id"]
+                if (
+                    refund["refund_id"] is not None
+                ):  # Only add if there's actually a refund
+                    if transaction_id not in refunds_by_transaction:
+                        refunds_by_transaction[transaction_id] = []
+                    refunds_by_transaction[transaction_id].append(
+                        {
+                            "id": refund["refund_id"],
+                            "amount": float(refund["refund_amount"]),
+                            "date": refund["refund_date"],
+                            "description": refund["refund_description"],
+                            "refund_group_id": refund["refund_group_id"],
+                        }
+                    )
 
-            # Add total_amount to the response
-            return {**transactions, "total_amount": float(total_amount)}
+            # Add refunds to transactions
+            for transaction in transactions:
+                transaction["refund_items"] = refunds_by_transaction.get(
+                    transaction["id"], []
+                )
 
-        except Exception as e:
-            print(f"Error calculating total amount: {e}")
-            return {**transactions, "total_amount": 0}
+        return {
+            "items": transactions,
+            "total": base_results["total"],
+            "page": base_results["page"],
+            "per_page": base_results["per_page"],
+        }
 
     def _build_filter_conditions(
         self, query: str, params: list[Any], filters: dict[str, Any]
@@ -153,6 +176,20 @@ class TransactionService(BaseService):
                 filters_copy.pop("to_account_id", None)
                 query += " AND (from_account_id = ? OR to_account_id = ?)"
                 params.extend([account_id, account_id])
+
+        # Handle has_refund filter
+        if "has_refund" in filters_copy:
+            has_refund = filters_copy.pop("has_refund")
+            if has_refund is not None:
+                exists_subquery = """--sql
+                    EXISTS (
+                        SELECT 1 FROM refund_items ri
+                        WHERE (transactions.id = ri.expense_transaction_id
+                        OR transactions.id = ri.income_transaction_id)
+                        AND ri.user_id = transactions.user_id
+                    )
+                """
+                query += f" AND {'' if has_refund == 'true' else 'NOT'} {exists_subquery}"
 
         # Call parent class method with the modified filters
         return super()._build_filter_conditions(query, params, filters_copy)

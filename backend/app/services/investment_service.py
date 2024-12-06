@@ -166,7 +166,7 @@ class InvestmentService(BaseService):
         self, user_id: int, asset_symbol: str
     ) -> dict[str, list[dict[str, Any]]]:
         """Get all transactions for a specific asset."""
-        query = """
+        query = """--sql
         SELECT
             it.id,
             strftime('%Y-%m-%d', it.date) as date,
@@ -422,7 +422,7 @@ class InvestmentService(BaseService):
                 )
 
                 # First try to update existing record
-                update_query = """
+                update_query = """--sql
                 UPDATE account_assets
                 SET quantity = quantity + ?
                 WHERE account_id = ? AND asset_id = ? AND user_id = ?
@@ -441,7 +441,7 @@ class InvestmentService(BaseService):
 
                 # If no rows were updated, insert new record
                 if cursor.rowcount == 0:
-                    insert_query = """
+                    insert_query = """--sql
                     INSERT INTO account_assets (user_id, account_id, asset_id, quantity)
                     VALUES (?, ?, ?, ?)
                     """
