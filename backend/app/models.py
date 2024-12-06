@@ -40,7 +40,7 @@ class Transaction:
 
     user_id: int
     date: datetime
-    date_accountability: datetime  # Added field
+    date_accountability: datetime
     description: str
     amount: float
     from_account_id: int
@@ -48,6 +48,7 @@ class Transaction:
     type: str
     category: str
     subcategory: str | None = field(default=None)
+    is_investment: bool = field(default=False)
     id: int | None = field(default=None)
 
     def __post_init__(self) -> None:

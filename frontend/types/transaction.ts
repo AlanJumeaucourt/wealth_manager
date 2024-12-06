@@ -9,4 +9,5 @@ export interface Transaction {
   to_account_id: number;
   category: string;
   subcategory: string | null;
+  is_investment: boolean
 }

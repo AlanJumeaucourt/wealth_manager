@@ -143,7 +143,8 @@ class WealthManagerAPI:
         response = self._make_request(
             method="POST", endpoint="/investments/", data=data
         )
-        return response.get("id")
+        print("response", response)
+        return response.get("transaction_id")
 
 
 class TestDataCreator:
@@ -455,33 +456,6 @@ class TestDataCreator:
                     tax=float(strategy["tax"]),
                     date=transaction_date.isoformat(),
                 )
-
-                if buy_id:
-                    owned_quantities[symbol] += quantity
-                    total_amount = (quantity * price) + strategy["fee"]
-                    print(
-                        f"Created monthly buy: {quantity:.6f} {symbol} at {price:.2f}€ (Total: {total_amount:.2f}€)"
-                    )
-
-                    # Create corresponding money transfer
-                    transfer_id = self.api.create_transaction(
-                        amount=float(total_amount),
-                        from_account="Checking Account",
-                        to_account="Investment Account",
-                        transaction_type="transfer",
-                        description=f"Buy {quantity:.6f} {symbol}",
-                        category="Banque",
-                        subcategory="Services Bancaires",
-                        date=transaction_date.isoformat(),
-                    )
-
-                    if not transfer_id:
-                        print(f"Failed to create transfer for {symbol} purchase")
-                        return False
-
-                else:
-                    print(f"Failed to create monthly buy for {symbol}")
-                    return False
 
                 # 15% chance of additional purchase during market dips
                 if random.random() < 0.15 and market_factor < 0.98:

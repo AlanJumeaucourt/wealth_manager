@@ -43,6 +43,7 @@ apiClient.interceptors.request.use(
 interface PaginatedResponse<T> {
   items: T[];
   total: number;
+  count: number;
   page: number;
   per_page: number;
 }
@@ -51,7 +52,7 @@ export const fetchBanks = async () => {
   try {
     const response = await apiClient.get('/banks');
     console.log('Banks response:', response.data);
-    return response.data;
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching banks');
   }
@@ -98,7 +99,8 @@ export const fetchAccounts = async (perPage: number, page: number, search?: stri
 
     const response = await apiClient.get(`/accounts?${params.toString()}`);
     console.log('Accounts response:', response.data);
-    return response.data;
+
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching accounts');
   }
@@ -177,7 +179,14 @@ export const fetchTransactions = async (
   page: number,
   accountId?: number,
   search?: string
-): Promise<PaginatedResponse<Transaction>> => {
+): Promise<{
+  items: Transaction[];
+  total: number;
+  total_amount: number;
+  count: number;
+  page: number;
+  per_page: number;
+}> => {
   try {
     const response = await apiClient.get(
       `/transactions?per_page=${perPage}&page=${page}&sort_by=date&sort_order=desc${
@@ -253,7 +262,7 @@ export const fetchInvestmentTransactions = async (
       }`
     );
     console.log('Investment transactions response:', response.data);
-    return response.data;
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching investment transactions');
   }
@@ -357,7 +366,7 @@ export const getStockHistory = async (symbol: string, period: string = '1y') => 
 export const getInvestmentTransactions = async () => {
   try {
     const response = await apiClient.get('/investments');
-    return response.data;
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching investment transactions');
   }
@@ -386,7 +395,7 @@ export const getCurrentHistory = async (symbol: string) => {
 export const fetchAssets = async () => {
   try {
     const response = await apiClient.get('/assets');
-    return response.data;
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching assets');
   }

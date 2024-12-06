@@ -122,6 +122,24 @@ class TransactionSchema(Schema):
         required=True,
         validate=validate.OneOf(["expense", "income", "transfer"]),
     )
+    is_investment = fields.Boolean(required=False, default=False)
+
+
+class InvestmentDetailsSchema(Schema):
+    user_id = fields.Int(required=True)
+    asset_id = fields.Int(required=True)
+    quantity = fields.Float(required=True)
+    unit_price = fields.Float(required=True)
+    fee = fields.Float(required=True)
+    tax = fields.Float(required=True)
+    total_paid = fields.Float(dump_only=True)
+    activity_type = fields.Str(
+        required=True,
+        validate=validate.OneOf(["buy", "sell", "deposit", "withdrawal"]),
+    )
+    date = DateField(required=True)
+    from_account_id = fields.Int(required=True)
+    to_account_id = fields.Int(required=True)
 
 
 class AssetSchema(Schema):

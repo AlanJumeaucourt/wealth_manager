@@ -240,9 +240,23 @@ class DatabaseManager:
                     type TEXT NOT NULL CHECK (type IN (
                         'expense', 'income', 'transfer'
                     )),
+                    is_investment BOOLEAN DEFAULT FALSE,
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (from_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
                     FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE
+                );
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS investment_details (
+                    transaction_id INTEGER PRIMARY KEY,
+                    asset_id INTEGER NOT NULL,
+                    quantity DECIMAL(10,6) NOT NULL,
+                    unit_price DECIMAL(10,2) NOT NULL,
+                    fee DECIMAL(10,2) NOT NULL,
+                    tax DECIMAL(10,2) NOT NULL,
+                    total_paid DECIMAL(10,2),
+                    FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+                    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
                 );
             """,
             """--sql
@@ -253,28 +267,6 @@ class DatabaseManager:
                     name TEXT NOT NULL,
                     UNIQUE(symbol, user_id)
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                );
-            """,
-            """--sql
-                CREATE TABLE IF NOT EXISTS investment_transactions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    from_account_id INTEGER NOT NULL,
-                    to_account_id INTEGER NOT NULL,
-                    asset_id INTEGER NOT NULL,
-                    activity_type TEXT NOT NULL CHECK (activity_type IN (
-                        'buy', 'sell', 'deposit', 'withdrawal'
-                    )),
-                    date TIMESTAMP NOT NULL,
-                    quantity DECIMAL(10,6) NOT NULL,
-                    unit_price DECIMAL(10,2) NOT NULL,
-                    fee DECIMAL(10,2) NOT NULL,
-                    tax DECIMAL(10,2) NOT NULL,
-                    total_paid DECIMAL(10,2),
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                    FOREIGN KEY (from_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
-                    FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
-                    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
                 );
             """,
             """--sql
@@ -407,26 +399,6 @@ class DatabaseManager:
 
             """,
             """--sql
-                CREATE TRIGGER IF NOT EXISTS trg_calculate_total_paid_investment_transaction_insert
-                AFTER INSERT ON investment_transactions
-                FOR EACH ROW
-                BEGIN
-                    UPDATE investment_transactions
-                    SET total_paid = (NEW.quantity * NEW.unit_price) + NEW.fee + NEW.tax
-                    WHERE id = NEW.id;
-                END;
-            """,
-            """--sql
-                CREATE TRIGGER IF NOT EXISTS trg_calculate_total_paid_investment_transaction_update
-                AFTER UPDATE ON investment_transactions
-                FOR EACH ROW
-                BEGIN
-                    UPDATE investment_transactions
-                    SET total_paid = (NEW.quantity * NEW.unit_price) + NEW.fee + NEW.tax
-                    WHERE id = NEW.id;
-                END;
-            """,
-            """--sql
                 CREATE TRIGGER IF NOT EXISTS trg_validate_account_bank_ownership_insert
                 BEFORE INSERT ON accounts
                 BEGIN
@@ -495,58 +467,6 @@ class DatabaseManager:
                 END;
             """,
             """--sql
-                CREATE TRIGGER IF NOT EXISTS trg_validate_investment_transaction_ownership_insert
-                BEFORE INSERT ON investment_transactions
-                BEGIN
-                    SELECT CASE
-                        WHEN (
-                            SELECT user_id
-                            FROM accounts
-                            WHERE id = NEW.from_account_id
-                        ) != NEW.user_id OR
-                        (
-                            SELECT user_id
-                            FROM accounts
-                            WHERE id = NEW.to_account_id
-                        ) != NEW.user_id OR
-                        (
-                            SELECT user_id
-                            FROM assets
-                            WHERE id = NEW.asset_id
-                        ) != NEW.user_id
-                        THEN RAISE(ABORT, 'Cannot insert investment transaction with assets/accounts owned by different user')
-                    END;
-                END;
-
-            """,
-            """--sql
-                CREATE TRIGGER IF NOT EXISTS trg_validate_investment_transaction_ownership_update
-                BEFORE UPDATE ON investment_transactions
-                WHEN NEW.from_account_id != OLD.from_account_id
-                    OR NEW.to_account_id != OLD.to_account_id
-                    OR NEW.asset_id != OLD.asset_id
-                BEGIN
-                    SELECT CASE
-                        WHEN (
-                            SELECT user_id
-                            FROM accounts
-                            WHERE id = NEW.from_account_id
-                        ) != NEW.user_id OR
-                        (
-                            SELECT user_id
-                            FROM accounts
-                            WHERE id = NEW.to_account_id
-                        ) != NEW.user_id OR
-                        (
-                            SELECT user_id
-                            FROM assets
-                            WHERE id = NEW.asset_id
-                        ) != NEW.user_id
-                        THEN RAISE(ABORT, 'Cannot update investment transaction to use assets/accounts owned by different user')
-                    END;
-                END;
-            """,
-            """--sql
                 CREATE TRIGGER IF NOT EXISTS trg_validate_account_asset_ownership_insert
                 BEFORE INSERT ON account_assets
                 BEGIN
@@ -594,8 +514,6 @@ class DatabaseManager:
             "CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);",
             "CREATE INDEX IF NOT EXISTS idx_transactions_user_date_acc ON transactions(user_id, date_accountability);",
             "CREATE INDEX IF NOT EXISTS idx_transactions_accounts ON transactions(from_account_id, to_account_id);",
-            "CREATE INDEX IF NOT EXISTS idx_investment_transactions_user_date ON investment_transactions(user_id, date);",
-            "CREATE INDEX IF NOT EXISTS idx_investment_transactions_user_asset ON investment_transactions(user_id, asset_id);",
         ]
 
         with self.connect_to_database() as connection:

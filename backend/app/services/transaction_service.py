@@ -7,9 +7,12 @@ from app.services.base_service import BaseService, ListQueryParams
 
 
 class TransactionData(TypedDict):
-    transactions: list[dict[str, Any]]
+    items: list[dict[str, Any]]
     total_amount: float
     count: int
+    total: int
+    page: int
+    per_page: int
 
 
 class TransactionService(BaseService):
@@ -101,13 +104,18 @@ class TransactionService(BaseService):
     def create(self, data: dict[str, Any]) -> Transaction | None:
         """Create a transaction with validation."""
         # Validate transaction
-        self.validate_transaction(data)
+        print("azzzzz", data)
         return super().create(data)
 
-    def get_all(self, user_id: int, query_params: ListQueryParams) -> dict[str, Any]:
+    def get_all(self, user_id: int, query_params: ListQueryParams) -> TransactionData:
         # First get filtered transactions using parent method to maintain original filtering
         base_results = super().get_all(user_id, query_params)
         transactions = base_results["items"]
+
+        # Calculate total amount
+        total_amount = (
+            sum(float(t["amount"]) for t in transactions) if transactions else 0.0
+        )
 
         # Now enrich the transactions with refund information
         if transactions:
@@ -157,6 +165,8 @@ class TransactionService(BaseService):
         return {
             "items": transactions,
             "total": base_results["total"],
+            "total_amount": total_amount,
+            "count": len(transactions),
             "page": base_results["page"],
             "per_page": base_results["per_page"],
         }
@@ -189,7 +199,9 @@ class TransactionService(BaseService):
                         AND ri.user_id = transactions.user_id
                     )
                 """
-                query += f" AND {'' if has_refund == 'true' else 'NOT'} {exists_subquery}"
+                query += (
+                    f" AND {'' if has_refund == 'true' else 'NOT'} {exists_subquery}"
+                )
 
         # Call parent class method with the modified filters
         return super()._build_filter_conditions(query, params, filters_copy)
