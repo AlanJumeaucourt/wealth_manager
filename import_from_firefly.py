@@ -797,7 +797,7 @@ def process_investment_csv(csv_data: str, account_name: str):
                 "type": "income",
                 "date": row["date"][:10],
                 "date_accountability": row["date"][:10],
-                "category": "Investments",
+                "category": "Investissements",
                 "subcategory": "Dividends",
             }
 
