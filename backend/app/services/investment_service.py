@@ -30,13 +30,34 @@ class InvestmentService(BaseService):
         try:
             # Determine which fields to select
             requested_fields = query_params.fields or []
-            transaction_fields = {"date", "date_accountability", "description", "from_account_id", "to_account_id"}
-            investment_fields = {"asset_id", "quantity", "unit_price", "fee", "tax", "total_paid", "transaction_id"}
+            transaction_fields = {
+                "date",
+                "date_accountability",
+                "description",
+                "from_account_id",
+                "to_account_id",
+            }
+            investment_fields = {
+                "asset_id",
+                "quantity",
+                "unit_price",
+                "fee",
+                "tax",
+                "total_paid",
+                "transaction_id",
+            }
 
             # If no fields specified, select all fields
             if not requested_fields:
-                select_fields = ["i.*", "t.date", "t.date_accountability", "t.description",
-                               "t.from_account_id", "t.to_account_id", "t.user_id"]
+                select_fields = [
+                    "i.*",
+                    "t.date",
+                    "t.date_accountability",
+                    "t.description",
+                    "t.from_account_id",
+                    "t.to_account_id",
+                    "t.user_id",
+                ]
             else:
                 select_fields = []
                 for field in requested_fields:
@@ -84,7 +105,9 @@ class InvestmentService(BaseService):
             logger.info(f"Count params: {count_params}")
 
             # Execute count query first
-            total_count = self.db_manager.execute_select(count_query, count_params)[0]["total"]
+            total_count = self.db_manager.execute_select(count_query, count_params)[0][
+                "total"
+            ]
 
             # Debug log
             logger.info(f"Total count: {total_count}")
@@ -136,10 +159,9 @@ class InvestmentService(BaseService):
 
             # Add pagination
             query += " LIMIT ? OFFSET ?"
-            params.extend([
-                query_params.per_page,
-                (query_params.page - 1) * query_params.per_page
-            ])
+            params.extend(
+                [query_params.per_page, (query_params.page - 1) * query_params.per_page]
+            )
 
             # Debug log
             logger.info(f"Main query: {query}")
@@ -175,7 +197,7 @@ class InvestmentService(BaseService):
             raise QueryExecutionError(
                 f"Database error: {e!s}",
                 query=locals().get("query", "Query not built"),
-                params=locals().get("params", [])
+                params=locals().get("params", []),
             )
 
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -524,3 +546,13 @@ class InvestmentService(BaseService):
             query=query, params=[symbol, date.isoformat()]
         )
         return result["unit_price"] if result else 0.0
+
+    def delete(self, item_id: int, user_id: int) -> bool:
+        try:
+            # Delete the investment details (transaction will be cascade deleted)
+            query = "DELETE FROM investment_details WHERE transaction_id = ?"
+            self.db_manager.execute_delete(query, [item_id])
+            return True
+        except Exception as e:
+            print(f"Error deleting {self.table_name}: {e}")
+            return False
