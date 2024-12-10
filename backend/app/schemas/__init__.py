@@ -8,10 +8,10 @@ from .schema_registry import (
 )
 
 __all__ = [
-    'TransactionSchema',
-    'AccountSchema',
-    'AssetSchema',
-    'AccountAssetSchema',
-    'BudgetSchema',
-    'InvestmentSchema',
+    "TransactionSchema",
+    "AccountSchema",
+    "AssetSchema",
+    "AccountAssetSchema",
+    "BudgetSchema",
+    "InvestmentSchema",
 ]

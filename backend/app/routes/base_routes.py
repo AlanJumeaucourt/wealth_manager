@@ -27,6 +27,7 @@ class BaseRoutes:
         self.register_swagger_docs()
 
         """Register Swagger documentation for common endpoints"""
+
     def register_swagger_docs(self) -> None:
         base_path = f"/{self.bp.name}"
 

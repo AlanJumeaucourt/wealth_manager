@@ -12,6 +12,7 @@ account_service = AccountService()
 account_routes = BaseRoutes("account", account_service, AccountSchema())
 account_bp = account_routes.bp
 
+
 # Register custom Swagger documentation
 def register_custom_swagger_docs():
     # Document balance_over_time endpoint
@@ -28,15 +29,15 @@ def register_custom_swagger_docs():
                         "in": "query",
                         "required": True,
                         "schema": {"type": "string", "format": "date"},
-                        "description": "Start date in YYYY-MM-DD format"
+                        "description": "Start date in YYYY-MM-DD format",
                     },
                     {
                         "name": "end_date",
                         "in": "query",
                         "required": True,
                         "schema": {"type": "string", "format": "date"},
-                        "description": "End date in YYYY-MM-DD format"
-                    }
+                        "description": "End date in YYYY-MM-DD format",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -48,19 +49,22 @@ def register_custom_swagger_docs():
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "date": {"type": "string", "format": "date"},
-                                            "balance": {"type": "number"}
-                                        }
-                                    }
+                                            "date": {
+                                                "type": "string",
+                                                "format": "date",
+                                            },
+                                            "balance": {"type": "number"},
+                                        },
+                                    },
                                 }
                             }
-                        }
+                        },
                     },
                     "400": {"description": "Invalid date format or missing parameters"},
-                    "401": {"description": "Unauthorized"}
-                }
+                    "401": {"description": "Unauthorized"},
+                },
             }
-        }
+        },
     )
 
     # Document wealth endpoint
@@ -87,19 +91,19 @@ def register_custom_swagger_docs():
                                                 "properties": {
                                                     "id": {"type": "integer"},
                                                     "name": {"type": "string"},
-                                                    "balance": {"type": "number"}
-                                                }
-                                            }
-                                        }
-                                    }
+                                                    "balance": {"type": "number"},
+                                                },
+                                            },
+                                        },
+                                    },
                                 }
                             }
-                        }
+                        },
                     },
-                    "401": {"description": "Unauthorized"}
-                }
+                    "401": {"description": "Unauthorized"},
+                },
             }
-        }
+        },
     )
 
     # Document account balance endpoint
@@ -116,7 +120,7 @@ def register_custom_swagger_docs():
                         "in": "path",
                         "required": True,
                         "schema": {"type": "integer"},
-                        "description": "Account ID"
+                        "description": "Account ID",
                     }
                 ],
                 "responses": {
@@ -126,18 +130,16 @@ def register_custom_swagger_docs():
                             "application/json": {
                                 "schema": {
                                     "type": "object",
-                                    "properties": {
-                                        "balance": {"type": "number"}
-                                    }
+                                    "properties": {"balance": {"type": "number"}},
                                 }
                             }
-                        }
+                        },
                     },
                     "401": {"description": "Unauthorized"},
-                    "404": {"description": "Account not found"}
-                }
+                    "404": {"description": "Account not found"},
+                },
             }
-        }
+        },
     )
 
     # Document account balance over time endpoint
@@ -154,22 +156,22 @@ def register_custom_swagger_docs():
                         "in": "path",
                         "required": True,
                         "schema": {"type": "integer"},
-                        "description": "Account ID"
+                        "description": "Account ID",
                     },
                     {
                         "name": "start_date",
                         "in": "query",
                         "required": True,
                         "schema": {"type": "string", "format": "date"},
-                        "description": "Start date in YYYY-MM-DD format"
+                        "description": "Start date in YYYY-MM-DD format",
                     },
                     {
                         "name": "end_date",
                         "in": "query",
                         "required": True,
                         "schema": {"type": "string", "format": "date"},
-                        "description": "End date in YYYY-MM-DD format"
-                    }
+                        "description": "End date in YYYY-MM-DD format",
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -181,26 +183,31 @@ def register_custom_swagger_docs():
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "date": {"type": "string", "format": "date"},
-                                            "balance": {"type": "number"}
-                                        }
-                                    }
+                                            "date": {
+                                                "type": "string",
+                                                "format": "date",
+                                            },
+                                            "balance": {"type": "number"},
+                                        },
+                                    },
                                 }
                             }
-                        }
+                        },
                     },
                     "400": {"description": "Invalid date format or missing parameters"},
                     "401": {"description": "Unauthorized"},
-                    "404": {"description": "Account not found"}
-                }
+                    "404": {"description": "Account not found"},
+                },
             }
-        }
+        },
     )
+
 
 # Register custom Swagger documentation
 register_custom_swagger_docs()
 
 # Add any account-specific routes here
+
 
 @account_bp.route("/balance_over_time", methods=["GET"])
 @jwt_required()

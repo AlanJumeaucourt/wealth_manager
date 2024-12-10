@@ -74,9 +74,11 @@ def register_budget_swagger_docs():
                             }
                         },
                     },
-                    "400": {"description": "Invalid date format, missing parameters, or start_date after end_date"},
+                    "400": {
+                        "description": "Invalid date format, missing parameters, or start_date after end_date"
+                    },
                     "401": {"description": "Unauthorized"},
-                }
+                },
             }
         },
     )
@@ -98,24 +100,24 @@ def register_budget_swagger_docs():
                                     "properties": {
                                         "expense": {
                                             "type": "array",
-                                            "items": {"type": "string"}
+                                            "items": {"type": "string"},
                                         },
                                         "income": {
                                             "type": "array",
-                                            "items": {"type": "string"}
+                                            "items": {"type": "string"},
                                         },
                                         "transfer": {
                                             "type": "array",
-                                            "items": {"type": "string"}
-                                        }
-                                    }
+                                            "items": {"type": "string"},
+                                        },
+                                    },
                                 }
                             }
-                        }
+                        },
                     }
-                }
+                },
             }
-        }
+        },
     )
 
     # Document get categories by type endpoint
@@ -132,9 +134,9 @@ def register_budget_swagger_docs():
                         "required": True,
                         "schema": {
                             "type": "string",
-                            "enum": ["expense", "income", "transfer"]
+                            "enum": ["expense", "income", "transfer"],
                         },
-                        "description": "Type of categories to retrieve"
+                        "description": "Type of categories to retrieve",
                     }
                 ],
                 "responses": {
@@ -142,19 +144,14 @@ def register_budget_swagger_docs():
                         "description": "List of categories for the specified type",
                         "content": {
                             "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {"type": "string"}
-                                }
+                                "schema": {"type": "array", "items": {"type": "string"}}
                             }
-                        }
+                        },
                     },
-                    "400": {
-                        "description": "Invalid category type"
-                    }
-                }
+                    "400": {"description": "Invalid category type"},
+                },
             }
-        }
+        },
     )
 
     # Document category summary endpoint
@@ -198,8 +195,12 @@ def register_budget_swagger_docs():
                                                     "additionalProperties": {
                                                         "type": "object",
                                                         "properties": {
-                                                            "amount": {"type": "number"},
-                                                            "count": {"type": "integer"},
+                                                            "amount": {
+                                                                "type": "number"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            },
                                                         },
                                                     },
                                                 },
@@ -214,8 +215,12 @@ def register_budget_swagger_docs():
                                                     "additionalProperties": {
                                                         "type": "object",
                                                         "properties": {
-                                                            "amount": {"type": "number"},
-                                                            "count": {"type": "integer"},
+                                                            "amount": {
+                                                                "type": "number"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            },
                                                         },
                                                     },
                                                 },
@@ -230,8 +235,12 @@ def register_budget_swagger_docs():
                                                     "additionalProperties": {
                                                         "type": "object",
                                                         "properties": {
-                                                            "amount": {"type": "number"},
-                                                            "count": {"type": "integer"},
+                                                            "amount": {
+                                                                "type": "number"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            },
                                                         },
                                                     },
                                                 },
@@ -242,7 +251,9 @@ def register_budget_swagger_docs():
                             }
                         },
                     },
-                    "400": {"description": "Invalid date format, missing parameters, or start_date after end_date"},
+                    "400": {
+                        "description": "Invalid date format, missing parameters, or start_date after end_date"
+                    },
                     "401": {"description": "Unauthorized"},
                 },
             }
@@ -293,7 +304,12 @@ def register_budget_swagger_docs():
                                     "properties": {
                                         "period": {
                                             "type": "string",
-                                            "enum": ["week", "month", "quarter", "year"]
+                                            "enum": [
+                                                "week",
+                                                "month",
+                                                "quarter",
+                                                "year",
+                                            ],
                                         },
                                         "summaries": {
                                             "type": "array",
@@ -302,11 +318,11 @@ def register_budget_swagger_docs():
                                                 "properties": {
                                                     "start_date": {
                                                         "type": "string",
-                                                        "format": "date"
+                                                        "format": "date",
                                                     },
                                                     "end_date": {
                                                         "type": "string",
-                                                        "format": "date"
+                                                        "format": "date",
                                                     },
                                                     "income": {
                                                         "type": "object",
@@ -314,22 +330,32 @@ def register_budget_swagger_docs():
                                                             "total": {
                                                                 "type": "object",
                                                                 "properties": {
-                                                                    "net": {"type": "number"},
-                                                                    "original": {"type": "number"}
-                                                                }
+                                                                    "net": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "original": {
+                                                                        "type": "number"
+                                                                    },
+                                                                },
                                                             },
                                                             "by_category": {
                                                                 "type": "object",
                                                                 "additionalProperties": {
                                                                     "type": "object",
                                                                     "properties": {
-                                                                        "net_amount": {"type": "number"},
-                                                                        "original_amount": {"type": "number"},
-                                                                        "count": {"type": "integer"}
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
+                                                                        "net_amount": {
+                                                                            "type": "number"
+                                                                        },
+                                                                        "original_amount": {
+                                                                            "type": "number"
+                                                                        },
+                                                                        "count": {
+                                                                            "type": "integer"
+                                                                        },
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
                                                     },
                                                     "expense": {
                                                         "type": "object",
@@ -337,36 +363,48 @@ def register_budget_swagger_docs():
                                                             "total": {
                                                                 "type": "object",
                                                                 "properties": {
-                                                                    "net": {"type": "number"},
-                                                                    "original": {"type": "number"}
-                                                                }
+                                                                    "net": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "original": {
+                                                                        "type": "number"
+                                                                    },
+                                                                },
                                                             },
                                                             "by_category": {
                                                                 "type": "object",
                                                                 "additionalProperties": {
                                                                     "type": "object",
                                                                     "properties": {
-                                                                        "net_amount": {"type": "number"},
-                                                                        "original_amount": {"type": "number"},
-                                                                        "count": {"type": "integer"}
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                                                                        "net_amount": {
+                                                                            "type": "number"
+                                                                        },
+                                                                        "original_amount": {
+                                                                            "type": "number"
+                                                                        },
+                                                                        "count": {
+                                                                            "type": "integer"
+                                                                        },
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
                                 }
                             }
-                        }
+                        },
                     },
-                    "400": {"description": "Invalid parameters, date format, or start_date after end_date"},
+                    "400": {
+                        "description": "Invalid parameters, date format, or start_date after end_date"
+                    },
                     "401": {"description": "Unauthorized"},
-                }
+                },
             }
-        }
+        },
     )
 
 
@@ -464,14 +502,18 @@ def category_summary():
         "expense": {
             "total": {
                 "net": sum(cat["net_amount"] for cat in expense_data.values()),
-                "original": sum(cat["original_amount"] for cat in expense_data.values()),
+                "original": sum(
+                    cat["original_amount"] for cat in expense_data.values()
+                ),
             },
             "by_category": expense_data,
         },
         "transfer": {
             "total": {
                 "net": sum(cat["net_amount"] for cat in transfer_data.values()),
-                "original": sum(cat["original_amount"] for cat in transfer_data.values()),
+                "original": sum(
+                    cat["original_amount"] for cat in transfer_data.values()
+                ),
             },
             "by_category": transfer_data,
         },
@@ -539,14 +581,18 @@ def budget_summary_by_period():
                 "income": {
                     "total": {
                         "net": sum(cat["net_amount"] for cat in income_data.values()),
-                        "original": sum(cat["original_amount"] for cat in income_data.values()),
+                        "original": sum(
+                            cat["original_amount"] for cat in income_data.values()
+                        ),
                     },
                     "by_category": income_data,
                 },
                 "expense": {
                     "total": {
                         "net": sum(cat["net_amount"] for cat in expense_data.values()),
-                        "original": sum(cat["original_amount"] for cat in expense_data.values()),
+                        "original": sum(
+                            cat["original_amount"] for cat in expense_data.values()
+                        ),
                     },
                     "by_category": expense_data,
                 },

@@ -46,27 +46,26 @@ def register_user_swagger_docs():
                                 "properties": {
                                     "name": {"type": "string"},
                                     "email": {"type": "string", "format": "email"},
-                                    "password": {"type": "string", "format": "password"}
-                                }
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                    },
+                                },
                             }
                         }
-                    }
+                    },
                 },
                 "responses": {
                     "201": {
                         "description": "User created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": user_schema
-                            }
-                        }
+                        "content": {"application/json": {"schema": user_schema}},
                     },
                     "400": {"description": "Invalid input or missing fields"},
                     "422": {"description": "User already exists"},
-                    "500": {"description": "Server error"}
-                }
+                    "500": {"description": "Server error"},
+                },
             }
-        }
+        },
     )
 
     # Document login endpoint
@@ -85,11 +84,14 @@ def register_user_swagger_docs():
                                 "required": ["email", "password"],
                                 "properties": {
                                     "email": {"type": "string", "format": "email"},
-                                    "password": {"type": "string", "format": "password"}
-                                }
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                    },
+                                },
                             }
                         }
-                    }
+                    },
                 },
                 "responses": {
                     "200": {
@@ -107,19 +109,19 @@ def register_user_swagger_docs():
                                             "properties": {
                                                 "id": {"type": "integer"},
                                                 "email": {"type": "string"},
-                                                "name": {"type": "string"}
-                                            }
-                                        }
-                                    }
+                                                "name": {"type": "string"},
+                                            },
+                                        },
+                                    },
                                 }
                             }
-                        }
+                        },
                     },
                     "401": {"description": "Invalid credentials"},
-                    "500": {"description": "Server error"}
-                }
+                    "500": {"description": "Server error"},
+                },
             }
-        }
+        },
     )
 
     # Document refresh token endpoint
@@ -144,20 +146,20 @@ def register_user_swagger_docs():
                                             "properties": {
                                                 "id": {"type": "integer"},
                                                 "email": {"type": "string"},
-                                                "name": {"type": "string"}
-                                            }
-                                        }
-                                    }
+                                                "name": {"type": "string"},
+                                            },
+                                        },
+                                    },
                                 }
                             }
-                        }
+                        },
                     },
                     "401": {"description": "Invalid refresh token"},
                     "404": {"description": "User not found"},
-                    "500": {"description": "Server error"}
-                }
+                    "500": {"description": "Server error"},
+                },
             }
-        }
+        },
     )
 
     # Document get user endpoints
@@ -174,22 +176,18 @@ def register_user_swagger_docs():
                         "in": "path",
                         "required": True,
                         "schema": {"type": "integer"},
-                        "description": "User ID"
+                        "description": "User ID",
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "User details",
-                        "content": {
-                            "application/json": {
-                                "schema": user_schema
-                            }
-                        }
+                        "content": {"application/json": {"schema": user_schema}},
                     },
                     "401": {"description": "Unauthorized"},
                     "403": {"description": "Forbidden"},
-                    "404": {"description": "User not found"}
-                }
+                    "404": {"description": "User not found"},
+                },
             },
             "put": {
                 "tags": ["Users"],
@@ -201,7 +199,7 @@ def register_user_swagger_docs():
                         "in": "path",
                         "required": True,
                         "schema": {"type": "integer"},
-                        "description": "User ID"
+                        "description": "User ID",
                     }
                 ],
                 "requestBody": {
@@ -212,8 +210,11 @@ def register_user_swagger_docs():
                                 "properties": {
                                     "name": {"type": "string"},
                                     "email": {"type": "string", "format": "email"},
-                                    "password": {"type": "string", "format": "password"}
-                                }
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                    },
+                                },
                             }
                         }
                     }
@@ -221,17 +222,13 @@ def register_user_swagger_docs():
                 "responses": {
                     "200": {
                         "description": "User updated successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": user_schema
-                            }
-                        }
+                        "content": {"application/json": {"schema": user_schema}},
                     },
                     "400": {"description": "Invalid input"},
                     "401": {"description": "Unauthorized"},
                     "403": {"description": "Forbidden"},
-                    "500": {"description": "Server error"}
-                }
+                    "500": {"description": "Server error"},
+                },
             },
             "delete": {
                 "tags": ["Users"],
@@ -243,17 +240,17 @@ def register_user_swagger_docs():
                         "in": "path",
                         "required": True,
                         "schema": {"type": "integer"},
-                        "description": "User ID"
+                        "description": "User ID",
                     }
                 ],
                 "responses": {
                     "204": {"description": "User deleted successfully"},
                     "401": {"description": "Unauthorized"},
                     "403": {"description": "Forbidden"},
-                    "500": {"description": "Server error"}
-                }
-            }
-        }
+                    "500": {"description": "Server error"},
+                },
+            },
+        },
     )
 
     # Document verify token endpoint
@@ -271,18 +268,17 @@ def register_user_swagger_docs():
                             "application/json": {
                                 "schema": {
                                     "type": "object",
-                                    "properties": {
-                                        "message": {"type": "string"}
-                                    }
+                                    "properties": {"message": {"type": "string"}},
                                 }
                             }
-                        }
+                        },
                     },
-                    "401": {"description": "Invalid token"}
-                }
+                    "401": {"description": "Invalid token"},
+                },
             }
-        }
+        },
     )
+
 
 # Register Swagger documentation
 register_user_swagger_docs()

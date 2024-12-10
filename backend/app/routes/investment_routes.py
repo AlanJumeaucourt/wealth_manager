@@ -2,10 +2,14 @@ from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from app.routes.base_routes import BaseRoutes, ListQueryParams
-from app.schemas.schema_registry import InvestmentDetailsSchema, InvestmentTransactionSchema
+from app.schemas.schema_registry import (
+    InvestmentDetailsSchema,
+    InvestmentTransactionSchema,
+)
 from app.services.investment_service import InvestmentService
 
 investment_service = InvestmentService()
+
 
 # Create a custom routes class to handle different schemas for different operations
 class InvestmentRoutes(BaseRoutes):
@@ -41,6 +45,7 @@ class InvestmentRoutes(BaseRoutes):
 
         results = self.service.get_all(user_id, query_params)
         return jsonify(results)
+
 
 investment_routes = InvestmentRoutes("investment", investment_service)
 investment_bp = investment_routes.bp
