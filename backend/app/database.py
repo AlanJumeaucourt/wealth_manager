@@ -255,6 +255,9 @@ class DatabaseManager:
                     fee DECIMAL(10,2) NOT NULL,
                     tax DECIMAL(10,2) NOT NULL,
                     total_paid DECIMAL(10,2),
+                    investment_type TEXT NOT NULL CHECK (investment_type IN (
+                        'Buy', 'Sell', 'Dividend', 'Interest', 'Deposit', 'Withdrawal'
+                    )),
                     FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
                     FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
                 );

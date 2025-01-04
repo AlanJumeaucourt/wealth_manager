@@ -16,17 +16,11 @@ from app.database import DatabaseManager
 logger = logging.getLogger(__name__)
 
 
-class StockInfo(TypedDict):
+class StockDetails(TypedDict):
     symbol: str
-    name: str
-    type: str
-    exchange: str
+    shortName: str
+    quoteType: str
     currency: str
-    current_price: float | None
-    previous_close: float | None
-    market_cap: float | None
-    volume: int | None
-    description: str
 
 
 class HistoricalPrice(TypedDict):
@@ -153,7 +147,7 @@ class StockService:
             logger.error(f"Error fetching ticker info for {symbol}: {e}")
             return None
 
-    def get_asset_info(self, symbol: str) -> StockInfo | None:
+    def get_asset_info(self, symbol: str) -> StockDetails | None:
         """Get detailed information about a specific asset."""
         logger.info(f"Getting asset info for {symbol}")
         cache_key = f"{symbol}_basic_info"
@@ -175,7 +169,7 @@ class StockService:
             if not info:
                 return None
 
-            result: StockInfo = {
+            result: StockDetails = {
                 "symbol": symbol,
                 "name": info.get("longName", ""),
                 "type": info.get("quoteType", ""),

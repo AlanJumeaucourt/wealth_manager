@@ -4,6 +4,7 @@ import { Transaction } from '@/types/transaction';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
 import apiClient from './axiosConfig';
+import { BudgetSummaryResponse } from '@/types/budget';
 
 const handleApiError = async (error: unknown, message: string) => {
   if (axios.isAxiosError(error)) {
@@ -239,10 +240,10 @@ export const fetchWealthData = async (startDate: string, endDate: string) => {
   }
 };
 
-export const fetchBudgetSummary = async (startDate: string, endDate: string) => {
+export const fetchBudgetSummary = async (startDate: string, endDate: string): Promise<BudgetSummaryResponse> => {
   try {
-    const response = await apiClient.get(`/budgets/summary?start_date=${startDate}&end_date=${endDate}}`);
-    console.log("budget summary", response.data); // Log the response data
+    const response = await apiClient.get(`/budgets/summary?start_date=${startDate}&end_date=${endDate}`);
+    console.log("budget summary", response.data);
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching budget summary');
@@ -330,6 +331,8 @@ export const getPortfolioPerformance = async (period: string = '1Y'): Promise<Po
 export const getAssetTransactions = async (symbol: string): Promise<AssetTransactionsResponse> => {
   try {
     const response = await apiClient.get(`/investments/assets/${symbol}/transactions`);
+    console.log(response);
+
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching asset transactions');

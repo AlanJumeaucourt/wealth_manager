@@ -33,11 +33,12 @@ class WealthManagerAPI:
             if response.status_code in [200, 201, 204]:
                 return response.json() if response.content else {}
             print(f"Error {response.status_code}: {response.json()}")
+            raise Exception(f"Error {response.status_code}: {response.json()}")
             return {}
 
         except requests.exceptions.RequestException as e:
             print(f"Request failed: {e}")
-            return {}
+            raise e
 
     def register_user(self, name: str, email: str, password: str) -> bool:
         """Register a new user"""
@@ -143,7 +144,6 @@ class WealthManagerAPI:
         response = self._make_request(
             method="POST", endpoint="/investments/", data=data
         )
-        print("response", response)
         return response.get("transaction_id")
 
 

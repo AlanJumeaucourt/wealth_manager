@@ -190,7 +190,7 @@ const InvestmentOverview: React.FC = () => {
     const [totalGain, setTotalGain] = useState(0);
     const [totalPerformance, setTotalPerformance] = useState(0);
     const [error, setError] = useState<string | null>(null);
-    const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 60);
+    const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width);
     const [showHidden, setShowHidden] = useState(false);
 
     // Add resize handler
@@ -209,7 +209,7 @@ const InvestmentOverview: React.FC = () => {
     // Add spacing calculation
     const calculateSpacing = (width: number, dataLength: number): number => {
         const minSpacing = 0.1;
-        const maxSpacing = 10;
+        const maxSpacing = 100;
         const calculatedSpacing = Math.max(minSpacing, Math.min(maxSpacing, (width - 60) / (dataLength + 1)));
         return calculatedSpacing;
     };
@@ -223,26 +223,33 @@ const InvestmentOverview: React.FC = () => {
                 getPortfolioPerformance(selectedPeriod)
             ]);
 
-            if (!summaryResponse || !summaryResponse.positions) {
-                throw new Error('Invalid response from server');
+            if (!summaryResponse || !summaryResponse.assets) {
+                throw new Error('Invalid response from server: Missing assets');
             }
 
-            setPositions(summaryResponse.positions);
-            console.log(performanceResponse)
-            setPerformanceData(performanceResponse?.performance_data || []);
+            setPositions(summaryResponse.assets.map(asset => ({
+                asset_symbol: asset.symbol,
+                asset_name: asset.name,
+                total_value: asset.current_value,
+                total_quantity: asset.shares,
+                current_price: asset.current_price,
+                unrealized_gain: asset.gain_loss,
+                performance: asset.gain_loss_percentage,
+            })));
+            setPerformanceData(performanceResponse?.data_points || []);
 
             // Update total values with safe defaults
             setTotalValue(summaryResponse.total_value || 0);
-            setTotalGain(summaryResponse.total_gain || 0);
-            if (summaryResponse.total_invested && summaryResponse.total_invested !== 0) {
-                setTotalPerformance((summaryResponse.total_gain / Math.abs(summaryResponse.total_invested)) * 100);
+            setTotalGain(summaryResponse.total_gain_loss || 0);
+            if (summaryResponse.total_cost && summaryResponse.total_cost !== 0) {
+                setTotalPerformance((summaryResponse.total_gain_loss / Math.abs(summaryResponse.total_cost)) * 100);
             } else {
                 setTotalPerformance(0);
             }
 
         } catch (error) {
             console.error('Error fetching investment data:', error);
-            setError('Failed to load investment data');
+            setError(error.message || 'Failed to load investment data');
             setPositions([]);
             setPerformanceData([]);
             setTotalValue(0);
@@ -348,7 +355,7 @@ const InvestmentOverview: React.FC = () => {
                             <LineChart
                                 areaChart
                                 data={formatDateLabels(performanceData).map(item => ({
-                                    value: item.cumulative_value,
+                                    value: item.value,
                                     date: item.date,
                                 }))}
                                 width={chartWidth}

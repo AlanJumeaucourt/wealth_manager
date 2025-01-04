@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.database import DatabaseManager
-from app.exceptions import QueryExecutionError
+from app.exceptions import NoResultFoundError, QueryExecutionError
 from app.models import InvestmentTransaction
 from app.schemas.schema_registry import InvestmentTransactionSchema
 from app.services.base_service import BaseService, ListQueryParams
@@ -240,6 +240,7 @@ class InvestmentService(BaseService):
                 "transaction_id": transaction_result["id"],
                 "asset_id": validated_data["asset_id"],
                 "quantity": validated_data["quantity"],
+                "investment_type": validated_data["activity_type"].title(),
                 "unit_price": validated_data["unit_price"],
                 "fee": validated_data["fee"],
                 "tax": validated_data["tax"],
@@ -254,11 +255,12 @@ class InvestmentService(BaseService):
             columns = ", ".join(investment_data.keys())
             placeholders = ", ".join(["?" for _ in investment_data])
             query = f"INSERT INTO investment_details ({columns}) VALUES ({placeholders}) RETURNING *"
+            print(f"query={query}")
+            print(f"params={list(investment_data.values())}")
+
             investment_result = self.db_manager.execute_insert_returning(
                 query=query, params=list(investment_data.values())
             )
-            print(f"query={query}")
-            print(f"params={list(investment_data.values())}")
             print(f"investment_result={investment_result}")
 
             # Calculate quantity change based on activity type
@@ -403,12 +405,22 @@ class InvestmentService(BaseService):
             "assets": [],
         }
 
+        # First pass to calculate total value for percentage calculations
+        total_portfolio_value = 0
+        for holding in holdings:
+            total_portfolio_value += holding["shares"] * holding["current_price"]
+
         for holding in holdings:
             current_value = holding["shares"] * holding["current_price"]
             cost_basis = holding["shares"] * holding["avg_price"]
             gain_loss = current_value - cost_basis
             gain_loss_percentage = (
                 (gain_loss / cost_basis * 100) if cost_basis > 0 else 0
+            )
+            portfolio_percentage = (
+                (current_value / total_portfolio_value * 100)
+                if total_portfolio_value > 0
+                else 0
             )
 
             asset = {
@@ -420,6 +432,7 @@ class InvestmentService(BaseService):
                 "cost_basis": cost_basis,
                 "gain_loss": gain_loss,
                 "gain_loss_percentage": gain_loss_percentage,
+                "portfolio_percentage": portfolio_percentage
             }
 
             summary["assets"].append(asset)
@@ -434,7 +447,6 @@ class InvestmentService(BaseService):
         )
 
         return summary
-
     def get_portfolio_performance(
         self, user_id: int, period: str = "1Y"
     ) -> dict[str, Any]:
@@ -465,7 +477,6 @@ class InvestmentService(BaseService):
             t.date,
             i.quantity,
             i.unit_price,
-            i.total_paid,
             a.symbol
         FROM transactions t
         JOIN investment_details i ON t.id = i.transaction_id
@@ -476,57 +487,45 @@ class InvestmentService(BaseService):
         ORDER BY t.date
         """
 
-        transactions = self.db_manager.execute_select(
-            query=query, params=[user_id, start_date.isoformat(), end_date.isoformat()]
-        )
-
-        # Calculate daily portfolio values
-        daily_values = {}
-        portfolio = defaultdict(float)  # symbol -> quantity
-
-        for tx in transactions:
-            date = tx["date"].date()
-            if tx["activity_type"] == "buy":
-                portfolio[tx["symbol"]] += tx["quantity"]
-            else:
-                portfolio[tx["symbol"]] -= tx["quantity"]
-
-            # Calculate portfolio value for this day
-            value = sum(
-                qty * self._get_price_at_date(symbol, date)
-                for symbol, qty in portfolio.items()
+        try:
+            transactions = self.db_manager.execute_select(
+                query=query, params=[user_id, start_date.isoformat(), end_date.isoformat()]
             )
-            daily_values[date] = value
-
-        # Prepare response
-        if not daily_values:
+        except NoResultFoundError:
+            # Handle the case where no transactions are found
             return {
                 "period": period,
-                "start_value": 0,
-                "end_value": 0,
-                "total_return": 0,
-                "total_return_percentage": 0,
                 "data_points": [],
             }
 
-        dates = sorted(daily_values.keys())
-        start_value = daily_values[dates[0]]
-        end_value = daily_values[dates[-1]]
-        total_return = end_value - start_value
-        total_return_percentage = (
-            (total_return / start_value * 100) if start_value > 0 else 0
-        )
+        # New logic to calculate asset values for each date
+        asset_values = defaultdict(lambda: defaultdict(lambda: {"quantity": 0, "price": 0, "total_value": 0}))  # date -> symbol -> {quantity, price, total_value}
+        total_values = defaultdict(float)  # date -> total value
+
+        for tx in transactions:
+            date = datetime.strptime(tx["date"], "%Y-%m-%dT%H:%M:%S.%f").date()
+            quantity = tx["quantity"]
+            symbol = tx["symbol"]
+            price = self._get_price_at_date(symbol, date)
+            total_value = quantity * price
+
+            asset_values[date][symbol]["quantity"] += quantity
+            asset_values[date][symbol]["price"] = price  # Update price for the date
+            asset_values[date][symbol]["total_value"] += total_value
+            total_values[date] += total_value
+
+        # Prepare final data points
+        data_points = []
+        for date in sorted(asset_values.keys()):
+            data_points.append({
+                "date": date.isoformat(),
+                "assets": asset_values[date],
+                "total_value": total_values[date],
+            })
 
         return {
             "period": period,
-            "start_value": start_value,
-            "end_value": end_value,
-            "total_return": total_return,
-            "total_return_percentage": total_return_percentage,
-            "data_points": [
-                {"date": date.isoformat(), "value": value}
-                for date, value in daily_values.items()
-            ],
+            "data_points": data_points,
         }
 
     def _get_price_at_date(self, symbol: str, date: datetime_date) -> float:
@@ -542,10 +541,10 @@ class InvestmentService(BaseService):
         ORDER BY t.date DESC
         LIMIT 1
         """
-        result = self.db_manager.execute_select_single(
+        result = self.db_manager.execute_select(
             query=query, params=[symbol, date.isoformat()]
         )
-        return result["unit_price"] if result else 0.0
+        return result[0]["unit_price"] if result else 0.0
 
     def delete(self, item_id: int, user_id: int) -> bool:
         try:
