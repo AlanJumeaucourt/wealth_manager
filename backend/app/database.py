@@ -273,19 +273,6 @@ class DatabaseManager:
                 );
             """,
             """--sql
-                CREATE TABLE IF NOT EXISTS account_assets (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    account_id INTEGER NOT NULL,
-                    asset_id INTEGER NOT NULL,
-                    quantity DECIMAL(10,6) NOT NULL,
-                    UNIQUE(user_id, account_id, asset_id),
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
-                    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
-                );
-            """,
-            """--sql
                 CREATE TABLE IF NOT EXISTS stock_cache (
                     symbol TEXT NOT NULL,
                     cache_type TEXT NOT NULL,
@@ -341,6 +328,27 @@ class DatabaseManager:
                     ) as current_balance
                 FROM accounts a
                 GROUP BY a.id, a.user_id, a.name, a.type;
+            """,
+            """--sql
+                CREATE VIEW IF NOT EXISTS asset_balances AS
+                SELECT
+                    t.user_id,
+                    i.asset_id,
+                    a.symbol,
+                    a.name as asset_name,
+                    SUM(
+                        CASE
+                            WHEN i.investment_type IN ('Buy', 'Deposit') THEN i.quantity
+                            WHEN i.investment_type IN ('Sell', 'Withdrawal') THEN -i.quantity
+                            ELSE 0
+                        END
+                    ) as quantity,
+                    MAX(t.date) as last_transaction_date
+                FROM investment_details i
+                JOIN transactions t ON i.transaction_id = t.id
+                JOIN assets a ON i.asset_id = a.id
+                GROUP BY t.user_id, i.asset_id, a.symbol, a.name
+                HAVING quantity > 0;
             """,
         ]
 
@@ -466,45 +474,6 @@ class DatabaseManager:
                             WHERE id = NEW.to_account_id
                         ) != NEW.user_id
                         THEN RAISE(ABORT, 'Cannot update transaction to use accounts owned by different user')
-                    END;
-                END;
-            """,
-            """--sql
-                CREATE TRIGGER IF NOT EXISTS trg_validate_account_asset_ownership_insert
-                BEFORE INSERT ON account_assets
-                BEGIN
-                    SELECT CASE
-                        WHEN (
-                            SELECT user_id
-                            FROM accounts
-                            WHERE id = NEW.account_id
-                        ) != NEW.user_id OR
-                        (
-                            SELECT user_id
-                            FROM assets
-                            WHERE id = NEW.asset_id
-                        ) != NEW.user_id
-                        THEN RAISE(ABORT, 'Cannot insert account asset with account/asset owned by different user')
-                    END;
-                END;
-            """,
-            """--sql
-                CREATE TRIGGER IF NOT EXISTS trg_validate_account_asset_ownership_update
-                BEFORE UPDATE ON account_assets
-                WHEN NEW.account_id != OLD.account_id OR NEW.asset_id != OLD.asset_id
-                BEGIN
-                    SELECT CASE
-                        WHEN (
-                            SELECT user_id
-                            FROM accounts
-                            WHERE id = NEW.account_id
-                        ) != NEW.user_id OR
-                        (
-                            SELECT user_id
-                            FROM assets
-                            WHERE id = NEW.asset_id
-                        ) != NEW.user_id
-                        THEN RAISE(ABORT, 'Cannot update account asset to use account/asset owned by different user')
                     END;
                 END;
             """,

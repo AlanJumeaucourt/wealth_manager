@@ -4,3 +4,8 @@ flask_jwt_extended
 marshmallow
 yfinance
 python-json-logger
+python-json-logger
+apispec
+flask_swagger_ui
+sentry_sdk
+nordigen

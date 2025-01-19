@@ -44,7 +44,7 @@ def get_stock_info(symbol: str):
 @jwt_required_wrapper
 def get_stock_history(symbol: str):
     """Get historical price data for a stock."""
-    period = request.args.get("period", "1y")
+    period = request.args.get("period", "max")
     history = stock_service.get_historical_prices(symbol, period)
     return jsonify(history)
 

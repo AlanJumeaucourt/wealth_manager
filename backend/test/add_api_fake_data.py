@@ -155,6 +155,7 @@ class TestDataCreator:
             "email": "test@example.com",
             "password": "test123",
         }
+        self.number_of_months = 36
 
     def create_test_data(self) -> bool:
         """Create all test data."""
@@ -227,10 +228,10 @@ class TestDataCreator:
         print("\nCreating sample transactions...")
 
         current_date = datetime.now()
-        start_date = current_date - timedelta(days=365)
+        start_date = current_date - timedelta(days=self.number_of_months * 30)
 
         # Generate monthly transactions for the past year
-        for month_offset in range(12):
+        for month_offset in range(self.number_of_months):
             transaction_date = start_date + timedelta(days=30 * month_offset)
 
             # Monthly transactions template
@@ -422,10 +423,10 @@ class TestDataCreator:
 
         # Generate transactions for the past year
         current_date = datetime.now()
-        start_date = current_date - timedelta(days=365)
+        start_date = current_date - timedelta(days=self.number_of_months * 30)
 
         # For each month in the past year
-        for month_offset in range(12):
+        for month_offset in range(self.number_of_months):
             transaction_date = start_date + timedelta(days=30 * month_offset)
 
             # Calculate market volatility for this month (-5% to +5% from trend)

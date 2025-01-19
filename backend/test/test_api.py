@@ -56,7 +56,7 @@ AccountType = Literal["checking", "savings", "investment", "expense", "income"]
 class TestBase(unittest.TestCase):
     """Base test class with common functionality."""
 
-    base_url = "http://localhost:5000"
+    base_url = "http://100.80.185.72:8000/api/v1"
     _test_users: list[dict[str, int | str]] = []
     jwt_token: str | None = None
 
@@ -106,16 +106,17 @@ class TestBase(unittest.TestCase):
         self, user_data: dict[str, str]
     ) -> tuple[int | None, str | None]:
         """Register a test user and store their credentials."""
-        url = f"{self.base_url}/users/register"
+        url = f"{self.base_url}/users/signup"
         register_response = requests.post(url=url, json=user_data)
         if register_response.status_code == 201:
             user_id = register_response.json()["id"]
             # Login to get token
             login_response = requests.post(
-                f"{self.base_url}/users/login",
-                json={"email": user_data["email"], "password": user_data["password"]},
+                f"{self.base_url}/login/access-token",
+                json={"username": user_data["username"], "password": user_data["password"]},
             )
             if login_response.status_code == 200:
+                print(login_response.json())
                 token = login_response.json()["access_token"]
                 self._test_users.append({"id": user_id, "token": token})
                 return user_id, token
@@ -247,8 +248,8 @@ class TestUserAPI(TestBase):
         assert isinstance(user_data["last_login"], str)
 
     def login_user(self):
-        url = f"{self.base_url}/users/login"
-        data = {"email": self.email, "password": self.password}
+        url = f"{self.base_url}/login/access-token"
+        data = {"username": self.username, "password": self.password}
         response = requests.post(url, json=data)
         assert response.status_code == 200
         login_data = response.json()
@@ -323,8 +324,8 @@ class TestUserAPI(TestBase):
         assert "already exists" in response.json()["error"]
 
     def test_login_with_invalid_credentials(self):
-        url = f"{self.base_url}/users/login"
-        data = {"email": fake.email(), "password": fake.password()}
+        url = f"{self.base_url}/login/access-token"
+        data = {"username": fake.email(), "password": fake.password()}
         response = requests.post(url, json=data)
         assert response.status_code == 401
         assert "error" in response.json()
@@ -367,20 +368,21 @@ class TestBankAPI(TestBase):
     def setUp(self):
         self.name = fake.name()
         self.email = fake.email()
+        self.username = fake.email()
         self.password = fake.password()
         self.bank_name = f"{fake.bank_name()} {fake.uuid4()}"
         self.create_user()
         self.login_user()
 
     def create_user(self):
-        data = {"name": self.name, "email": self.email, "password": self.password}
+        data = {"username": self.username, "email": self.email, "password": self.password}
         user_id, token = self.register_test_user(data)
         self.user_id = user_id
         self.jwt_token = token
 
     def login_user(self):
-        url = f"{self.base_url}/users/login"
-        data = {"email": self.email, "password": self.password}
+        url = f"{self.base_url}/login/access-token"
+        data = {"username": self.username, "password": self.password}
         response = requests.post(url, json=data)
         assert response.status_code == 200
         login_data = response.json()

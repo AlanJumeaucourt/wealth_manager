@@ -30,6 +30,12 @@ class TransactionRoutes(BaseRoutes):
             if has_refund is not None:
                 filters["has_refund"] = request.args.get("has_refund")
 
+        # Add date range filters
+        if "from_date" in request.args:
+            filters["from_date"] = request.args.get("from_date")
+        if "to_date" in request.args:
+            filters["to_date"] = request.args.get("to_date")
+
         # Create ListQueryParams object
         query_params = ListQueryParams(
             page=int(request.args.get("page", 1)),

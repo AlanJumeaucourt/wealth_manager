@@ -1,6 +1,7 @@
 from typing import Any, TypedDict
 
 from app.exceptions import TransactionValidationError
+from app.logger import get_logger
 from app.models import Transaction
 from app.routes.base_routes import validate_date_format
 from app.services.base_service import BaseService, ListQueryParams
@@ -18,8 +19,14 @@ class TransactionData(TypedDict):
 class TransactionService(BaseService):
     def __init__(self) -> None:
         super().__init__(table_name="transactions", model_class=Transaction)
+        self.logger = get_logger(__name__)
         # Define custom allowed filters for transactions
-        self.custom_allowed_filters = ["account_id", "has_refund"]
+        self.custom_allowed_filters = [
+            "account_id",
+            "has_refund",
+            "from_date",
+            "to_date",
+        ]
 
     def validate_transaction(self, data: dict[str, Any]) -> None:
         """Validate transaction data based on account types and transaction type."""
@@ -104,7 +111,7 @@ class TransactionService(BaseService):
     def create(self, data: dict[str, Any]) -> Transaction | None:
         """Create a transaction with validation."""
         # Validate transaction
-        print("azzzzz", data)
+        self.validate_transaction(data)
         return super().create(data)
 
     def get_all(self, user_id: int, query_params: ListQueryParams) -> TransactionData:
@@ -112,10 +119,24 @@ class TransactionService(BaseService):
         base_results = super().get_all(user_id, query_params)
         transactions = base_results["items"]
 
-        # Calculate total amount
-        total_amount = (
-            sum(float(t["amount"]) for t in transactions) if transactions else 0.0
+        # Build count query
+        total_query = (
+            f"SELECT SUM(amount) as total FROM {self.table_name} WHERE user_id = ?"
         )
+        total_params = [user_id]
+
+        total_query, total_params = self._build_filter_conditions(
+            total_query, total_params, query_params.filters
+        )
+        total_query, total_params = self._build_search_conditions(
+            total_query,
+            total_params,
+            query_params.search,
+            query_params.search_fields,
+        )
+
+        total_results = self.db_manager.execute_select(total_query, total_params)
+        total_amount = total_results[0]["total"] if total_results else 0.0
 
         # Now enrich the transactions with refund information
         if transactions:
@@ -176,6 +197,20 @@ class TransactionService(BaseService):
     ) -> tuple[str, list[Any]]:
         # Create a copy of filters to avoid modifying the original
         filters_copy = filters.copy()
+        self.logger.debug(f"Building filter conditions with filters: {filters_copy}")
+
+        # Handle date range filters
+        if "from_date" in filters_copy:
+            from_date = filters_copy.pop("from_date")
+            if from_date:
+                query += " AND date_accountability >= date(?)"
+                params.append(from_date)
+
+        if "to_date" in filters_copy:
+            to_date = filters_copy.pop("to_date")
+            if to_date:
+                query += " AND date_accountability <= date(?)"
+                params.append(to_date)
 
         # Handle account_id filter specially
         if "account_id" in filters_copy:

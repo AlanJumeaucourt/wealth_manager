@@ -66,11 +66,11 @@ def create_app():
         return {"error": str(e)}, 500
 
     # import and register blueprints
-    from app.routes.account_asset_routes import account_asset_bp
     from app.routes.account_routes import account_bp
     from app.routes.asset_routes import asset_bp
     from app.routes.bank_routes import bank_bp
     from app.routes.budget_routes import budget_bp
+    from app.routes.gocardless_routes import gocardless_bp
     from app.routes.investment_routes import investment_bp
     from app.routes.refund_group_routes import refund_group_bp
     from app.routes.refund_item_routes import refund_item_bp
@@ -90,9 +90,9 @@ def create_app():
     app.register_blueprint(investment_bp, url_prefix="/investments")
     app.register_blueprint(stock_bp, url_prefix="/stocks")
     app.register_blueprint(asset_bp, url_prefix="/assets")
-    app.register_blueprint(account_asset_bp, url_prefix="/account_assets")
     app.register_blueprint(refund_item_bp, url_prefix="/refund_items")
     app.register_blueprint(refund_group_bp, url_prefix="/refund_groups")
+    app.register_blueprint(gocardless_bp, url_prefix="/gocardless")
 
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string):

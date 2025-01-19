@@ -284,6 +284,11 @@ export default function AccountsScreen() {
   // Update FAB actions to use router
   const fabActions = [
     {
+      icon: 'sync',
+      label: 'Add automatic sync',
+      onPress: () => router.push('/connect-bank'),
+    },
+    {
       icon: 'account-plus-outline',
       label: 'Add Account',
       onPress: () => router.push('/add-account'),

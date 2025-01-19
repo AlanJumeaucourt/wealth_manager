@@ -56,5 +56,21 @@
         "editor.insertSpaces": true,
         "editor.tabSize": 2
     },
-    "python.analysis.autoImportCompletions": true
+    "python.analysis.autoImportCompletions": true,
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#aba6d0",
+        "activityBar.background": "#aba6d0",
+        "activityBar.foreground": "#15202b",
+        "activityBar.inactiveForeground": "#15202b99",
+        "activityBarBadge.background": "#a76258",
+        "activityBarBadge.foreground": "#e7e7e7",
+        "commandCenter.border": "#15202b99",
+        "editorGroup.border": "#aba6d0",
+        "sash.hoverBorder": "#aba6d0",
+        "titleBar.activeBackground": "#8c84bf",
+        "titleBar.activeForeground": "#15202b",
+        "titleBar.inactiveBackground": "#8c84bf99",
+        "titleBar.inactiveForeground": "#15202b99"
+    },
+    "peacock.remoteColor": "#8c84bf"
 }

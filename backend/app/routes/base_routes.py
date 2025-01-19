@@ -202,12 +202,144 @@ class BaseRoutes:
             },
         )
 
+        # Document batch update endpoint
+        spec.path(
+            path=f"{base_path}s/batch/update",
+            operations={
+                "post": {
+                    "tags": [self.bp.name.capitalize()],
+                    "summary": f"Batch update multiple {self.bp.name}s",
+                    "security": [{"bearerAuth": []}],
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {"type": "integer"},
+                                                    **self.schema.fields,
+                                                },
+                                                "required": ["id"],
+                                            },
+                                        }
+                                    },
+                                    "required": ["items"],
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Batch update results",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "successful": {
+                                                "type": "array",
+                                                "items": self.schema,
+                                            },
+                                            "failed": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "id": {"type": "integer"},
+                                                        "error": {"type": "string"},
+                                                        "data": {"type": "object"},
+                                                    },
+                                                },
+                                            },
+                                            "total_successful": {"type": "integer"},
+                                            "total_failed": {"type": "integer"},
+                                        },
+                                    }
+                                }
+                            },
+                        },
+                        "400": {"description": "Invalid input"},
+                        "401": {"description": "Unauthorized"},
+                        "422": {"description": "Validation error"},
+                    },
+                }
+            },
+        )
+
+        # Document batch delete endpoint
+        spec.path(
+            path=f"{base_path}s/batch/delete",
+            operations={
+                "post": {
+                    "tags": [self.bp.name.capitalize()],
+                    "summary": f"Batch delete multiple {self.bp.name}s",
+                    "security": [{"bearerAuth": []}],
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "ids": {
+                                            "type": "array",
+                                            "items": {"type": "integer"},
+                                        }
+                                    },
+                                    "required": ["ids"],
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Batch deletion results",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "successful": {
+                                                "type": "array",
+                                                "items": {"type": "integer"},
+                                            },
+                                            "failed": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "id": {"type": "integer"},
+                                                        "error": {"type": "string"},
+                                                    },
+                                                },
+                                            },
+                                            "total_successful": {"type": "integer"},
+                                            "total_failed": {"type": "integer"},
+                                        },
+                                    }
+                                }
+                            },
+                        },
+                        "400": {"description": "Invalid input"},
+                        "401": {"description": "Unauthorized"},
+                        "422": {"description": "Validation error"},
+                    },
+                }
+            },
+        )
+
     def register_routes(self) -> None:
         self.bp.route("/", methods=["POST"])(self.create)
         self.bp.route("/<int:id>", methods=["GET"])(self.get)
         self.bp.route("/<int:id>", methods=["PUT"])(self.update)
         self.bp.route("/<int:id>", methods=["DELETE"])(self.delete)
         self.bp.route("/", methods=["GET"])(self.get_all)
+        self.bp.route("/batch/update", methods=["POST"])(self.batch_update)
+        self.bp.route("/batch/delete", methods=["POST"])(self.batch_delete)
 
     @jwt_required()
     def create(self) -> tuple[Any, int]:
@@ -297,15 +429,18 @@ class BaseRoutes:
 
         try:
             # Extract query parameters
-            filters: dict[str, Any] = {
-                field: request.args.get(field)
-                for field in self.schema.fields
-                if field in request.args
-            }
+            filters: dict[str, Any] = {}
+            for field in self.schema.fields:
+                if field in request.args:
+                    values = request.args.getlist(field)
+                    filters[field] = values[0] if len(values) == 1 else ",".join(values)
 
             # Add account_id to filters if it's in the request args
             if "account_id" in request.args:
-                filters["account_id"] = request.args.get("account_id")
+                values = request.args.getlist("account_id")
+                filters["account_id"] = (
+                    values[0] if len(values) == 1 else ",".join(values)
+                )
 
             # Create ListQueryParams object
             query_params = ListQueryParams(
@@ -328,6 +463,80 @@ class BaseRoutes:
             return jsonify({"error": str(e)}), 400
         except QueryExecutionError as e:
             return jsonify({"error": str(e)}), 500
+
+    @jwt_required()
+    def batch_update(self) -> tuple[Any, int]:
+        """Batch update multiple items."""
+        user_id = get_jwt_identity()
+        sentry_sdk.set_user({"id": str(user_id)})
+        data = request.json
+
+        if not isinstance(data, dict) or "items" not in data:
+            return jsonify({"error": "Request must include 'items' array"}), 400
+
+        items = data["items"]
+        if not isinstance(items, list):
+            return jsonify({"error": "'items' must be an array"}), 400
+
+        if not items:
+            return jsonify({"error": "No items provided"}), 400
+
+        # Validate each item
+        validated_items = []
+        validation_errors = []
+
+        for i, item in enumerate(items):
+            if not isinstance(item, dict):
+                validation_errors.append(
+                    {"index": i, "error": "Item must be an object", "data": item}
+                )
+                continue
+
+            if "id" not in item:
+                validation_errors.append(
+                    {"index": i, "error": "Item must have an 'id' field", "data": item}
+                )
+                continue
+
+            try:
+                # Exclude id from validation since it's not part of the schema
+                item_data = {k: v for k, v in item.items() if k != "id"}
+                validated_data = self.schema.load(item_data, partial=True)
+                validated_items.append({"id": item["id"], **validated_data})
+            except ValidationError as err:
+                validation_errors.append(
+                    {"index": i, "error": err.messages, "data": item}
+                )
+
+        if validation_errors:
+            return jsonify({"validation_errors": validation_errors}), 422
+
+        result = self.service.batch_update(user_id, validated_items)
+        return jsonify(result), 200
+
+    @jwt_required()
+    def batch_delete(self) -> tuple[Any, int]:
+        """Batch delete multiple items."""
+        user_id = get_jwt_identity()
+        sentry_sdk.set_user({"id": str(user_id)})
+        data = request.json
+
+        if not isinstance(data, dict) or "ids" not in data:
+            return jsonify({"error": "Request must include 'ids' array"}), 400
+
+        ids = data["ids"]
+        if not isinstance(ids, list):
+            return jsonify({"error": "'ids' must be an array"}), 400
+
+        if not ids:
+            return jsonify({"error": "No ids provided"}), 400
+
+        # Validate that all IDs are integers
+        if not all(isinstance(id_, int) for id_ in ids):
+            return jsonify({"error": "All ids must be integers"}), 400
+
+        result = self.service.batch_delete(user_id, ids)
+        return jsonify(result), 200
 
 
 def validate_date_format(date_str: str) -> tuple[bool, str | None]:
