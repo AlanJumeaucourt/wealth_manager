@@ -1,10 +1,10 @@
-name: Deploy Showcase Website
+name: Deploy Web Application
 
 on:
   push:
     branches: ["main"]
     paths:
-      - "showcase_website/**"
+      - "web_application/**"
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -15,34 +15,31 @@ permissions:
 
 # Allow only one concurrent deployment
 concurrency:
-  group: "pages"
+  group: "web-app"
   cancel-in-progress: true
 
 jobs:
-  deploy-showcase:
+  deploy-web-app:
     environment:
-      name: github-pages
+      name: web-app
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Build showcase website
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: 20
-          cache: "npm"
-          cache-dependency-path: "./showcase_website/package-lock.json"
+          bun-version: latest
 
       - name: Install dependencies
-        working-directory: ./showcase_website
-        run: npm ci
+        working-directory: ./web_application
+        run: bun install
 
       - name: Build
-        working-directory: ./showcase_website
-        run: npm run build
+        working-directory: ./web_application
+        run: bun run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -50,7 +47,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "./showcase_website/dist"
+          path: "./web_application/dist"
 
       - name: Deploy to GitHub Pages
         id: deployment
