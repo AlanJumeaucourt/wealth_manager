@@ -46,11 +46,11 @@ See our detailed [Mobile App Documentation](frontend/README.md) for complete fea
 
 ## 🌐 Website
 
-The project includes a showcase website built with React + Vite + TypeScript. Visit the [website directory](website/) for setup instructions.
+The project includes a showcase website built with React + Vite + TypeScript. Visit the [showcase website directory](showcase_website/) for setup instructions.
 
 Quick start:
 ```bash
-cd website
+cd showcase_website
 npm install
 npm run dev
 ```
