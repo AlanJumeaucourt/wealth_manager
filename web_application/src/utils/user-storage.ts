@@ -25,7 +25,7 @@ export const userStorage = {
   },
 
   fetchUser: async () => {
-    const response = await fetch('http://100.121.97.42:5000/users/', {
+    const response = await fetch('http://localhost:5000/users/', {
       headers: { 'Authorization': `Bearer ${userStorage.getToken()}` }
     })
     if (response.ok) {

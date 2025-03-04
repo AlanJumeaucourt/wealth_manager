@@ -34,7 +34,7 @@ export function Signup() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("http://100.121.97.42:5000/users/register", {
+      const response = await fetch("http://localhost:5000/users/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -44,7 +44,7 @@ export function Signup() {
 
       if (response.ok) {
         // Automatically log in the user after successful signup
-        const loginResponse = await fetch("http://100.121.97.42:5000/users/login", {
+        const loginResponse = await fetch("http://localhost:5000/users/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -17,7 +17,7 @@ spec = APISpec(
     },
     servers=[
         {
-            "url": "http://100.121.97.42:5000",
+            "url": "http://localhost:5000",
             "description": "Development server",
         }
     ],

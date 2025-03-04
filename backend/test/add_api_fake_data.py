@@ -49,7 +49,14 @@ class WealthManagerAPI:
     def login(self, email: str, password: str) -> bool:
         """Login and get JWT token"""
         data = {"email": email, "password": password}
-        response = self._make_request("POST", "/users/login", data)
+        try:
+            response = self._make_request("POST", "/users/login", data)
+        except Exception as e:
+            if "401" in str(e) and "authentication_failed" in str(e):
+                print("Invalid credentials")
+                return False
+            else:
+                raise e
         if "access_token" in response:
             self.jwt_token = response["access_token"]
             print(f"Logged in with JWT token: {self.jwt_token}")

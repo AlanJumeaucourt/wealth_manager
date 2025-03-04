@@ -2,7 +2,7 @@ import { Account, Bank, RefundGroup, RefundItem, Transaction } from "@/types"
 import { handleTokenExpiration } from "@/utils/auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-export const API_URL = "http://100.121.97.42:5000"
+export const API_URL = "http://localhost:5000"
 
 // Define query key types
 type QueryKeyArray = readonly (string | number | undefined)[]

@@ -105,7 +105,7 @@ account_dictionary: dict[str, str] = {}
 
 
 def create_user(name: str, email: str, password: str):
-    url = "http://100.121.97.42:5000/users/register"  # Adjust the URL if necessary
+    url = "http://localhost:5000/users/register"  # Adjust the URL if necessary
     headers = {"Content-Type": "application/json"}
     data = {"name": name, "email": email, "password": password}
     response = requests.post(url, json=data, headers=headers)
@@ -113,7 +113,7 @@ def create_user(name: str, email: str, password: str):
 
 
 def login_user(email: str, password: str):
-    url = "http://100.121.97.42:5000/users/login"  # Adjust the URL if necessary
+    url = "http://localhost:5000/users/login"  # Adjust the URL if necessary
     headers = {"Content-Type": "application/json"}
     data = {"email": email, "password": password}
     response = requests.post(url, json=data, headers=headers)
@@ -148,7 +148,7 @@ def bank_id_from_account_name(account_name: str) -> int:
 
 
 def get_user_from_api(user_id: int):
-    url = f"http://100.121.97.42:5000/users/{user_id}"
+    url = f"http://localhost:5000/users/{user_id}"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -158,7 +158,7 @@ def get_user_from_api(user_id: int):
 
 
 def get_banks_from_api() -> list[dict[str, Any]]:
-    url = "http://100.121.97.42:5000/banks"
+    url = "http://localhost:5000/banks"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -171,7 +171,7 @@ def get_banks_from_api() -> list[dict[str, Any]]:
 
 
 def delete_user():
-    url = "http://100.121.97.42:5000/users"
+    url = "http://localhost:5000/users"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -181,7 +181,7 @@ def delete_user():
 
 
 def get_accounts_from_api() -> list[dict[str, Any]]:
-    url = "http://100.121.97.42:5000/accounts?per_page=1000"
+    url = "http://localhost:5000/accounts?per_page=1000"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -196,7 +196,7 @@ def get_accounts_from_api() -> list[dict[str, Any]]:
 
 
 def create_bank_in_api(bank_name: str):
-    url = "http://100.121.97.42:5000/banks"  # Adjust the URL if necessary
+    url = "http://localhost:5000/banks"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
@@ -222,7 +222,7 @@ def create_bank_in_api(bank_name: str):
 def create_account_in_api(
     account_name: str, account_type: str, currency: str, bank_id: int
 ):
-    url = "http://100.121.97.42:5000/accounts"  # Adjust the URL if necessary
+    url = "http://localhost:5000/accounts"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
@@ -288,7 +288,7 @@ def get_account_id_from_name(account_name: str, account_type: str):
 
 
 def create_transaction_in_api(transaction_data: dict[str, Any]) -> requests.Response:
-    url = "http://100.121.97.42:5000/transactions"
+    url = "http://localhost:5000/transactions"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -461,7 +461,7 @@ def transform_budgets_to_categories(
 
 
 def get_transactions_from_api() -> requests.Response:
-    url = "http://100.121.97.42:5000/transactions?per_page=1000&page=1"  # Adjust the URL if necessary
+    url = "http://localhost:5000/transactions?per_page=1000&page=1"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
@@ -471,7 +471,7 @@ def get_transactions_from_api() -> requests.Response:
 
 
 def get_wealth_from_api() -> requests.Response:
-    url = "http://100.121.97.42:5000/accounts/balance_over_time?start_date=2024-01-01&end_date=2024-08-12"  # Adjust the URL if necessary
+    url = "http://localhost:5000/accounts/balance_over_time?start_date=2024-01-01&end_date=2024-08-12"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
@@ -825,7 +825,7 @@ def get_or_create_asset(symbol: str) -> int:
 
     """
     # First try to get the asset
-    url = f"http://100.121.97.42:5000/assets?symbol={symbol}"
+    url = f"http://localhost:5000/assets?symbol={symbol}"
     headers = {"Authorization": f"Bearer {jwt_token}"}
     response = requests.get(url, headers=headers)
 
@@ -835,7 +835,7 @@ def get_or_create_asset(symbol: str) -> int:
             return assets["items"][0]["id"]
 
     # If not found, create it
-    url = "http://100.121.97.42:5000/assets"
+    url = "http://localhost:5000/assets"
     data = {
         "symbol": symbol,
         "name": symbol,  # You might want to fetch the actual name from an API
@@ -859,7 +859,7 @@ def create_investment_transaction_in_api(
         requests.Response: The API response
 
     """
-    url = "http://100.121.97.42:5000/investments"
+    url = "http://localhost:5000/investments"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
