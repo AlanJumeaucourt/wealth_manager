@@ -1,5 +1,3 @@
- # Install curl for healthcheck and sqlite3 for database
-
 FROM python:3.12-bookworm
 
 WORKDIR /app
