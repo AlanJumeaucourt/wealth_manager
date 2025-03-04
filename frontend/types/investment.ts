@@ -30,7 +30,7 @@ export interface PortfolioPosition {
 
 export interface PerformanceData {
     date: string;
-    cumulative_value: number;
+    value: number;
 }
 
 // Transaction history types
@@ -38,7 +38,7 @@ export interface AssetTransaction {
     id: number;
     date: string;
     quantity: number;
-    price: number;
+    unit_price: number;
     fee: number;
     tax: number;
     account_name: string;
@@ -80,7 +80,12 @@ export interface PortfolioSummaryResponse {
 }
 
 export interface PortfolioPerformanceResponse {
-    performance_data: PerformanceData[];
+    data_points: PerformanceData[];
+    end_value: number;
+    period: string;
+    start_value: number;
+    total_return: number;
+    total_return_percentage: number;
 }
 
 export interface AssetTransactionsResponse {

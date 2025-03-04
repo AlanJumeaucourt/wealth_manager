@@ -1,30 +1,26 @@
-import yfinance as yf
-from typing import List, Dict, Optional, TypedDict, Any, Callable, Union, Tuple
-from datetime import datetime, timedelta
-import requests
-from urllib.parse import quote_plus
 import json
-from app.database import DatabaseManager
 import logging
 import threading
-from queue import Queue
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import pandas as pd
+from datetime import datetime, timedelta
+from queue import Queue
+from typing import Any, TypedDict
+from urllib.parse import quote_plus
+
+import requests
+import yfinance as yf
+
+from app.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
 
-class StockInfo(TypedDict):
+class StockDetails(TypedDict):
     symbol: str
-    name: str
-    type: str
-    exchange: str
+    shortName: str
+    quoteType: str
     currency: str
-    current_price: Optional[float]
-    previous_close: Optional[float]
-    market_cap: Optional[float]
-    volume: Optional[int]
-    description: str
 
 
 class HistoricalPrice(TypedDict):
@@ -46,10 +42,10 @@ class AssetSearchResult(TypedDict):
 
 
 class CacheManager:
-    """Manages cache operations in a separate thread"""
+    """Manages cache operations in a separate thread."""
 
-    def __init__(self):
-        self.queue: Queue[Tuple[Callable[..., Any], tuple, dict]] = Queue()
+    def __init__(self) -> None:
+        self.queue: Queue[tuple[Callable[..., Any], tuple, dict]] = Queue()
         self.worker = threading.Thread(target=self._process_queue, daemon=True)
         self.worker.start()
         self.db_manager = DatabaseManager()
@@ -67,13 +63,13 @@ class CacheManager:
                 logger.error(f"Error processing cache task: {e}")
 
     def add_task(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
-        """Add a task to the queue"""
+        """Add a task to the queue."""
         self.queue.put((func, args, kwargs))
 
-    def _update_cache(self, symbol: str, data: Dict[str, Any], cache_type: str) -> None:
-        """Update the cache with new data"""
+    def _update_cache(self, symbol: str, data: dict[str, Any], cache_type: str) -> None:
+        """Update the cache with new data."""
         try:
-            query = """
+            query = """--sql
             INSERT INTO stock_cache (symbol, cache_type, data, last_updated)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(symbol, cache_type) DO UPDATE SET
@@ -81,19 +77,22 @@ class CacheManager:
                 last_updated = excluded.last_updated
             """
             self.db_manager.execute_update(
-                query,
-                (symbol, cache_type, json.dumps(data), datetime.now().isoformat()),
+                query=query,
+                params=[
+                    symbol,
+                    cache_type,
+                    json.dumps(data),
+                    datetime.now().isoformat(),
+                ],
             )
             logger.info(f"Cache UPDATED for {symbol} ({cache_type})")
         except Exception as e:
             logger.error(f"Error updating cache for {symbol} ({cache_type}): {e}")
 
-    def _get_cached_data(
-        self, symbol: str, cache_type: str
-    ) -> Optional[Dict[str, Any]]:
-        """Get data from cache"""
+    def _get_cached_data(self, symbol: str, cache_type: str) -> dict[str, Any] | None:
+        """Get data from cache."""
         try:
-            query = """
+            query = """--sql
             SELECT data, last_updated
             FROM stock_cache
             WHERE symbol = ? AND cache_type = ?
@@ -132,14 +131,14 @@ class StockService:
         }
 
     def _fetch_and_cache(
-        self, symbol: str, data: Dict[str, Any], cache_type: str
+        self, symbol: str, data: dict[str, Any], cache_type: str
     ) -> None:
         """Background task to update cache"""
         self.cache_manager.add_task(
             self.cache_manager._update_cache, symbol, data, cache_type
         )
 
-    def _fetch_ticker_info(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def _fetch_ticker_info(self, symbol: str) -> dict[str, Any] | None:
         """Fetch ticker info in a separate thread"""
         try:
             ticker = yf.Ticker(symbol)
@@ -148,13 +147,15 @@ class StockService:
             logger.error(f"Error fetching ticker info for {symbol}: {e}")
             return None
 
-    def get_asset_info(self, symbol: str) -> Optional[StockInfo]:
+    def get_asset_info(self, symbol: str) -> StockDetails | None:
         """Get detailed information about a specific asset."""
         logger.info(f"Getting asset info for {symbol}")
         cache_key = f"{symbol}_basic_info"
 
         try:
-            cached_data = self.cache_manager._get_cached_data(cache_key, "basic_info")
+            cached_data = self.cache_manager._get_cached_data(
+                symbol=cache_key, cache_type="basic_info"
+            )
             if cached_data:
                 logger.info(f"Cache HIT for {symbol}")
                 return cached_data
@@ -168,7 +169,7 @@ class StockService:
             if not info:
                 return None
 
-            result: StockInfo = {
+            result: StockDetails = {
                 "symbol": symbol,
                 "name": info.get("longName", ""),
                 "type": info.get("quoteType", ""),
@@ -182,16 +183,20 @@ class StockService:
             }
 
             # Update cache in background with new cache key
-            self._fetch_and_cache(cache_key, result, "basic_info")
-            return result
+            self._fetch_and_cache(
+                symbol=cache_key, data=result, cache_type="basic_info"
+            )
 
         except Exception as e:
-            logger.error(f"Error in get_asset_info for {symbol}: {str(e)}")
+            logger.error(f"Error in get_asset_info for {symbol}: {e!s}")
             return None
 
+        else:
+            return result
+
     def get_historical_prices(
-        self, symbol: str, period: Optional[str] = "max"
-    ) -> List[HistoricalPrice]:
+        self, symbol: str, period: str | None = "max"
+    ) -> list[HistoricalPrice]:
         """Get historical price data for an asset."""
         logger.info(f"Getting historical prices for {symbol} (period: {period})")
         cache_key = f"{symbol}_period_{period}"
@@ -200,7 +205,7 @@ class StockService:
             ticker = yf.Ticker(symbol)
             hist = ticker.history(period=period, interval="1d")
 
-            result: List[HistoricalPrice] = [
+            result: list[HistoricalPrice] = [
                 {
                     "date": index.strftime("%Y-%m-%d"),
                     "value": float(row["Close"]),
@@ -214,12 +219,12 @@ class StockService:
             ]
 
             # Update cache in background
-            return result
-            self._fetch_and_cache(cache_key, result, "historical_prices")
-            return result
+            self._fetch_and_cache(
+                symbol=cache_key, data=result, cache_type="historical_prices"
+            )
 
         except Exception as e:
-            logger.error(f"Error in get_historical_prices for {symbol}: {str(e)}")
+            logger.error(f"Error in get_historical_prices for {symbol}: {e!s}")
             # Try to get from cache if API fails
             cached_data = self.cache_manager._get_cached_data(
                 cache_key, "historical_prices"
@@ -231,7 +236,10 @@ class StockService:
                 return cached_data
             return []
 
-    def search_assets(self, query: str) -> List[AssetSearchResult]:
+        else:
+            return result
+
+    def search_assets(self, query: str) -> list[AssetSearchResult]:
         """Search for stocks and ETFs."""
         cache_key = f"search_query_{query}"
         logger.info(f"Searching assets for query: {query}")
@@ -248,7 +256,7 @@ class StockService:
             pass
 
         try:
-            results: List[AssetSearchResult] = []
+            results: list[AssetSearchResult] = []
             futures = []
 
             # First try direct symbol lookup
@@ -289,10 +297,10 @@ class StockService:
             return results
 
         except Exception as e:
-            logger.error(f"Error in search_assets: {str(e)}")
+            logger.error(f"Error in search_assets: {e!s}")
             return []
 
-    def _format_ticker_result(self, info: Dict[str, Any]) -> AssetSearchResult:
+    def _format_ticker_result(self, info: dict[str, Any]) -> AssetSearchResult:
         return {
             "symbol": info.get("symbol", ""),
             "name": info.get("longName", ""),
@@ -301,7 +309,7 @@ class StockService:
             "currency": info.get("currency", ""),
         }
 
-    def _format_search_result(self, quote: Dict[str, Any]) -> AssetSearchResult:
+    def _format_search_result(self, quote: dict[str, Any]) -> AssetSearchResult:
         return {
             "symbol": quote.get("symbol", ""),
             "name": quote.get("longname", quote.get("shortname", "")),
@@ -310,7 +318,7 @@ class StockService:
             "currency": "",
         }
 
-    def get_current_price(self, symbol: str) -> Optional[float]:
+    def get_current_price(self, symbol: str) -> float | None:
         """Get the current price of an asset."""
         logger.info(f"Getting current price for {symbol}")
         cache_key = f"{symbol}_basic_info"
@@ -326,10 +334,10 @@ class StockService:
             logger.info(f"Successfully fetched current price for {symbol}: {price}")
             return price
         except Exception as e:
-            logger.error(f"Error getting current price for {symbol}: {str(e)}")
+            logger.error(f"Error getting current price for {symbol}: {e!s}")
             return None
 
-    def get_stock_details(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_stock_details(self, symbol: str) -> dict[str, Any] | None:
         """Get detailed quote summary including comprehensive fund/stock information."""
         logger.info(f"Getting detailed quote summary for {symbol}")
         cache_key = f"{symbol}_full_details"
@@ -343,14 +351,13 @@ class StockService:
                 logger.info(f"Cache HIT for {symbol} details")
                 return cached_data
         except Exception as e:
-            logger.error(f"Cache error for {symbol}: {str(e)}")
-            pass
+            logger.error(f"Cache error for {symbol}: {e!s}")
 
         try:
             ticker = yf.Ticker(symbol)
 
             # Helper function to convert timestamps to strings
-            def serialize_timestamp_dict(d: Dict) -> Dict:
+            def serialize_timestamp_dict(d: dict) -> dict:
                 return {k.strftime("%Y-%m-%d"): v for k, v in d.items()}
 
             # Collect all available data
@@ -377,7 +384,7 @@ class StockService:
                             ),
                             "value": float(holder[3]) if holder[3] else None,
                         }
-                        for holder in ticker.institutional_holders.values.tolist()
+                        for holder in ticker.institutional_holders.to_numpy().tolist()
                     ]
                     if hasattr(ticker, "institutional_holders")
                     and ticker.institutional_holders is not None
@@ -441,9 +448,7 @@ class StockService:
                     details.update(fund_details)
 
             except Exception as e:
-                logger.warning(
-                    f"Error fetching fund-specific data for {symbol}: {str(e)}"
-                )
+                logger.warning(f"Error fetching fund-specific data for {symbol}: {e!s}")
 
             # Update cache in background with new cache key
             self._fetch_and_cache(cache_key, details, "stock_details")
@@ -451,5 +456,5 @@ class StockService:
             return details
 
         except Exception as e:
-            logger.error(f"Error fetching stock details for {symbol}: {str(e)}")
+            logger.error(f"Error fetching stock details for {symbol}: {e!s}")
             return None

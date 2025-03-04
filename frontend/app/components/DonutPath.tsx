@@ -1,9 +1,9 @@
 import { Path, Skia } from '@shopify/react-native-skia';
 import React from 'react';
 import {
-  SharedValue,
-  useDerivedValue,
-  withTiming,
+    SharedValue,
+    useDerivedValue,
+    withTiming,
 } from 'react-native-reanimated';
 
 type Props = {

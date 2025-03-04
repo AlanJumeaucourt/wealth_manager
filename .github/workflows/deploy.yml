@@ -1,8 +1,10 @@
-name: Deploy to GitHub Pages
+name: Deploy Showcase Website
 
 on:
   push:
     branches: ["main"]
+    paths:
+      - "showcase_website/**"
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -17,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  deploy-showcase:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -26,19 +28,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Build showcase website
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "npm"
-          cache-dependency-path: "./website/package-lock.json"
+          cache-dependency-path: "./showcase_website/package-lock.json"
 
       - name: Install dependencies
-        working-directory: ./website
+        working-directory: ./showcase_website
         run: npm ci
 
       - name: Build
-        working-directory: ./website
+        working-directory: ./showcase_website
         run: npm run build
 
       - name: Setup Pages
@@ -47,7 +50,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "./website/dist"
+          path: "./showcase_website/dist"
 
       - name: Deploy to GitHub Pages
         id: deployment

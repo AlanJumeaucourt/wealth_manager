@@ -44,10 +44,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
       setIsLoadingMore(true);
       const numberofTransactionFetch = 50;
       const response = await fetchTransactions(numberofTransactionFetch, page, accountId, searchQuery);
-      if ('transactions' in response) {
+      if ('items' in response) {
         // Update transactions
         setTransactions(prevTransactions =>
-          page === 1 ? response.transactions : [...prevTransactions, ...response.transactions]
+          page === 1 ? response.items : [...prevTransactions, ...response.items]
         );
         // Only update search stats if it's the first page or if we don't have stats yet
         if (searchQuery && (page === 1 || !searchStats)) {

@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass
@@ -10,8 +9,8 @@ class User:
     name: str
     email: str
     password: str
-    last_login: Optional[datetime] = field(default=None)  # Made last_login optional
-    id: Optional[int] = field(default=None)  # Added id field
+    last_login: datetime | None = field(default=None)  # Made last_login optional
+    id: int | None = field(default=None)  # Added id field
 
 
 @dataclass
@@ -20,7 +19,8 @@ class Bank:
 
     user_id: int
     name: str
-    id: Optional[int] = field(default=None)  # Added id field
+    website: str | None = field(default=None)
+    id: int | None = field(default=None)  # Added id field
 
 
 @dataclass
@@ -31,7 +31,7 @@ class Account:
     name: str
     type: str
     bank_id: int  # Corrected from bankId to bank_id for consistency
-    id: Optional[int] = field(default=None)  # Added id field
+    id: int | None = field(default=None)  # Added id field
 
 
 @dataclass
@@ -40,18 +40,19 @@ class Transaction:
 
     user_id: int
     date: datetime
-    date_accountability: datetime  # Added field
+    date_accountability: datetime
     description: str
     amount: float
     from_account_id: int
     to_account_id: int
     type: str
     category: str
-    subcategory: Optional[str] = field(default=None)
-    id: Optional[int] = field(default=None)
+    subcategory: str | None = field(default=None)
+    is_investment: bool = field(default=False)
+    id: int | None = field(default=None)
 
-    def __post_init__(self):
-        if self.type not in ["expense", "income", "transfer", "refund"]:
+    def __post_init__(self) -> None:
+        if self.type not in ["expense", "income", "transfer"]:
             raise ValueError("Invalid transaction type.")
 
 
@@ -62,7 +63,7 @@ class Asset:
     user_id: int
     symbol: str
     name: str
-    id: Optional[int] = field(default=None)
+    id: int | None = field(default=None)
 
 
 @dataclass
@@ -79,10 +80,10 @@ class InvestmentTransaction:
     unit_price: float
     fee: float
     tax: float
-    total_paid: Optional[float] = field(default=None)
-    id: Optional[int] = field(default=None)
+    total_paid: float | None = field(default=None)
+    id: int | None = field(default=None)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.activity_type not in ["buy", "sell", "deposit", "withdrawal"]:
             raise ValueError("Invalid activity type.")
 
@@ -95,4 +96,27 @@ class AccountAsset:
     account_id: int
     asset_id: int
     quantity: float
-    id: Optional[int] = field(default=None)
+    id: int | None = field(default=None)
+
+
+@dataclass
+class RefundGroup:
+    """Represents a group of related refunds."""
+
+    user_id: int
+    name: str
+    description: str | None = field(default=None)
+    id: int | None = field(default=None)
+
+
+@dataclass
+class RefundItem:
+    """Represents a refund linking an income transaction to an expense transaction."""
+
+    user_id: int
+    income_transaction_id: int
+    expense_transaction_id: int
+    amount: float
+    refund_group_id: int | None = field(default=None)
+    description: str | None = field(default=None)
+    id: int | None = field(default=None)

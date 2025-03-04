@@ -1,28 +1,18 @@
-from flask import Flask, request, jsonify
+import logging
+import os
+from datetime import timedelta
+
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration
-import logging
-from datetime import timedelta
+
 from app.database import DatabaseManager
-import os
+from app.logger import logger
+from app.middleware import log_request, log_response
+from app.swagger import API_URL, SWAGGER_URL, spec, swagger_ui_blueprint
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-sentry_sdk.init(
-    dsn="https://d12d7aa6d6edf166709997c29591227d@o4508077260996608.ingest.de.sentry.io/4508077266239568",
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=1.0,
-    # Set profiles_sample_rate to 1.0 to profile 100%
-    # of sampled transactions.
-    # We recommend adjusting this value in production.
-    profiles_sample_rate=1.0,
-    integrations=[FlaskIntegration()],
-    spotlight=bool(True),
 )
 
 
@@ -34,10 +24,33 @@ def create_app():
     app.url_map.strict_slashes = False  # Add this line
     CORS(app, resources={r"/*": {"origins": "*"}})
 
+    # Register Swagger UI blueprint
+    app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
+
+    # Create static directory if it doesn't exist
+    os.makedirs(os.path.join(app.root_path, "static"), exist_ok=True)
+
+    @app.route("/static/swagger.json")
+    def create_swagger_spec():
+        return jsonify(spec.to_dict())
+
+    # Register logging middleware
+    app.before_request(log_request)
+    app.after_request(log_response)
+
+    # Log application startup
+    logger.info("Application starting up")
+
     # JWT Configuration
-    app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "fallback-secret-key-for-development")
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(seconds=int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 3600)))
-    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(seconds=int(os.environ.get("JWT_REFRESH_TOKEN_EXPIRES", 2592000)))
+    app.config["JWT_SECRET_KEY"] = os.environ.get(
+        "JWT_SECRET_KEY", "fallback-secret-key-for-development"
+    )
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
+        seconds=int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 3600))
+    )
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(
+        seconds=int(os.environ.get("JWT_REFRESH_TOKEN_EXPIRES", 2592000))
+    )
     app.config["JWT_TOKEN_LOCATION"] = ["headers"]
     app.config["JWT_HEADER_NAME"] = "Authorization"
     app.config["JWT_HEADER_TYPE"] = "Bearer"
@@ -46,27 +59,24 @@ def create_app():
 
     app.config["JSONIFY_MIMETYPE"] = "application/json"
 
-    @app.before_request
-    def log_request_info():
-        logging.debug(f"Request: {request.method} {request.url}")
-        logging.debug(f"Headers: {request.headers}")
-        logging.debug(f"Body: {request.get_data()}")
-
-    @app.after_request
-    def log_response_info(response):
-        logging.debug(f"Response: {response.status_code} {response.get_data()}")
-        return response
+    # Register error handlers
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        logger.error("Unhandled exception", exc_info=True)
+        return {"error": str(e)}, 500
 
     # import and register blueprints
-    from app.routes.user_routes import user_bp
     from app.routes.account_routes import account_bp
-    from app.routes.bank_routes import bank_bp
-    from app.routes.transaction_routes import transaction_bp
-    from app.routes.budget_routes import budget_bp
-    from app.routes.investment_routes import investment_bp
-    from app.routes.stock_routes import stock_bp
     from app.routes.asset_routes import asset_bp
-    from app.routes.account_asset_routes import account_asset_bp
+    from app.routes.bank_routes import bank_bp
+    from app.routes.budget_routes import budget_bp
+    from app.routes.gocardless_routes import gocardless_bp
+    from app.routes.investment_routes import investment_bp
+    from app.routes.refund_group_routes import refund_group_bp
+    from app.routes.refund_item_routes import refund_item_bp
+    from app.routes.stock_routes import stock_bp
+    from app.routes.transaction_routes import transaction_bp
+    from app.routes.user_routes import user_bp
 
     app.register_blueprint(user_bp, url_prefix="/users")  # Register user routes
     app.register_blueprint(
@@ -80,27 +90,23 @@ def create_app():
     app.register_blueprint(investment_bp, url_prefix="/investments")
     app.register_blueprint(stock_bp, url_prefix="/stocks")
     app.register_blueprint(asset_bp, url_prefix="/assets")
-    app.register_blueprint(account_asset_bp, url_prefix="/account_assets")
+    app.register_blueprint(refund_item_bp, url_prefix="/refund_items")
+    app.register_blueprint(refund_group_bp, url_prefix="/refund_groups")
+    app.register_blueprint(gocardless_bp, url_prefix="/gocardless")
 
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string):
-        return jsonify({
-            "msg": "Invalid token",
-            "error": str(error_string)
-        }), 401
+        return jsonify({"msg": "Invalid token", "error": str(error_string)}), 401
 
     @jwt.unauthorized_loader
     def unauthorized_callback(error_string):
-        return jsonify({
-            "msg": "Missing Authorization Header",
-            "error": str(error_string)
-        }), 401
+        return jsonify(
+            {"msg": "Missing Authorization Header", "error": str(error_string)}
+        ), 401
 
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_data):
-        return jsonify({
-            "msg": "Token has expired",
-            "error": "token_expired"
-        }), 401
+        return jsonify({"msg": "Token has expired", "error": "token_expired"}), 401
 
+    logger.info("Application initialized successfully")
     return app

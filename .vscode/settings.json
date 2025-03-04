@@ -1,10 +1,76 @@
 {
-    "python.analysis.autoImportCompletions": true,
-    "editor.formatOnSave": true,
-    "editor.trimAutoWhitespace": true,
-    "python.analysis.typeCheckingMode": "strict",
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter",
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "python.defaultInterpreterPath": "/home/vscode/.venv/bin/python",
+    "[dockercompose]": {
+        "editor.autoIndent": "advanced",
+        "editor.defaultFormatter": "redhat.vscode-yaml",
+        "editor.formatOnSave": true,
+        "editor.insertSpaces": true,
+        "editor.quickSuggestions": {
+            "other": true,
+            "comments": false,
+            "strings": true
+        },
+        "editor.tabSize": 4
+    },
+    "[dockerfile]": {
         "editor.formatOnSave": true
-    }
+    },
+    "[github-actions-workflow]": {
+        "editor.autoIndent": "advanced",
+        "editor.defaultFormatter": "redhat.vscode-yaml",
+        "editor.insertSpaces": true,
+        "editor.quickSuggestions": {
+            "other": true,
+            "comments": false,
+            "strings": true
+        },
+        "editor.tabSize": 2
+    },
+    "[json][jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features",
+        "editor.formatOnSave": true,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4
+    },
+    "[python]": {
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        },
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4
+    },
+    "[toml]": {
+        "editor.defaultFormatter": "tamasfe.even-better-toml",
+        "editor.formatOnSave": true,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4
+    },
+    "[yaml]": {
+        "editor.autoIndent": "advanced",
+        "editor.defaultFormatter": "redhat.vscode-yaml",
+        "editor.formatOnSave": true,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2
+    },
+    "python.analysis.autoImportCompletions": true,
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#aba6d0",
+        "activityBar.background": "#aba6d0",
+        "activityBar.foreground": "#15202b",
+        "activityBar.inactiveForeground": "#15202b99",
+        "activityBarBadge.background": "#a76258",
+        "activityBarBadge.foreground": "#e7e7e7",
+        "commandCenter.border": "#15202b99",
+        "editorGroup.border": "#aba6d0",
+        "sash.hoverBorder": "#aba6d0",
+        "titleBar.activeBackground": "#8c84bf",
+        "titleBar.activeForeground": "#15202b",
+        "titleBar.inactiveBackground": "#8c84bf99",
+        "titleBar.inactiveForeground": "#15202b99"
+    },
+    "peacock.remoteColor": "#8c84bf"
 }

@@ -10,7 +10,7 @@ export const fetchBanks = () => async (dispatch: Dispatch) => {
     try {
         const response = await apiClient.get('/banks?per_page=1000&page=1');
         // console.log("fetchBanks response", response.data);
-        dispatch({ type: FETCH_BANKS_SUCCESS, payload: response.data });
+        dispatch({ type: FETCH_BANKS_SUCCESS, payload: response.data.items });
     } catch (error) {
         console.log("fetchBanks error", error);
         dispatch({ type: FETCH_BANKS_FAILURE, error });

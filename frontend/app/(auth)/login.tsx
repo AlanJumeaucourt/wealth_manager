@@ -9,8 +9,8 @@ import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('test@example.com');
+  const [password, setPassword] = useState('test123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();

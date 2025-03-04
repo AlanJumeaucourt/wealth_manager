@@ -4,6 +4,7 @@ import { Transaction } from '@/types/transaction';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
 import apiClient from './axiosConfig';
+import { BudgetSummaryResponse } from '@/types/budget';
 
 const handleApiError = async (error: unknown, message: string) => {
   if (axios.isAxiosError(error)) {
@@ -39,11 +40,20 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Add new interface for paginated response
+interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  count: number;
+  page: number;
+  per_page: number;
+}
+
 export const fetchBanks = async () => {
   try {
     const response = await apiClient.get('/banks');
     console.log('Banks response:', response.data);
-    return response.data;
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching banks');
   }
@@ -77,7 +87,7 @@ export const deleteBank = async (bankId: number) => {
   }
 };
 
-export const fetchAccounts = async (perPage: number, page: number, search?: string) => {
+export const fetchAccounts = async (perPage: number, page: number, search?: string): Promise<PaginatedResponse<Account>> => {
   try {
     const params = new URLSearchParams({
       per_page: perPage.toString(),
@@ -90,7 +100,8 @@ export const fetchAccounts = async (perPage: number, page: number, search?: stri
 
     const response = await apiClient.get(`/accounts?${params.toString()}`);
     console.log('Accounts response:', response.data);
-    return response.data;
+
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching accounts');
   }
@@ -164,9 +175,25 @@ export const updateTransaction = async (transactionId: number, transactionData: 
   }
 }
 
-export const fetchTransactions = async (perPage: number, page: number, accountId?: number, search?: string) => {
+export const fetchTransactions = async (
+  perPage: number,
+  page: number,
+  accountId?: number,
+  search?: string
+): Promise<{
+  items: Transaction[];
+  total: number;
+  total_amount: number;
+  count: number;
+  page: number;
+  per_page: number;
+}> => {
   try {
-    const response = await apiClient.get(`/transactions?per_page=${perPage}&page=${page}&sort_by=date&sort_order=desc${accountId ? `&account_id=${accountId}` : ''}${search ? `&search=${search}` : ''}`);
+    const response = await apiClient.get(
+      `/transactions?per_page=${perPage}&page=${page}&sort_by=date&sort_order=desc${
+        accountId ? `&account_id=${accountId}` : ''
+      }${search ? `&search=${search}` : ''}`
+    );
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching transactions');
@@ -213,10 +240,10 @@ export const fetchWealthData = async (startDate: string, endDate: string) => {
   }
 };
 
-export const fetchBudgetSummary = async (startDate: string, endDate: string) => {
+export const fetchBudgetSummary = async (startDate: string, endDate: string): Promise<BudgetSummaryResponse> => {
   try {
-    const response = await apiClient.get(`/budgets/summary?start_date=${startDate}&end_date=${endDate}}`);
-    console.log("budget summary", response.data); // Log the response data
+    const response = await apiClient.get(`/budgets/summary?start_date=${startDate}&end_date=${endDate}`);
+    console.log("budget summary", response.data);
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching budget summary');
@@ -224,11 +251,19 @@ export const fetchBudgetSummary = async (startDate: string, endDate: string) => 
 };
 
 // Investment API calls
-export const fetchInvestmentTransactions = async (perPage: number, page: number, accountId?: number) => {
+export const fetchInvestmentTransactions = async (
+  perPage: number,
+  page: number,
+  accountId?: number
+): Promise<PaginatedResponse<InvestmentTransaction>> => {
   try {
-    const response = await apiClient.get(`/investments?per_page=${perPage}&page=${page}${accountId ? `&account_id=${accountId}` : ''}`);
+    const response = await apiClient.get(
+      `/investments?per_page=${perPage}&page=${page}${
+        accountId ? `&account_id=${accountId}` : ''
+      }`
+    );
     console.log('Investment transactions response:', response.data);
-    return response.data;
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching investment transactions');
   }
@@ -296,6 +331,8 @@ export const getPortfolioPerformance = async (period: string = '1Y'): Promise<Po
 export const getAssetTransactions = async (symbol: string): Promise<AssetTransactionsResponse> => {
   try {
     const response = await apiClient.get(`/investments/assets/${symbol}/transactions`);
+    console.log(response);
+
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Error fetching asset transactions');
@@ -332,7 +369,7 @@ export const getStockHistory = async (symbol: string, period: string = '1y') => 
 export const getInvestmentTransactions = async () => {
   try {
     const response = await apiClient.get('/investments');
-    return response.data;
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching investment transactions');
   }
@@ -361,7 +398,7 @@ export const getCurrentHistory = async (symbol: string) => {
 export const fetchAssets = async () => {
   try {
     const response = await apiClient.get('/assets');
-    return response.data;
+    return response.data.items;
   } catch (error) {
     return handleApiError(error, 'Error fetching assets');
   }

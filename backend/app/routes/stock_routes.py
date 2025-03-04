@@ -1,7 +1,9 @@
-from flask import Blueprint, jsonify, request
-from app.services.stock_service import StockService
-from flask_jwt_extended import jwt_required
 from functools import wraps
+
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required
+
+from app.services.stock_service import StockService
 
 stock_bp = Blueprint("stock", __name__)
 stock_service = StockService()
@@ -42,7 +44,7 @@ def get_stock_info(symbol: str):
 @jwt_required_wrapper
 def get_stock_history(symbol: str):
     """Get historical price data for a stock."""
-    period = request.args.get("period", "1y")
+    period = request.args.get("period", "max")
     history = stock_service.get_historical_prices(symbol, period)
     return jsonify(history)
 

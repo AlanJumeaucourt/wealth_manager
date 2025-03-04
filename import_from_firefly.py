@@ -1,13 +1,13 @@
-import pandas as pd
-from io import StringIO
-from regex import R
-import requests
+import concurrent.futures  # {{ edit_1: Added import for concurrency }}
 import logging
-from typing import TypedDict, List, Dict, Any
+from io import StringIO
+from typing import Any, TypedDict
+
+import pandas as pd
+import requests
+from faker import Faker
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry  # Corrected import
-from faker import Faker
-import concurrent.futures  # {{ edit_1: Added import for concurrency }}
 
 fake = Faker()
 
@@ -19,11 +19,11 @@ logging.basicConfig(
 
 class CategoryInfo(TypedDict):
     category: str
-    subCategory: str
+    subCategory: str | None
 
 
 # Define the mapping of budgets to categories and subcategories
-budget_to_category_mapping: Dict[str, CategoryInfo] = {
+budget_to_category_mapping: dict[str, CategoryInfo] = {
     "Auto & Transports": {
         "category": "Auto & Transports",
         "subCategory": "Auto & Transports - Autres",
@@ -101,7 +101,7 @@ account_name_type_mapping = {
 }
 
 # Initialize an empty account dictionary
-account_dictionary: Dict[str, str] = {}
+account_dictionary: dict[str, str] = {}
 
 
 def create_user(name: str, email: str, password: str):
@@ -140,12 +140,11 @@ def bank_id_from_bank_name(bank_name: str) -> int:
 def bank_id_from_account_name(account_name: str) -> int:
     if account_name.startswith("Boursorama"):
         return bank_id_from_bank_name("Boursorama")
-    elif account_name.startswith("Crédit Agricole"):
+    if account_name.startswith("Crédit Agricole"):
         return bank_id_from_bank_name("Crédit Agricole")
-    elif "P2P" in account_name:
+    if "P2P" in account_name:
         return bank_id_from_bank_name("P2P")
-    else:
-        return bank_id_from_bank_name("Other")
+    return bank_id_from_bank_name("Other")
 
 
 def get_user_from_api(user_id: int):
@@ -158,7 +157,7 @@ def get_user_from_api(user_id: int):
     return response
 
 
-def get_banks_from_api() -> List[Dict[str, Any]]:
+def get_banks_from_api() -> list[dict[str, Any]]:
     url = "http://100.121.97.42:5000/banks"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
@@ -166,16 +165,13 @@ def get_banks_from_api() -> List[Dict[str, Any]]:
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200 or response.status_code == 201:
-        return response.json()  # Assuming the response is a list of banks
-    else:
-        logging.error(
-            f"Failed to retrieve banks: {response.status_code}, {response.text}"
-        )
-        return []
+        return response.json()["items"]  # Assuming the response is a list of banks
+    logging.error(f"Failed to retrieve banks: {response.status_code}, {response.text}")
+    return []
 
 
 def delete_user():
-    url = f"http://100.121.97.42:5000/users"
+    url = "http://100.121.97.42:5000/users"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -184,7 +180,7 @@ def delete_user():
     return response
 
 
-def get_accounts_from_api() -> List[Dict[str, Any]]:
+def get_accounts_from_api() -> list[dict[str, Any]]:
     url = "http://100.121.97.42:5000/accounts?per_page=1000"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
@@ -192,12 +188,11 @@ def get_accounts_from_api() -> List[Dict[str, Any]]:
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200 or response.status_code == 201:
-        return response.json()  # Assuming the response is a list of accounts
-    else:
-        logging.error(
-            f"Failed to retrieve accounts: {response.status_code}, {response.text}"
-        )
-        return []
+        return response.json()["items"]  # Assuming the response is a list of accounts
+    logging.error(
+        f"Failed to retrieve accounts: {response.status_code}, {response.text}"
+    )
+    return []
 
 
 def create_bank_in_api(bank_name: str):
@@ -220,7 +215,7 @@ def create_bank_in_api(bank_name: str):
         return response
         # logging.debug(f"Received response: {response.status_code} - {response.text}")
     except requests.exceptions.RequestException as e:
-        logging.error(f"An error occurred during POST request: {e}")
+        logging.exception(f"An error occurred during POST request: {e}")
         raise
 
 
@@ -252,7 +247,7 @@ def create_account_in_api(
         return response
 
     except requests.exceptions.RequestException as e:
-        logging.error(f"An error occurred during POST request: {e}")
+        logging.exception(f"An error occurred during POST request: {e}")
         raise
 
 
@@ -288,11 +283,11 @@ def get_account_id_from_name(account_name: str, account_type: str):
                 )
         return result
     except Exception as e:
-        logging.error(f"An error occurred in get_account_id_from_name: {e}")
+        logging.exception(f"An error occurred in get_account_id_from_name: {e}")
         raise
 
 
-def create_transaction_in_api(transaction_data: Dict[str, Any]) -> requests.Response:
+def create_transaction_in_api(transaction_data: dict[str, Any]) -> requests.Response:
     url = "http://100.121.97.42:5000/transactions"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
@@ -308,14 +303,13 @@ def create_transaction_in_api(transaction_data: Dict[str, Any]) -> requests.Resp
 def handle_transaction_type(transaction_type: str) -> str:
     if transaction_type == "Deposit":
         return "income"
-    elif transaction_type == "Withdrawal":
+    if transaction_type == "Withdrawal":
         return "expense"
-    elif transaction_type == "Transfer":
+    if transaction_type == "Transfer":
         return "transfer"
-    elif transaction_type == "Opening balance":
+    if transaction_type == "Opening balance":
         return "income"
-    else:
-        raise ValueError(f"Unknown transaction type: {transaction_type}")
+    raise ValueError(f"Unknown transaction type: {transaction_type}")
 
 
 def csv_firefly_to_api(file_path: str):
@@ -331,7 +325,9 @@ def csv_firefly_to_api(file_path: str):
             unique_budgets = df["budget"].unique()
             # logging.info(f"Different Budgets: {unique_budgets}")
             # Transform budgets to categories
-            transformed_categories = transform_budgets_to_categories(unique_budgets)
+            transformed_categories = transform_budgets_to_categories(
+                unique_budgets, "income"
+            )
             # logging.info(f"Transformed Categories: {transformed_categories}")
         else:
             logging.warning("Error: 'budget' column not found in the CSV file.")
@@ -380,12 +376,12 @@ def csv_firefly_to_api(file_path: str):
                     )
                     continue
 
-                category = transform_budget_to_categories(str(row["budget"]))[
-                    "category"
-                ]
-                sub_category = transform_budget_to_categories(str(row["budget"]))[
-                    "subCategory"
-                ]
+                category = transform_budget_to_categories(
+                    str(row["budget"]), transaction_type
+                )["category"]
+                sub_category = transform_budget_to_categories(
+                    str(row["budget"]), transaction_type
+                )["subCategory"]
 
                 if transaction_type == "income":
                     category = category_to_category_mapping.get(
@@ -416,7 +412,9 @@ def csv_firefly_to_api(file_path: str):
                             f"Failed to create Transaction: {transaction_data}, Response: {response.text}"
                         )
                 except Exception as e:
-                    logging.error(f"An error occurred while creating transaction: {e}")
+                    logging.exception(
+                        f"An error occurred while creating transaction: {e}"
+                    )
                     raise
         # # print account dictionary
         # logging.info("Account Dictionary:")
@@ -424,36 +422,41 @@ def csv_firefly_to_api(file_path: str):
         # logging.info(f"Account: {account}, Type: {account_type}")
 
     except FileNotFoundError:
-        logging.error(f"Error: The file '{file_path}' was not found.")
+        logging.exception(f"Error: The file '{file_path}' was not found.")
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
+        logging.exception(f"An error occurred: {e}")
         raise
 
 
-def transform_budget_to_categories(budget: str) -> CategoryInfo:
-    """
-    Transforms a budget string into a dictionary containing category and subcategory information.
+def transform_budget_to_categories(budget: str, transaction_type: str) -> CategoryInfo:
+    """Transforms a budget string into a dictionary containing category and subcategory information.
 
     Args:
     budget (str): The budget string to be transformed.
 
     Returns:
     CategoryInfo: A dictionary containing 'category' and 'subCategory' information.
+
     """
     if pd.isna(budget):
+        if transaction_type == "income":
+            return {"category": "Autres rentrées", "subCategory": None}
         return {"category": "Divers", "subCategory": "A catégoriser"}
     category_info = budget_to_category_mapping.get(budget)
     # print(f"{category_info=}")
     if category_info:
         return category_info
-    else:
-        return {"category": "Divers", "subCategory": "A catégoriser"}
+    if transaction_type == "income":
+        return {"category": "Autres rentrées", "subCategory": None}
+    return {"category": "Divers", "subCategory": "A catégoriser"}
 
 
-def transform_budgets_to_categories(budgets: List[str]) -> List[CategoryInfo]:
-    categories: List[CategoryInfo] = []
+def transform_budgets_to_categories(
+    budgets: list[str], transaction_type: str
+) -> list[CategoryInfo]:
+    categories: list[CategoryInfo] = []
     for budget in budgets:
-        categories.append(transform_budget_to_categories(budget))
+        categories.append(transform_budget_to_categories(budget, transaction_type))
     return categories
 
 
@@ -625,16 +628,16 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
                 print(create_transaction_in_api(transaction).json())
 
     except FileNotFoundError:
-        logging.error(f"Error: The file '{file_path}' was not found.")
+        logging.exception(f"Error: The file '{file_path}' was not found.")
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
+        logging.exception(f"An error occurred: {e}")
         raise
 
 
 # {{ edit_3: Added helper function to process a batch of transactions }}
 def process_batch(
-    batch: pd.DataFrame, existing_transactions: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    batch: pd.DataFrame, existing_transactions: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     batch_missing_transactions = []
     for index, row in batch.iterrows():
         source_account_type = account_name_type_mapping.get(
@@ -659,10 +662,12 @@ def process_batch(
             "type": handle_transaction_type(row["type"]),
             "date": row["date"][:10],
             "date_accountability": row["date"][:10],
-            "category": transform_budget_to_categories(str(row["budget"]))["category"],
-            "subcategory": transform_budget_to_categories(str(row["budget"]))[
-                "subCategory"
+            "category": transform_budget_to_categories(str(row["budget"]), row["type"])[
+                "category"
             ],
+            "subcategory": transform_budget_to_categories(
+                str(row["budget"]), row["type"]
+            )["subCategory"],
         }
 
         if row["destination_name"] == "Prêt Etudiant CA":
@@ -699,6 +704,7 @@ def process_investment_csv(csv_data: str, account_name: str):
     Args:
         csv_data (str): CSV string containing investment transactions
         account_name (str): Name of the investment account (e.g. "Boursorama CTO", "Boursorama PEA")
+
     """
     # Read the CSV data into a DataFrame
     df = pd.read_csv(StringIO(csv_data))
@@ -733,9 +739,7 @@ def process_investment_csv(csv_data: str, account_name: str):
             investment_data = {
                 "from_account_id": from_id,
                 "to_account_id": to_id,
-                "asset_id": get_or_create_asset(
-                    row["symbol"]
-                ),  # You'll need to implement this
+                "asset_id": get_or_create_asset(row["symbol"]),
                 "activity_type": row["activityType"].lower(),
                 "date": row["date"][:10],
                 "quantity": float(row["quantity"]),
@@ -756,7 +760,7 @@ def process_investment_csv(csv_data: str, account_name: str):
                         f"Failed to create investment transaction: {response.text}"
                     )
             except Exception as e:
-                logging.error(f"Error creating investment transaction: {e}")
+                logging.exception(f"Error creating investment transaction: {e}")
 
             response = create_transaction_in_api(
                 {
@@ -793,7 +797,7 @@ def process_investment_csv(csv_data: str, account_name: str):
                 "type": "income",
                 "date": row["date"][:10],
                 "date_accountability": row["date"][:10],
-                "category": "Investments",
+                "category": "Investissements",
                 "subcategory": "Dividends",
             }
 
@@ -807,7 +811,7 @@ def process_investment_csv(csv_data: str, account_name: str):
                 else:
                     logging.error(f"Failed to create transaction: {response.text}")
             except Exception as e:
-                logging.error(f"Error creating transaction: {e}")
+                logging.exception(f"Error creating transaction: {e}")
 
 
 def get_or_create_asset(symbol: str) -> int:
@@ -818,6 +822,7 @@ def get_or_create_asset(symbol: str) -> int:
 
     Returns:
         int: The asset ID
+
     """
     # First try to get the asset
     url = f"http://100.121.97.42:5000/assets?symbol={symbol}"
@@ -826,8 +831,8 @@ def get_or_create_asset(symbol: str) -> int:
 
     if response.status_code == 200:
         assets = response.json()
-        if assets:
-            return assets[0]["id"]
+        if len(assets["items"]) > 0:
+            return assets["items"][0]["id"]
 
     # If not found, create it
     url = "http://100.121.97.42:5000/assets"
@@ -839,12 +844,11 @@ def get_or_create_asset(symbol: str) -> int:
 
     if response.status_code == 201:
         return response.json()["id"]
-    else:
-        raise Exception(f"Failed to create asset: {response.text}")
+    raise Exception(f"Failed to create asset: {response.text}")
 
 
 def create_investment_transaction_in_api(
-    transaction_data: Dict[str, Any]
+    transaction_data: dict[str, Any],
 ) -> requests.Response:
     """Create an investment transaction in the API.
 
@@ -853,6 +857,7 @@ def create_investment_transaction_in_api(
 
     Returns:
         requests.Response: The API response
+
     """
     url = "http://100.121.97.42:5000/investments"
     headers = {

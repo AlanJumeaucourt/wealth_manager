@@ -42,7 +42,7 @@ const TransactionCard = ({ transaction, isBuy, onPress }: {
     isBuy: boolean;
     onPress?: () => void;
 }) => {
-    const total = (transaction.quantity * transaction.price) + (isBuy ? 1 : -1) * transaction.fee;
+    const total = (transaction.quantity * transaction.unit_price) + (isBuy ? 1 : -1) * transaction.fee;
 
     return (
         <Pressable
@@ -71,7 +71,7 @@ const TransactionCard = ({ transaction, isBuy, onPress }: {
                                 {transaction.quantity.toLocaleString()} shares
                             </Text>
                             <Text style={styles.priceText}>
-                                @ {transaction.price.toLocaleString()}€
+                                @ {transaction.unit_price.toLocaleString()}€
                             </Text>
                         </View>
                         <Text style={styles.transactionDateText}>
@@ -133,24 +133,29 @@ export const StockDetails: React.FC = () => {
                     getStockInfo(symbol)
                 ]);
 
+                console.log(transactionsData);
+
+                // New logic to categorize transactions
+                const buys = transactionsData.filter(transaction => transaction.activity_type === 'buy');
+                const sells = transactionsData.filter(transaction => transaction.activity_type === 'sell');
+
                 if (stockInfoData?.info?.longName) {
                     setStockName(stockInfoData.info.longName);
                 }
                 console.log(pricesData);
 
-                if (transactionsData && 'buys' in transactionsData && Array.isArray(transactionsData.buys)) {
-                    const firstBuyDate = transactionsData.buys.reduce((minDate: string, current: AssetTransaction) =>
+                if (buys.length > 0) {
+                    const firstBuyDate = buys.reduce((minDate: string, current: AssetTransaction) =>
                         current.date < minDate ? current.date : minDate,
-                        transactionsData.buys[0]?.date
+                        buys[0]?.date
                     );
-                    if (pricesData && pricesData) {
+                    if (pricesData) {
                         const filteredPrices = pricesData.filter((price: { date: string }) =>
                             price.date >= firstBuyDate
                         );
                         setHistoricalPrices(filteredPrices || []);
                     }
-                    setTransactions(transactionsData);
-
+                    setTransactions({ buys, sells }); // Update to set transactions with categorized data
                 } else {
                     setTransactions(null);
                     setHistoricalPrices([]);
@@ -183,7 +188,7 @@ export const StockDetails: React.FC = () => {
                     activity_type: isBuy ? 'buy' : 'sell',
                     date: transaction.date,
                     quantity: transaction.quantity,
-                    unit_price: transaction.price,
+                    unit_price: transaction.unit_price,
                     fee: transaction.fee,
                     tax: transaction.tax
                 })
@@ -219,7 +224,7 @@ export const StockDetails: React.FC = () => {
         // Add buy points
         transactions.buys?.forEach(buy => {
             transactionPoints.set(buy.date, {
-                value: buy.price,
+                value: buy.unit_price,
                 date: buy.date,
                 showDataPoint: true,
                 dataPointColor: darkTheme.colors.success,
@@ -229,7 +234,7 @@ export const StockDetails: React.FC = () => {
         // Add sell points
         transactions.sells?.forEach(sell => {
             transactionPoints.set(sell.date, {
-                value: sell.price,
+                value: sell.unit_price,
                 date: sell.date,
                 showDataPoint: true,
                 dataPointColor: darkTheme.colors.error,
@@ -508,19 +513,21 @@ export const StockDetails: React.FC = () => {
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Transaction History</Text>
                         <View style={styles.transactionList}>
-                            {[...transactions.buys, ...transactions.sells]
-                                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                .map((transaction, index) => {
-                                    const isBuy = transactions.buys.includes(transaction);
-                                    return (
-                                        <TransactionCard
-                                            key={`transaction-${index}`}
-                                            transaction={transaction}
-                                            isBuy={isBuy}
-                                            onPress={() => handleTransactionPress(transaction, isBuy)}
-                                        />
-                                    );
-                                })}
+                            {transactions && (
+                                [...transactions.buys, ...transactions.sells]
+                                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                    .map((transaction, index) => {
+                                        const isBuy = transactions.buys.some(buy => buy.id === transaction.id);
+                                        return (
+                                            <TransactionCard
+                                                key={`transaction-${index}`}
+                                                transaction={transaction}
+                                                isBuy={isBuy}
+                                                onPress={() => handleTransactionPress(transaction, isBuy)}
+                                            />
+                                        );
+                                    })
+                            )}
                         </View>
                     </View>
                 </ScrollView>

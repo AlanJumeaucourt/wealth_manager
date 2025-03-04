@@ -3,6 +3,7 @@ import DonutChart from '@/app/components/DonutChart';
 import { expenseCategories, incomeCategories } from '@/constants/categories';
 import { darkTheme } from '@/constants/theme';
 import { sharedStyles } from '@/styles/sharedStyles';
+import { BudgetCategory } from '@/types/budget';
 import { Ionicons } from '@expo/vector-icons';
 import { useFont } from '@shopify/react-native-skia';
 import { useRouter } from 'expo-router';
@@ -72,16 +73,15 @@ export default function BudgetScreen() {
             break;
         }
 
-        // Modifiez votre API pour utiliser date_accountability dans la requête
         const result = await fetchBudgetSummary(startDate, endDate);
         const budgetSummary = result;
 
         if (!Array.isArray(budgetSummary)) {
-          throw new Error('Expected budgetSummary.categories to be an array');
+          throw new Error('Expected budgetSummary to be an array');
         }
 
         // Assign 'type' to each budget item based on category
-        const categorizedBudgetSummary = budgetSummary.map((item: any) => {
+        const categorizedBudgetSummary = budgetSummary.map((item) => {
           let category = expenseCategories.find(cat => cat.name.toLowerCase() === item.category.toLowerCase());
           let type: 'expense' | 'income' = 'expense';
 
@@ -94,12 +94,12 @@ export default function BudgetScreen() {
 
           if (!category) {
             console.warn(`Category "${item.category}" not found in expense or income categories.`);
-            type = 'expense'; // Defaulting to 'expense'
+            type = 'expense';
           }
 
           return {
             ...item,
-            type, // Assign the determined type
+            type,
           };
         });
 
@@ -114,11 +114,11 @@ export default function BudgetScreen() {
         filterBudgetSummary = filterBudgetSummary.filter(item => item.category !== 'Virements internes');
 
         const total = filterBudgetSummary.reduce(
-          (acc: number, currentValue: { amount: number }) => acc + currentValue.amount,
-          0,
+          (acc, currentValue) => acc + currentValue.net_amount,
+          0
         );
 
-        const generatePercentages = filterBudgetSummary.map((item: any) => {
+        const generatePercentages = filterBudgetSummary.map((item) => {
           let category = expenseCategories.find(cat => cat.name.toLowerCase() === item.category.toLowerCase());
           let type: 'expense' | 'income' = 'expense';
 
@@ -131,18 +131,18 @@ export default function BudgetScreen() {
 
           if (!category) {
             console.warn(`Category "${item.category}" not found in expense or income categories.`);
-            type = 'expense'; // Defaulting to 'expense'
+            type = 'expense';
           }
 
           return {
-            value: parseFloat(item.amount.toFixed(2)),
-            percentage: (item.amount / total) * 100,
+            value: parseFloat(item.net_amount.toFixed(2)),
+            percentage: (item.net_amount / total) * 100,
             color: category?.color || '#cccccc',
             category: item.category,
-            subcategory: item.subcategory,
+            subcategory: item.subcategories[0]?.subcategory,
             iconName: category?.iconName,
             iconSet: category?.iconSet,
-            transactionIds: item.transactions_related,
+            transactionIds: item.subcategories[0]?.transactions_related,
             type: type,
           };
         });
@@ -159,7 +159,7 @@ export default function BudgetScreen() {
             percentage: otherPercentage,
             color: '#cccccc',
             category: 'Other',
-            subcategory: undefined, // Add this line
+            subcategory: undefined,
             iconName: 'help-circle-outline',
             iconSet: 'Ionicons',
             transactionIds: otherSegments.flatMap(item => item.transactionIds || []),
@@ -167,8 +167,6 @@ export default function BudgetScreen() {
           });
         }
 
-
-        // Sort segments by value, ensuring 'Other' is always last
         significantSegments.sort((a, b) => {
           if (a.category === 'Other') return 1;
           if (b.category === 'Other') return -1;
@@ -184,12 +182,13 @@ export default function BudgetScreen() {
 
         decimals.value = [...normalizedDecimals];
 
-        // Update data availability states
         setHasIncomeData(categorizedBudgetSummary.some(item => item.type === 'income'));
         setHasExpenseData(categorizedBudgetSummary.some(item => item.type === 'expense'));
+        console.log("has income data", hasIncomeData);
+        console.log("has expense data", hasExpenseData);
 
         setData(significantSegments);
-        setTotalValue(total)
+        setTotalValue(total);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {

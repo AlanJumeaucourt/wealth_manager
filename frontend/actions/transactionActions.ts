@@ -10,7 +10,7 @@ export const fetchTransactions = () => async (dispatch: Dispatch) => {
     try {
         const response = await apiClient.get('/transactions?per_page=100&page=1&sort_by=date&sort_order=desc');
         // console.log("fetchTransactions response ", response.data);
-        dispatch({ type: FETCH_TRANSACTIONS_SUCCESS, payload: response.data });
+        dispatch({ type: FETCH_TRANSACTIONS_SUCCESS, payload: response.data.items });
     } catch (error) {
         console.log("fetchTransactions error", error);
         dispatch({ type: FETCH_TRANSACTIONS_FAILURE, error });

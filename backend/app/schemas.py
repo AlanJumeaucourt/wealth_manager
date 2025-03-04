@@ -1,20 +1,18 @@
+import re
+from datetime import datetime
+
 from marshmallow import (
     Schema,
-    fields,
-    pre_dump,
-    validate,
-    pre_load,
-    post_dump,
-    post_load,
     ValidationError,
+    fields,
+    validate,
+    validates_schema,
 )
-from datetime import datetime
-import re
 
 
 def validate_date_format(date_str: str) -> bool:
-    """
-    Validate that the date string matches accepted formats:
+    """Validate that the date string matches accepted formats.
+
     - 'YYYY-MM-DDThh:mm:ss'
     - 'YYYY-MM-DDThh:mm:ss.mmmmmm' (isoformat with microseconds)
     - 'YYYY-MM-DD'
@@ -37,22 +35,21 @@ def validate_date_format(date_str: str) -> bool:
             if re.match(full_datetime_pattern, date_str):
                 datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
                 return True
-            elif re.match(date_only_pattern, date_str):
+            if re.match(date_only_pattern, date_str):
                 datetime.strptime(date_str, "%Y-%m-%d")
                 return True
-            else:
-                raise ValidationError(
-                    "Date must be in format 'YYYY-MM-DD' or 'YYYY-MM-DDThh:mm:ss'"
-                )
+            raise ValidationError(
+                "Date must be in format 'YYYY-MM-DD' or 'YYYY-MM-DDThh:mm:ss'"
+            )
 
     except ValueError as e:
-        raise ValidationError(f"Invalid date values: {str(e)}")
+        raise ValidationError(f"Invalid date values: {e!s}")
     except Exception as e:
-        raise ValidationError(f"Invalid date format: {str(e)}")
+        raise ValidationError(f"Invalid date format: {e!s}")
 
 
 class DateField(fields.Str):
-    """Custom field for date validation"""
+    """Custom field for date validation."""
 
     def _deserialize(self, value: str, attr: str, data: dict, **kwargs) -> str:
         if value is None:
@@ -84,6 +81,7 @@ class BankSchema(Schema):
     id = fields.Int(dump_only=True)
     user_id = fields.Int(required=True)
     name = fields.Str(required=True, validate=validate.Length(min=1))
+    website = fields.Str(allow_none=True, required=False)
 
 
 class AccountSchema(Schema):
@@ -157,3 +155,30 @@ class AccountAssetSchema(Schema):
     account_id = fields.Int(required=True)
     asset_id = fields.Int(required=True)
     quantity = fields.Float(required=True)
+
+
+class RefundGroupSchema(Schema):
+    id = fields.Int(dump_only=True)
+    user_id = fields.Int(required=True)
+    name = fields.Str(required=True, validate=validate.Length(min=1))
+    description = fields.Str(allow_none=True, required=False)
+
+
+class RefundItemSchema(Schema):
+    id = fields.Int(dump_only=True)
+    user_id = fields.Int(required=True)
+    income_transaction_id = fields.Int(required=True)
+    expense_transaction_id = fields.Int(required=True)
+    amount = fields.Float(
+        required=True, validate=validate.Range(min=0, min_inclusive=False)
+    )
+    refund_group_id = fields.Int(allow_none=True, required=False)
+    description = fields.Str(allow_none=True, required=False)
+
+    @validates_schema
+    def validate_transactions(self, data, **kwargs):
+        """Validate that income and expense transaction IDs are different."""
+        if data.get("income_transaction_id") == data.get("expense_transaction_id"):
+            raise ValidationError(
+                "Income and expense transaction IDs must be different"
+            )

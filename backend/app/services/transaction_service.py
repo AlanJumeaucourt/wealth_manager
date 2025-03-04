@@ -1,38 +1,55 @@
-from app.services.base_service import BaseService
+from typing import Any, TypedDict
+
+from app.exceptions import TransactionValidationError
+from app.logger import get_logger
 from app.models import Transaction
-from app.exceptions import NoResultFoundError, TransactionValidationError
-from typing import Dict, Any, Optional, List, TypedDict, Union
-from datetime import datetime
 from app.routes.base_routes import validate_date_format
+from app.services.base_service import BaseService, ListQueryParams
 
 
 class TransactionData(TypedDict):
-    transactions: List[Dict[str, Any]]
+    items: list[dict[str, Any]]
     total_amount: float
     count: int
+    total: int
+    page: int
+    per_page: int
 
 
 class TransactionService(BaseService):
-    def __init__(self):
-        super().__init__("transactions", Transaction)
+    def __init__(self) -> None:
+        super().__init__(table_name="transactions", model_class=Transaction)
+        self.logger = get_logger(__name__)
+        # Define custom allowed filters for transactions
+        self.custom_allowed_filters = [
+            "account_id",
+            "has_refund",
+            "from_date",
+            "to_date",
+        ]
 
-    def validate_transaction(self, data: Dict[str, Any]) -> None:
+    def validate_transaction(self, data: dict[str, Any]) -> None:
         """Validate transaction data based on account types and transaction type."""
         # First validate dates
-        validate_date_format(data["date"])
-        validate_date_format(data["date_accountability"])
+        validate_date_format(date_str=data["date"])
+        validate_date_format(date_str=data["date_accountability"])
 
         try:
             # Get account types
-            query = """
+            query = """--sql
                 SELECT id, type, name FROM accounts
                 WHERE id IN (?, ?) AND user_id = ?
             """
             accounts = self.db_manager.execute_select(
-                query, (data["from_account_id"], data["to_account_id"], data["user_id"])
+                query=query,
+                params=[
+                    data["from_account_id"],
+                    data["to_account_id"],
+                    data["user_id"],
+                ],
             )
-
-            if len(accounts) != 2:
+            number_of_accounts_for_transaction = 2
+            if len(accounts) != number_of_accounts_for_transaction:
                 raise TransactionValidationError(
                     "Invalid account IDs or unauthorized access"
                 )
@@ -89,99 +106,139 @@ class TransactionService(BaseService):
         except TransactionValidationError:
             raise
         except Exception as e:
-            raise TransactionValidationError(f"Validation error: {str(e)}")
+            raise TransactionValidationError(f"Validation error: {e!s}")
 
-    def create(self, data: Dict[str, Any]) -> Optional[Transaction]:
+    def create(self, data: dict[str, Any]) -> Transaction | None:
         """Create a transaction with validation."""
         # Validate transaction
         self.validate_transaction(data)
         return super().create(data)
 
-    def get_all(
-        self,
-        user_id: int,
-        page: int,
-        per_page: int,
-        filters: Dict[str, Any],
-        sort_by: Optional[str] = None,
-        sort_order: Optional[str] = None,
-        fields: Optional[List[str]] = None,
-        search: Optional[str] = None,
-    ) -> TransactionData:
-        """Get all transactions with filtering and pagination."""
-        if fields:
-            fields = [
-                field for field in fields if field in self.model_class.__annotations__
-            ]
-        else:
-            fields = list(self.model_class.__annotations__.keys())
+    def get_all(self, user_id: int, query_params: ListQueryParams) -> TransactionData:
+        # First get filtered transactions using parent method to maintain original filtering
+        base_results = super().get_all(user_id, query_params)
+        transactions = base_results["items"]
 
-        # Base query for transactions
-        query = f"SELECT {', '.join(fields)} FROM {self.table_name} WHERE user_id = ?"
-        # Query for total amount
-        total_query = """
-            SELECT
-                COALESCE(SUM(CASE WHEN type = 'expense' THEN -amount
-                                WHEN type = 'income' THEN amount
-                                ELSE 0 END), 0) as total_amount,
-                COUNT(*) as count
-            FROM {table_name}
-            WHERE user_id = ?
-        """.format(
-            table_name=self.table_name
+        # Build count query
+        total_query = (
+            f"SELECT SUM(amount) as total FROM {self.table_name} WHERE user_id = ?"
+        )
+        total_params = [user_id]
+
+        total_query, total_params = self._build_filter_conditions(
+            total_query, total_params, query_params.filters
+        )
+        total_query, total_params = self._build_search_conditions(
+            total_query,
+            total_params,
+            query_params.search,
+            query_params.search_fields,
         )
 
-        params: List[Union[int, str]] = [user_id]
-        total_params: List[Union[int, str]] = [user_id]
+        total_results = self.db_manager.execute_select(total_query, total_params)
+        total_amount = total_results[0]["total"] if total_results else 0.0
 
-        # Handle the account_id filter
-        account_id = filters.get("account_id")
-        if account_id:
-            account_condition = " AND (from_account_id = ? OR to_account_id = ?)"
-            query += account_condition
-            total_query += account_condition
-            params.extend([account_id, account_id])
-            total_params.extend([account_id, account_id])
+        # Now enrich the transactions with refund information
+        if transactions:
+            transaction_ids = [str(t["id"]) for t in transactions]
+            refund_query = """--sql
+                SELECT t.id as transaction_id,
+                    ri.id as refund_id,
+                    ri.amount as refund_amount,
+                    ri.description as refund_description,
+                    it.date as refund_date,
+                    ri.refund_group_id
+                FROM transactions t
+                LEFT JOIN refund_items ri ON (t.id = ri.expense_transaction_id OR t.id = ri.income_transaction_id)
+                    AND ri.user_id = t.user_id
+                LEFT JOIN transactions it ON ri.income_transaction_id = it.id
+                WHERE t.id IN ({}) AND t.user_id = ?
+            """.format(",".join(["?"] * len(transaction_ids)))  # noqa: S608
 
-        # Handle search
-        if search:
-            search_pattern = f"%{search}%"
-            search_condition = (
-                " AND (description LIKE ? OR category LIKE ? OR subcategory LIKE ?)"
-            )
-            query += search_condition
-            total_query += search_condition
-            params.extend([search_pattern, search_pattern, search_pattern])
-            total_params.extend([search_pattern, search_pattern, search_pattern])
+            params = [*transaction_ids, user_id]
+            refund_results = self.db_manager.execute_select(refund_query, params)
 
-        # Handle other filters
-        for key, value in filters.items():
-            if value is not None and key != "account_id":
-                filter_condition = f" AND {key} = ?"
-                query += filter_condition
-                total_query += filter_condition
-                params.append(value)
-                total_params.append(value)
+            # Group refunds by transaction
+            refunds_by_transaction = {}
+            for refund in refund_results:
+                transaction_id = refund["transaction_id"]
+                if (
+                    refund["refund_id"] is not None
+                ):  # Only add if there's actually a refund
+                    if transaction_id not in refunds_by_transaction:
+                        refunds_by_transaction[transaction_id] = []
+                    refunds_by_transaction[transaction_id].append(
+                        {
+                            "id": refund["refund_id"],
+                            "amount": float(refund["refund_amount"]),
+                            "date": refund["refund_date"],
+                            "description": refund["refund_description"],
+                            "refund_group_id": refund["refund_group_id"],
+                        }
+                    )
 
-        if sort_by and sort_order:
-            query += f" ORDER BY {sort_by} {sort_order}"
+            # Add refunds to transactions
+            for transaction in transactions:
+                transaction["refund_items"] = refunds_by_transaction.get(
+                    transaction["id"], []
+                )
 
-        query += " LIMIT ? OFFSET ?"
-        params.extend([per_page, (page - 1) * per_page])
+        return {
+            "items": transactions,
+            "total": base_results["total"],
+            "total_amount": total_amount,
+            "count": len(transactions),
+            "page": base_results["page"],
+            "per_page": base_results["per_page"],
+        }
 
-        try:
-            # Get transactions
-            transactions = self.db_manager.execute_select(query, params)
-            # Get total amount and count
-            total_result = self.db_manager.execute_select(total_query, total_params)
+    def _build_filter_conditions(
+        self, query: str, params: list[Any], filters: dict[str, Any]
+    ) -> tuple[str, list[Any]]:
+        # Create a copy of filters to avoid modifying the original
+        filters_copy = filters.copy()
+        self.logger.debug(f"Building filter conditions with filters: {filters_copy}")
 
-            return {
-                "transactions": transactions if transactions else [],
-                "total_amount": total_result[0]["total_amount"] if total_result else 0,
-                "count": total_result[0]["count"] if total_result else 0,
-            }
-        except Exception as e:
-            print(f"Error in get_all: {e}")
-            return {"transactions": [], "total_amount": 0, "count": 0}
+        # Handle date range filters
+        if "from_date" in filters_copy:
+            from_date = filters_copy.pop("from_date")
+            if from_date:
+                query += " AND date_accountability >= date(?)"
+                params.append(from_date)
+
+        if "to_date" in filters_copy:
+            to_date = filters_copy.pop("to_date")
+            if to_date:
+                query += " AND date_accountability <= date(?)"
+                params.append(to_date)
+
+        # Handle account_id filter specially
+        if "account_id" in filters_copy:
+            account_id = filters_copy.pop("account_id")
+            if account_id is not None:
+                # Remove from_account_id and to_account_id filters if they exist
+                filters_copy.pop("from_account_id", None)
+                filters_copy.pop("to_account_id", None)
+                query += " AND (from_account_id = ? OR to_account_id = ?)"
+                params.extend([account_id, account_id])
+
+        # Handle has_refund filter
+        if "has_refund" in filters_copy:
+            has_refund = filters_copy.pop("has_refund")
+            if has_refund is not None:
+                exists_subquery = """--sql
+                    EXISTS (
+                        SELECT 1 FROM refund_items ri
+                        WHERE (transactions.id = ri.expense_transaction_id
+                        OR transactions.id = ri.income_transaction_id)
+                        AND ri.user_id = transactions.user_id
+                    )
+                """
+                query += (
+                    f" AND {'' if has_refund == 'true' else 'NOT'} {exists_subquery}"
+                )
+
+        # Call parent class method with the modified filters
+        return super()._build_filter_conditions(query, params, filters_copy)
 
     # Add any other transaction-specific methods here

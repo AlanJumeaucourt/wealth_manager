@@ -10,7 +10,7 @@ export const fetchData = () => async (dispatch: Dispatch) => {
     try {
         const response = await apiClient.get('/accounts?per_page=1000&page=1');
         console.log("fetchData response", response.data);
-        dispatch({ type: FETCH_DATA_SUCCESS, payload: response.data });
+        dispatch({ type: FETCH_DATA_SUCCESS, payload: response.data.items });
     } catch (error) {
         console.log("fetchData error", error);
         dispatch({ type: FETCH_DATA_FAILURE, error });

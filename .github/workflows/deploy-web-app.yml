@@ -1,0 +1,57 @@
+name: Deploy Web Application
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "web_application/**"
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "web-app"
+  cancel-in-progress: true
+
+jobs:
+  deploy-web-app:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}/app/
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: ./web_application
+        run: bun install
+
+      - name: Build
+        working-directory: ./web_application
+        run: bun run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./web_application/dist"
+          name: "app"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: "app"

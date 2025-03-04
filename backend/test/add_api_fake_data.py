@@ -1,20 +1,20 @@
-from calendar import month
-import requests
-from typing import Dict, Any, Optional, List, Tuple
-from datetime import datetime, timedelta
 import random
+from datetime import datetime, timedelta
+from typing import Any
+
+import requests
 
 
 class WealthManagerAPI:
-    def __init__(self, base_url: str = "http://localhost:5000"):
+    def __init__(self, base_url: str = "http://localhost:5000") -> None:
         self.base_url = base_url
-        self.jwt_token: Optional[str] = None
-        self.accounts: Dict[str, int] = {}  # Store account IDs by name
+        self.jwt_token: str | None = None
+        self.accounts: dict[str, int] = {}  # Store account IDs by name
 
     def _make_request(
-        self, method: str, endpoint: str, data: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Make HTTP request to the API with proper headers"""
+        self, method: str, endpoint: str, data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Make HTTP request to the API with proper headers."""
         url = f"{self.base_url}{endpoint}"
         headers = (
             {"Authorization": f"Bearer {self.jwt_token}"} if self.jwt_token else {}
@@ -22,23 +22,23 @@ class WealthManagerAPI:
 
         try:
             if method == "GET":
-                response = requests.get(url, headers=headers)
+                response = requests.get(url, headers=headers, timeout=10)
             elif method == "POST":
-                response = requests.post(url, json=data, headers=headers)
+                response = requests.post(url, json=data, headers=headers, timeout=10)
             elif method == "DELETE":
-                response = requests.delete(url, headers=headers)
+                response = requests.delete(url, headers=headers, timeout=10)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
             if response.status_code in [200, 201, 204]:
                 return response.json() if response.content else {}
-            else:
-                print(f"Error {response.status_code}: {response.json()}")
-                return {}
+            print(f"Error {response.status_code}: {response.json()}")
+            raise Exception(f"Error {response.status_code}: {response.json()}")
+            return {}
 
         except requests.exceptions.RequestException as e:
             print(f"Request failed: {e}")
-            return {}
+            raise e
 
     def register_user(self, name: str, email: str, password: str) -> bool:
         """Register a new user"""
@@ -56,17 +56,17 @@ class WealthManagerAPI:
             return True
         return False
 
-    def create_bank(self, name: str) -> Optional[int]:
+    def create_bank(self, name: str) -> int | None:
         """Create a bank and return its ID"""
-        response = self._make_request("POST", "/banks/", {"name": name})
+        response = self._make_request(
+            method="POST", endpoint="/banks/", data={"name": name}
+        )
         return response.get("id")
 
-    def create_account(
-        self, name: str, account_type: str, bank_id: int
-    ) -> Optional[int]:
+    def create_account(self, name: str, account_type: str, bank_id: int) -> int | None:
         """Create an account and return its ID"""
         data = {"name": name, "type": account_type, "bank_id": bank_id}
-        response = self._make_request("POST", "/accounts", data)
+        response = self._make_request(method="POST", endpoint="/accounts", data=data)
         account_id = response.get("id")
         if account_id:
             self.accounts[name] = account_id
@@ -80,10 +80,10 @@ class WealthManagerAPI:
         transaction_type: str,
         description: str,
         category: str,
-        date: Optional[str] = None,
-        subcategory: Optional[str] = None,
-    ) -> Optional[int]:
-        """Create a transaction and return its ID"""
+        date: str | None = None,
+        subcategory: str | None = None,
+    ) -> int | None:
+        """Create a transaction and return its ID."""
         if not date:
             date = datetime.now().isoformat()
 
@@ -98,18 +98,20 @@ class WealthManagerAPI:
             "date": date,
             "date_accountability": date,
         }
-        response = self._make_request("POST", "/transactions", data)
+        response = self._make_request(
+            method="POST", endpoint="/transactions", data=data
+        )
         return response.get("id")
 
     def delete_user(self) -> bool:
-        """Delete the current user"""
-        response = self._make_request("DELETE", "/users/")
+        """Delete the current user."""
+        response = self._make_request(method="DELETE", endpoint="/users/")
         return response == {}
 
-    def create_asset(self, symbol: str, name: str) -> Optional[int]:
-        """Create an asset and return its ID"""
+    def create_asset(self, symbol: str, name: str) -> int | None:
+        """Create an asset and return its ID."""
         data = {"symbol": symbol, "name": name}
-        response = self._make_request("POST", "/assets/", data)
+        response = self._make_request(method="POST", endpoint="/assets/", data=data)
         return response.get("id")
 
     def create_investment_transaction(
@@ -122,9 +124,9 @@ class WealthManagerAPI:
         unit_price: float,
         fee: float = 0.0,
         tax: float = 0.0,
-        date: Optional[str] = None,
-    ) -> Optional[int]:
-        """Create an investment transaction and return its ID"""
+        date: str | None = None,
+    ) -> int | None:
+        """Create an investment transaction and return its ID."""
         if not date:
             date = datetime.now().isoformat()
 
@@ -139,21 +141,24 @@ class WealthManagerAPI:
             "tax": tax,
             "date": date,
         }
-        response = self._make_request("POST", "/investments/", data)
-        return response.get("id")
+        response = self._make_request(
+            method="POST", endpoint="/investments/", data=data
+        )
+        return response.get("transaction_id")
 
 
 class TestDataCreator:
-    def __init__(self):
+    def __init__(self) -> None:
         self.api = WealthManagerAPI()
         self.test_user = {
             "name": "Test User",
             "email": "test@example.com",
             "password": "test123",
         }
+        self.number_of_months = 36
 
     def create_test_data(self) -> bool:
-        """Create all test data"""
+        """Create all test data."""
         print("Creating test data...")
 
         if not self._create_user_and_accounts():
@@ -172,7 +177,7 @@ class TestDataCreator:
         return True
 
     def _create_user_and_accounts(self) -> bool:
-        """Create user and accounts"""
+        """Create user and accounts."""
         # Create and login user
         if not self.api.register_user(**self.test_user):
             print("Failed to create user")
@@ -184,7 +189,7 @@ class TestDataCreator:
 
         # Create banks
         banks = ["Chase Bank", "Bank of America", "Boursorama"]
-        bank_ids: Dict[str, int] = {}
+        bank_ids: dict[str, int] = {}
 
         for bank_name in banks:
             bank_id = self.api.create_bank(bank_name)
@@ -196,7 +201,7 @@ class TestDataCreator:
                 return False
 
         # Create accounts
-        accounts: List[Tuple[str, str, int]] = [
+        accounts: list[tuple[str, str, int]] = [
             ("Checking Account", "checking", bank_ids["Chase Bank"]),
             ("Savings Account", "savings", bank_ids["Bank of America"]),
             ("Investment Account", "investment", bank_ids["Boursorama"]),
@@ -205,7 +210,9 @@ class TestDataCreator:
         ]
 
         for account_name, account_type, bank_id in accounts:
-            account_id = self.api.create_account(account_name, account_type, bank_id)
+            account_id = self.api.create_account(
+                name=account_name, account_type=account_type, bank_id=bank_id
+            )
             if account_id:
                 print(
                     f"Created {account_type} account '{account_name}' with ID: {account_id}"
@@ -217,14 +224,14 @@ class TestDataCreator:
         return True
 
     def _create_transactions(self) -> bool:
-        """Create sample transactions for the past year"""
+        """Create sample transactions for the past year."""
         print("\nCreating sample transactions...")
 
         current_date = datetime.now()
-        start_date = current_date - timedelta(days=365)
+        start_date = current_date - timedelta(days=self.number_of_months * 30)
 
         # Generate monthly transactions for the past year
-        for month_offset in range(12):
+        for month_offset in range(self.number_of_months):
             transaction_date = start_date + timedelta(days=30 * month_offset)
 
             # Monthly transactions template
@@ -295,7 +302,7 @@ class TestDataCreator:
 
             # Add variable expenses (2-4 grocery trips per month)
             num_grocery_trips = random.randint(2, 4)
-            for i in range(num_grocery_trips):
+            for _ in range(num_grocery_trips):
                 grocery_amount = round(random.uniform(150, 300), 2)
                 grocery_day = random.randint(1, 28)
                 monthly_transactions.append(
@@ -316,7 +323,7 @@ class TestDataCreator:
 
             # Add random entertainment expenses (1-3 per month)
             num_entertainment = random.randint(1, 3)
-            for i in range(num_entertainment):
+            for _ in range(num_entertainment):
                 entertainment_amount = round(random.uniform(20, 100), 2)
                 entertainment_day = random.randint(1, 28)
                 monthly_transactions.append(
@@ -416,16 +423,16 @@ class TestDataCreator:
 
         # Generate transactions for the past year
         current_date = datetime.now()
-        start_date = current_date - timedelta(days=365)
+        start_date = current_date - timedelta(days=self.number_of_months * 30)
 
         # For each month in the past year
-        for month_offset in range(12):
+        for month_offset in range(self.number_of_months):
             transaction_date = start_date + timedelta(days=30 * month_offset)
 
             # Calculate market volatility for this month (-5% to +5% from trend)
             market_factor = 1.0 + random.uniform(-0.05, 0.05)
 
-            for asset, strategy in zip(assets, investment_strategies):
+            for asset, strategy in zip(assets, investment_strategies, strict=False):
                 symbol = strategy["symbol"]
 
                 # Calculate price with trend and volatility
@@ -450,34 +457,6 @@ class TestDataCreator:
                     tax=float(strategy["tax"]),
                     date=transaction_date.isoformat(),
                 )
-
-                if buy_id:
-                    owned_quantities[symbol] += quantity
-                    total_amount = (quantity * price) + strategy["fee"]
-                    print(
-                        f"Created monthly buy: {quantity:.6f} {symbol} at {price:.2f}€ (Total: {total_amount:.2f}€)"
-                    )
-
-                    # Create corresponding money transfer
-                    transfer_id = self.api.create_transaction(
-                        amount=float(total_amount),
-                        from_account="Checking Account",
-                        to_account="Investment Account",
-                        transaction_type="transfer",
-                        description=f"Buy {quantity:.6f} {symbol}",
-                        category="Banque",
-                        subcategory="Services Bancaires",
-                        date=transaction_date.isoformat(),
-                    )
-
-                    if not transfer_id:
-                        print(f"Failed to create transfer for {symbol} purchase")
-                        return False
-
-                else:
-                    print(f"Failed to create monthly buy for {symbol}")
-                    exit()
-                    return False
 
                 # 15% chance of additional purchase during market dips
                 if random.random() < 0.15 and market_factor < 0.98:
@@ -564,12 +543,11 @@ class TestDataCreator:
         if self.api.delete_user():
             print("Test user deletion completed!")
             return True
-        else:
-            print("Failed to delete test user")
-            return False
+        print("Failed to delete test user")
+        return False
 
     def show_test_data(self) -> None:
-        """Display a summary of the test data"""
+        """Display a summary of the test data."""
         if not self.api.login(self.test_user["email"], self.test_user["password"]):
             print("Failed to login to show test data")
             return
@@ -580,7 +558,7 @@ class TestDataCreator:
         # Show user info
         print("\nUser Information:")
         print("-----------------")
-        user_response = self.api._make_request("GET", "/users/")
+        user_response = self.api._make_request(method="GET", endpoint="/users/")
         if user_response:
             print(f"Name: {user_response.get('name')}")
             print(f"Email: {user_response.get('email')}")
@@ -591,7 +569,7 @@ class TestDataCreator:
         print("------")
         banks_response = self.api._make_request("GET", "/banks/")
         if banks_response:
-            for bank in banks_response:
+            for bank in banks_response["items"]:
                 print(f"- {bank['name']} (ID: {bank['id']})")
 
         # Show accounts with balances
@@ -599,7 +577,7 @@ class TestDataCreator:
         print("---------")
         accounts_response = self.api._make_request("GET", "/accounts")
         if accounts_response:
-            for account in accounts_response:
+            for account in accounts_response["items"]:
                 print(f"- {account['name']} ({account['type'].capitalize()})")
                 print(f"  Balance: ${account.get('balance', 0):.2f}")
 

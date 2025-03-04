@@ -14,7 +14,7 @@ export const fetchAccounts = () => async (dispatch: Dispatch) => {
     try {
         const response = await apiClient.get('/accounts?per_page=1000&page=1');
         // console.log("fetchAccounts response", response.data);
-        dispatch({ type: FETCH_ACCOUNTS_SUCCESS, payload: response.data });
+        dispatch({ type: FETCH_ACCOUNTS_SUCCESS, payload: response.data.items });
     } catch (error) {
         console.log("fetchAccounts error", error);
         dispatch({ type: FETCH_ACCOUNTS_FAILURE, error });

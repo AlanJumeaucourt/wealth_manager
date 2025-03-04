@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+FROM python:3.12-slim
 
 # Install curl for healthcheck and sqlite3 for database
 RUN apt-get update && \
