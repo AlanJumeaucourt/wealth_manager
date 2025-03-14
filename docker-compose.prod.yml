@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  web_application:
+    container_name: web_application
+    build:
+      context: ./web_application
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${API_URL}
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - app-network
+
+
+  flask_backend:
+    container_name: flask_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - sqlite_data:/app/instance
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      - PYTHONUNBUFFERED=1
+      - JWT_ACCESS_TOKEN_EXPIRES=3600
+      - JWT_REFRESH_TOKEN_EXPIRES=2592000
+      - SQLITE_DB_PATH=/app/instance/database.sqlite
+    restart: unless-stopped
+    networks:
+      - app-network
+
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  sqlite_data:
+    driver: local

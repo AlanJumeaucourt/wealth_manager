@@ -38,12 +38,16 @@ export function RiskMetricsCard() {
 
   if (!data) return null
 
-  const sortedRollingMetrics = [...data.rolling_metrics].sort((a, b) =>
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  )
+  const sortedRollingMetrics = data.rolling_metrics
+    ? [...data.rolling_metrics].sort((a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    )
+    : []
 
-  const sortedAssetsByRisk = Object.entries(data.risk_metrics_by_asset)
-    .sort(([, a], [, b]) => b.max_drawdown - a.max_drawdown)
+  const sortedAssetsByRisk = data.risk_metrics_by_asset
+    ? Object.entries(data.risk_metrics_by_asset)
+        .sort(([, a], [, b]) => b.max_drawdown - a.max_drawdown)
+    : []
 
   return (
     <Card>

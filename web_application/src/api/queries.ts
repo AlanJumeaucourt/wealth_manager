@@ -2,7 +2,7 @@ import { Account, Bank, RefundGroup, RefundItem, Transaction } from "@/types"
 import { handleTokenExpiration } from "@/utils/auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-export const API_URL = "http://localhost:5000"
+export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000"
 
 // Define query key types
 type QueryKeyArray = readonly (string | number | undefined)[]
@@ -428,7 +428,7 @@ interface RollingMetric {
 interface PortfolioRiskMetrics {
   max_drawdown: number;
   risk_metrics_by_asset: Record<string, RiskMetricsByAsset>;
-  rolling_metrics: RollingMetric[];
+  rolling_metrics: RollingMetric[] | null;
   sharpe_ratio: number;
   volatility: number;
 }

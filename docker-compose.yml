@@ -1,29 +1,6 @@
 version: "3.8"
 
 services:
-  expo_app:
-    container_name: expo_app
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "8081:8081"
-      - "19000:19000"
-      - "19001:19001"
-      - "19002:19002"
-    environment:
-      - NODE_ENV=development
-      - EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
-      - CHOKIDAR_USEPOLLING=true
-    volumes:
-      - ./frontend:/home:delegated
-      - /home/node_modules
-      - /home/appuser/.expo
-    user: "1001:1001"
-    restart: unless-stopped
-    networks:
-      - app-network
-
   flask_backend:
     container_name: flask_backend
     build:
@@ -32,7 +9,6 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./backend:/app
       - sqlite_data:/app/instance
     environment:
       - FLASK_APP=app.py
@@ -42,7 +18,7 @@ services:
       - JWT_SECRET_KEY=your-super-secret-key-change-this-in-production
       - JWT_ACCESS_TOKEN_EXPIRES=3600
       - JWT_REFRESH_TOKEN_EXPIRES=2592000
-    user: "1001:1001"
+      - SQLITE_DB_PATH=/app/instance/database.sqlite
     restart: unless-stopped
     networks:
       - app-network
@@ -58,9 +34,39 @@ services:
         - action: rebuild
           path: ./backend/pyproject.toml
 
+  web_application:
+    container_name: web_application
+    build:
+      context: ./web_application
+      dockerfile: Dockerfile
+      target: build
+    ports:
+      - "5173:5173"
+    volumes:
+      - type: bind
+        source: ./web_application
+        target: /app
+      - type: volume
+        source: node_modules
+        target: /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:5000
+      - NODE_ENV=development
+    command: bun run dev -- --host
+    restart: unless-stopped
+    networks:
+      - app-network
+    develop:
+      watch:
+        - action: rebuild
+          path: ./web_application/package.json
+
 networks:
   app-network:
     driver: bridge
 
 volumes:
   sqlite_data:
+    driver: local
+  node_modules:
+    driver: local

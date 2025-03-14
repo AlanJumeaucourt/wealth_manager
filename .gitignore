@@ -5,10 +5,8 @@
 nohup.out
 backend/app/wealthmanager.db
 node_modules
-<<<<<<< HEAD
 .venv
-=======
 *.log
 *.db
 backend/logs/*
->>>>>>> 246157478f9e2ea03f89667c6a3d5ca73f98d53c
+.env

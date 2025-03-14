@@ -174,8 +174,8 @@ class TestDataCreator:
         if not self._create_transactions():
             return False
 
-        if not self._create_investment_assets():
-            return False
+        # if not self._create_investment_assets():
+        #     return False
 
         print("\nTest data creation completed!")
         print("\nTest user credentials:")

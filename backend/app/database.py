@@ -6,7 +6,10 @@ from typing import Any
 
 from .exceptions import NoResultFoundError, QueryExecutionError
 
-from .exceptions import QueryExecutionError, NoResultFoundError
+
+class DatabaseError(Exception):
+    """Raised when there are database configuration or access issues."""
+    pass
 
 
 class QueryType(Enum):
@@ -22,36 +25,41 @@ class DatabaseManager:
     """Manages database connections and executes raw SQL queries."""
 
     def __init__(self) -> None:
-        self.db_dir = os.environ.get(
-            "SQLITE_DB_DIR",
-            str(Path(__file__).parent.parent / "instance"),
-        )
-        self.db_name = str(Path(self.db_dir) / "wealth_manager.db")
+        db_path = os.environ.get("SQLITE_DB_PATH")
+        if not db_path:
+            raise DatabaseError("SQLITE_DB_PATH environment variable must be set")
 
-        # Ensure directory exists with proper permissions
-        Path(self.db_dir).mkdir(parents=True, exist_ok=True)
+        self.db_path = Path(db_path)
 
-        # Set permissions if running as root (development only)
-        if os.geteuid() == 0:  # Only run if root
-            Path(self.db_dir).chmod(0o777)
+        # Validate the path
+        if not self.db_path.parent.exists():
+            raise DatabaseError(f"Database directory does not exist: {self.db_path.parent}")
+
+        if not os.access(self.db_path.parent, os.W_OK):
+            raise DatabaseError(f"No write permission in directory: {self.db_path.parent}")
+
+        # If database file exists, check if it's writable
+        if self.db_path.exists() and not os.access(self.db_path, os.W_OK):
+            raise DatabaseError(f"No write permission for database file: {self.db_path}")
 
     def connect_to_database(self) -> sqlite3.Connection:
         """Establish a connection to the SQLite database.
 
         :return: A connection object to the SQLite database.
+        :raises: DatabaseError if connection fails
         """
         try:
-            connection = sqlite3.connect(self.db_name)
+            connection = sqlite3.connect(self.db_path)
             connection.execute("PRAGMA foreign_keys = ON;")
         except sqlite3.OperationalError as e:
-            print(f"Error connecting to database: {e}")
-            print(f"Database directory: {self.db_dir}")
-            print(f"Database path: {self.db_name}")
-            print(f"Directory exists: {Path(self.db_dir).exists()}")
-            print(
-                f"Directory permissions: {oct(Path(self.db_dir).stat().st_mode)[-3:]}"
+            error_msg = (
+                f"Error connecting to database: {e}\n"
+                f"Database directory: {self.db_path.parent}\n"
+                f"Database path: {self.db_path}\n"
+                f"Directory exists: {self.db_path.parent.exists()}\n"
+                f"Directory permissions: {oct(self.db_path.parent.stat().st_mode)[-3:]}"
             )
-            raise
+            raise DatabaseError(error_msg) from e
         else:
             return connection
 

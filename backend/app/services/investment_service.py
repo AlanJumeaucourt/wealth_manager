@@ -355,12 +355,19 @@ class InvestmentService(BaseService[InvestmentTransaction]):
             connection = self.db_manager.connect_to_database()
             connection.execute("BEGIN TRANSACTION")
 
+            # Get asset symbol
+            query = "SELECT symbol FROM assets WHERE id = ?"
+            result = self.db_manager.execute_select(query, [validated_data["asset_id"]])
+            if not result:
+                raise ValueError(f"Asset with ID {validated_data['asset_id']} not found")
+            asset_symbol = result[0]["symbol"]
+
             # Prepare transaction data
             transaction_data = {
                 "user_id": validated_data["user_id"],
                 "date": validated_data["date"],
                 "date_accountability": validated_data["date"],
-                "description": f"{validated_data['activity_type'].title()} {validated_data['quantity']} units of asset {validated_data['asset_id']}",
+                "description": f"{validated_data['activity_type'].title()} {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€",
                 "amount": (validated_data["quantity"] * validated_data["unit_price"])
                 + validated_data["fee"]
                 + validated_data["tax"],

@@ -544,7 +544,7 @@ transaction_data = {
 # print(get_accounts_from_api())
 # # print(create_transaction_in_api(transaction_data).json())
 # # Call the function with the path to your CSV file
-csv_firefly_to_api("2024_10_04_transaction_export.csv")
+# csv_firefly_to_api("2024_10_04_transaction_export.csv")
 
 # # print(get_accounts_from_api())
 # # print(get_transactions_from_api().json())
@@ -870,6 +870,14 @@ def create_investment_transaction_in_api(
 
 CTO_CSV_INVESTMENT = r"""
 date,symbol,quantity,activityType,unitPrice,currency,fee
+2025-03-14,CSSPX.MI,8,SELL,542.9560,EUR,0
+2025-03-04,CSSPX.MI,2,BUY,579.292,EUR,0
+2025-02-24,CSSPX.MI,2,BUY,607.8000,EUR,0
+2025-01-13,CSSPX.MI,3,BUY,602.222,EUR,0
+2025-01-08,CSSPX.MI,1,BUY,607.956,EUR,0
+2025-01-02,IDUS.L,20,BUY,57.280,EUR,0
+2024-12-10,LYPS.DE,1,DIVIDEND,28.43,EUR,0
+2024-12-10,IDUS.L,1,DIVIDEND,14.72,EUR,0
 2024-11-01,IDUS.L,14,BUY,52.559,EUR,0
 2024-10-08,IDUS.L,5,BUY,51.648,EUR,0
 2024-09-27,IDUS.L,12,BUY,51.285,EUR,0
@@ -899,6 +907,8 @@ date,symbol,quantity,activityType,unitPrice,currency,fee
 
 PEA_CSV_INVESTMENT = r"""
 date,symbol,quantity,activityType,unitPrice,currency,fee
+2025-05-20,ESE.PA,59,BUY,25.6122,EUR,6.00
+2025-05-20,ESE.PA,167,BUY,25.6171,EUR,20.00
 2024-05-20,PE500.PA,15,BUY,40.072,EUR,3.01
 2024-04-30,PE500.PA,8,BUY,39.187,EUR,1.57
 2024-04-23,PE500.PA,8,BUY,38.372,EUR,1.53
