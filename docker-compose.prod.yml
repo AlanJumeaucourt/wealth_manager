@@ -62,10 +62,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    mem_limit: 512M
     deploy:
       resources:
         limits:
+          memory: 1G
           cpus: '0.5'
     logging:
       driver: "json-file"
