@@ -1,7 +1,8 @@
 import concurrent.futures  # {{ edit_1: Added import for concurrency }}
 import logging
+import time  # Added for cache expiration
 from io import StringIO
-from typing import Any, TypedDict
+from typing import Any, TypedDict, Optional, Dict
 
 import pandas as pd
 import requests
@@ -16,6 +17,14 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+# Add a cache for accounts
+_accounts_cache: Optional[Dict[str, Any]] = None
+_accounts_cache_timestamp: float = 0
+_CACHE_EXPIRY_SECONDS: int = 300  # Cache expires after 5 minutes
+
+# Add a lock for thread safety
+import threading
+_cache_lock = threading.Lock()
 
 class CategoryInfo(TypedDict):
     category: str
@@ -181,18 +190,38 @@ def delete_user():
 
 
 def get_accounts_from_api() -> list[dict[str, Any]]:
-    url = "http://localhost:5000/accounts?per_page=1000"
-    headers = {
-        "Authorization": f"Bearer {jwt_token}",
-        "Content-Type": "application/json",
-    }
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200 or response.status_code == 201:
-        return response.json()["items"]  # Assuming the response is a list of accounts
-    logging.error(
-        f"Failed to retrieve accounts: {response.status_code}, {response.text}"
-    )
-    return []
+    global _accounts_cache, _accounts_cache_timestamp
+
+    # Use a lock to ensure thread safety when accessing the cache
+    with _cache_lock:
+        current_time = time.time()
+
+        # Check if cache is valid
+        if (_accounts_cache is not None and
+            current_time - _accounts_cache_timestamp < _CACHE_EXPIRY_SECONDS):
+            logging.debug("Using cached accounts data")
+            return _accounts_cache
+
+        # Cache is invalid or doesn't exist, fetch from API
+        url = "http://localhost:5000/accounts?per_page=1000"
+        headers = {
+            "Authorization": f"Bearer {jwt_token}",
+            "Content-Type": "application/json",
+        }
+
+        logging.info("Fetching accounts from API")
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200 or response.status_code == 201:
+            # Update cache
+            _accounts_cache = response.json()["items"]
+            _accounts_cache_timestamp = current_time
+            return _accounts_cache
+
+        logging.error(
+            f"Failed to retrieve accounts: {response.status_code}, {response.text}"
+        )
+        return []
 
 
 def create_bank_in_api(bank_name: str):
@@ -269,6 +298,12 @@ def get_account_id_from_name(account_name: str, account_type: str):
                 "EUR",
                 bank_id_from_account_name(account_name),
             )
+
+            # Invalidate cache to ensure we get the newly created account
+            with _cache_lock:
+                global _accounts_cache_timestamp
+                _accounts_cache_timestamp = 0
+
             accounts = get_accounts_from_api()
             account_id_mapping = {
                 f"{account['name']}|{account['type']}": account["id"]
@@ -487,32 +522,32 @@ password: str = "aaaaaa"
 # Login the user to get the JWT token
 login_user_r = login_user(email, password)
 
-if login_user_r.status_code == 200:
-    # print("User logged in successfully.")
-    # print(f"{login_user_r.json()=}")
-    jwt_token = login_user_r.json()["access_token"]
-    print(login_user_r.json()["access_token"])
-    assert isinstance(login_user_r.json()["access_token"], str)
-    delete_user()
-else:
-    logging.error(
-        f"Failed to log in user: {login_user_r.status_code}, {login_user_r.text}"
-    )
+# if login_user_r.status_code == 200:
+#     # print("User logged in successfully.")
+#     # print(f"{login_user_r.json()=}")
+#     jwt_token = login_user_r.json()["access_token"]
+#     print(login_user_r.json()["access_token"])
+#     assert isinstance(login_user_r.json()["access_token"], str)
+#     delete_user()
+# else:
+#     logging.error(
+#         f"Failed to log in user: {login_user_r.status_code}, {login_user_r.text}"
+#     )
 
-create_user_r = create_user(name, email, password)
-if create_user_r.status_code == 201:
-    # print("User created successfully.")
-    # print(f"{create_user_r.json()=}")
-    user_data = create_user_r.json()
-    assert user_data["email"] == email
-    assert isinstance(user_data["id"], int)
-    assert isinstance(user_data["last_login"], str)
-    assert user_data["name"] == name
-    assert user_data["password"] == password
-else:
-    logging.error(
-        f"Failed to create user: {create_user_r.status_code}, {create_user_r.text}"
-    )
+# create_user_r = create_user(name, email, password)
+# if create_user_r.status_code == 201:
+#     # print("User created successfully.")
+#     # print(f"{create_user_r.json()=}")
+#     user_data = create_user_r.json()
+#     assert user_data["email"] == email
+#     assert isinstance(user_data["id"], int)
+#     assert isinstance(user_data["last_login"], str)
+#     assert user_data["name"] == name
+#     assert user_data["password"] == password
+# else:
+#     logging.error(
+#         f"Failed to create user: {create_user_r.status_code}, {create_user_r.text}"
+#     )
 
 # Login the user to get the JWT token
 login_user_r = login_user(email, password)
@@ -558,14 +593,14 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
         df = df.sort_values(by="date", ascending=True)
 
         # Fetch existing transactions and accounts from the API
-        existing_transactions = get_transactions_from_api().json()
+        existing_transactions_response = get_transactions_from_api().json()
+        existing_transactions = existing_transactions_response.get("items", [])
         existing_accounts = get_accounts_from_api()
 
-        missing_accounts = (
-            set()
-        )  # {{ edit_2: Changed missing_accounts to a set to ensure uniqueness }}
+        missing_accounts = set()
         missing_transactions = []
 
+        print(f"First 10 transactions: {df.head(10)}")
         # Check for missing accounts
         for index, row in df.iterrows():
             source_account_type = account_name_type_mapping.get(
@@ -577,7 +612,6 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
                 account_type_mapping.get(row["destination_type"], "Unknown"),
             )
 
-            # {{ edit_3: Use add() instead of append() for missing_accounts }}
             if not any(
                 f"{row['source_name']}|{source_account_type}" in account
                 for account in missing_accounts
@@ -602,7 +636,6 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
                         f"{row['destination_name']}|{destination_account_type}"
                     )
 
-        # {{ edit_4: Introduced batch processing for missing transactions }}
         batch_size = 100  # Define the size of each batch
         batches = [df[i : i + batch_size] for i in range(0, len(df), batch_size)]
 
@@ -618,14 +651,15 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
         print(f"Missing transactions: {missing_transactions}")
 
         if add_transactions:
-            # {{ edit_5: Create missing accounts before adding transactions }}
             for account in missing_accounts:
                 name, acc_type = account.split("|")
                 bank_id = bank_id_from_account_name(name)
                 create_account_in_api(name, acc_type, "EUR", bank_id)
 
-            for transaction in missing_transactions:
-                print(create_transaction_in_api(transaction).json())
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = [executor.submit(create_transaction_in_api, transaction) for transaction in missing_transactions]
+                for future in concurrent.futures.as_completed(futures):
+                    print(future.result().json())
 
     except FileNotFoundError:
         logging.exception(f"Error: The file '{file_path}' was not found.")
@@ -639,6 +673,29 @@ def process_batch(
     batch: pd.DataFrame, existing_transactions: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     batch_missing_transactions = []
+
+    # Pre-fetch account IDs for all accounts in the batch to reduce API calls
+    account_names = set()
+    for _, row in batch.iterrows():
+        source_account_type = account_name_type_mapping.get(
+            row["source_name"], account_type_mapping.get(row["source_type"], "Unknown")
+        )
+        destination_account_type = account_name_type_mapping.get(
+            row["destination_name"],
+            account_type_mapping.get(row["destination_type"], "Unknown"),
+        )
+
+        account_names.add((str(row["source_name"]), source_account_type))
+        account_names.add((str(row["destination_name"]), destination_account_type))
+
+    # Create a local mapping of account names to IDs
+    account_id_mapping = {}
+    for name, acc_type in account_names:
+        try:
+            account_id_mapping[(name, acc_type)] = get_account_id_from_name(name, acc_type)
+        except Exception as e:
+            logging.error(f"Error getting account ID for {name}|{acc_type}: {e}")
+
     for index, row in batch.iterrows():
         source_account_type = account_name_type_mapping.get(
             row["source_name"], account_type_mapping.get(row["source_type"], "Unknown")
@@ -648,18 +705,34 @@ def process_batch(
             account_type_mapping.get(row["destination_type"], "Unknown"),
         )
 
+        # Use the local mapping instead of calling get_account_id_from_name again
+        from_account_id = account_id_mapping.get(
+            (str(row["source_name"]), source_account_type)
+        )
+        to_account_id = account_id_mapping.get(
+            (str(row["destination_name"]), destination_account_type)
+        )
+
+        if row["destination_name"] == "Prêt Etudiant CA":
+            transaction_type = "transfer"
+            to_account_id = account_id_mapping.get(("Prêt Etudiant CA", "savings"))
+        else:
+            transaction_type = handle_transaction_type(row["type"])
+
+        if from_account_id is None or to_account_id is None:
+            logging.warning(
+                f"Account ID not found for transaction: {row['source_name']} or {row['destination_name']}"
+            )
+            continue
+
         transaction_data = {
-            "from_account_id": get_account_id_from_name(
-                str(row["source_name"]), source_account_type
-            ),
-            "to_account_id": get_account_id_from_name(
-                str(row["destination_name"]), destination_account_type
-            ),
+            "from_account_id": from_account_id,
+            "to_account_id": to_account_id,
             "amount": abs(float(row["amount"])),
             "description": (
                 row["description"] if not pd.isna(row["description"]) else ""
             ),
-            "type": handle_transaction_type(row["type"]),
+            "type": transaction_type,
             "date": row["date"][:10],
             "date_accountability": row["date"][:10],
             "category": transform_budget_to_categories(str(row["budget"]), row["type"])[
@@ -669,12 +742,6 @@ def process_batch(
                 str(row["budget"]), row["type"]
             )["subCategory"],
         }
-
-        if row["destination_name"] == "Prêt Etudiant CA":
-            transaction_data["type"] = "transfer"
-            transaction_data["to_account_id"] = get_account_id_from_name(
-                "Prêt Etudiant CA", "savings"
-            )
 
         # Check if the transaction is missing
         is_missing = not any(
@@ -695,8 +762,8 @@ def process_batch(
 
 
 # Call the function with the path to your CSV file
-# fetch_and_filter_transactions('2024_10_04_transaction_export.csv', True)
-
+fetch_and_filter_transactions("firefly_export.csv", True)
+exit(1)
 
 def process_investment_csv(csv_data: str, account_name: str):
     """Process investment transactions from CSV data.
@@ -917,5 +984,101 @@ date,symbol,quantity,activityType,unitPrice,currency,fee
 2022-12-23,ACA.PA,1,BUY,9.74,EUR,1.05
 """
 
-process_investment_csv(CTO_CSV_INVESTMENT, "Boursorama CTO")
-process_investment_csv(PEA_CSV_INVESTMENT, "Boursorama PEA")
+# process_investment_csv(CTO_CSV_INVESTMENT, "Boursorama CTO")
+# process_investment_csv(PEA_CSV_INVESTMENT, "Boursorama PEA")
+
+ETIENNE_CSV_INVESTMENT = r"""
+date,symbol,unitPrice,quantity,fee,activityType,currency
+2022-12-21,ORA.PA,9.161,11,0.8,BUY,EUR
+2022-12-27,GLE.PA,23.645,5,0.94,BUY,EUR
+2023-01-16,TFI.PA,7.23,14,0.81,BUY,EUR
+2023-02-08,ENGI.PA,13.098,8,0.83,BUY,EUR
+2023-02-16,STLAP.PA,15.982,7,0.56,BUY,EUR
+2023-02-28,ENGI.PA,13.986,8,0.56,SELL,EUR
+2023-02-28,ORA.PA,10.86,11,0.6,SELL,EUR
+2023-02-28,STLAP.PA,16.632,7,0.58,SELL,EUR
+2023-02-28,TFI.PA,7.525,14,0.53,SELL,EUR
+2023-02-28,GLE.PA,27.43,5,0.69,SELL,EUR
+2023-03-01,VILLEMORIN,48.7,3,1.17,BUY,EUR
+2023-03-01,BNP.PA,64.45,2,1.03,BUY,EUR
+2023-03-01,CA.PA,18.34,6,0.88,BUY,EUR
+2023-03-01,VIE.PA,28.21,4,0.9,BUY,EUR
+2023-03-01,ACA.PA,11.478,9,0.83,BUY,EUR
+2023-03-01,SGO.PA,57.76,2,0.93,BUY,EUR
+2023-03-01,DG.PA,108,1,0.86,BUY,EUR
+2023-03-15,GLE.PA,21.44,5,0.86,BUY,EUR
+2023-03-15,STLAP.PA,15.744,7,0.55,BUY,EUR
+2023-03-20,SGO.PA,50.67,2,0.81,BUY,EUR
+2023-03-20,VIE.PA,26.2,5,1.05,BUY,EUR
+2023-03-20,ACA.PA,9.829,11,0.86,BUY,EUR
+2023-04-11,BN.PA,59.65,2,0.96,BUY,EUR
+2023-04-11,AC.PA,30.82,4,0.99,BUY,EUR
+2023-04-11,TTE.PA,58.45,2,0.94,BUY,EUR
+2023-04-25,VIE.PA,3,1,0,DIVIDEND,EUR
+2023-05-15,STLAP.PA,14.994,7,0.52,BUY,EUR
+2023-05-15,TTE.PA,55.62,2,0.89,BUY,EUR
+2023-04-24,STLAP.PA,7.97,1,0,DIVIDEND,EUR
+2023-05-09,BN.PA,4,1,0,DIVIDEND,EUR
+2023-05-09,VIE.PA,10.08,1,0,DIVEN,EURD
+2023-05-22,BNP.PA,7.8,1,0,DIVIDEND,EUR
+2023-05-23,AC.PA,4.2,1,0,DIVIDEND,EUR
+2023-06-06,BN.PA,65.71,2,0.89,BUY,EUR
+2023-06-09,DG.PA,106.86,1,0.85,BUY,EUR
+2023-05-30,ACA.PA,21,1,0,DIVIDEND,EUR
+2023-05-30,GLE.PA,8.5,1,0,DIVIDEND,EUR
+2023-06-06,CA.PA,3.36,1,0,DIVIDEND,EUR
+2023-06-12,SGO.PA,8,1,0,DIVIDEND,EUR
+2023-07-12,CA.PA,17.15,6,31.51,BUY,EUR
+2023-06-21,TTE.PA,2.96,1,0,DIVIDEND,EUR
+2023-08-03,ERA.PA,74.3,2,1.19,BUY,EUR
+2023-08-03,NK.PA,31.52,4,1.01,BUY,EUR
+2023-09-11,ERA.PA,70.4,2,1.12,BUY,EUR
+2023-09-11,NK.PA,29.92,4,0.96,BUY,EUR
+2024-10-30,VIE.PA,25.72,5,1.03,BUY,EUR
+2024-08-03,VILLEMORIN,62.6,3,0,SELL,EUR
+2023-10-30,AC.PA,30,4,0.96,BUY,EUR
+2023-10-30,CA.PA,16.46,7,0.93,BUY,EUR
+2024-09-20,TTE.PA,2.96,1,0,DIVIDEND,EUR
+2023-11-14,DG.PA,2.1,1,0,DIVIDEND,EUR
+2024-01-02,CS.PA,29.74,4,0.95,BUY,EUR
+2024-01-29,ALO.PA,11.6,9,0.83,BUY,EUR
+2024-01-02,TTE.PA,2.96,1,0,DIVIDEND,EUR
+2024-02-12,ALO.PA,11.715,11,1.03,BUY,EUR
+2024-03-20,TTE.PA,2.96,1,0,DIVIDEND,EUR
+2024-04-23,VIE.PA,6.9,1,0,DIVIDEND,EUR
+2024-05-31,DG.PA,114.75,2,1.84,BUY,EUR
+2024-05-31,SU.PA,227.9,2,3.36,BUY,EUR
+2024-05-31,AI.PA,180.74,2,2.89,BUY,EUR
+2024-04-22,STLAP.PA,18.45,1,0,DIVIDEND,EUR
+2024-04-30,CS.PA,7.92,1,0,DIVIDEND,EUR
+2024-05-03,BN.PA,8.4,1,0,DIVIDEND,EUR
+2024-05-08,VIE.PA,17.5,1,0,DIVIDEND,EUR
+2024-05-21,NK.PA,10.8,1,0,DIVIDEND,EUR
+2024-05-21,BNP.PA,9.2,1,0,DIVIDEND,EUR
+2024-05-27,GLE.PA,4.5,1,0,DIVIDEND,EUR
+2024-05-28,CA.PA,16.53,1,0,DIVIDEND,EUR
+2024-05-29,ACA.PA,21,1,0,DIVIDEND,EUR
+2024-06-04,ERA.PA,6,1,0,DIVIDEND,EUR
+2024-06-05,AC.PA,9.44,1,0,DIVIDEND,EUR
+2024-06-10,SGO.PA,8.4,1,0,DIVIDEND,EUR
+2024-07-25,STLAP.PA,16.376,7,0.57,BUY,EUR
+2024-07-25,DG.PA,104.2,1,0.83,BUY,EUR
+2024-07-25,AI.PA,163.88,1,1.31,BUY,EUR
+2024-06-19,TTE.PA,3.16,1,0,DIVIDEND,EUR
+2024-08-05,DG.PA,100.25,1,0.8,BUY,EUR
+2024-08-05,VIE.PA,26.72,4,0.85,BUY,EUR
+2024-08-05,SU.PA,198.22,1,1.58,BUY,EUR
+2024-10-17,TTE.PA,60.14,2,0.96,BUY,EUR
+2024-01-01,STLAP.PA,12.544,8,0.5,BUY,EUR
+2024-09-25,TTE.PA,3.16,1,0,DIVIDEND,EUR
+2024-10-15,DG.PA,6.3,1,0,DIVIDEND,EUR
+2024-01-02,TTE.PA,4.74,1,0,DIVIDEND,EUR
+2025-02-13,NK.PA,28.3,4,0.91,BUY,EUR
+2025-02-13,TTE.PA,58.22,3,1.39,BUY,EUR
+2025-02-17,BNP.PA,70.21,2,1.12,BUY,EUR
+2025-02-18,ERA.PA,56.35,2,0.9,BUY,EUR
+2025-03-06,AIR.PA,169.98,2,1.7,BUY,EUR
+"""
+
+# manque stellantis
+process_investment_csv(ETIENNE_CSV_INVESTMENT, "Boursorama PEA")
