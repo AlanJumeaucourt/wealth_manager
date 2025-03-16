@@ -15,7 +15,25 @@ services:
     restart: unless-stopped
     networks:
       - app-network
-
+    depends_on:
+      flask_backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 512M
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   flask_backend:
     container_name: flask_backend
@@ -25,23 +43,40 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - sqlite_data:/app/instance
+      - sqlite_data:/app/instance:rw
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=production
       - FLASK_DEBUG=0
       - PYTHONUNBUFFERED=1
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - JWT_ACCESS_TOKEN_EXPIRES=3600
       - JWT_REFRESH_TOKEN_EXPIRES=2592000
       - SQLITE_DB_PATH=/app/instance/database.sqlite
     restart: unless-stopped
     networks:
       - app-network
-
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 512M
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   app-network:
     driver: bridge
+    name: wealth_manager_network
 
 volumes:
   sqlite_data:

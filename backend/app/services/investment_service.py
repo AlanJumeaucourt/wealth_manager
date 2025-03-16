@@ -373,7 +373,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 + validated_data["tax"],
                 "from_account_id": validated_data["from_account_id"],
                 "to_account_id": validated_data["to_account_id"],
-                "category": "Investment",
+                "category": "Investissements",
                 "type": "transfer",
                 "is_investment": True,
             }

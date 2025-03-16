@@ -94,6 +94,10 @@ def create_app():
     app.register_blueprint(refund_group_bp, url_prefix="/refund_groups")
     app.register_blueprint(gocardless_bp, url_prefix="/gocardless")
 
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok"}), 200
+
     @jwt.invalid_token_loader
     def invalid_token_callback(error_string):
         return jsonify({"msg": "Invalid token", "error": str(error_string)}), 401

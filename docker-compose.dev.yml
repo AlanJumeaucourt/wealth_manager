@@ -6,24 +6,33 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    # flask requires SIGINT to stop gracefully
+    # (default stop signal from Compose is SIGTERM)
+    stop_signal: SIGINT
     ports:
       - "5000:5000"
     volumes:
       - sqlite_data:/app/instance
+      - ./backend:/app:rw
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
       - FLASK_DEBUG=1
       - PYTHONUNBUFFERED=1
-      - JWT_SECRET_KEY=your-super-secret-key-change-this-in-production
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - JWT_ACCESS_TOKEN_EXPIRES=3600
       - JWT_REFRESH_TOKEN_EXPIRES=2592000
       - SQLITE_DB_PATH=/app/instance/database.sqlite
     restart: unless-stopped
     networks:
       - app-network
-    env_file:
-      - ./backend/.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 512M
     develop:
       watch:
         - action: sync
@@ -31,6 +40,8 @@ services:
           target: /app
           ignore:
             - .venv/
+            - __pycache__/
+            - '*.pyc'
         - action: rebuild
           path: ./backend/pyproject.toml
 
@@ -43,19 +54,26 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - type: bind
-        source: ./web_application
-        target: /app
-      - type: volume
-        source: node_modules
-        target: /app/node_modules
+      - ./web_application:/app:rw
+      - node_modules:/app/node_modules:rw
+      - /app/node_modules/.vite  # Prevent host mounting of .vite cache
     environment:
-      - VITE_API_URL=http://localhost:5000
       - NODE_ENV=development
+      - VITE_API_URL=${API_URL:-http://localhost:5000}
     command: bun run dev -- --host
     restart: unless-stopped
     networks:
       - app-network
+    depends_on:
+      flask_backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 1G
     develop:
       watch:
         - action: rebuild
@@ -64,9 +82,12 @@ services:
 networks:
   app-network:
     driver: bridge
+    name: wealth_manager_network
 
 volumes:
   sqlite_data:
     driver: local
   node_modules:
+    driver: local
+  backend_tmp:
     driver: local

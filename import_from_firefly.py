@@ -103,10 +103,18 @@ account_name_type_mapping = {
     "Boursorama PEA": "investment",
     "Natixis PERCO": "investment",
     "LouveInvest SCPI": "investment",
-    'Balance initiale pour "Prêt Etudiant CA"': "income",
-    "Initial balance account of Prêt Etudiant CA": "income",
+    'Balance initiale pour "Prêt Etudiant CA"': "expense",
+    "Initial balance account of Prêt Etudiant CA": "expense",
     "Robocash P2P": "investment",
     "Miimosa P2P": "investment",
+    "Cardif PER": "investment",
+    "Revolut": "checking",
+    "Solde initial du compte Prêt Etudiant CA": "expense",
+}
+
+bank_website_mapping = {
+    "Boursorama": "https://clients.boursobank.com/",
+    "Crédit Agricole": "https://www.credit-agricole.fr/ca-normandie-seine/particulier/acceder-a-mes-comptes.html",
 }
 
 # Initialize an empty account dictionary
@@ -136,7 +144,7 @@ def bank_id_from_bank_name(bank_name: str) -> int:
     result = bank_id_mapping.get(f"{bank_name}", None)
     if result is None:
         # logging.info(f"Bank not found, creating new bank: {bank_name}")
-        create_bank_in_api(bank_name)
+        create_bank_in_api(bank_name, bank_website_mapping.get(bank_name, None))
         banks = get_banks_from_api()
         bank_id_mapping = {f"{bank['name']}": bank["id"] for bank in banks}
         result = bank_id_mapping.get(f"{bank_name}", None)
@@ -224,13 +232,15 @@ def get_accounts_from_api() -> list[dict[str, Any]]:
         return []
 
 
-def create_bank_in_api(bank_name: str):
+def create_bank_in_api(bank_name: str, website: str = None):
     url = "http://localhost:5000/banks"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
     }
     data = {"name": bank_name}
+    if website:
+        data["website"] = website
     # Set up a session with retries and increased timeout
     session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
@@ -332,7 +342,12 @@ def create_transaction_in_api(transaction_data: dict[str, Any]) -> requests.Resp
         f"Creating transaction: {transaction_data['date'][:10]} - {transaction_data['from_account_id']} - {transaction_data['to_account_id']} - {transaction_data['amount']} - {transaction_data['type']} - {transaction_data['category']} - {transaction_data['subcategory']} - {transaction_data['description']}"
     )
     response = requests.post(url, json=transaction_data, headers=headers)
-    return response
+    if response.status_code == 201:
+        logging.info(f"Transaction created: {transaction_data['date'][:10]} - {transaction_data['from_account_id']} - {transaction_data['to_account_id']} - {transaction_data['amount']} - {transaction_data['type']} - {transaction_data['category']} - {transaction_data['subcategory']} - {transaction_data['description']}")
+        return response
+    else:
+        logging.error(f"Failed to create transaction: {response.text}, {transaction_data}")
+        raise Exception(f"Failed to create transaction: {response.text}, {transaction_data}")
 
 
 def handle_transaction_type(transaction_type: str) -> str:
@@ -495,8 +510,8 @@ def transform_budgets_to_categories(
     return categories
 
 
-def get_transactions_from_api() -> requests.Response:
-    url = "http://localhost:5000/transactions?per_page=1000&page=1"  # Adjust the URL if necessary
+def get_transactions_from_api(number_of_transactions: int = 1000) -> requests.Response:
+    url = f"http://localhost:5000/transactions?per_page={number_of_transactions}&page=1"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
@@ -522,32 +537,32 @@ password: str = "aaaaaa"
 # Login the user to get the JWT token
 login_user_r = login_user(email, password)
 
-# if login_user_r.status_code == 200:
-#     # print("User logged in successfully.")
-#     # print(f"{login_user_r.json()=}")
-#     jwt_token = login_user_r.json()["access_token"]
-#     print(login_user_r.json()["access_token"])
-#     assert isinstance(login_user_r.json()["access_token"], str)
-#     delete_user()
-# else:
-#     logging.error(
-#         f"Failed to log in user: {login_user_r.status_code}, {login_user_r.text}"
-#     )
+if login_user_r.status_code == 200:
+    # print("User logged in successfully.")
+    # print(f"{login_user_r.json()=}")
+    jwt_token = login_user_r.json()["access_token"]
+    print(login_user_r.json()["access_token"])
+    assert isinstance(login_user_r.json()["access_token"], str)
+    delete_user()
+else:
+    logging.error(
+        f"Failed to log in user: {login_user_r.status_code}, {login_user_r.text}"
+    )
 
-# create_user_r = create_user(name, email, password)
-# if create_user_r.status_code == 201:
-#     # print("User created successfully.")
-#     # print(f"{create_user_r.json()=}")
-#     user_data = create_user_r.json()
-#     assert user_data["email"] == email
-#     assert isinstance(user_data["id"], int)
-#     assert isinstance(user_data["last_login"], str)
-#     assert user_data["name"] == name
-#     assert user_data["password"] == password
-# else:
-#     logging.error(
-#         f"Failed to create user: {create_user_r.status_code}, {create_user_r.text}"
-#     )
+create_user_r = create_user(name, email, password)
+if create_user_r.status_code == 201:
+    # print("User created successfully.")
+    # print(f"{create_user_r.json()=}")
+    user_data = create_user_r.json()
+    assert user_data["email"] == email
+    assert isinstance(user_data["id"], int)
+    assert isinstance(user_data["last_login"], str)
+    assert user_data["name"] == name
+    assert user_data["password"] == password
+else:
+    logging.error(
+        f"Failed to create user: {create_user_r.status_code}, {create_user_r.text}"
+    )
 
 # Login the user to get the JWT token
 login_user_r = login_user(email, password)
@@ -593,10 +608,11 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
         df = df.sort_values(by="date", ascending=True)
 
         # Fetch existing transactions and accounts from the API
-        existing_transactions_response = get_transactions_from_api().json()
+        existing_transactions_response = get_transactions_from_api(999999).json()
         existing_transactions = existing_transactions_response.get("items", [])
         existing_accounts = get_accounts_from_api()
-
+        logging.info(f"Existing transactions: length {len(existing_transactions)}")
+        logging.info(f"Existing accounts: length {len(existing_accounts)}")
         missing_accounts = set()
         missing_transactions = []
 
@@ -636,6 +652,7 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
                         f"{row['destination_name']}|{destination_account_type}"
                     )
 
+
         batch_size = 100  # Define the size of each batch
         batches = [df[i : i + batch_size] for i in range(0, len(df), batch_size)]
 
@@ -648,7 +665,10 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
                 missing_transactions.extend(future.result())
 
         print(f"Missing accounts: {missing_accounts}")
-        print(f"Missing transactions: {missing_transactions}")
+        if len(missing_transactions) == len(set(tuple(transaction.items()) for transaction in missing_transactions)):
+            print("All missing transactions are unique.")
+        else:
+            print("Not all missing transactions are unique.")
 
         if add_transactions:
             for account in missing_accounts:
@@ -658,8 +678,6 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 futures = [executor.submit(create_transaction_in_api, transaction) for transaction in missing_transactions]
-                for future in concurrent.futures.as_completed(futures):
-                    print(future.result().json())
 
     except FileNotFoundError:
         logging.exception(f"Error: The file '{file_path}' was not found.")
@@ -697,6 +715,11 @@ def process_batch(
             logging.error(f"Error getting account ID for {name}|{acc_type}: {e}")
 
     for index, row in batch.iterrows():
+        # Delete investment transactions as they are created in a different function (process_investment_csv)
+        if row["source_name"] == "Boursorama Espèce CTO" and row["destination_name"] == "Boursorama CTO" or \
+            row["source_name"] == "Boursorama Espèce PEA" and row["destination_name"] == "Boursorama PEA":
+            continue
+
         source_account_type = account_name_type_mapping.get(
             row["source_name"], account_type_mapping.get(row["source_type"], "Unknown")
         )
@@ -716,6 +739,13 @@ def process_batch(
         if row["destination_name"] == "Prêt Etudiant CA":
             transaction_type = "transfer"
             to_account_id = account_id_mapping.get(("Prêt Etudiant CA", "savings"))
+        elif row["destination_name"] == "Solde initial du compte Prêt Etudiant CA":
+            transaction_type = "expense"
+            to_account_id = get_account_id_from_name(
+                "Solde initial du compte Prêt Etudiant CA", "expense"
+            )
+            print(f"{row['description']=}")
+
         else:
             transaction_type = handle_transaction_type(row["type"])
 
@@ -763,7 +793,7 @@ def process_batch(
 
 # Call the function with the path to your CSV file
 fetch_and_filter_transactions("firefly_export.csv", True)
-exit(1)
+
 
 def process_investment_csv(csv_data: str, account_name: str):
     """Process investment transactions from CSV data.
@@ -974,9 +1004,9 @@ date,symbol,quantity,activityType,unitPrice,currency,fee
 
 PEA_CSV_INVESTMENT = r"""
 date,symbol,quantity,activityType,unitPrice,currency,fee
-2025-05-20,ESE.PA,59,BUY,25.6122,EUR,6.00
-2025-05-20,ESE.PA,167,BUY,25.6171,EUR,20.00
-2024-05-20,PE500.PA,15,BUY,40.072,EUR,3.01
+2025-03-20,ESE.PA,59,BUY,25.6122,EUR,6.00
+2025-03-20,ESE.PA,167,BUY,25.6171,EUR,20.00
+2024-03-20,PE500.PA,15,BUY,40.072,EUR,3.01
 2024-04-30,PE500.PA,8,BUY,39.187,EUR,1.57
 2024-04-23,PE500.PA,8,BUY,38.372,EUR,1.53
 2023-09-08,PE500.PA,8,BUY,33.785,EUR,1.35
@@ -984,9 +1014,10 @@ date,symbol,quantity,activityType,unitPrice,currency,fee
 2022-12-23,ACA.PA,1,BUY,9.74,EUR,1.05
 """
 
-# process_investment_csv(CTO_CSV_INVESTMENT, "Boursorama CTO")
-# process_investment_csv(PEA_CSV_INVESTMENT, "Boursorama PEA")
+process_investment_csv(CTO_CSV_INVESTMENT, "Boursorama CTO")
+process_investment_csv(PEA_CSV_INVESTMENT, "Boursorama PEA")
 
+exit(0)
 ETIENNE_CSV_INVESTMENT = r"""
 date,symbol,unitPrice,quantity,fee,activityType,currency
 2022-12-21,ORA.PA,9.161,11,0.8,BUY,EUR
