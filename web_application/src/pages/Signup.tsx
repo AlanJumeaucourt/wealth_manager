@@ -1,3 +1,4 @@
+import { API_URL } from "@/api/queries"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
+import { API_URL } from "@/api/queries"
 
 export function Signup() {
   const [name, setName] = useState("")
@@ -34,7 +36,7 @@ export function Signup() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("http://localhost:5000/users/register", {
+      const response = await fetch(`${API_URL}/users/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -44,7 +46,7 @@ export function Signup() {
 
       if (response.ok) {
         // Automatically log in the user after successful signup
-        const loginResponse = await fetch("http://localhost:5000/users/login", {
+        const loginResponse = await fetch(`${API_URL}/users/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

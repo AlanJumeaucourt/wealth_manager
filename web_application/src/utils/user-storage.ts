@@ -1,4 +1,7 @@
+import { API_URL } from '@/api/queries'
 import { User } from '@/types/user'
+
+
 
 export const userStorage = {
   getToken: () => localStorage.getItem('access_token'),
@@ -25,7 +28,7 @@ export const userStorage = {
   },
 
   fetchUser: async () => {
-    const response = await fetch('http://localhost:5000/users/', {
+    const response = await fetch(`${API_URL}/users/`, {
       headers: { 'Authorization': `Bearer ${userStorage.getToken()}` }
     })
     if (response.ok) {

@@ -1,3 +1,4 @@
+import { API_URL } from "@/api/queries"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
@@ -24,7 +25,7 @@ export function Landing() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("http://localhost:5000/users/login", {
+      const response = await fetch(`${API_URL}/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
