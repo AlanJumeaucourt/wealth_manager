@@ -3,6 +3,10 @@ FROM oven/bun:1-slim AS build
 
 WORKDIR /app
 
+# Add ARG for API URL
+ARG API_URL
+ENV VITE_API_URL=$API_URL
+
 # Copy package files for better caching
 COPY package.json bun.lockb ./
 
