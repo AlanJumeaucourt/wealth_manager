@@ -22,52 +22,9 @@ FROM nginx:alpine AS production
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
-# Set up nginx with optimized configuration
+# Set up nginx with external configuration
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Create a custom nginx configuration with security headers
-RUN echo 'server { \
-    listen 80; \
-    server_name localhost; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    \
-    # Security headers \
-    add_header X-Content-Type-Options "nosniff"; \
-    add_header X-Frame-Options "SAMEORIGIN"; \
-    add_header X-XSS-Protection "1; mode=block"; \
-    add_header Content-Security-Policy "default-src '\''self'\''; connect-src '\''self'\'' http://flask_backend:5000"; \
-    \
-    # Gzip Settings \
-    gzip on; \
-    gzip_vary on; \
-    gzip_min_length 10240; \
-    gzip_proxied expired no-cache no-store private auth; \
-    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml application/javascript; \
-    gzip_disable "MSIE [1-6]\."; \
-    \
-    # Cache Settings \
-    location /assets/ { \
-        expires 1y; \
-        add_header Cache-Control "public, no-transform"; \
-    } \
-    \
-    # SPA Settings \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-    \
-    # API Proxy \
-    location /api/ { \
-        proxy_pass http://flask_backend:5000/; \
-        proxy_http_version 1.1; \
-        proxy_set_header Upgrade $http_upgrade; \
-        proxy_set_header Connection '\''upgrade'\''; \
-        proxy_set_header Host $host; \
-        proxy_cache_bypass $http_upgrade; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
 
 # Set proper permissions
 RUN chown -R appuser:appgroup /var/cache/nginx && \

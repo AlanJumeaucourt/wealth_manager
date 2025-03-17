@@ -2,7 +2,11 @@ import { Account, Bank, RefundGroup, RefundItem, Transaction } from "@/types"
 import { handleTokenExpiration } from "@/utils/auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000"
+export const API_URL = import.meta.env.VITE_API_URL
+
+if (!API_URL) {
+  throw new Error("API_URL is not set")
+}
 
 // Define query key types
 type QueryKeyArray = readonly (string | number | undefined)[]
