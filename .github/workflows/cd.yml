@@ -1,0 +1,237 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "Domain to deploy to (only for production)"
+        required: false
+        default: "100.121.97.42.sslip.io"
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository }}-backend
+  FRONTEND_IMAGE: ${{ github.repository }}-frontend
+  BASE_DOMAIN: ${{ secrets.BASE_DOMAIN || '100.121.97.42.sslip.io' }}
+
+jobs:
+  setup_proxy:
+    runs-on: self-hosted
+    if: github.event.action != 'closed'
+    steps:
+      - name: Deploy nginx proxy if not exists
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/wealth_manager
+            if ! docker network inspect nginx-proxy-network >/dev/null 2>&1; then
+              mkdir -p proxy
+              cat > proxy/docker-compose.yml <<'EOL'
+version: "3.8"
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:latest
+    container_name: nginx-proxy-manager
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - nginx_certs:/etc/nginx/certs
+      - nginx_vhost:/etc/nginx/vhost.d
+      - nginx_html:/usr/share/nginx/html
+    networks:
+      - proxy-network
+    restart: always
+    labels:
+      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
+
+  letsencrypt:
+    image: nginxproxy/acme-companion:latest
+    container_name: nginx-proxy-letsencrypt
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx_certs:/etc/nginx/certs
+      - nginx_vhost:/etc/nginx/vhost.d
+      - nginx_html:/usr/share/nginx/html
+      - acme:/etc/acme.sh
+    networks:
+      - proxy-network
+    restart: always
+    depends_on:
+      - nginx-proxy
+    environment:
+      - DEFAULT_EMAIL=${SSL_EMAIL:-${{ secrets.SSL_EMAIL }}}
+
+networks:
+  proxy-network:
+    name: nginx-proxy-network
+    driver: bridge
+
+volumes:
+  nginx_certs:
+    name: nginx-proxy-certs
+  nginx_vhost:
+    name: nginx-proxy-vhost
+  nginx_html:
+    name: nginx-proxy-html
+  acme:
+    name: nginx-proxy-acme
+EOL
+              cd proxy && docker-compose up -d
+            fi
+
+  deploy:
+    needs: setup_proxy
+    runs-on: self-hosted
+    if: github.event.action != 'closed'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set environment and version
+        id: env
+        run: |
+          if [[ ${{ github.ref }} == 'refs/heads/main' ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
+            DOMAIN="${{ github.event.inputs.domain || secrets.PROD_DOMAIN || env.BASE_DOMAIN }}"
+          elif [[ ${{ github.ref }} == 'refs/heads/staging' ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")-rc.$(git rev-parse --short HEAD)"
+            DOMAIN="staging.${{ env.BASE_DOMAIN }}"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            echo "environment=pr-${PR_NUMBER}" >> $GITHUB_OUTPUT
+            VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")-pr${PR_NUMBER}.$(git rev-parse --short HEAD)"
+            DOMAIN="pr-${PR_NUMBER}.${{ env.BASE_DOMAIN }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.env.outputs.environment }}
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.env.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            ENVIRONMENT=${{ steps.env.outputs.environment }}
+            VERSION=${{ steps.env.outputs.version }}
+            DOMAIN=${{ steps.env.outputs.domain }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web_application
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ steps.env.outputs.environment }}
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ steps.env.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            ENVIRONMENT=${{ steps.env.outputs.environment }}
+            VERSION=${{ steps.env.outputs.version }}
+            DOMAIN=${{ steps.env.outputs.domain }}
+
+      - name: Deploy environment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/wealth_manager
+
+            # Create environment directory
+            mkdir -p environments/${{ steps.env.outputs.environment }}
+
+            # Create environment-specific compose file
+            cat > environments/${{ steps.env.outputs.environment }}/docker-compose.yml <<EOL
+version: "3.8"
+services:
+  web_application:
+    extends:
+      file: ../../docker-compose.base.yml
+      service: web_application
+    container_name: ${{ steps.env.outputs.environment }}_web_application
+    environment:
+      - NODE_ENV=${{ steps.env.outputs.environment }}
+      - DOMAIN=${{ steps.env.outputs.domain }}
+      - VIRTUAL_HOST=${{ steps.env.outputs.domain }}
+      - LETSENCRYPT_HOST=${{ steps.env.outputs.domain }}
+    image: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ steps.env.outputs.version }}
+
+  flask_backend:
+    extends:
+      file: ../../docker-compose.base.yml
+      service: flask_backend
+    container_name: ${{ steps.env.outputs.environment }}_flask_backend
+    environment:
+      - FLASK_ENV=${{ steps.env.outputs.environment }}
+      - ENVIRONMENT=${{ steps.env.outputs.environment }}
+    image: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.env.outputs.version }}
+
+networks:
+  app-network:
+    name: wealth_manager_${{ steps.env.outputs.environment }}_network
+  nginx-proxy-network:
+    external: true
+    name: nginx-proxy-network
+
+volumes:
+  sqlite_data:
+    name: wealth_manager_${{ steps.env.outputs.environment }}_db
+EOL
+
+            # Deploy the environment
+            cd environments/${{ steps.env.outputs.environment }}
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker-compose pull
+            docker-compose up -d
+
+  cleanup:
+    runs-on: self-hosted
+    if: github.event.action == 'closed' && github.event_name == 'pull_request'
+    steps:
+      - name: Clean up PR environment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/wealth_manager/environments/pr-${{ github.event.pull_request.number }}
+
+            # Stop and remove containers
+            docker-compose down
+
+            # Remove environment directory
+            cd ../..
+            rm -rf environments/pr-${{ github.event.pull_request.number }}
+
+            # Cleanup resources
+            docker volume rm wealth_manager_pr-${{ github.event.pull_request.number }}_db || true
+            docker network rm wealth_manager_pr-${{ github.event.pull_request.number }}_network || true

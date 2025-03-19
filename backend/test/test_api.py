@@ -56,7 +56,7 @@ AccountType = Literal["checking", "savings", "investment", "expense", "income"]
 class TestBase(unittest.TestCase):
     """Base test class with common functionality."""
 
-    base_url = "http://100.80.185.72:8000/api/v1"
+    base_url = "http://100.121.97.42/api"
     _test_users: list[dict[str, int | str]] = []
     jwt_token: str | None = None
 

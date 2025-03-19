@@ -5,51 +5,49 @@ services:
     extends:
       file: docker-compose.base.yml
       service: web_application
-    container_name: prod_web_application
-    ports:
-      - "80:80"
+    container_name: staging_web_application
     environment:
-      - NODE_ENV=production
-      - DOMAIN=${DOMAIN}
+      - NODE_ENV=staging
+      - DOMAIN=staging.100.121.97.42.sslip.io
     networks:
-      - prod-network
+      - staging-network
       - nginx-proxy
 
   flask_backend:
     extends:
       file: docker-compose.base.yml
       service: flask_backend
-    container_name: prod_flask_backend
+    container_name: staging_flask_backend
     environment:
-      - FLASK_ENV=production
+      - FLASK_ENV=staging
       - FLASK_DEBUG=0
-      - ENVIRONMENT=production
+      - ENVIRONMENT=staging
     networks:
-      - prod-network
+      - staging-network
 
   nginx-proxy:
     extends:
       file: docker-compose.base.yml
       service: nginx-proxy
-    container_name: prod_nginx_proxy
+    container_name: staging_nginx_proxy
     networks:
-      - prod-network
+      - staging-network
       - nginx-proxy
 
 networks:
-  prod-network:
-    name: wealth_manager_prod_network
+  staging-network:
+    name: wealth_manager_staging_network
     driver: bridge
   nginx-proxy:
-    name: wealth_manager_prod_proxy
+    name: wealth_manager_staging_proxy
     driver: bridge
 
 volumes:
   sqlite_data:
-    name: wealth_manager_prod_db
+    name: wealth_manager_staging_db
   nginx_certs:
-    name: wealth_manager_prod_certs
+    name: wealth_manager_staging_certs
   nginx_vhost:
-    name: wealth_manager_prod_vhost
+    name: wealth_manager_staging_vhost
   nginx_html:
-    name: wealth_manager_prod_html
+    name: wealth_manager_staging_html

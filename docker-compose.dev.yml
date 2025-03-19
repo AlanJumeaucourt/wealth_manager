@@ -2,94 +2,63 @@ version: "3.8"
 
 services:
   flask_backend:
-    container_name: flask_backend
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    # flask requires SIGINT to stop gracefully
-    # (default stop signal from Compose is SIGTERM)
-    stop_signal: SIGINT
+    extends:
+      file: docker-compose.base.yml
+      service: flask_backend
+    container_name: dev_flask_backend
     ports:
       - "5000:5000"
-    volumes:
-      - sqlite_data:/app/instance
-      - ./backend:/app:rw
     environment:
-      - FLASK_APP=app.py
       - FLASK_ENV=development
       - FLASK_DEBUG=1
-      - PYTHONUNBUFFERED=1
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - JWT_ACCESS_TOKEN_EXPIRES=3600
-      - JWT_REFRESH_TOKEN_EXPIRES=2592000
-      - SQLITE_DB_PATH=/app/instance/database.sqlite
-    restart: unless-stopped
+      - ENVIRONMENT=development
+    volumes:
+      - ./backend:/app
+      - /app/venv
     networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    mem_limit: 512M
-    develop:
-      watch:
-        - action: sync
-          path: ./backend
-          target: /app
-          ignore:
-            - .venv/
-            - __pycache__/
-            - '*.pyc'
-        - action: rebuild
-          path: ./backend/pyproject.toml
+      - dev-network
 
   web_application:
-    container_name: web_application
-    build:
-      context: ./web_application
-      dockerfile: Dockerfile
-      target: build
-      args:
-        - VITE_API_URL=${API_URL:-http://localhost:5000}
+    extends:
+      file: docker-compose.base.yml
+      service: web_application
+    container_name: dev_web_application
     ports:
-      - "5173:5173"
-    volumes:
-      - ./web_application:/app:rw
-      - node_modules:/app/node_modules:rw
-      - /app/node_modules/.vite  # Prevent host mounting of .vite cache
+      - "3000:80"
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=${API_URL:-http://localhost:5000}
-    command: bun run dev -- --host
-    restart: unless-stopped
+      - DOMAIN=dev.100.121.97.42.sslip.io
+      - VITE_API_URL=http://localhost:5000
+    volumes:
+      - ./web_application:/app
+      - /app/node_modules
     networks:
-      - app-network
-    depends_on:
-      flask_backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:5173/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    mem_limit: 1G
-    develop:
-      watch:
-        - action: rebuild
-          path: ./web_application/package.json
+      - dev-network
+      - nginx-proxy
+
+  nginx-proxy:
+    extends:
+      file: docker-compose.base.yml
+      service: nginx-proxy
+    container_name: dev_nginx_proxy
+    networks:
+      - dev-network
+      - nginx-proxy
 
 networks:
-  app-network:
+  dev-network:
+    name: wealth_manager_dev_network
     driver: bridge
-    name: wealth_manager_network
+  nginx-proxy:
+    name: wealth_manager_dev_proxy
+    driver: bridge
 
 volumes:
   sqlite_data:
-    driver: local
-  node_modules:
-    driver: local
-  backend_tmp:
-    driver: local
+    name: wealth_manager_dev_db
+  nginx_certs:
+    name: wealth_manager_dev_certs
+  nginx_vhost:
+    name: wealth_manager_dev_vhost
+  nginx_html:
+    name: wealth_manager_dev_html

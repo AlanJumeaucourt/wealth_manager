@@ -1,4 +1,4 @@
-import concurrent.futures  # {{ edit_1: Added import for concurrency }}
+import concurrent.futures
 import logging
 import time  # Added for cache expiration
 from io import StringIO
@@ -122,7 +122,7 @@ account_dictionary: dict[str, str] = {}
 
 
 def create_user(name: str, email: str, password: str):
-    url = "http://localhost:5000/users/register"  # Adjust the URL if necessary
+    url = "http://100.121.97.42/api/users/register"  # Adjust the URL if necessary
     headers = {"Content-Type": "application/json"}
     data = {"name": name, "email": email, "password": password}
     response = requests.post(url, json=data, headers=headers)
@@ -130,7 +130,7 @@ def create_user(name: str, email: str, password: str):
 
 
 def login_user(email: str, password: str):
-    url = "http://localhost:5000/users/login"  # Adjust the URL if necessary
+    url = "http://100.121.97.42/api/users/login"  # Adjust the URL if necessary
     headers = {"Content-Type": "application/json"}
     data = {"email": email, "password": password}
     response = requests.post(url, json=data, headers=headers)
@@ -165,7 +165,7 @@ def bank_id_from_account_name(account_name: str) -> int:
 
 
 def get_user_from_api(user_id: int):
-    url = f"http://localhost:5000/users/{user_id}"
+    url = f"http://100.121.97.42/api/users/{user_id}"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -175,7 +175,7 @@ def get_user_from_api(user_id: int):
 
 
 def get_banks_from_api() -> list[dict[str, Any]]:
-    url = "http://localhost:5000/banks"
+    url = "http://100.121.97.42/api/banks"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -188,7 +188,7 @@ def get_banks_from_api() -> list[dict[str, Any]]:
 
 
 def delete_user():
-    url = "http://localhost:5000/users"
+    url = "http://100.121.97.42/api/users"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -211,7 +211,7 @@ def get_accounts_from_api() -> list[dict[str, Any]]:
             return _accounts_cache
 
         # Cache is invalid or doesn't exist, fetch from API
-        url = "http://localhost:5000/accounts?per_page=1000"
+        url = "http://100.121.97.42/api/accounts?per_page=1000"
         headers = {
             "Authorization": f"Bearer {jwt_token}",
             "Content-Type": "application/json",
@@ -233,7 +233,7 @@ def get_accounts_from_api() -> list[dict[str, Any]]:
 
 
 def create_bank_in_api(bank_name: str, website: str = None):
-    url = "http://localhost:5000/banks"  # Adjust the URL if necessary
+    url = "http://100.121.97.42/api/banks"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
@@ -261,7 +261,7 @@ def create_bank_in_api(bank_name: str, website: str = None):
 def create_account_in_api(
     account_name: str, account_type: str, currency: str, bank_id: int
 ):
-    url = "http://localhost:5000/accounts"  # Adjust the URL if necessary
+    url = "http://100.121.97.42/api/accounts"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
@@ -333,7 +333,7 @@ def get_account_id_from_name(account_name: str, account_type: str):
 
 
 def create_transaction_in_api(transaction_data: dict[str, Any]) -> requests.Response:
-    url = "http://localhost:5000/transactions"
+    url = "http://100.121.97.42/api/transactions"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
@@ -511,7 +511,7 @@ def transform_budgets_to_categories(
 
 
 def get_transactions_from_api(number_of_transactions: int = 1000) -> requests.Response:
-    url = f"http://localhost:5000/transactions?per_page={number_of_transactions}&page=1"  # Adjust the URL if necessary
+    url = f"http://100.121.97.42/api/transactions?per_page={number_of_transactions}&page=1"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
@@ -521,7 +521,7 @@ def get_transactions_from_api(number_of_transactions: int = 1000) -> requests.Re
 
 
 def get_wealth_from_api() -> requests.Response:
-    url = "http://localhost:5000/accounts/balance_over_time?start_date=2024-01-01&end_date=2024-08-12"  # Adjust the URL if necessary
+    url = "http://100.121.97.42/api/accounts/balance_over_time?start_date=2024-01-01&end_date=2024-08-12"  # Adjust the URL if necessary
     headers = {
         "Authorization": f"Bearer {jwt_token}",  # Replace with actual JWT token
         "Content-Type": "application/json",
@@ -628,6 +628,11 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
                 account_type_mapping.get(row["destination_type"], "Unknown"),
             )
 
+            if row["source_name"] == "Boursorama Espèce CTO" and row["destination_name"] == "Boursorama CTO":
+                continue
+            if row["source_name"] == "Boursorama Espèce PEA" and row["destination_name"] == "Boursorama PEA":
+                continue
+
             if not any(
                 f"{row['source_name']}|{source_account_type}" in account
                 for account in missing_accounts
@@ -686,7 +691,6 @@ def fetch_and_filter_transactions(file_path: str, add_transactions: bool = False
         raise
 
 
-# {{ edit_3: Added helper function to process a batch of transactions }}
 def process_batch(
     batch: pd.DataFrame, existing_transactions: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -792,7 +796,7 @@ def process_batch(
 
 
 # Call the function with the path to your CSV file
-fetch_and_filter_transactions("firefly_export.csv", True)
+# fetch_and_filter_transactions("firefly_export.csv", True)
 
 
 def process_investment_csv(csv_data: str, account_name: str):
@@ -922,7 +926,7 @@ def get_or_create_asset(symbol: str) -> int:
 
     """
     # First try to get the asset
-    url = f"http://localhost:5000/assets?symbol={symbol}"
+    url = f"http://100.121.97.42/api/assets?symbol={symbol}"
     headers = {"Authorization": f"Bearer {jwt_token}"}
     response = requests.get(url, headers=headers)
 
@@ -932,7 +936,7 @@ def get_or_create_asset(symbol: str) -> int:
             return assets["items"][0]["id"]
 
     # If not found, create it
-    url = "http://localhost:5000/assets"
+    url = "http://100.121.97.42/api/assets"
     data = {
         "symbol": symbol,
         "name": symbol,  # You might want to fetch the actual name from an API
@@ -956,7 +960,7 @@ def create_investment_transaction_in_api(
         requests.Response: The API response
 
     """
-    url = "http://localhost:5000/investments"
+    url = "http://100.121.97.42/api/investments"
     headers = {
         "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
