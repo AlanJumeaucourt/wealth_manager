@@ -51,6 +51,8 @@ services:
       context: ./web_application
       dockerfile: Dockerfile
       target: build
+      args:
+        - VITE_API_URL=${API_URL:-http://localhost:5000}
     ports:
       - "5173:5173"
     volumes:
