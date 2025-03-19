@@ -4,8 +4,7 @@ FROM oven/bun:1-slim AS build
 WORKDIR /app
 
 # Add ARG for API URL
-ARG API_URL
-ENV VITE_API_URL=$API_URL
+ARG VITE_API_URL
 
 # Copy package files for better caching
 COPY package.json bun.lockb ./
@@ -17,7 +16,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 # Build the application with production optimization
-RUN bun run build
+RUN VITE_API_URL=$VITE_API_URL bun run build
 
 # Production stage
 FROM nginx:alpine AS production
@@ -26,9 +25,13 @@ FROM nginx:alpine AS production
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
-# Set up nginx with external configuration
+# Copy nginx template and entrypoint script
+COPY nginx.template.conf /etc/nginx/templates/
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Copy static files
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Set proper permissions
 RUN chown -R appuser:appgroup /var/cache/nginx && \
@@ -36,7 +39,8 @@ RUN chown -R appuser:appgroup /var/cache/nginx && \
     chown -R appuser:appgroup /etc/nginx/conf.d && \
     touch /var/run/nginx.pid && \
     chown -R appuser:appgroup /var/run/nginx.pid && \
-    chmod -R 755 /usr/share/nginx/html
+    chmod -R 755 /usr/share/nginx/html && \
+    chmod -R 755 /etc/nginx/templates
 
 # Switch to non-root user
 USER appuser
@@ -48,4 +52,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Expose port
 EXPOSE 80
 
+# Use our custom entrypoint
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

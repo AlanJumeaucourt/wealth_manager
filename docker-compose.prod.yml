@@ -12,6 +12,10 @@ services:
       - "80:80"
     environment:
       - NODE_ENV=production
+      - VITE_API_URL=${API_URL}
+      - SERVER_NAME=${SERVER_NAME:-localhost}
+      - API_URL=${API_URL:-http://localhost:5000}
+      - BACKEND_URL=${BACKEND_URL:-http://flask_backend:5000/}
     restart: unless-stopped
     networks:
       - app-network
