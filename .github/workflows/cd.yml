@@ -231,7 +231,15 @@ jobs:
   cleanup:
     runs-on: self-hosted
     if: github.event.action == 'closed' && github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      packages: write
     steps:
+      - name: Setup Docker permissions
+        run: |
+          sudo chown $USER:docker /var/run/docker.sock
+          sudo chmod 666 /var/run/docker.sock
+
       - name: Clean up PR environment
         uses: appleboy/ssh-action@v1.0.0
         with:
