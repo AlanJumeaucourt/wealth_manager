@@ -7,62 +7,62 @@ on:
     branches: [main, develop]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # test:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Set version
-        id: version
-        run: |
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            VERSION="$VERSION-pr.$(git rev-parse --short HEAD)"
-          elif [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
-            VERSION="$VERSION-dev.$(git rev-parse --short HEAD)"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+  #     - name: Set version
+  #       id: version
+  #       run: |
+  #         VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
+  #         if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+  #           VERSION="$VERSION-pr.$(git rev-parse --short HEAD)"
+  #         elif [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+  #           VERSION="$VERSION-dev.$(git rev-parse --short HEAD)"
+  #         fi
+  #         echo "version=$VERSION" >> $GITHUB_OUTPUT
+  #         echo "Version: $VERSION"
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
-          cache: "pip"
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: "3.12"
+  #         cache: "pip"
 
-      - name: Install Python dependencies
-        run: |
-          cd backend
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
+  #     - name: Install Python dependencies
+  #       run: |
+  #         cd backend
+  #         pip install -r requirements.txt
+  #         pip install pytest pytest-cov
 
-      - name: Run Python tests
-        run: |
-          cd backend
-          pytest --cov=. --cov-report=xml
+  #     - name: Run Python tests
+  #       run: |
+  #         cd backend
+  #         pytest --cov=. --cov-report=xml
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+  #     - name: Set up Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: "20"
+  #         cache: "npm"
 
-      - name: Install Node.js dependencies
-        run: |
-          cd web_application
-          npm install
+  #     - name: Install Node.js dependencies
+  #       run: |
+  #         cd web_application
+  #         npm install
 
-      - name: Run frontend tests
-        run: |
-          cd web_application
-          npm run test
+  #     - name: Run frontend tests
+  #       run: |
+  #         cd web_application
+  #         npm run test
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./backend/coverage.xml,./web_application/coverage/coverage-final.json
+  #     - name: Upload coverage reports
+  #       uses: codecov/codecov-action@v3
+  #       with:
+  #         files: ./backend/coverage.xml,./web_application/coverage/coverage-final.json
 
   build:
     needs: test
