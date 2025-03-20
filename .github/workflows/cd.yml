@@ -24,7 +24,15 @@ jobs:
   setup_proxy:
     runs-on: self-hosted
     if: github.event.action != 'closed'
+    permissions:
+      contents: read
+      packages: write
     steps:
+      - name: Setup Docker permissions
+        run: |
+          sudo chown $USER:docker /var/run/docker.sock
+          sudo chmod 666 /var/run/docker.sock
+
       - name: Deploy nginx proxy if not exists
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -94,7 +102,15 @@ jobs:
     needs: setup_proxy
     runs-on: self-hosted
     if: github.event.action != 'closed'
+    permissions:
+      contents: read
+      packages: write
     steps:
+      - name: Setup Docker permissions
+        run: |
+          sudo chown $USER:docker /var/run/docker.sock
+          sudo chmod 666 /var/run/docker.sock
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
