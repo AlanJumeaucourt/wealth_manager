@@ -35,58 +35,58 @@ jobs:
             cd /opt/wealth_manager
             if ! docker network inspect nginx-proxy-network >/dev/null 2>&1; then
               mkdir -p proxy
-              cat > proxy/docker-compose.yml <<'EOL'
-version: "3.8"
-services:
-  nginx-proxy:
-    image: nginxproxy/nginx-proxy:latest
-    container_name: nginx-proxy-manager
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - nginx_certs:/etc/nginx/certs
-      - nginx_vhost:/etc/nginx/vhost.d
-      - nginx_html:/usr/share/nginx/html
-    networks:
-      - proxy-network
-    restart: always
-    labels:
-      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
+              cat > proxy/docker-compose.yml << \EOF
+              version: "3.8"
+              services:
+                nginx-proxy:
+                  image: nginxproxy/nginx-proxy:latest
+                  container_name: nginx-proxy-manager
+                  ports:
+                    - "80:80"
+                    - "443:443"
+                  volumes:
+                    - /var/run/docker.sock:/tmp/docker.sock:ro
+                    - nginx_certs:/etc/nginx/certs
+                    - nginx_vhost:/etc/nginx/vhost.d
+                    - nginx_html:/usr/share/nginx/html
+                  networks:
+                    - proxy-network
+                  restart: always
+                  labels:
+                    - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
 
-  letsencrypt:
-    image: nginxproxy/acme-companion:latest
-    container_name: nginx-proxy-letsencrypt
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - nginx_certs:/etc/nginx/certs
-      - nginx_vhost:/etc/nginx/vhost.d
-      - nginx_html:/usr/share/nginx/html
-      - acme:/etc/acme.sh
-    networks:
-      - proxy-network
-    restart: always
-    depends_on:
-      - nginx-proxy
-    environment:
-      - DEFAULT_EMAIL=${SSL_EMAIL:-${{ secrets.SSL_EMAIL }}}
+                letsencrypt:
+                  image: nginxproxy/acme-companion:latest
+                  container_name: nginx-proxy-letsencrypt
+                  volumes:
+                    - /var/run/docker.sock:/var/run/docker.sock:ro
+                    - nginx_certs:/etc/nginx/certs
+                    - nginx_vhost:/etc/nginx/vhost.d
+                    - nginx_html:/usr/share/nginx/html
+                    - acme:/etc/acme.sh
+                  networks:
+                    - proxy-network
+                  restart: always
+                  depends_on:
+                    - nginx-proxy
+                  environment:
+                    - DEFAULT_EMAIL=\${SSL_EMAIL:-${{ secrets.SSL_EMAIL }}}
 
-networks:
-  proxy-network:
-    name: nginx-proxy-network
-    driver: bridge
+              networks:
+                proxy-network:
+                  name: nginx-proxy-network
+                  driver: bridge
 
-volumes:
-  nginx_certs:
-    name: nginx-proxy-certs
-  nginx_vhost:
-    name: nginx-proxy-vhost
-  nginx_html:
-    name: nginx-proxy-html
-  acme:
-    name: nginx-proxy-acme
-EOL
+              volumes:
+                nginx_certs:
+                  name: nginx-proxy-certs
+                nginx_vhost:
+                  name: nginx-proxy-vhost
+                nginx_html:
+                  name: nginx-proxy-html
+                acme:
+                  name: nginx-proxy-acme
+              EOF
               cd proxy && docker-compose up -d
             fi
 
@@ -164,47 +164,43 @@ EOL
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /opt/wealth_manager
-
-            # Create environment directory
             mkdir -p environments/${{ steps.env.outputs.environment }}
-
-            # Create environment-specific compose file
-            cat > environments/${{ steps.env.outputs.environment }}/docker-compose.yml <<EOL
-version: "3.8"
-services:
-  web_application:
-    extends:
-      file: ../../docker-compose.base.yml
-      service: web_application
-    container_name: ${{ steps.env.outputs.environment }}_web_application
-    environment:
-      - NODE_ENV=${{ steps.env.outputs.environment }}
-      - DOMAIN=${{ steps.env.outputs.domain }}
-      - VIRTUAL_HOST=${{ steps.env.outputs.domain }}
-      - LETSENCRYPT_HOST=${{ steps.env.outputs.domain }}
-    image: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ steps.env.outputs.version }}
-
-  flask_backend:
-    extends:
-      file: ../../docker-compose.base.yml
-      service: flask_backend
-    container_name: ${{ steps.env.outputs.environment }}_flask_backend
-    environment:
-      - FLASK_ENV=${{ steps.env.outputs.environment }}
-      - ENVIRONMENT=${{ steps.env.outputs.environment }}
-    image: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.env.outputs.version }}
-
-networks:
-  app-network:
-    name: wealth_manager_${{ steps.env.outputs.environment }}_network
-  nginx-proxy-network:
-    external: true
-    name: nginx-proxy-network
-
-volumes:
-  sqlite_data:
-    name: wealth_manager_${{ steps.env.outputs.environment }}_db
-EOL
+            {
+              echo "version: '3.8'"
+              echo "services:"
+              echo "  web_application:"
+              echo "    extends:"
+              echo "      file: ../../docker-compose.base.yml"
+              echo "      service: web_application"
+              echo "    container_name: ${{ steps.env.outputs.environment }}_web_application"
+              echo "    environment:"
+              echo "      - NODE_ENV=${{ steps.env.outputs.environment }}"
+              echo "      - DOMAIN=${{ steps.env.outputs.domain }}"
+              echo "      - VIRTUAL_HOST=${{ steps.env.outputs.domain }}"
+              echo "      - LETSENCRYPT_HOST=${{ steps.env.outputs.domain }}"
+              echo "    image: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ steps.env.outputs.version }}"
+              echo ""
+              echo "  flask_backend:"
+              echo "    extends:"
+              echo "      file: ../../docker-compose.base.yml"
+              echo "      service: flask_backend"
+              echo "    container_name: ${{ steps.env.outputs.environment }}_flask_backend"
+              echo "    environment:"
+              echo "      - FLASK_ENV=${{ steps.env.outputs.environment }}"
+              echo "      - ENVIRONMENT=${{ steps.env.outputs.environment }}"
+              echo "    image: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.env.outputs.version }}"
+              echo ""
+              echo "networks:"
+              echo "  app-network:"
+              echo "    name: wealth_manager_${{ steps.env.outputs.environment }}_network"
+              echo "  nginx-proxy-network:"
+              echo "    external: true"
+              echo "    name: nginx-proxy-network"
+              echo ""
+              echo "volumes:"
+              echo "  sqlite_data:"
+              echo "    name: wealth_manager_${{ steps.env.outputs.environment }}_db"
+            } > environments/${{ steps.env.outputs.environment }}/docker-compose.yml
 
             # Deploy the environment
             cd environments/${{ steps.env.outputs.environment }}
