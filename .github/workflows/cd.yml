@@ -163,6 +163,10 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            # Ensure user has docker permissions
+            sudo usermod -aG docker $USER
+            newgrp docker
+
             cd /opt/wealth_manager
             mkdir -p environments/${{ steps.env.outputs.environment }}
             {
@@ -204,9 +208,9 @@ jobs:
 
             # Deploy the environment
             cd environments/${{ steps.env.outputs.environment }}
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker-compose pull
-            docker-compose up -d
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            sudo docker-compose pull
+            sudo docker-compose up -d
 
   cleanup:
     runs-on: self-hosted
