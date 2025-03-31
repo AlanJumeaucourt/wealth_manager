@@ -1,0 +1,10 @@
+FROM oven/bun:1
+
+WORKDIR /app
+
+# Install dependencies
+COPY package.json bun.lockb ./
+RUN bun install
+
+# Development stage command with hot reload
+CMD ["bun", "run", "dev", "--host"]

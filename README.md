@@ -113,6 +113,44 @@ npm install
 npm run dev
 ```
 
+## 🐳 Docker Setup
+
+### Prerequisites
+- Docker
+- Docker Compose
+
+### Development Environment
+```bash
+# Start the development environment
+docker compose -f docker-compose.dev.yml up
+
+# Populate the database with sample data
+docker compose -f docker-compose.dev.yml exec backend python3 /app/test/add_api_fake_data.py --months 12
+```
+
+The development environment will be available at:
+- Backend API: http://localhost:5000
+- Web Application: http://localhost:5173
+
+### Production Environment
+```bash
+# Start the production environment
+docker compose -f docker-compose.prod.yml up
+
+# Or with a custom API URL (must be set at build time)
+API_URL=https://api.example.com docker compose -f docker-compose.prod.yml up --build
+```
+
+The production environment will be available at:
+- Backend API: http://localhost:5000
+- Web Application: http://localhost:80
+
+### Environment Variables
+- `API_URL`: URL of the backend API accessible from the users
+  - Development: Can be changed at runtime (default: http://localhost:5000)
+  - Production: Must be set at build time (default: http://localhost:5000)
+- `JWT_SECRET_KEY`: Secret key for JWT authentication (default: your-secret-key-here)
+
 ## 📚 Documentation
 - [API Documentation](backend/README.md)
 - [Mobile App Guide](frontend/README.md)

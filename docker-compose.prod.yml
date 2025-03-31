@@ -1,55 +1,36 @@
-version: "3.8"
-
 services:
-  web_application:
-    extends:
-      file: docker-compose.base.yml
-      service: web_application
-    container_name: prod_web_application
-    ports:
-      - "80:80"
-    environment:
-      - NODE_ENV=production
-      - DOMAIN=${DOMAIN}
-    networks:
-      - prod-network
-      - nginx-proxy
-
-  flask_backend:
-    extends:
-      file: docker-compose.base.yml
-      service: flask_backend
-    container_name: prod_flask_backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    volumes:
+      - backend_data:/app/data
     environment:
       - FLASK_ENV=production
-      - FLASK_DEBUG=0
-      - ENVIRONMENT=production
+      - FLASK_APP=run.py
+      - SQLITE_DB_PATH=/app/data/wealth.db
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-here}
+    ports:
+      - "5000:5000"
     networks:
-      - prod-network
+      - wealth-network
 
-  nginx-proxy:
-    extends:
-      file: docker-compose.base.yml
-      service: nginx-proxy
-    container_name: prod_nginx_proxy
+  web_application:
+    build:
+      context: ./web_application
+      dockerfile: Dockerfile.prod
+      args:
+        - VITE_API_URL=${API_URL:-http://localhost:5000}
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
     networks:
-      - prod-network
-      - nginx-proxy
+      - wealth-network
 
 networks:
-  prod-network:
-    name: wealth_manager_prod_network
-    driver: bridge
-  nginx-proxy:
-    name: wealth_manager_prod_proxy
+  wealth-network:
     driver: bridge
 
 volumes:
-  sqlite_data:
-    name: wealth_manager_prod_db
-  nginx_certs:
-    name: wealth_manager_prod_certs
-  nginx_vhost:
-    name: wealth_manager_prod_vhost
-  nginx_html:
-    name: wealth_manager_prod_html
+  backend_data:

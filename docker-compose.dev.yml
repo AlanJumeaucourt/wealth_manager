@@ -1,64 +1,40 @@
-version: "3.8"
-
 services:
-  flask_backend:
-    extends:
-      file: docker-compose.base.yml
-      service: flask_backend
-    container_name: dev_flask_backend
-    ports:
-      - "5000:5000"
-    environment:
-      - FLASK_ENV=development
-      - FLASK_DEBUG=1
-      - ENVIRONMENT=development
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
     volumes:
       - ./backend:/app
-      - /app/venv
+      - backend_data:/app/data
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=run.py
+      - SQLITE_DB_PATH=/app/data/wealth.db
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-here}
+    ports:
+      - "5000:5000"
     networks:
-      - dev-network
+      - wealth-network
 
   web_application:
-    extends:
-      file: docker-compose.base.yml
-      service: web_application
-    container_name: dev_web_application
-    ports:
-      - "3000:80"
-    environment:
-      - NODE_ENV=development
-      - DOMAIN=dev.100.121.97.42.sslip.io
-      - VITE_API_URL=http://localhost:5000
+    build:
+      context: ./web_application
+      dockerfile: Dockerfile.dev
     volumes:
       - ./web_application:/app
       - /app/node_modules
+    environment:
+      - VITE_API_URL=${API_URL:-http://localhost:5000}
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
     networks:
-      - dev-network
-      - nginx-proxy
-
-  nginx-proxy:
-    extends:
-      file: docker-compose.base.yml
-      service: nginx-proxy
-    container_name: dev_nginx_proxy
-    networks:
-      - dev-network
-      - nginx-proxy
+      - wealth-network
 
 networks:
-  dev-network:
-    name: wealth_manager_dev_network
-    driver: bridge
-  nginx-proxy:
-    name: wealth_manager_dev_proxy
+  wealth-network:
     driver: bridge
 
 volumes:
-  sqlite_data:
-    name: wealth_manager_dev_db
-  nginx_certs:
-    name: wealth_manager_dev_certs
-  nginx_vhost:
-    name: wealth_manager_dev_vhost
-  nginx_html:
-    name: wealth_manager_dev_html
+  backend_data:
