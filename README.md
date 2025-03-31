@@ -102,8 +102,8 @@ VITE_API_URL=http://localhost:5000 bun run dev --host
 1. Mobile App:
 ```bash
 cd frontend
-npm install
-expo start
+bun install
+bun run start
 ```
 
 1. Showcase Website:

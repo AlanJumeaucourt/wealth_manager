@@ -13,13 +13,15 @@
     "predeploy": "expo export:web",
     "deploy": "gh-pages -d web-build",
     "deploy-gh-pages": "npm run predeploy && npm run deploy",
-    "knip": "knip"
+    "knip": "knip",
+    "eas": "eas"
   },
   "jest": {
     "preset": "jest-expo"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.0",
+    "@expo/ngrok": "^4.1.0",
     "@expo/vector-icons": "^14.0.3",
     "@react-native-async-storage/async-storage": "^2.1.0",
     "@react-native-community/datetimepicker": "8.2.0",
