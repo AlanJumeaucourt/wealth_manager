@@ -15,7 +15,6 @@ import { useMemo } from "react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -135,7 +134,10 @@ const MinimalSidebar = React.memo(({ className, ...props }: React.ComponentProps
     {...props}
   >
     <SidebarHeader className="p-4">
-      <TeamSwitcher teams={STATIC_DATA.teams} />
+      <div className="flex items-center gap-3 p-2 border-b border-sidebar-border">
+        <img src="/logo.webp" alt="WealthManager Logo" className="h-8 w-8 shrink-0" />
+        <h1 className="text-xl font-bold tracking-tight font-mono">WealthManager</h1>
+      </div>
     </SidebarHeader>
     <SidebarContent className="px-2">
       <SidebarGroup>
@@ -193,7 +195,10 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
       {...props}
     >
       <SidebarHeader className="p-4">
-        <TeamSwitcher teams={STATIC_DATA.teams} />
+        <div className="flex items-center gap-3 p-2 border-b border-sidebar-border">
+          <img src="/logo.webp" alt="WealthManager Logo" className="h-8 w-8 shrink-0" />
+          <h1 className="text-xl tracking-tight font-serif">WealthManager</h1>
+        </div>
       </SidebarHeader>
       <SidebarContent className="px-2">
         <SidebarGroup>
