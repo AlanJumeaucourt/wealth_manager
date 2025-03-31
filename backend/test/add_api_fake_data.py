@@ -12,6 +12,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import argparse
+import yfinance as yf
+import pandas as pd
 
 import requests
 
@@ -34,30 +36,6 @@ class TransactionPattern:
     day_of_month: int | None  # Fixed day or None for random
     frequency: str  # 'monthly', 'weekly', 'biweekly', 'variable'
     probability: float = 1.0  # Probability of occurrence when frequency is 'variable'
-
-class MarketSimulator:
-    def __init__(self, base_volatility: float = 0.05):
-        self.base_volatility = base_volatility
-        self.market_sentiment = 0.0  # Range from -1 (very bearish) to 1 (very bullish)
-        self.trend_momentum = 0.0
-
-    def update_market_conditions(self) -> None:
-        # Update market sentiment (mean-reverting random walk)
-        self.market_sentiment += random.uniform(-0.2, 0.2)
-        self.market_sentiment = max(-1.0, min(1.0, self.market_sentiment * 0.95))
-
-        # Update momentum (also mean-reverting)
-        self.trend_momentum += random.uniform(-0.1, 0.1)
-        self.trend_momentum = max(-0.5, min(0.5, self.trend_momentum * 0.9))
-
-    def get_market_factor(self) -> float:
-        # Combine base volatility, sentiment and momentum
-        volatility = self.base_volatility * (1.0 + abs(self.market_sentiment))
-        base_change = random.gauss(0, volatility)
-        sentiment_impact = self.market_sentiment * 0.02  # Max 2% impact from sentiment
-        momentum_impact = self.trend_momentum * 0.01    # Max 1% impact from momentum
-
-        return 1.0 + base_change + sentiment_impact + momentum_impact
 
 class WealthManagerAPI:
     def __init__(self, base_url: str | None = None) -> None:
@@ -307,7 +285,6 @@ class TestDataCreator:
             "password": "test123",
         }
         self.number_of_months = number_of_months
-        self.market_simulator = MarketSimulator()
 
         # Initialize task queue and worker
         self.task_queue = Queue()
@@ -332,8 +309,8 @@ class TestDataCreator:
             ),
             TransactionPattern(
                 description="Freelance Work",
-                category="Revenus complémentaires",
-                subcategory="Freelance",
+                category="Services",
+                subcategory=None,
                 base_amount=500.00,
                 variance=0.5,  # High variance
                 day_of_month=None,
@@ -342,8 +319,8 @@ class TestDataCreator:
             ),
             TransactionPattern(
                 description="Dividend Payment",
-                category="Revenus financiers",
-                subcategory="Dividendes",
+                category="Investissements",
+                subcategory=None,
                 base_amount=200.00,
                 variance=0.2,
                 day_of_month=15,
@@ -403,7 +380,7 @@ class TestDataCreator:
             TransactionPattern(
                 description="Netflix Subscription",
                 category="Abonnements",
-                subcategory="Streaming",
+                subcategory="Abonnements - Autres",
                 base_amount=15.99,
                 variance=0.0,
                 day_of_month=3,
@@ -412,7 +389,7 @@ class TestDataCreator:
             TransactionPattern(
                 description="Spotify Premium",
                 category="Abonnements",
-                subcategory="Streaming",
+                subcategory="Abonnements - Autres",
                 base_amount=9.99,
                 variance=0.0,
                 day_of_month=21,
@@ -432,7 +409,7 @@ class TestDataCreator:
             TransactionPattern(
                 description="Restaurant Lunch",
                 category="Alimentation & Restauration",
-                subcategory="Restaurant",
+                subcategory="Restaurants",
                 base_amount=15.00,
                 variance=0.3,
                 day_of_month=None,
@@ -443,8 +420,8 @@ class TestDataCreator:
             # Transportation
             TransactionPattern(
                 description="Public Transport Pass",
-                category="Transport",
-                subcategory="Transport en commun",
+                category="Auto & Transports",
+                subcategory="Auto & Transports - Autres",
                 base_amount=75.00,
                 variance=0.0,
                 day_of_month=1,
@@ -452,7 +429,7 @@ class TestDataCreator:
             ),
             TransactionPattern(
                 description="Fuel",
-                category="Transport",
+                category="Auto & Transports",
                 subcategory="Carburant",
                 base_amount=60.00,
                 variance=0.3,
@@ -464,7 +441,7 @@ class TestDataCreator:
             TransactionPattern(
                 description="Cinema",
                 category="Loisirs & Sorties",
-                subcategory="Cinéma",
+                subcategory="Divertissements",
                 base_amount=25.00,
                 variance=0.2,
                 day_of_month=None,
@@ -474,7 +451,7 @@ class TestDataCreator:
             TransactionPattern(
                 description="Restaurant Dinner",
                 category="Alimentation & Restauration",
-                subcategory="Restaurant",
+                subcategory="Restaurants",
                 base_amount=45.00,
                 variance=0.5,
                 day_of_month=None,
@@ -495,8 +472,8 @@ class TestDataCreator:
             # Shopping
             TransactionPattern(
                 description="Clothing",
-                category="Shopping",
-                subcategory="Vêtements",
+                category="Achats & Shopping",
+                subcategory="Vêtements/Chaussures",
                 base_amount=120.00,
                 variance=0.7,
                 day_of_month=None,
@@ -505,8 +482,8 @@ class TestDataCreator:
             ),
             TransactionPattern(
                 description="Amazon Shopping",
-                category="Shopping",
-                subcategory="E-commerce",
+                category="Achats & Shopping",
+                subcategory="Achats & Shopping - Autres",
                 base_amount=50.00,
                 variance=0.8,
                 day_of_month=None,
@@ -528,7 +505,7 @@ class TestDataCreator:
             TransactionPattern(
                 description="Gym Membership",
                 category="Sport",
-                subcategory="Salle de sport",
+                subcategory="Sport",
                 base_amount=45.00,
                 variance=0.0,
                 day_of_month=5,
@@ -549,7 +526,7 @@ class TestDataCreator:
             TransactionPattern(
                 description="Investment Transfer",
                 category="Banque",
-                subcategory="Investissement",
+                subcategory="Epargne",
                 base_amount=500.00,
                 variance=0.3,
                 day_of_month=27,  # Two days after salary
@@ -675,52 +652,27 @@ class TestDataCreator:
         """Generate all investment transactions locally."""
         logger.info("Generating investment transactions...")
 
-        # Create assets data structure
+        # Create assets data structure with real ETFs
         assets = [
             {
-                "symbol": "PE500.PA.FAKE",
-                "name": "Amundi PEA S&P 500 ESG UCITS ETF Acc",
-                "initial_price": 33.00,
-                "beta": 1.0,  # Market sensitivity
-                "expense_ratio": 0.0015,  # 0.15% annual fee
-                "dividend_yield": 0.0,  # Accumulating ETF
-                "volatility": 0.15  # Base volatility
+                "symbol": "PE500.PA",  # Amundi PEA S&P 500 ESG UCITS ETF Acc
+                "name": "Amundi PEA S&P 500 ESG UCITS ETF Acc"
             },
             {
-                "symbol": "LYPS.DE.FAKE",
-                "name": "Amundi S&P 500 II UCITS ETF",
-                "initial_price": 40.00,
-                "beta": 0.95,
-                "expense_ratio": 0.0018,
-                "dividend_yield": 0.02,  # 2% annual dividend yield
-                "volatility": 0.14
+                "symbol": "LYPS.DE",  # Amundi S&P 500 II UCITS ETF
+                "name": "Amundi S&P 500 II UCITS ETF"
             },
             {
-                "symbol": "IWDA.AS.FAKE",
-                "name": "iShares Core MSCI World UCITS ETF USD (Acc)",
-                "initial_price": 76.25,
-                "beta": 0.98,
-                "expense_ratio": 0.002,
-                "dividend_yield": 0.0,
-                "volatility": 0.13
+                "symbol": "IWDA.AS",  # iShares Core MSCI World UCITS ETF USD (Acc)
+                "name": "iShares Core MSCI World UCITS ETF USD (Acc)"
             },
             {
-                "symbol": "VWCE.DE.FAKE",
-                "name": "Vanguard FTSE All-World UCITS ETF USD Acc",
-                "initial_price": 95.50,
-                "beta": 1.02,
-                "expense_ratio": 0.0022,
-                "dividend_yield": 0.0,
-                "volatility": 0.14
+                "symbol": "VWCE.DE",  # Vanguard FTSE All-World UCITS ETF USD Acc
+                "name": "Vanguard FTSE All-World UCITS ETF USD Acc"
             },
             {
-                "symbol": "EUNA.PA.FAKE",
-                "name": "Amundi EURO STOXX 50 UCITS ETF EUR",
-                "initial_price": 125.30,
-                "beta": 1.15,
-                "expense_ratio": 0.0015,
-                "dividend_yield": 0.025,
-                "volatility": 0.18
+                "symbol": "C50.PA",  # Amundi EURO STOXX 50 UCITS ETF-C EUR
+                "name": "Amundi EURO STOXX 50 UCITS ETF-C EUR"
             }
         ]
 
@@ -729,7 +681,7 @@ class TestDataCreator:
             symbol: {
                 "quantity": 0.0,
                 "cost_basis": 0.0,
-                "last_price": asset["initial_price"]
+                "last_price": 0.0
             }
             for symbol, asset in zip([a["symbol"] for a in assets], assets)
         }
@@ -743,35 +695,35 @@ class TestDataCreator:
         # Investment strategies with target allocations and rebalancing rules
         investment_strategies = [
             {
-                "symbol": "PE500.PA.FAKE",
+                "symbol": "PE500.PA",
                 "target_allocation": 0.35,  # 35% of portfolio
                 "monthly_base_amount": 1000.0,
                 "rebalance_threshold": 0.05,  # Rebalance when 5% off target
                 "broker_fee": 1.50
             },
             {
-                "symbol": "LYPS.DE.FAKE",
+                "symbol": "LYPS.DE",
                 "target_allocation": 0.15,
                 "monthly_base_amount": 500.0,
                 "rebalance_threshold": 0.05,
                 "broker_fee": 1.25
             },
             {
-                "symbol": "IWDA.AS.FAKE",
+                "symbol": "IWDA.AS",
                 "target_allocation": 0.20,
                 "monthly_base_amount": 600.0,
                 "rebalance_threshold": 0.05,
                 "broker_fee": 1.75
             },
             {
-                "symbol": "VWCE.DE.FAKE",
+                "symbol": "VWCE.DE",
                 "target_allocation": 0.20,
                 "monthly_base_amount": 600.0,
                 "rebalance_threshold": 0.05,
                 "broker_fee": 1.50
             },
             {
-                "symbol": "EUNA.PA.FAKE",
+                "symbol": "EUNA.PA",
                 "target_allocation": 0.10,
                 "monthly_base_amount": 300.0,
                 "rebalance_threshold": 0.05,
@@ -779,11 +731,23 @@ class TestDataCreator:
             }
         ]
 
+        # Fetch historical data for all assets
+        historical_data = {}
+        for asset in assets:
+            try:
+                ticker = yf.Ticker(asset["symbol"])
+                hist = ticker.history(start=start_date, end=current_date, interval="1d")
+                if not hist.empty:
+                    historical_data[asset["symbol"]] = hist
+                    logger.info(f"Successfully fetched historical data for {asset['symbol']}")
+                else:
+                    logger.warning(f"No historical data available for {asset['symbol']}")
+            except Exception as e:
+                logger.error(f"Error fetching historical data for {asset['symbol']}: {str(e)}")
+
         # Generate all investment transactions
         current = start_date
         while current <= current_date:
-            self.market_simulator.update_market_conditions()
-
             # Calculate portfolio value
             total_value = sum(
                 pos["quantity"] * pos["last_price"]
@@ -793,26 +757,27 @@ class TestDataCreator:
             for asset, strategy in zip(assets, investment_strategies):
                 symbol = asset["symbol"]
 
-                # Update price
-                market_factor = self.market_simulator.get_market_factor()
-                beta_impact = (market_factor - 1.0) * asset["beta"]
-                volatility_impact = random.gauss(0, asset["volatility"] / math.sqrt(252))
-                expense_impact = -asset["expense_ratio"] / 252
-
-                daily_return = beta_impact + volatility_impact + expense_impact
-                new_price = portfolio[symbol]["last_price"] * (1.0 + daily_return)
-                portfolio[symbol]["last_price"] = round(new_price, 2)
+                # Get price from historical data
+                if symbol in historical_data:
+                    try:
+                        # Convert current date to match DataFrame index format
+                        current_date_str = current.strftime('%Y-%m-%d')
+                        current_price = historical_data[symbol].loc[current_date_str, "Close"]
+                        portfolio[symbol]["last_price"] = current_price
+                    except KeyError:
+                        # If no data for this date, skip
+                        continue
 
                 # Store investment transactions
                 if current.day == 27:  # Monthly investment
                     investment_amount = strategy["monthly_base_amount"] * random.uniform(0.8, 1.2)
-                    quantity = round(investment_amount / new_price, 6)
+                    quantity = round(investment_amount / current_price, 6)
 
                     self.investment_transactions.append({
-                        "type": "buy",
+                        "type": "Buy",
                         "symbol": symbol,
                         "quantity": quantity,
-                        "price": new_price,
+                        "price": current_price,
                         "fee": strategy["broker_fee"],
                         "date": current.isoformat(),
                         "from_account": "Checking Account",
@@ -822,48 +787,56 @@ class TestDataCreator:
                     portfolio[symbol]["quantity"] += quantity
                     portfolio[symbol]["cost_basis"] += investment_amount
 
-                # Store dividend transactions
-                if asset["dividend_yield"] > 0 and current.day == 15:
-                    monthly_yield = asset["dividend_yield"] / 12
-                    dividend_amount = portfolio[symbol]["quantity"] * new_price * monthly_yield
-                    if dividend_amount > 0:
-                        self.transactions.append({
-                            "amount": round(dividend_amount, 2),
-                            "from_account": "Dividend Account",
-                            "to_account": "Checking Account",
-                            "transaction_type": "income",
-                            "description": f"Dividend payment from {symbol}",
-                            "category": "Revenus financiers",
-                            "subcategory": "Dividendes",
-                            "date": current.isoformat()
-                        })
+                # Store dividend transactions (using actual dividend data from Yahoo)
+                if symbol in historical_data:
+                    try:
+                        # Convert current date to match DataFrame index format
+                        current_date_str = current.strftime('%Y-%m-%d')
+                        # Check if there's a dividend on this date
+                        if "Dividends" in historical_data[symbol].columns:
+                            dividend = historical_data[symbol].loc[current_date_str, "Dividends"]
+                            if dividend > 0:
+                                dividend_amount = portfolio[symbol]["quantity"] * dividend
+                                if dividend_amount > 0:
+                                    self.transactions.append({
+                                        "amount": round(dividend_amount, 2),
+                                        "from_account": "Dividend Account",
+                                        "to_account": "Checking Account",
+                                        "transaction_type": "income",
+                                        "description": f"Dividend payment from {symbol}",
+                                        "category": "Revenus financiers",
+                                        "subcategory": "Dividendes",
+                                        "date": current.isoformat()
+                                    })
+                    except KeyError:
+                        pass
 
                 # Store rebalancing transactions
                 if current.day == 28 and total_value > 0:
-                    current_allocation = (portfolio[symbol]["quantity"] * new_price) / total_value
+                    current_allocation = (portfolio[symbol]["quantity"] * current_price) / total_value
                     target_allocation = strategy["target_allocation"]
 
                     if abs(current_allocation - target_allocation) > strategy["rebalance_threshold"]:
                         desired_value = total_value * target_allocation
-                        current_value = portfolio[symbol]["quantity"] * new_price
+                        current_value = portfolio[symbol]["quantity"] * current_price
                         value_difference = desired_value - current_value
 
                         if abs(value_difference) > 100:
-                            quantity_difference = value_difference / new_price
-                            activity_type = "buy" if value_difference > 0 else "sell"
+                            quantity_difference = value_difference / current_price
+                            activity_type = "Buy" if value_difference > 0 else "sell"
 
                             self.investment_transactions.append({
                                 "type": activity_type,
                                 "symbol": symbol,
                                 "quantity": abs(quantity_difference),
-                                "price": new_price,
+                                "price": current_price,
                                 "fee": strategy["broker_fee"],
                                 "date": current.isoformat(),
-                                "from_account": "Checking Account" if activity_type == "buy" else "Investment Account",
-                                "to_account": "Investment Account" if activity_type == "buy" else "Checking Account"
+                                "from_account": "Checking Account" if activity_type == "Buy" else "Investment Account",
+                                "to_account": "Investment Account" if activity_type == "Buy" else "Checking Account"
                             })
 
-                            if activity_type == "buy":
+                            if activity_type == "Buy":
                                 portfolio[symbol]["quantity"] += abs(quantity_difference)
                                 portfolio[symbol]["cost_basis"] += abs(value_difference)
                             else:
@@ -951,7 +924,7 @@ class TestDataCreator:
                     "from_account_id": self.api.accounts[transaction["from_account"]],
                     "to_account_id": self.api.accounts[transaction["to_account"]],
                     "asset_id": asset_ids[transaction["symbol"]],
-                    "activity_type": transaction["type"],  # 'buy' or 'sell'
+                    "activity_type": transaction["type"],  # 'Buy' or 'Sell'
                     "quantity": transaction["quantity"],
                     "unit_price": transaction["price"],
                     "fee": transaction.get("fee", 0.0),
@@ -1031,7 +1004,7 @@ class TestDataCreator:
                 seasonal_factor *= 0.8
 
         # Restaurant/Bar patterns
-        if pattern.subcategory in ["Restaurant", "Bars / Clubs"]:
+        if pattern.subcategory in ["Restaurants", "Bars / Clubs"]:
             # More spending on weekends
             if day_of_week >= 5:  # Saturday and Sunday
                 seasonal_factor *= 1.4
@@ -1040,7 +1013,7 @@ class TestDataCreator:
                 seasonal_factor *= 1.3
 
         # Shopping patterns
-        if pattern.category == "Shopping":
+        if pattern.category == "Achats & Shopping":
             # Holiday season shopping (November-December)
             if month in [11, 12]:
                 seasonal_factor *= 1.8
@@ -1090,7 +1063,7 @@ class TestDataCreator:
 
         elif pattern.frequency == "variable":
             # For variable frequency, use probability
-            if pattern.subcategory in ["Restaurant", "Bars / Clubs"]:
+            if pattern.subcategory in ["Restaurants", "Bars / Clubs"]:
                 # Higher probability on weekends
                 if date.weekday() >= 5:
                     return random.random() < (pattern.probability * 1.5)
@@ -1196,14 +1169,14 @@ class TestDataCreator:
             "groceries": [t for t in expense_transactions
                          if "Supermarché" in t.get("subcategory", "")],
             "restaurants": [t for t in expense_transactions
-                          if "Restaurant" in t.get("subcategory", "")],
+                          if "Restaurants" in t.get("subcategory", "")],
             "transport": [t for t in expense_transactions
-                         if "Transport" in t.get("category", "")],
+                         if "Auto & Transports" in t.get("category", "")],
             "shopping": [t for t in expense_transactions
-                        if "Shopping" in t.get("category", "") or
+                        if "Achats & Shopping" in t.get("category", "") or
                         "Amazon" in t.get("description", "")],
             "entertainment": [t for t in expense_transactions
-                            if "Loisirs" in t.get("category", "") or
+                            if "Divertissements" in t.get("category", "") or
                             "Entertainment" in t.get("description", "")]
         }
 
