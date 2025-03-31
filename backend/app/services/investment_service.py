@@ -738,7 +738,8 @@ class InvestmentService(BaseService[InvestmentTransaction]):
 
             # Process transactions for this date
             for tx in transactions:
-                if tx["date"] == date_str:
+                tx_date = tx["date"].split("T")[0]  # Extract just the date part (YYYY-MM-DD)
+                if tx_date == date_str:
                     symbol = tx["symbol"]
                     if symbol not in owned_assets[date_str]:
                         owned_assets[date_str][symbol] = 0
@@ -875,7 +876,6 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                     "total_gains": total_gains,
                 }
             )
-
         return {
             "data_points": data_points,
             "summary": {

@@ -84,7 +84,7 @@ class InvestmentTransaction:
     id: int | None = field(default=None)
 
     def __post_init__(self) -> None:
-        if self.activity_type not in ["buy", "sell", "deposit", "withdrawal"]:
+        if self.activity_type not in ["buy", "sell", "dividend", "interest", "deposit", "withdrawal"]:
             raise ValueError("Invalid activity type.")
 
 
