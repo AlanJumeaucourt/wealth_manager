@@ -89,7 +89,7 @@ SQLITE_DB_PATH=database_directory python3 run.py
 
 You can populate the database with the following command:
 ```bash
-BACKEND_URL=http://localhost:5000 python3 backend/test/add_api_fake_data.py
+BACKEND_URL=http://localhost:5000 python3 backend/test/add_api_fake_data.py --months 12
 ```
 
 1. Web Application:

@@ -11,6 +11,7 @@ from queue import Queue
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
+import argparse
 
 import requests
 
@@ -298,14 +299,14 @@ class APIWorker(threading.Thread):
         self.task_queue.put(None)  # Send shutdown signal
 
 class TestDataCreator:
-    def __init__(self) -> None:
+    def __init__(self, number_of_months: int = 12) -> None:
         self.api = WealthManagerAPI()
         self.test_user = {
             "name": "Test User",
             "email": "test@example.com",
             "password": "test123",
         }
-        self.number_of_months = 36
+        self.number_of_months = number_of_months
         self.market_simulator = MarketSimulator()
 
         # Initialize task queue and worker
@@ -1381,8 +1382,26 @@ class TestDataCreator:
 
 
 def main():
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Generate test data for WealthManager API')
+    parser.add_argument(
+        '--months',
+        type=int,
+        default=12,
+        help='Number of months of historical data to generate (default: 12)'
+    )
+    parser.add_argument(
+        '--backend-url',
+        type=str,
+        help='Backend API URL (default: from BACKEND_URL env var or http://localhost:5000)'
+    )
+    args = parser.parse_args()
 
-    creator = TestDataCreator()
+    # Create test data creator with command line arguments
+    creator = TestDataCreator(number_of_months=args.months)
+    if args.backend_url:
+        creator.api.base_url = args.backend_url
+
     creator.delete_test_data()
     creator.create_test_data()
     creator.show_test_data()
