@@ -2,7 +2,7 @@
   "expo": {
     "name": "wealth_manager",
     "entryPoint": "App.tsx",
-    "slug": "wealth_manager",
+    "slug": "wealthmanager",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -49,10 +49,13 @@
     },
     "extra": {
       "eas": {
-        "projectId": "9d2079bd-e4a1-47ce-8d0c-286dad02dc7c"
+        "projectId": "5785eeaf-a8d3-41ce-8a37-b2cef17e89ed"
+      },
+      "router": {
+        "origin": false
       }
     },
-    "owner": "Alan Jumeaucourt",
+    "owner": "oqvb85it",
     "homepage": "https://AlanJumeaucourt.github.io/wealth_manager/"
   }
 }
