@@ -10,6 +10,7 @@ import threading
 from queue import Queue
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 
 import requests
 
@@ -58,8 +59,9 @@ class MarketSimulator:
         return 1.0 + base_change + sentiment_impact + momentum_impact
 
 class WealthManagerAPI:
-    def __init__(self, base_url: str = "http://100.121.97.42/api") -> None:
-        self.base_url = base_url
+    def __init__(self, base_url: str | None = None) -> None:
+        # Read from environment variable with fallback
+        self.base_url = base_url or os.environ.get("BACKEND_URL", "http://localhost:5000")
         self.jwt_token: str | None = None
         self.accounts: dict[str, int] = {}  # Store account IDs by name
 
@@ -1379,6 +1381,7 @@ class TestDataCreator:
 
 
 def main():
+
     creator = TestDataCreator()
     creator.delete_test_data()
     creator.create_test_data()
