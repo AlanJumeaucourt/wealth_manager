@@ -4,7 +4,7 @@ export default {
     // ... (keep existing expo config)
     extra: {
       eas: {
-        projectId: "83cbd7d6-1dc9-4398-bcf2-189795f0129f",
+        projectId: "9d2079bd-e4a1-47ce-8d0c-286dad02dc7c",
       },
     },
     plugins: [
