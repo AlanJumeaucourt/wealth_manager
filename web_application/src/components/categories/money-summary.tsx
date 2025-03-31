@@ -47,7 +47,7 @@ export function MoneySummary() {
 
   return (
     <div className="grid grid-cols-3 gap-4">
-      <Card className="p-4">
+      <Card className="p-4 shadow-sm">
         <div className="flex items-center gap-2">
           <ArrowUpIcon className="h-4 w-4 text-green-500" />
           <span className="text-sm font-medium text-muted-foreground">Total Income</span>
@@ -62,7 +62,7 @@ export function MoneySummary() {
         </div>
       </Card>
 
-      <Card className="p-4">
+      <Card className="p-4 shadow-sm">
         <div className="flex items-center gap-2">
           <ArrowDownIcon className="h-4 w-4 text-destructive" />
           <span className="text-sm font-medium text-muted-foreground">Total Expenses</span>
@@ -77,7 +77,7 @@ export function MoneySummary() {
         </div>
       </Card>
 
-      <Card className="p-4">
+      <Card className="p-4 shadow-sm">
         <div className="flex items-center gap-2">
           <ArrowRightIcon className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium text-muted-foreground">Remaining Money</span>

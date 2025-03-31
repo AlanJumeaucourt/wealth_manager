@@ -73,13 +73,11 @@ export function Dashboard() {
   if (hasError) {
     return (
       <PageContainer title="Financial Dashboard">
-        <div className="p-6">
-          <Alert variant="destructive">
-            <AlertDescription>
-              There was an error loading your dashboard. Please try again later.
-            </AlertDescription>
-          </Alert>
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>
+            There was an error loading your dashboard. Please try again later.
+          </AlertDescription>
+        </Alert>
       </PageContainer>
     )
   }
@@ -93,19 +91,18 @@ export function Dashboard() {
 
   return (
     <PageContainer title="Financial Dashboard">
-      <div className="space-y-6 p-6">
+      <div className="space-y-6">
         {isLoading ? (
           <>
             {/* Wealth Chart Skeleton */}
-            <div className="rounded-xl border bg-card p-6">
+            <div className="rounded-xl border bg-card p-6 shadow-sm">
               <Skeleton className="h-[400px] w-full" />
             </div>
-
 
             {/* Grid Skeleton */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Account Summary Skeleton */}
-              <div className="rounded-xl border bg-card">
+              <div className="rounded-xl border bg-card shadow-sm">
                 <div className="p-6">
                   <Skeleton className="h-7 w-[200px] mb-4" />
                   <div className="space-y-4">
@@ -123,7 +120,7 @@ export function Dashboard() {
               </div>
 
               {/* Recent Transactions Skeleton */}
-              <div className="rounded-xl border bg-card">
+              <div className="rounded-xl border bg-card shadow-sm">
                 <div className="p-6">
                   <Skeleton className="h-7 w-[200px] mb-4" />
                   <div className="space-y-4">
@@ -143,7 +140,7 @@ export function Dashboard() {
           </>
         ) : (
           <>
-            <div className="rounded-xl border bg-card">
+            <div className="rounded-xl border bg-card shadow-sm">
               {Object.keys(wealthData || {}).length > 0 ? (
                 <WealthChart />
               ) : (
@@ -152,7 +149,7 @@ export function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="rounded-xl border bg-card">
+              <div className="rounded-xl border bg-card shadow-sm">
                 {accounts.length > 0 ? (
                   <AccountSummary accounts={accounts} banks={banks} />
                 ) : (
@@ -160,7 +157,7 @@ export function Dashboard() {
                 )}
               </div>
 
-              <div className="rounded-xl border bg-card">
+              <div className="rounded-xl border bg-card shadow-sm">
                 {transactions.length > 0 ? (
                   <RecentTransactions transactions={transactions} />
                 ) : (

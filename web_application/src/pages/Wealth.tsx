@@ -169,9 +169,9 @@ export function Wealth() {
       title="Wealth Overview"
       action={dateSelector}
     >
-      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 w-full">
         {/* Wealth Evolution Chart */}
-        <div className="rounded-lg border bg-card p-4">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
           <WealthChart
             startDate={startDate}
             endDate={endDate}
@@ -179,7 +179,7 @@ export function Wealth() {
         </div>
 
         {/* Period Analysis */}
-        <div className="rounded-lg border bg-card p-4">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
           {isLoading ? (
             <div className="flex items-center justify-center h-[300px]">
               <div className="text-muted-foreground">Loading data...</div>

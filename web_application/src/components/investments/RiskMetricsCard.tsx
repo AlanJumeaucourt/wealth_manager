@@ -50,7 +50,7 @@ export function RiskMetricsCard() {
     : []
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
         <CardTitle>Portfolio Risk Analysis</CardTitle>
         <CardDescription>
@@ -67,7 +67,7 @@ export function RiskMetricsCard() {
 
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
+              <Card className="shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">
                     Portfolio Sharpe Ratio
@@ -82,7 +82,7 @@ export function RiskMetricsCard() {
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">
                     Maximum Drawdown

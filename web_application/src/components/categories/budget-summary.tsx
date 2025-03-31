@@ -40,7 +40,7 @@ export function BudgetSummary() {
     subValue: string
     percentage: number
   }) => (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}

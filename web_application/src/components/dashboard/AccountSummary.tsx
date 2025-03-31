@@ -121,7 +121,7 @@ export function AccountSummary({ accounts, banks }: Props) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-        <div className="p-4 rounded-lg bg-card border border-border hover:shadow-md transition-shadow overflow-hidden">
+        <div className="p-4 rounded-lg bg-card border border-border shadow-sm transition-shadow overflow-hidden">
           <div className="flex items-center gap-2">
             <span className="flex-shrink-0 text-2xl bg-muted p-2 rounded-md">{ACCOUNT_TYPE_ICONS.checking}</span>
             <span className="font-medium text-foreground truncate">Checking</span>
@@ -133,7 +133,7 @@ export function AccountSummary({ accounts, banks }: Props) {
             }).format(Math.abs(balancesByType.checking || 0))}
           </p>
         </div>
-        <div className="p-4 rounded-lg bg-card border border-border hover:shadow-md transition-shadow overflow-hidden">
+        <div className="p-4 rounded-lg bg-card border border-border shadow-sm transition-shadow overflow-hidden">
           <div className="flex items-center gap-2">
             <span className="flex-shrink-0 text-2xl bg-muted p-2 rounded-md">{ACCOUNT_TYPE_ICONS.savings}</span>
             <span className="font-medium text-foreground truncate">Savings</span>
@@ -145,7 +145,7 @@ export function AccountSummary({ accounts, banks }: Props) {
             }).format(Math.abs(balancesByType.savings || 0))}
           </p>
         </div>
-        <div className="p-4 rounded-lg bg-card border border-border hover:shadow-md transition-shadow overflow-hidden">
+        <div className="p-4 rounded-lg bg-card border border-border shadow-sm transition-shadow overflow-hidden">
           <div className="flex items-center gap-2">
             <span className="flex-shrink-0 text-2xl bg-muted p-2 rounded-md">{ACCOUNT_TYPE_ICONS.investment}</span>
             <span className="font-medium text-foreground truncate">Investments</span>

@@ -387,7 +387,7 @@ export function PeriodChart({ data }: PeriodChartProps) {
             </div>
           </div>
 
-          <div className="rounded-lg border bg-card p-4">
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
             <h4 className="text-sm font-medium text-muted-foreground mb-2">Savings Insights</h4>
             <div className="space-y-1">
               <div className="flex justify-between">

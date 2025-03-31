@@ -81,8 +81,8 @@ Powers both web and mobile applications:
 1. Backend:
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+python3 -m venv .venv
+source .venv/bin/activate  # or `venv\Scripts\activate` on Windows
 pip install -r requirements.txt
 SQLITE_DB_PATH=database_directory python3 run.py
 ```

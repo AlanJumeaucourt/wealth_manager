@@ -223,7 +223,7 @@ export function TransactionDetailPage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="rounded-xl border bg-card p-6"
+            className="rounded-xl border bg-card p-6 shadow-sm"
           >
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
               <CreditCard className="h-4 w-4" />

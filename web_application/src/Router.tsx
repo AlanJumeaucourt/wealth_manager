@@ -104,9 +104,9 @@ function AuthenticatedLayout() {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+      <AppSidebar variant="inset" />
+      <SidebarInset className="flex flex-col h-screen overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b sticky top-0 z-10 bg-background transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4 w-full justify-between">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />
@@ -154,9 +154,9 @@ function AuthenticatedLayout() {
             <KeyboardShortcutsHelp />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <main className="flex-1 overflow-auto">
           <Outlet />
-        </div>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   )
@@ -384,7 +384,7 @@ const routeTree = rootRoute.addChildren([
     investmentsRoute,
     investmentsPageRoute,
     investmentDetailRoute,
-  ])
+  ] as any[]) // Fix TS type issue with route children
 ])
 
 // Create the router using your route tree
