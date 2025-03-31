@@ -81,27 +81,32 @@ Powers both web and mobile applications:
 1. Backend:
 ```bash
 cd backend
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 pip install -r requirements.txt
-flask run
+SQLITE_DB_PATH=database_directory python3 run.py
 ```
 
-2. Web Application:
+You can populate the database with the following command:
+```bash
+python3 backend/test/add_api_fake_data.py
+```
+
+1. Web Application:
 ```bash
 cd web_application
 bun install
-bun run dev
+VITE_API_URL=http://localhost:5000 bun run dev --host
 ```
 
-3. Mobile App:
+1. Mobile App:
 ```bash
 cd frontend
 npm install
 expo start
 ```
 
-4. Showcase Website:
+1. Showcase Website:
 ```bash
 cd showcase_website
 npm install
