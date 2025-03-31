@@ -21,7 +21,10 @@ export function Dashboard() {
     data: banksResponse,
     isLoading: isLoadingBanks,
     error: banksError
-  } = useBanks(1, 1000)
+  } = useBanks({
+    page: 1,
+    per_page: 1000
+  })
 
   const {
     data: accountsResponse,
@@ -59,8 +62,12 @@ export function Dashboard() {
 
   useKeyboardShortcuts({
     onNew: () => navigate({ to: "/accounts/new" }),
+    onEdit: () => navigate({ to: "/accounts" }),
+    onDelete: () => navigate({ to: "/accounts" }),
     onHome: () => window.scrollTo({ top: 0, behavior: "smooth" }),
     onEnd: () => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }),
+    onPrevPage: () => navigate({ to: "/transactions" }),
+    onNextPage: () => navigate({ to: "/wealth" }),
   })
 
   if (hasError) {
@@ -138,7 +145,7 @@ export function Dashboard() {
           <>
             <div className="rounded-xl border bg-card">
               {Object.keys(wealthData || {}).length > 0 ? (
-                <WealthChart data={wealthData} />
+                <WealthChart />
               ) : (
                 <NoDataMessage message="No wealth data available. Add some accounts to see your wealth growth over time." />
               )}

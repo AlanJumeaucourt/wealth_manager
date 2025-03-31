@@ -212,7 +212,10 @@ export function AccountSummary({ accounts, banks }: Props) {
                         className={`flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer ${
                           selectedAccountId === account.id ? 'bg-muted' : ''
                         }`}
-                        onClick={() => setEditingAccount(account)}
+                        onClick={() => navigate({
+                          to: "/accounts/$accountId",
+                          params: { accountId: account.id.toString() }
+                        })}
                         onMouseEnter={() => setSelectedAccountId(account.id)}
                         onMouseLeave={() => setSelectedAccountId(null)}
                         role="button"
@@ -220,7 +223,10 @@ export function AccountSummary({ accounts, banks }: Props) {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault()
-                            setEditingAccount(account)
+                            navigate({
+                              to: "/accounts/$accountId",
+                              params: { accountId: account.id.toString() }
+                            })
                           }
                         }}
                       >

@@ -1,6 +1,7 @@
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog"
 import { EditTransactionDialog } from "@/components/transactions/EditTransactionDialog"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import { useDialogStore } from "@/store/dialogStore"
 import { useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 import { Transaction } from "../../types"
@@ -9,41 +10,43 @@ interface Props {
   transactions: Transaction[]
 }
 
-function getTransactionIcon(type: Transaction['type'], category: string): string {
-  switch (type) {
-    case 'income':
-      return '💰'
-    case 'expense':
-      return category.includes('Alimentation') ? '🛒' :
-             category.includes('Loisirs') ? '🎮' :
-             '💸'
-    case 'transfer':
-      return '↔️'
-    default:
-      return '💱'
-  }
+// Function to determine icon based on transaction type and category
+const getTransactionIcon = (type: string, category?: string) => {
+  if (type === 'expense') return '📤'
+  if (type === 'income') return '📥'
+  if (type === 'transfer') return '🔄'
+  if (type === 'refund') return '↩️'
+
+  if (category === 'Food & Dining') return '🍔'
+  if (category === 'Shopping') return '🛍️'
+  if (category === 'Transportation') return '🚗'
+  if (category === 'Entertainment') return '🎬'
+  if (category === 'Travel') return '✈️'
+  if (category === 'Health & Fitness') return '🏥'
+  if (category === 'Subscription') return '📱'
+
+  return '💰' // Default icon
 }
 
 export function RecentTransactions({ transactions }: Props) {
   const navigate = useNavigate()
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null)
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null)
+  const { setEditTransaction, setDeleteTransaction } = useDialogStore()
 
   useKeyboardShortcuts({
     onEdit: () => {
       if (selectedTransactionId) {
-        const transaction = transactions.find(t => t.id === selectedTransactionId)
+        const transaction = transactions.find(t => t.id.toString() === selectedTransactionId)
         if (transaction) {
-          setEditingTransaction(transaction)
+          setEditTransaction(transaction)
         }
       }
     },
     onDelete: () => {
       if (selectedTransactionId) {
-        const transaction = transactions.find(t => t.id === selectedTransactionId)
+        const transaction = transactions.find(t => t.id.toString() === selectedTransactionId)
         if (transaction) {
-          setDeletingTransaction(transaction)
+          setDeleteTransaction(transaction)
         }
       }
     },
@@ -77,17 +80,23 @@ export function RecentTransactions({ transactions }: Props) {
           <div
             key={transaction.id}
             className={`flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer ${
-              selectedTransactionId === transaction.id ? 'bg-muted' : ''
+              selectedTransactionId === transaction.id.toString() ? 'bg-muted' : ''
             }`}
-            onClick={() => setEditingTransaction(transaction)}
-            onMouseEnter={() => setSelectedTransactionId(transaction.id)}
+            onClick={() => navigate({
+              to: "/transactions/$transactionId",
+              params: { transactionId: transaction.id.toString() }
+            })}
+            onMouseEnter={() => setSelectedTransactionId(transaction.id.toString())}
             onMouseLeave={() => setSelectedTransactionId(null)}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                setEditingTransaction(transaction)
+                navigate({
+                  to: "/transactions/$transactionId",
+                  params: { transactionId: transaction.id.toString() }
+                })
               }
             }}
           >
@@ -121,21 +130,10 @@ export function RecentTransactions({ transactions }: Props) {
       </div>
 
       {/* Edit Dialog */}
-      {editingTransaction && (
-        <EditTransactionDialog
-          transaction={editingTransaction}
-          open={true}
-          onOpenChange={(open) => !open && setEditingTransaction(null)}
-        />
-      )}
+      <EditTransactionDialog redirectTo="/dashboard" />
 
       {/* Delete Dialog */}
-      <DeleteTransactionDialog
-        transaction={deletingTransaction}
-        open={!!deletingTransaction}
-        onOpenChange={(open) => !open && setDeletingTransaction(null)}
-        redirectTo="/dashboard"
-      />
+      <DeleteTransactionDialog redirectTo="/dashboard" />
     </div>
   )
 }
