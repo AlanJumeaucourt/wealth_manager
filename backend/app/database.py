@@ -9,7 +9,6 @@ from .exceptions import NoResultFoundError, QueryExecutionError
 
 class DatabaseError(Exception):
     """Raised when there are database configuration or access issues."""
-    pass
 
 
 class QueryType(Enum):
@@ -33,14 +32,20 @@ class DatabaseManager:
 
         # Validate the path
         if not self.db_path.parent.exists():
-            raise DatabaseError(f"Database directory does not exist: {self.db_path.parent}")
+            raise DatabaseError(
+                f"Database directory does not exist: {self.db_path.parent}"
+            )
 
         if not os.access(self.db_path.parent, os.W_OK):
-            raise DatabaseError(f"No write permission in directory: {self.db_path.parent}")
+            raise DatabaseError(
+                f"No write permission in directory: {self.db_path.parent}"
+            )
 
         # If database file exists, check if it's writable
         if self.db_path.exists() and not os.access(self.db_path, os.W_OK):
-            raise DatabaseError(f"No write permission for database file: {self.db_path}")
+            raise DatabaseError(
+                f"No write permission for database file: {self.db_path}"
+            )
 
     def connect_to_database(self) -> sqlite3.Connection:
         """Establish a connection to the SQLite database.
@@ -315,6 +320,56 @@ class DatabaseManager:
                     FOREIGN KEY (refund_group_id) REFERENCES refund_groups (id) ON DELETE CASCADE
                 )
             """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS gocardless_requisitions (
+                    requisition_id TEXT PRIMARY KEY,
+                    link TEXT NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    institution_id TEXT NOT NULL,
+                    reference TEXT,
+                    agreement_id TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                    FOREIGN KEY (agreement_id) REFERENCES gocardless_agreements (agreement_id) ON DELETE SET NULL
+                )
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS gocardless_accounts (
+                    account_id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    last_accessed TEXT NOT NULL,
+                    iban TEXT,
+                    institution_id TEXT NOT NULL,
+                    status TEXT,
+                    owner_name TEXT,
+                    currency TEXT,
+                    balance REAL,
+                    account_type TEXT,
+                    user_id INTEGER NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS gocardless_cache (
+                    cache_key TEXT NOT NULL,
+                    cache_type TEXT NOT NULL,
+                    data TEXT NOT NULL,
+                    last_updated TEXT NOT NULL,
+                    PRIMARY KEY (cache_key, cache_type)
+                )
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS gocardless_agreements (
+                    agreement_id TEXT PRIMARY KEY,
+                    institution_id TEXT NOT NULL,
+                    max_historical_days INTEGER NOT NULL,
+                    access_valid_for_days INTEGER NOT NULL,
+                    access_scope TEXT NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            """,
         ]
 
         views = [
@@ -496,6 +551,11 @@ class DatabaseManager:
             "CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);",
             "CREATE INDEX IF NOT EXISTS idx_transactions_user_date_acc ON transactions(user_id, date_accountability);",
             "CREATE INDEX IF NOT EXISTS idx_transactions_accounts ON transactions(from_account_id, to_account_id);",
+            "CREATE INDEX IF NOT EXISTS idx_gocardless_requisitions_user ON gocardless_requisitions(user_id);",
+            "CREATE INDEX IF NOT EXISTS idx_gocardless_accounts_user ON gocardless_accounts(user_id);",
+            "CREATE INDEX IF NOT EXISTS idx_gocardless_accounts_institution ON gocardless_accounts(institution_id);",
+            "CREATE INDEX IF NOT EXISTS idx_gocardless_agreements_user ON gocardless_agreements(user_id);",
+            "CREATE INDEX IF NOT EXISTS idx_gocardless_agreements_institution ON gocardless_agreements(institution_id);",
         ]
 
         with self.connect_to_database() as connection:

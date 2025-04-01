@@ -1,28 +1,31 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { DatePicker } from "@/components/ui/datePicker"
 import { Separator } from "@/components/ui/separator"
 import {
-    SidebarInset,
-    SidebarProvider,
-    SidebarTrigger,
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { AccountDetailPage } from "@/pages/AccountDetailPage"
 import { AccountsPage } from "@/pages/AccountsPage"
 import Categories from "@/pages/Categories"
 import { Dashboard } from "@/pages/Dashboard"
+import GoCardlessAccounts from "@/pages/GoCardlessAccounts"
 import { InvestmentDetailPage } from "@/pages/InvestmentDetailPage"
 import { useDateRangeStore } from '@/store/dateRangeStore'
 import { Outlet, RootRoute, Route, Router, redirect, useRouter } from "@tanstack/react-router"
 import { parse } from "date-fns"
 import { KeyboardShortcutsHelp } from "./components/keyboard-shortcuts-help"
+import ConnectBank from "./pages/ConnectBank"
+import GoCardlessCallback from "./pages/GoCardlessCallback"
 import { InvestmentsTransactionPage } from "./pages/InvestmentsTransactionPage"
 import { Landing } from "./pages/Landing"
 import { RefundsPage } from "./pages/RefundsPage"
@@ -361,30 +364,66 @@ export const investmentDetailRoute = new Route({
   }
 })
 
-// Create the route tree using your routes
-const routeTree = rootRoute.addChildren([
+// GoCardless routes
+const goCardlessCallbackRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/gocardless/callback",
+  component: GoCardlessCallback,
+})
+
+const connectBankRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/connect-bank",
+  component: ConnectBank,
+})
+
+// Add this with the other routes definition (around line 395)
+const settingsRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/settings",
+  component: () => <div className="p-8"><h1 className="text-3xl font-bold mb-4">Settings</h1><p>Settings page content will go here.</p></div>,
+})
+
+const gocardlessAccountsRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/accounts/gocardless",
+  component: GoCardlessAccounts,
+})
+
+// Define the route tree
+export const routeTree = rootRoute.addChildren([
   landingRoute,
   authenticatedLayout.addChildren([
     dashboardRoute,
-    accountsIndexRoute,
+    // Accounts routes
     accountsAllRoute,
     accountsRegularRoute,
     accountsExpenseRoute,
     accountsIncomeRoute,
+    gocardlessAccountsRoute,
     accountDetailRoute,
-    transactionsIndexRoute,
+    // Transactions routes
     transactionsAllRoute,
     transactionsIncomeRoute,
     transactionsExpenseRoute,
     transactionsTransferRoute,
     transactionDetailRoute,
-    categoriesRoute,
-    wealthRoute,
-    refundsRoute,
+    // Investments routes
     investmentsRoute,
-    investmentsPageRoute,
     investmentDetailRoute,
-  ] as any[]) // Fix TS type issue with route children
+    investmentsPageRoute,
+    // Categories route
+    categoriesRoute,
+    // Wealth route
+    wealthRoute,
+    // Refunds route
+    refundsRoute,
+    // Settings routes
+    settingsRoute,
+    // GoCardless routes
+    connectBankRoute,
+    goCardlessCallbackRoute,
+  ]),
 ])
 
 // Create the router using your route tree

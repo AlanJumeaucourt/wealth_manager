@@ -1,14 +1,15 @@
 import { useRouter } from "@tanstack/react-router"
 import {
-  ArrowRightLeft,
-  Briefcase,
-  Command,
-  LineChart,
-  PieChart,
-  Receipt,
-  RefreshCw,
-  SquareTerminal,
-  Wallet
+    ArrowRightLeft,
+    Briefcase,
+    Command,
+    LineChart,
+    LucideIcon,
+    PieChart,
+    Receipt,
+    RefreshCw,
+    SquareTerminal,
+    Wallet
 } from "lucide-react"
 import * as React from "react"
 import { useMemo } from "react"
@@ -16,18 +17,33 @@ import { useMemo } from "react"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarHeader,
-  SidebarRail,
-  SidebarSeparator,
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarHeader,
+    SidebarRail,
+    SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useUser } from "@/hooks/use-user.ts"
 import { userStorage } from "@/utils/user-storage"
 
-// Move static data to a separate constant and memoize it
+// Define types for navigation items
+type NavSubItem = {
+  title: string;
+  url: string;
+  isActive?: boolean;
+}
+
+type NavItem = {
+  title: string;
+  url: string;
+  icon?: LucideIcon;
+  items?: NavSubItem[];
+  isActive?: boolean;
+}
+
+// Move static data to a separate constant
 const STATIC_DATA = {
   teams: [
     {
@@ -78,6 +94,14 @@ const STATIC_DATA = {
           title: "Income Accounts",
           url: "/accounts/income",
         },
+        {
+          title: "GoCardless Accounts",
+          url: "/accounts/gocardless",
+        },
+        {
+          title: "Connect Bank",
+          url: "/connect-bank",
+        },
       ],
     },
     {
@@ -122,8 +146,8 @@ const STATIC_DATA = {
       url: "/refunds",
       icon: RefreshCw,
     }
-  ],
-} as const
+  ] as NavItem[],
+}
 
 // Memoized minimal sidebar component
 const MinimalSidebar = React.memo(({ className, ...props }: React.ComponentProps<typeof Sidebar>) => (
@@ -165,7 +189,7 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
       ...item,
       isActive: currentPath === item.url ||
                 (item.items?.some(subItem => currentPath === subItem.url) ?? false),
-      items: item.items?.map(subItem => ({
+      items: item.items?.map((subItem) => ({
         ...subItem,
         isActive: currentPath === subItem.url
       }))

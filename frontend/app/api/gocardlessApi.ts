@@ -1,6 +1,6 @@
 import { GoCardlessAccount, GoCardlessInstitution, GoCardlessRequisition } from '@/types/gocardless';
 import { handleApiError } from '@/utils/apiUtils';
-import apiClient from './axiosConfig';
+  import apiClient from './axiosConfig';
 
 export const fetchInstitutions = async (): Promise<GoCardlessInstitution[]> => {
   try {
