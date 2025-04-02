@@ -220,8 +220,12 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
     >
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3 p-2 border-b border-sidebar-border">
-          <img src="/logo.webp" alt="WealthManager Logo" className="h-8 w-8 shrink-0" />
-          <h1 className="text-xl tracking-tight font-serif">WealthManager</h1>
+          <div className="flex-shrink-0">
+            <img src="/logo.webp" alt="WealthManager Logo" className="h-8 w-8" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl tracking-tight font-serif truncate">WealthManager</h1>
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent className="px-2">
