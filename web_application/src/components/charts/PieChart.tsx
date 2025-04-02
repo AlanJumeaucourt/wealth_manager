@@ -2,21 +2,21 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import {
-    ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
 } from "@/components/ui/chart"
 import * as React from "react"
 import { Label, Pie, PieChart as RechartsPieChart } from "recharts"
 
 interface PieChartData {
-  name: string;
-  value: number;
-  color: string;
+  name: string
+  value: number
+  color: string
 }
 
 interface PieChartProps {
-  data: PieChartData[];
+  data: PieChartData[]
 }
 
 export function PieChart({ data }: PieChartProps) {
@@ -24,19 +24,22 @@ export function PieChart({ data }: PieChartProps) {
     category: item.name,
     amount: item.value,
     fill: item.color,
-  }));
+  }))
 
   const total = React.useMemo(() => {
     return chartData.reduce((acc, curr) => acc + curr.amount, 0)
-  }, [chartData]);
+  }, [chartData])
 
-  const chartConfig = chartData.reduce((acc, curr) => {
-    acc[curr.category] = {
-      label: curr.category,
-      color: curr.fill,
-    }
-    return acc;
-  }, {} as Record<string, { label: string; color: string }>);
+  const chartConfig = chartData.reduce(
+    (acc, curr) => {
+      acc[curr.category] = {
+        label: curr.category,
+        color: curr.fill,
+      }
+      return acc
+    },
+    {} as Record<string, { label: string; color: string }>
+  )
 
   return (
     <Card className="flex flex-col">
@@ -91,5 +94,5 @@ export function PieChart({ data }: PieChartProps) {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
+  )
 }

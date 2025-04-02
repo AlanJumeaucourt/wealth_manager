@@ -30,7 +30,11 @@ export function Landing() {
       navigate({ to: "/dashboard" })
     } catch (error) {
       console.error("Login error:", error)
-      setError(error instanceof Error ? error.message : "Login failed. Please try again.")
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Login failed. Please try again."
+      )
     } finally {
       setIsLoading(false)
     }
@@ -42,7 +46,8 @@ export function Landing() {
         <div className="hidden lg:flex flex-col gap-4 max-w-lg">
           <h1 className="text-4xl font-bold tracking-tight">WealthManager</h1>
           <p className="text-xl text-muted-foreground">
-            Take control of your financial future with our comprehensive wealth management platform
+            Take control of your financial future with our comprehensive wealth
+            management platform
           </p>
           <div className="grid gap-4 mt-6">
             {[
@@ -95,7 +100,9 @@ export function Landing() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && (
+                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Sign In
               </Button>
             </form>
@@ -103,7 +110,11 @@ export function Landing() {
           <CardFooter className="flex justify-center">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{" "}
-              <Button variant="link" className="p-0" onClick={() => navigate({ to: "/signup" })}>
+              <Button
+                variant="link"
+                className="p-0"
+                onClick={() => navigate({ to: "/signup" })}
+              >
                 Sign up
               </Button>
             </p>

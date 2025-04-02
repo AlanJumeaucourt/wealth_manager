@@ -29,12 +29,16 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { useAccounts, useCategoriesByType, useCreateTransaction } from "../../api/queries"
+import {
+  useAccounts,
+  useCategoriesByType,
+  useCreateTransaction,
+} from "../../api/queries"
 
 const formSchema = z.object({
   description: z.string().min(1, "Description is required"),
   amount: z.string().min(1, "Amount is required"),
-  type: z.enum(['expense', 'income', 'transfer']),
+  type: z.enum(["expense", "income", "transfer"]),
   category: z.string().min(1, "Category is required"),
   subcategory: z.string().optional(),
   date: z.string().min(1, "Date is required"),
@@ -50,23 +54,27 @@ interface Props {
   defaultType?: string
 }
 
-export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props) {
+export function AddTransactionDialog({
+  open,
+  onOpenChange,
+  defaultType,
+}: Props) {
   const { toast } = useToast()
   const [categoryOpen, setCategoryOpen] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      type: (defaultType || 'expense') as 'expense' | 'income' | 'transfer',
-      date: new Date().toISOString().split('T')[0],
-      date_accountability: new Date().toISOString().split('T')[0],
+      type: (defaultType || "expense") as "expense" | "income" | "transfer",
+      date: new Date().toISOString().split("T")[0],
+      date_accountability: new Date().toISOString().split("T")[0],
       stayOnPage: false,
     },
   })
 
   // Add form validation debugging
   const formState = form.formState
-  console.log('Form state:', {
+  console.log("Form state:", {
     isDirty: formState.isDirty,
     isValid: formState.isValid,
     errors: formState.errors,
@@ -74,7 +82,7 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
 
   // Use our new hooks
   const { data: accountsResponse } = useAccounts({
-    per_page: 100
+    per_page: 100,
   })
   const createTransactionMutation = useCreateTransaction()
 
@@ -86,69 +94,81 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
   // Filter accounts based on type
   const fromAccounts = accounts.filter(account => {
     if (!account || !account.type) {
-      console.warn('Invalid account object:', account)
+      console.warn("Invalid account object:", account)
       return false
     }
 
     switch (watchType) {
-      case 'expense':
-        return account.type === 'checking' || account.type === 'savings' || account.type === 'investment'
-      case 'transfer':
-        return account.type === 'checking' || account.type === 'savings' || account.type === 'investment'
-      case 'income':
-        return account.type === 'income'
+      case "expense":
+        return (
+          account.type === "checking" ||
+          account.type === "savings" ||
+          account.type === "investment"
+        )
+      case "transfer":
+        return (
+          account.type === "checking" ||
+          account.type === "savings" ||
+          account.type === "investment"
+        )
+      case "income":
+        return account.type === "income"
       default:
-        console.warn('Unknown transaction type:', watchType)
+        console.warn("Unknown transaction type:", watchType)
         return false
     }
   })
 
   const toAccounts = accounts.filter(account => {
     if (!account || !account.type) {
-      console.warn('Invalid account object:', account)
+      console.warn("Invalid account object:", account)
       return false
     }
 
     switch (watchType) {
-      case 'expense':
-        return account.type === 'expense'
-      case 'transfer':
-        return account.type === 'checking' || account.type === 'savings' || account.type === 'investment'
-      case 'income':
-        return account.type === 'checking' || account.type === 'savings'
+      case "expense":
+        return account.type === "expense"
+      case "transfer":
+        return (
+          account.type === "checking" ||
+          account.type === "savings" ||
+          account.type === "investment"
+        )
+      case "income":
+        return account.type === "checking" || account.type === "savings"
       default:
-        console.warn('Unknown transaction type:', watchType)
+        console.warn("Unknown transaction type:", watchType)
         return false
     }
   })
 
   // Update account fields when type changes
   useEffect(() => {
-    form.setValue('from_account_id', undefined as any)
-    form.setValue('to_account_id', undefined as any)
+    form.setValue("from_account_id", undefined as any)
+    form.setValue("to_account_id", undefined as any)
   }, [watchType, form])
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log('Form submitted with values:', values)
+    console.log("Form submitted with values:", values)
     const { stayOnPage, ...submitData } = values
 
-    console.log('Submitting data to API:', submitData)
+    console.log("Submitting data to API:", submitData)
     createTransactionMutation.mutate(submitData, {
       onSuccess: () => {
-        console.log('Transaction created successfully')
+        console.log("Transaction created successfully")
         toast({
           title: "Transaction Created",
           description: "Your transaction has been recorded successfully.",
         })
 
         if (stayOnPage) {
-          form.reset((formValues) => ({
+          form.reset(formValues => ({
             ...formValues,
-            description: '',
-            amount: '',
-            category: '',
-            date: new Date().toISOString().split('T')[0],
-            date_accountability: new Date().toISOString().split('T')[0],
+            description: "",
+            amount: "",
+            category: "",
+            date: new Date().toISOString().split("T")[0],
+            date_accountability: new Date().toISOString().split("T")[0],
             from_account_id: undefined as any,
             to_account_id: undefined as any,
           }))
@@ -157,14 +177,14 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
           onOpenChange(false)
         }
       },
-      onError: (error) => {
-        console.error('Failed to create transaction:', error)
+      onError: error => {
+        console.error("Failed to create transaction:", error)
         toast({
           title: "Error",
           description: "Failed to create transaction. Please try again.",
           variant: "destructive",
         })
-      }
+      },
     })
   }
 
@@ -173,7 +193,7 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
     if (!categories) return []
     return (categories as CategoryMetadata[]).map(category => ({
       value: category.name.fr,
-      label: category.name.fr
+      label: category.name.fr,
     }))
   }, [categories])
 
@@ -184,17 +204,21 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
     )
     if (!selectedCategory?.subCategories) return []
 
-    return selectedCategory.subCategories.map((sub: { name: { fr: string } }) => ({
-      value: sub.name.fr,
-      label: sub.name.fr
-    }))
+    return selectedCategory.subCategories.map(
+      (sub: { name: { fr: string } }) => ({
+        value: sub.name.fr,
+        label: sub.name.fr,
+      })
+    )
   }, [watchCategory, categories])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl mb-2">Add New Transaction</DialogTitle>
+          <DialogTitle className="text-xl mb-2">
+            Add New Transaction
+          </DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -206,7 +230,11 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
                   <FormItem className="col-span-1 md:col-span-2">
                     <FormLabel className="text-base">Description</FormLabel>
                     <FormControl>
-                      <Input className="h-12" placeholder="Enter description" {...field} />
+                      <Input
+                        className="h-12"
+                        placeholder="Enter description"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -218,7 +246,9 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
                 name="type"
                 render={({ field }) => (
                   <FormItem className="col-span-1 md:col-span-2">
-                    <FormLabel className="text-base">Transaction Type</FormLabel>
+                    <FormLabel className="text-base">
+                      Transaction Type
+                    </FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
@@ -269,8 +299,12 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
                       <ComboboxInput
                         options={categoryOptions}
                         emptyMessage="No category found"
-                        value={field.value ? { value: field.value, label: field.value } : undefined}
-                        onValueChange={(option) => {
+                        value={
+                          field.value
+                            ? { value: field.value, label: field.value }
+                            : undefined
+                        }
+                        onValueChange={option => {
                           form.setValue("category", option.value)
                           // Reset subcategory when category changes
                           form.setValue("subcategory", "")
@@ -283,7 +317,7 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
                 )}
               />
 
-              {watchType === 'expense' && subcategoryOptions.length > 0 && (
+              {watchType === "expense" && subcategoryOptions.length > 0 && (
                 <FormField
                   control={form.control}
                   name="subcategory"
@@ -294,8 +328,12 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
                         <ComboboxInput
                           options={subcategoryOptions}
                           emptyMessage="No subcategory found"
-                          value={field.value ? { value: field.value, label: field.value } : undefined}
-                          onValueChange={(option) => {
+                          value={
+                            field.value
+                              ? { value: field.value, label: field.value }
+                              : undefined
+                          }
+                          onValueChange={option => {
                             form.setValue("subcategory", option.value)
                           }}
                           placeholder="Search subcategory..."
@@ -312,7 +350,9 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
                 name="date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base">Transaction Date</FormLabel>
+                    <FormLabel className="text-base">
+                      Transaction Date
+                    </FormLabel>
                     <FormControl>
                       <Input className="h-12" type="date" {...field} />
                     </FormControl>
@@ -347,20 +387,31 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
                       <ComboboxInput
                         options={fromAccounts.map(account => ({
                           value: account.id.toString(),
-                          label: `${account.name} (${account.type})`
+                          label: `${account.name} (${account.type})`,
                         }))}
                         emptyMessage="No account found"
-                        value={field.value ? {
-                          value: field.value.toString(),
-                          label: fromAccounts.find(a => a.id === field.value)?.name || ""
-                        } : undefined}
-                        onValueChange={(option) => {
-                          form.setValue("from_account_id", parseInt(option.value))
+                        value={
+                          field.value
+                            ? {
+                                value: field.value.toString(),
+                                label:
+                                  fromAccounts.find(a => a.id === field.value)
+                                    ?.name || "",
+                              }
+                            : undefined
+                        }
+                        onValueChange={option => {
+                          form.setValue(
+                            "from_account_id",
+                            parseInt(option.value)
+                          )
                         }}
                         placeholder={
-                          watchType === 'expense' ? "Search spending account" :
-                          watchType === 'transfer' ? "Search source account" :
-                          "Search income source"
+                          watchType === "expense"
+                            ? "Search spending account"
+                            : watchType === "transfer"
+                              ? "Search source account"
+                              : "Search income source"
                         }
                       />
                     </FormControl>
@@ -379,20 +430,28 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
                       <ComboboxInput
                         options={toAccounts.map(account => ({
                           value: account.id.toString(),
-                          label: `${account.name} (${account.type})`
+                          label: `${account.name} (${account.type})`,
                         }))}
                         emptyMessage="No account found"
-                        value={field.value ? {
-                          value: field.value.toString(),
-                          label: toAccounts.find(a => a.id === field.value)?.name || ""
-                        } : undefined}
-                        onValueChange={(option) => {
+                        value={
+                          field.value
+                            ? {
+                                value: field.value.toString(),
+                                label:
+                                  toAccounts.find(a => a.id === field.value)
+                                    ?.name || "",
+                              }
+                            : undefined
+                        }
+                        onValueChange={option => {
                           form.setValue("to_account_id", parseInt(option.value))
                         }}
                         placeholder={
-                          watchType === 'expense' ? "Search expense category" :
-                          watchType === 'transfer' ? "Search destination account" :
-                          "Search receiving account"
+                          watchType === "expense"
+                            ? "Search expense category"
+                            : watchType === "transfer"
+                              ? "Search destination account"
+                              : "Search receiving account"
                         }
                       />
                     </FormControl>
@@ -414,9 +473,7 @@ export function AddTransactionDialog({ open, onOpenChange, defaultType }: Props)
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Stay on page after adding transaction
-                    </FormLabel>
+                    <FormLabel>Stay on page after adding transaction</FormLabel>
                   </div>
                 </FormItem>
               )}

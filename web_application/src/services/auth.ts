@@ -1,6 +1,6 @@
-import { API_URL } from '@/api/queries'
-import { QueryClient } from '@tanstack/react-query'
-import { userStorage } from '@/utils/user-storage'
+import { API_URL } from "@/api/queries"
+import { QueryClient } from "@tanstack/react-query"
+import { userStorage } from "@/utils/user-storage"
 
 interface LoginResponse {
   access_token: string
@@ -25,20 +25,20 @@ interface RegisterData extends AuthCredentials {
 export const authService = {
   async login(credentials: AuthCredentials) {
     const response = await fetch(`${API_URL}/users/login`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(credentials),
     })
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.msg || 'Login failed')
+      throw new Error(error.msg || "Login failed")
     }
 
     const data: LoginResponse = await response.json()
-    localStorage.setItem('access_token', data.access_token)
+    localStorage.setItem("access_token", data.access_token)
 
     // Store user data from login response
     if (data.user) {
@@ -51,32 +51,32 @@ export const authService = {
 
   async register(data: RegisterData) {
     const response = await fetch(`${API_URL}/users/register`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
     })
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.msg || 'Registration failed')
+      throw new Error(error.msg || "Registration failed")
     }
 
     const responseData: LoginResponse = await response.json()
-    localStorage.setItem('access_token', responseData.access_token)
+    localStorage.setItem("access_token", responseData.access_token)
     return responseData
   },
 
   logout(queryClient?: QueryClient) {
     // Clear all auth-related items from localStorage
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('user')
-    localStorage.removeItem('lastUserFetch')
+    localStorage.removeItem("access_token")
+    localStorage.removeItem("user")
+    localStorage.removeItem("lastUserFetch")
 
     // Clear any other app-specific data
-    localStorage.removeItem('selectedTeam')
-    localStorage.removeItem('dateRange')
+    localStorage.removeItem("selectedTeam")
+    localStorage.removeItem("dateRange")
 
     // Clear all React Query cache if queryClient is provided
     if (queryClient) {
@@ -85,5 +85,5 @@ export const authService = {
 
     // Clear any other cached data
     sessionStorage.clear()
-  }
+  },
 }

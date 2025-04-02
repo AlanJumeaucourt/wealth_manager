@@ -9,11 +9,19 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import * as React from "react"
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 
 interface WealthChartProps {
-  startDate: Date;
-  endDate: Date;
+  startDate: Date
+  endDate: Date
 }
 
 function CustomTooltip({ active, payload, label }: any) {
@@ -22,16 +30,16 @@ function CustomTooltip({ active, payload, label }: any) {
   return (
     <div className="rounded-lg border bg-background p-2 shadow-sm">
       <div className="text-xs text-muted-foreground">
-        {new Date(label).toLocaleDateString('fr-FR', {
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric'
+        {new Date(label).toLocaleDateString("fr-FR", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
         })}
       </div>
       <div className="text-sm font-medium">
-        {new Intl.NumberFormat('fr-FR', {
-          style: 'currency',
-          currency: 'EUR'
+        {new Intl.NumberFormat("fr-FR", {
+          style: "currency",
+          currency: "EUR",
         }).format(payload[0].value)}
       </div>
     </div>
@@ -41,14 +49,17 @@ function CustomTooltip({ active, payload, label }: any) {
 export function WealthChart({ startDate, endDate }: WealthChartProps) {
   const { data: wealthData, isLoading } = useWealthOverTime()
 
-  const chartConfig = React.useMemo(() => ({
-    value: {
-      label: "Wealth",
-      color: "hsl(217, 91%, 60%)", // Bright blue
-      gradientFrom: "hsl(217, 91%, 60%)",
-      gradientTo: "hsl(217, 91%, 97%)" // Very light blue
-    }
-  }), [])
+  const chartConfig = React.useMemo(
+    () => ({
+      value: {
+        label: "Wealth",
+        color: "hsl(217, 91%, 60%)", // Bright blue
+        gradientFrom: "hsl(217, 91%, 60%)",
+        gradientTo: "hsl(217, 91%, 97%)", // Very light blue
+      },
+    }),
+    []
+  )
 
   // Show loading state or return null if no data
   if (isLoading) return <div>Loading...</div>
@@ -68,7 +79,7 @@ export function WealthChart({ startDate, endDate }: WealthChartProps) {
   }))
 
   // Filter data based on provided date range
-  const filteredData = chartData.filter((item) => {
+  const filteredData = chartData.filter(item => {
     const date = new Date(item.date)
     return date >= startDate && date <= endDate
   })
@@ -82,7 +93,7 @@ export function WealthChart({ startDate, endDate }: WealthChartProps) {
   const shouldStartFromZero = minValue < maxValue * 0.05
   const yDomain = [
     shouldStartFromZero ? 0 : minValue - padding.bottom,
-    maxValue + padding.top
+    maxValue + padding.top,
   ] as [number, number]
 
   const currentValue = filteredData[filteredData.length - 1]?.value || 0
@@ -97,22 +108,24 @@ export function WealthChart({ startDate, endDate }: WealthChartProps) {
             <CardDescription className="mt-1">
               Current:{" "}
               <span className="font-medium">
-                {new Intl.NumberFormat('fr-FR', {
-                  style: 'currency',
-                  currency: 'EUR',
+                {new Intl.NumberFormat("fr-FR", {
+                  style: "currency",
+                  currency: "EUR",
                   minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
+                  maximumFractionDigits: 2,
                 }).format(currentValue)}
               </span>
               {" · "}
               Change:{" "}
-              <span className={valueChange >= 0 ? "text-green-500" : "text-red-500"}>
-                {valueChange >= 0 ? '+' : ''}
-                {new Intl.NumberFormat('fr-FR', {
-                  style: 'currency',
-                  currency: 'EUR',
+              <span
+                className={valueChange >= 0 ? "text-green-500" : "text-red-500"}
+              >
+                {valueChange >= 0 ? "+" : ""}
+                {new Intl.NumberFormat("fr-FR", {
+                  style: "currency",
+                  currency: "EUR",
                   minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
+                  maximumFractionDigits: 2,
                 }).format(valueChange)}
               </span>
             </CardDescription>
@@ -140,30 +153,38 @@ export function WealthChart({ startDate, endDate }: WealthChartProps) {
                   />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E5E7EB" />
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="3 3"
+                stroke="#E5E7EB"
+              />
               <XAxis
                 dataKey="date"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
                 minTickGap={32}
-                tickFormatter={(date) => new Date(date).toLocaleDateString('fr-FR', {
-                  day: 'numeric',
-                  month: 'short'
-                })}
+                tickFormatter={date =>
+                  new Date(date).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  })
+                }
                 stroke="#9CA3AF"
               />
               <YAxis
                 domain={yDomain}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(value) => new Intl.NumberFormat('fr-FR', {
-                  style: 'currency',
-                  currency: 'EUR',
-                  notation: 'compact',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 1
-                }).format(value)}
+                tickFormatter={value =>
+                  new Intl.NumberFormat("fr-FR", {
+                    style: "currency",
+                    currency: "EUR",
+                    notation: "compact",
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 1,
+                  }).format(value)
+                }
                 width={80}
                 stroke="#9CA3AF"
               />
@@ -176,7 +197,7 @@ export function WealthChart({ startDate, endDate }: WealthChartProps) {
               />
               <Tooltip
                 content={<CustomTooltip />}
-                wrapperStyle={{ outline: 'none' }}
+                wrapperStyle={{ outline: "none" }}
               />
             </AreaChart>
           </ResponsiveContainer>

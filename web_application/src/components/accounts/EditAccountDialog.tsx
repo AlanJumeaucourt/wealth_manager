@@ -1,26 +1,26 @@
 import { Button } from "@/components/ui/button"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -32,7 +32,7 @@ import { Account } from "../../types"
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.enum(['checking', 'savings', 'investment', 'expense', 'income']),
+  type: z.enum(["checking", "savings", "investment", "expense", "income"]),
   bank_id: z.number().min(1, "Bank is required"),
 })
 
@@ -54,8 +54,8 @@ export function EditAccountDialog({ account, open, onOpenChange }: Props) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: account?.name || '',
-      type: account?.type || 'checking',
+      name: account?.name || "",
+      type: account?.type || "checking",
       bank_id: account?.bank_id || 0,
     },
   })
@@ -87,7 +87,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: Props) {
             description: "Failed to update account. Please try again.",
             variant: "destructive",
           })
-        }
+        },
       }
     )
   }
@@ -122,7 +122,10 @@ export function EditAccountDialog({ account, open, onOpenChange }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select account type" />
@@ -147,7 +150,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: Props) {
                 <FormItem>
                   <FormLabel>Bank</FormLabel>
                   <Select
-                    onValueChange={(value) => field.onChange(parseInt(value))}
+                    onValueChange={value => field.onChange(parseInt(value))}
                     defaultValue={field.value?.toString()}
                   >
                     <FormControl>
@@ -156,7 +159,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: Props) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {banks.map((bank) => (
+                      {banks.map(bank => (
                         <SelectItem key={bank.id} value={bank.id.toString()}>
                           {bank.name}
                         </SelectItem>
@@ -168,7 +171,11 @@ export function EditAccountDialog({ account, open, onOpenChange }: Props) {
               )}
             />
             <div className="flex justify-end gap-4 pt-4">
-              <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={updateAccountMutation.isPending}>

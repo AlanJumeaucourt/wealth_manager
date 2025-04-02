@@ -74,7 +74,9 @@ export function Signup() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
       <div className="container flex items-center justify-center gap-12 px-4 md:px-6">
         <div className="hidden lg:flex flex-col gap-4 max-w-lg">
-          <h1 className="text-4xl font-bold tracking-tight">Join WealthManager</h1>
+          <h1 className="text-4xl font-bold tracking-tight">
+            Join WealthManager
+          </h1>
           <p className="text-xl text-muted-foreground">
             Start your journey to financial freedom today
           </p>
@@ -95,7 +97,9 @@ export function Signup() {
 
         <Card className="w-full max-w-md">
           <CardHeader>
-            <h2 className="text-2xl font-semibold text-center">Create an account</h2>
+            <h2 className="text-2xl font-semibold text-center">
+              Create an account
+            </h2>
           </CardHeader>
           <CardContent>
             {error && (
@@ -153,7 +157,9 @@ export function Signup() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && (
+                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Create Account
               </Button>
             </form>
@@ -161,7 +167,11 @@ export function Signup() {
           <CardFooter className="flex justify-center">
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Button variant="link" className="p-0" onClick={() => navigate({ to: "/" })}>
+              <Button
+                variant="link"
+                className="p-0"
+                onClick={() => navigate({ to: "/" })}
+              >
                 Sign in
               </Button>
             </p>

@@ -1,18 +1,29 @@
 import { usePeriodSummary } from "@/api/queries"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { PeriodChart } from "@/components/wealth/PeriodChart"
 import { WealthChart } from "@/components/wealth/WealthChart"
 import { format } from "date-fns"
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react"
 import { useState } from "react"
 
-type PeriodType = 'week' | 'month' | 'quarter' | 'year'
+type PeriodType = "week" | "month" | "quarter" | "year"
 type RangeType = 3 | 6 | 12 | 24 | 36
 
 export function Wealth() {
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('month')
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("month")
   const [dateOffset, setDateOffset] = useState(0)
   const [periodRange, setPeriodRange] = useState<RangeType>(12)
 
@@ -22,58 +33,69 @@ export function Wealth() {
 
   // Adjust dates based on offset
   switch (selectedPeriod) {
-    case 'week':
-      endDate.setDate(endDate.getDate() - (dateOffset * 7))
-      startDate.setDate(startDate.getDate() - (dateOffset * 7) - (7 * periodRange))
+    case "week":
+      endDate.setDate(endDate.getDate() - dateOffset * 7)
+      startDate.setDate(startDate.getDate() - dateOffset * 7 - 7 * periodRange)
       break
-    case 'month':
+    case "month":
       endDate.setMonth(endDate.getMonth() - dateOffset)
       startDate.setMonth(startDate.getMonth() - dateOffset - periodRange)
       break
-    case 'quarter':
-      endDate.setMonth(endDate.getMonth() - (dateOffset * 3))
-      startDate.setMonth(startDate.getMonth() - (dateOffset * 3) - (3 * periodRange))
+    case "quarter":
+      endDate.setMonth(endDate.getMonth() - dateOffset * 3)
+      startDate.setMonth(
+        startDate.getMonth() - dateOffset * 3 - 3 * periodRange
+      )
       break
-    case 'year':
+    case "year":
       endDate.setFullYear(endDate.getFullYear() - dateOffset)
       startDate.setFullYear(startDate.getFullYear() - dateOffset - periodRange)
       break
   }
 
   const { data: wealthData, isLoading } = usePeriodSummary(
-    startDate.toISOString().split('T')[0],
-    endDate.toISOString().split('T')[0],
+    startDate.toISOString().split("T")[0],
+    endDate.toISOString().split("T")[0],
     selectedPeriod
   )
 
   const formatDateRange = () => {
     switch (selectedPeriod) {
-      case 'week':
-        return `${format(startDate, 'MMM d, yyyy')} - ${format(endDate, 'MMM d, yyyy')}`
-      case 'month':
-        return `${format(startDate, 'MMMM yyyy')} - ${format(endDate, 'MMMM yyyy')}`
-      case 'quarter':
+      case "week":
+        return `${format(startDate, "MMM d, yyyy")} - ${format(
+          endDate,
+          "MMM d, yyyy"
+        )}`
+      case "month":
+        return `${format(startDate, "MMMM yyyy")} - ${format(
+          endDate,
+          "MMMM yyyy"
+        )}`
+      case "quarter":
         const startQuarter = Math.floor(startDate.getMonth() / 3) + 1
         const endQuarter = Math.floor(endDate.getMonth() / 3) + 1
-        return `Q${startQuarter} ${format(startDate, 'yyyy')} - Q${endQuarter} ${format(endDate, 'yyyy')}`
-      case 'year':
-        return `${format(startDate, 'yyyy')} - ${format(endDate, 'yyyy')}`
+        return `Q${startQuarter} ${format(
+          startDate,
+          "yyyy"
+        )} - Q${endQuarter} ${format(endDate, "yyyy")}`
+      case "year":
+        return `${format(startDate, "yyyy")} - ${format(endDate, "yyyy")}`
     }
   }
 
   const periodOptions: { value: PeriodType; label: string }[] = [
-    { value: 'week', label: 'Weekly' },
-    { value: 'month', label: 'Monthly' },
-    { value: 'quarter', label: 'Quarterly' },
-    { value: 'year', label: 'Yearly' }
+    { value: "week", label: "Weekly" },
+    { value: "month", label: "Monthly" },
+    { value: "quarter", label: "Quarterly" },
+    { value: "year", label: "Yearly" },
   ]
 
   const rangeOptions: { value: RangeType; label: string }[] = [
-    { value: 3, label: '3 Periods' },
-    { value: 6, label: '6 Periods' },
-    { value: 12, label: '12 Periods' },
-    { value: 24, label: '24 Periods' },
-    { value: 36, label: '36 Periods' }
+    { value: 3, label: "3 Periods" },
+    { value: 6, label: "6 Periods" },
+    { value: 12, label: "12 Periods" },
+    { value: 24, label: "24 Periods" },
+    { value: 36, label: "36 Periods" },
   ]
 
   const dateSelector = (
@@ -141,7 +163,7 @@ export function Wealth() {
 
         <Select
           value={periodRange.toString()}
-          onValueChange={(value) => {
+          onValueChange={value => {
             setPeriodRange(Number(value) as RangeType)
           }}
         >
@@ -165,17 +187,11 @@ export function Wealth() {
   )
 
   return (
-    <PageContainer
-      title="Wealth Overview"
-      action={dateSelector}
-    >
+    <PageContainer title="Wealth Overview" action={dateSelector}>
       <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 w-full">
         {/* Wealth Evolution Chart */}
         <div className="rounded-xl border bg-card p-4 shadow-sm">
-          <WealthChart
-            startDate={startDate}
-            endDate={endDate}
-          />
+          <WealthChart startDate={startDate} endDate={endDate} />
         </div>
 
         {/* Period Analysis */}
@@ -188,7 +204,9 @@ export function Wealth() {
             <PeriodChart data={wealthData} />
           ) : (
             <div className="flex items-center justify-center h-[300px]">
-              <div className="text-muted-foreground">No data available for the selected period</div>
+              <div className="text-muted-foreground">
+                No data available for the selected period
+              </div>
             </div>
           )}
         </div>

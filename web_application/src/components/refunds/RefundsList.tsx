@@ -1,16 +1,23 @@
-import { useTransactions } from '@/api/queries'
-import { CreateRefundModal } from '@/components/refunds/CreateRefundModal'
-import { Button } from '@/components/ui/button'
+import { useTransactions } from "@/api/queries"
+import { CreateRefundModal } from "@/components/refunds/CreateRefundModal"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
-import { RefundGroup, RefundItem, Transaction } from '@/types'
-import { ArrowRight, Calendar, DollarSign, MoreHorizontal, Pencil, Trash } from 'lucide-react'
-import { useState } from 'react'
+} from "@/components/ui/dropdown-menu"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import { RefundGroup, RefundItem, Transaction } from "@/types"
+import {
+  ArrowRight,
+  Calendar,
+  DollarSign,
+  MoreHorizontal,
+  Pencil,
+  Trash,
+} from "lucide-react"
+import { useState } from "react"
 
 interface RefundsListProps {
   refundGroups: RefundGroup[]
@@ -26,13 +33,18 @@ export function RefundsList({
   onDeleteRefundItem,
 }: RefundsListProps) {
   // Get all unique transaction IDs from refund items
-  const allTransactionIds = Array.from(new Set([
-    ...refundItems.map(item => item.expense_transaction_id),
-    ...refundItems.map(item => item.income_transaction_id)
-  ]))
+  const allTransactionIds = Array.from(
+    new Set([
+      ...refundItems.map(item => item.expense_transaction_id),
+      ...refundItems.map(item => item.income_transaction_id),
+    ])
+  )
 
   // Fetch all transactions by IDs
-  const { data: transactionsData } = useTransactions({ id: allTransactionIds, per_page: allTransactionIds.length || 1 })
+  const { data: transactionsData } = useTransactions({
+    id: allTransactionIds,
+    per_page: allTransactionIds.length || 1,
+  })
 
   const [editingRefund, setEditingRefund] = useState<{
     refundGroupId?: number
@@ -44,7 +56,10 @@ export function RefundsList({
     }[]
   } | null>(null)
 
-  const [hoveredItem, setHoveredItem] = useState<{ type: 'group' | 'item', id: number } | null>(null)
+  const [hoveredItem, setHoveredItem] = useState<{
+    type: "group" | "item"
+    id: number
+  } | null>(null)
 
   // Create a map of all transactions
   const transactionsMap = new Map<number, Transaction>(
@@ -53,20 +68,30 @@ export function RefundsList({
 
   // Group standalone refund items (not part of a group)
   const standaloneItems = refundItems.filter(item => !item.refund_group_id)
-  console.log('standaloneItems', standaloneItems)
+  console.log("standaloneItems", standaloneItems)
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     })
   }
 
-  const RefundCard = ({ expense, income, amount, item }: { expense: Transaction, income: Transaction, amount: number, item: RefundItem }) => (
+  const RefundCard = ({
+    expense,
+    income,
+    amount,
+    item,
+  }: {
+    expense: Transaction
+    income: Transaction
+    amount: number
+    item: RefundItem
+  }) => (
     <div
       className="grid md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg"
-      onMouseEnter={() => setHoveredItem({ type: 'item', id: item.id! })}
+      onMouseEnter={() => setHoveredItem({ type: "item", id: item.id! })}
       onMouseLeave={() => setHoveredItem(null)}
     >
       <div className="space-y-3">
@@ -79,8 +104,8 @@ export function RefundsList({
               {formatDate(expense.date)}
             </div>
             <div className="flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4" />
-              ${Math.abs(expense.amount).toFixed(2)}
+              <DollarSign className="w-4 h-4" />$
+              {Math.abs(expense.amount).toFixed(2)}
             </div>
           </div>
         </div>
@@ -95,8 +120,7 @@ export function RefundsList({
               {formatDate(income.date)}
             </div>
             <div className="flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4" />
-              ${amount.toFixed(2)}
+              <DollarSign className="w-4 h-4" />${amount.toFixed(2)}
             </div>
           </div>
         </div>
@@ -105,42 +129,46 @@ export function RefundsList({
   )
 
   const handleEditGroup = (groupId: number) => {
-    const groupItems = refundItems.filter(item => item.refund_group_id === groupId)
+    const groupItems = refundItems.filter(
+      item => item.refund_group_id === groupId
+    )
     setEditingRefund({
       refundGroupId: groupId,
       refundItems: groupItems.map(item => ({
         id: item.id!,
         expenseId: item.expense_transaction_id,
         incomeId: item.income_transaction_id,
-        amount: item.amount
-      }))
+        amount: item.amount,
+      })),
     })
   }
 
   const handleEditStandaloneItem = (item: RefundItem) => {
     setEditingRefund({
-      refundItems: [{
-        id: item.id!,
-        expenseId: item.expense_transaction_id,
-        incomeId: item.income_transaction_id,
-        amount: item.amount
-      }]
+      refundItems: [
+        {
+          id: item.id!,
+          expenseId: item.expense_transaction_id,
+          incomeId: item.income_transaction_id,
+          amount: item.amount,
+        },
+      ],
     })
   }
 
   useKeyboardShortcuts({
-    onKeyDown: (e) => {
+    onKeyDown: e => {
       if (!hoveredItem) return
 
-      if (e.key === 'e') {
-        if (hoveredItem.type === 'group') {
+      if (e.key === "e") {
+        if (hoveredItem.type === "group") {
           handleEditGroup(hoveredItem.id)
         } else {
           const item = refundItems.find(i => i.id === hoveredItem.id)
           if (item) handleEditStandaloneItem(item)
         }
-      } else if (e.key === 'd') {
-        if (hoveredItem.type === 'group') {
+      } else if (e.key === "d") {
+        if (hoveredItem.type === "group") {
           const group = refundGroups.find(g => g.id === hoveredItem.id)
           if (group) onDeleteRefundGroup(group)
         } else {
@@ -148,16 +176,22 @@ export function RefundsList({
           if (item) onDeleteRefundItem(item)
         }
       }
-    }
+    },
   })
 
   return (
     <div className="space-y-8">
       {/* Grouped Refunds */}
-      {refundGroups.map((group) => {
-        const groupItems = refundItems.filter(item => item.refund_group_id === group.id)
-        const uniqueExpenseIds = new Set(groupItems.map(item => item.expense_transaction_id))
-        const uniqueIncomeIds = new Set(groupItems.map(item => item.income_transaction_id))
+      {refundGroups.map(group => {
+        const groupItems = refundItems.filter(
+          item => item.refund_group_id === group.id
+        )
+        const uniqueExpenseIds = new Set(
+          groupItems.map(item => item.expense_transaction_id)
+        )
+        const uniqueIncomeIds = new Set(
+          groupItems.map(item => item.income_transaction_id)
+        )
 
         const totalExpense = Array.from(uniqueExpenseIds)
           .map(id => transactionsMap.get(id))
@@ -173,7 +207,9 @@ export function RefundsList({
           <div
             key={group.id}
             className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
-            onMouseEnter={() => setHoveredItem({ type: 'group', id: group.id! })}
+            onMouseEnter={() =>
+              setHoveredItem({ type: "group", id: group.id! })
+            }
             onMouseLeave={() => setHoveredItem(null)}
           >
             <div className="p-6 space-y-6">
@@ -187,7 +223,9 @@ export function RefundsList({
                 </div>
                 <div className="flex items-start gap-4">
                   <div className="text-right">
-                    <div className="text-2xl font-semibold">${totalIncome.toFixed(2)}</div>
+                    <div className="text-2xl font-semibold">
+                      ${totalIncome.toFixed(2)}
+                    </div>
                     <div className="text-sm text-gray-500">
                       {refundPercentage.toFixed(1)}% of expenses refunded
                     </div>
@@ -199,7 +237,9 @@ export function RefundsList({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEditGroup(group.id!)}>
+                      <DropdownMenuItem
+                        onClick={() => handleEditGroup(group.id!)}
+                      >
                         <Pencil className="w-4 h-4 mr-2" />
                         Edit (E)
                       </DropdownMenuItem>
@@ -218,13 +258,17 @@ export function RefundsList({
               {/* Summary */}
               <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">Total Expenses</div>
+                  <div className="text-sm text-gray-500 mb-1">
+                    Total Expenses
+                  </div>
                   <div className="text-lg font-semibold text-red-600">
                     ${totalExpense.toFixed(2)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">Total Refunds</div>
+                  <div className="text-sm text-gray-500 mb-1">
+                    Total Refunds
+                  </div>
                   <div className="text-lg font-semibold text-green-600">
                     ${totalIncome.toFixed(2)}
                   </div>
@@ -241,15 +285,23 @@ export function RefundsList({
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Expenses */}
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-gray-500">Expenses</h3>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Expenses
+                  </h3>
                   <div className="space-y-2">
                     {Array.from(uniqueExpenseIds).map(id => {
                       const transaction = transactionsMap.get(id)
                       if (!transaction) return null
 
-                      const items = groupItems.filter(item => item.expense_transaction_id === id)
-                      const totalRefunded = items.reduce((sum, item) => sum + item.amount, 0)
-                      const percentage = (totalRefunded / Math.abs(transaction.amount)) * 100
+                      const items = groupItems.filter(
+                        item => item.expense_transaction_id === id
+                      )
+                      const totalRefunded = items.reduce(
+                        (sum, item) => sum + item.amount,
+                        0
+                      )
+                      const percentage =
+                        (totalRefunded / Math.abs(transaction.amount)) * 100
 
                       return (
                         <div
@@ -258,15 +310,17 @@ export function RefundsList({
                         >
                           <div className="flex justify-between items-start">
                             <div className="space-y-1">
-                              <div className="font-medium">{transaction.description}</div>
+                              <div className="font-medium">
+                                {transaction.description}
+                              </div>
                               <div className="flex items-center gap-3 text-sm text-gray-500">
                                 <div className="flex items-center gap-1.5">
                                   <Calendar className="w-4 h-4" />
                                   {formatDate(transaction.date)}
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <DollarSign className="w-4 h-4" />
-                                  ${Math.abs(transaction.amount).toFixed(2)}
+                                  <DollarSign className="w-4 h-4" />$
+                                  {Math.abs(transaction.amount).toFixed(2)}
                                 </div>
                               </div>
                             </div>
@@ -280,14 +334,23 @@ export function RefundsList({
                             </div>
                           </div>
                           {items.map(item => {
-                            const income = transactionsMap.get(item.income_transaction_id)
+                            const income = transactionsMap.get(
+                              item.income_transaction_id
+                            )
                             if (!income) return null
 
                             return (
-                              <div key={item.id} className="flex items-center gap-2 text-sm pl-4">
+                              <div
+                                key={item.id}
+                                className="flex items-center gap-2 text-sm pl-4"
+                              >
                                 <ArrowRight className="w-4 h-4 text-gray-400" />
-                                <span className="text-gray-600">{income.description}:</span>
-                                <span className="font-medium">${item.amount.toFixed(2)}</span>
+                                <span className="text-gray-600">
+                                  {income.description}:
+                                </span>
+                                <span className="font-medium">
+                                  ${item.amount.toFixed(2)}
+                                </span>
                               </div>
                             )
                           })}
@@ -305,8 +368,13 @@ export function RefundsList({
                       const transaction = transactionsMap.get(id)
                       if (!transaction) return null
 
-                      const items = groupItems.filter(item => item.income_transaction_id === id)
-                      const totalContribution = items.reduce((sum, item) => sum + item.amount, 0)
+                      const items = groupItems.filter(
+                        item => item.income_transaction_id === id
+                      )
+                      const totalContribution = items.reduce(
+                        (sum, item) => sum + item.amount,
+                        0
+                      )
                       const percentage = (totalContribution / totalIncome) * 100
 
                       return (
@@ -316,15 +384,17 @@ export function RefundsList({
                         >
                           <div className="flex justify-between items-start">
                             <div className="space-y-1">
-                              <div className="font-medium">{transaction.description}</div>
+                              <div className="font-medium">
+                                {transaction.description}
+                              </div>
                               <div className="flex items-center gap-3 text-sm text-gray-500">
                                 <div className="flex items-center gap-1.5">
                                   <Calendar className="w-4 h-4" />
                                   {formatDate(transaction.date)}
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <DollarSign className="w-4 h-4" />
-                                  ${transaction.amount.toFixed(2)}
+                                  <DollarSign className="w-4 h-4" />$
+                                  {transaction.amount.toFixed(2)}
                                 </div>
                               </div>
                             </div>
@@ -338,14 +408,23 @@ export function RefundsList({
                             </div>
                           </div>
                           {items.map(item => {
-                            const expense = transactionsMap.get(item.expense_transaction_id)
+                            const expense = transactionsMap.get(
+                              item.expense_transaction_id
+                            )
                             if (!expense) return null
 
                             return (
-                              <div key={item.id} className="flex items-center gap-2 text-sm pl-4">
+                              <div
+                                key={item.id}
+                                className="flex items-center gap-2 text-sm pl-4"
+                              >
                                 <ArrowRight className="w-4 h-4 text-gray-400" />
-                                <span className="text-gray-600">{expense.description}:</span>
-                                <span className="font-medium">${item.amount.toFixed(2)}</span>
+                                <span className="text-gray-600">
+                                  {expense.description}:
+                                </span>
+                                <span className="font-medium">
+                                  ${item.amount.toFixed(2)}
+                                </span>
                               </div>
                             )
                           })}
@@ -368,8 +447,12 @@ export function RefundsList({
             {standaloneItems.map(item => {
               const expense = transactionsMap.get(item.expense_transaction_id)
               const income = transactionsMap.get(item.income_transaction_id)
-              {console.log('expense', expense)}
-              {console.log('income', income)}
+              {
+                console.log("expense", expense)
+              }
+              {
+                console.log("income", income)
+              }
               if (!expense || !income) return null
 
               return (
@@ -388,7 +471,9 @@ export function RefundsList({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditStandaloneItem(item)}>
+                        <DropdownMenuItem
+                          onClick={() => handleEditStandaloneItem(item)}
+                        >
                           <Pencil className="w-4 h-4 mr-2" />
                           Edit (E)
                         </DropdownMenuItem>

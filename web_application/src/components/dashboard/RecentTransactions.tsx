@@ -12,31 +12,35 @@ interface Props {
 
 // Function to determine icon based on transaction type and category
 const getTransactionIcon = (type: string, category?: string) => {
-  if (type === 'expense') return '📤'
-  if (type === 'income') return '📥'
-  if (type === 'transfer') return '🔄'
-  if (type === 'refund') return '↩️'
+  if (type === "expense") return "📤"
+  if (type === "income") return "📥"
+  if (type === "transfer") return "🔄"
+  if (type === "refund") return "↩️"
 
-  if (category === 'Food & Dining') return '🍔'
-  if (category === 'Shopping') return '🛍️'
-  if (category === 'Transportation') return '🚗'
-  if (category === 'Entertainment') return '🎬'
-  if (category === 'Travel') return '✈️'
-  if (category === 'Health & Fitness') return '🏥'
-  if (category === 'Subscription') return '📱'
+  if (category === "Food & Dining") return "🍔"
+  if (category === "Shopping") return "🛍️"
+  if (category === "Transportation") return "🚗"
+  if (category === "Entertainment") return "🎬"
+  if (category === "Travel") return "✈️"
+  if (category === "Health & Fitness") return "🏥"
+  if (category === "Subscription") return "📱"
 
-  return '💰' // Default icon
+  return "💰" // Default icon
 }
 
 export function RecentTransactions({ transactions }: Props) {
   const navigate = useNavigate()
-  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null)
+  const [selectedTransactionId, setSelectedTransactionId] = useState<
+    string | null
+  >(null)
   const { setEditTransaction, setDeleteTransaction } = useDialogStore()
 
   useKeyboardShortcuts({
     onEdit: () => {
       if (selectedTransactionId) {
-        const transaction = transactions.find(t => t.id.toString() === selectedTransactionId)
+        const transaction = transactions.find(
+          t => t.id.toString() === selectedTransactionId
+        )
         if (transaction) {
           setEditTransaction(transaction)
         }
@@ -44,7 +48,9 @@ export function RecentTransactions({ transactions }: Props) {
     },
     onDelete: () => {
       if (selectedTransactionId) {
-        const transaction = transactions.find(t => t.id.toString() === selectedTransactionId)
+        const transaction = transactions.find(
+          t => t.id.toString() === selectedTransactionId
+        )
         if (transaction) {
           setDeleteTransaction(transaction)
         }
@@ -80,22 +86,28 @@ export function RecentTransactions({ transactions }: Props) {
           <div
             key={transaction.id}
             className={`flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer ${
-              selectedTransactionId === transaction.id.toString() ? 'bg-muted' : ''
+              selectedTransactionId === transaction.id.toString()
+                ? "bg-muted"
+                : ""
             }`}
-            onClick={() => navigate({
-              to: "/transactions/$transactionId",
-              params: { transactionId: transaction.id.toString() }
-            })}
-            onMouseEnter={() => setSelectedTransactionId(transaction.id.toString())}
+            onClick={() =>
+              navigate({
+                to: "/transactions/$transactionId",
+                params: { transactionId: transaction.id.toString() },
+              })
+            }
+            onMouseEnter={() =>
+              setSelectedTransactionId(transaction.id.toString())
+            }
             onMouseLeave={() => setSelectedTransactionId(null)}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
+            onKeyDown={e => {
+              if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault()
                 navigate({
                   to: "/transactions/$transactionId",
-                  params: { transactionId: transaction.id.toString() }
+                  params: { transactionId: transaction.id.toString() },
                 })
               }
             }}
@@ -107,22 +119,30 @@ export function RecentTransactions({ transactions }: Props) {
                 </span>
                 <div className="flex flex-col">
                   <span className="font-medium">{transaction.description}</span>
-                  <span className="text-sm text-muted-foreground">{transaction.category}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {transaction.category}
+                  </span>
                 </div>
               </div>
               <span className="text-sm text-muted-foreground">
                 {new Date(transaction.date).toLocaleDateString(undefined, {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
                 })}
               </span>
             </div>
-            <span className={`font-semibold ${transaction.type === 'expense' ? 'text-destructive' : 'text-success'}`}>
-              {transaction.type === 'expense' ? '-' : '+'}
+            <span
+              className={`font-semibold ${
+                transaction.type === "expense"
+                  ? "text-destructive"
+                  : "text-success"
+              }`}
+            >
+              {transaction.type === "expense" ? "-" : "+"}
               {new Intl.NumberFormat(undefined, {
-                style: 'currency',
-                currency: 'EUR'
+                style: "currency",
+                currency: "EUR",
               }).format(Math.abs(transaction.amount))}
             </span>
           </div>

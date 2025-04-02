@@ -1,16 +1,16 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
 } from "@/components/ui/command"
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { Check, ChevronsUpDown, X } from "lucide-react"
@@ -39,7 +39,7 @@ export function MultiSelect({
   const [open, setOpen] = React.useState(false)
 
   const handleUnselect = (item: string) => {
-    onChange(value.filter((i) => i !== item))
+    onChange(value.filter(i => i !== item))
   }
 
   return (
@@ -53,29 +53,29 @@ export function MultiSelect({
         >
           <div className="flex gap-1 flex-wrap">
             {value.length === 0 && placeholder}
-            {value.map((item) => (
+            {value.map(item => (
               <Badge
                 variant="secondary"
                 key={item}
                 className="mr-1 mb-1"
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation()
                   handleUnselect(item)
                 }}
               >
-                {options.find((option) => option.value === item)?.label || item}
+                {options.find(option => option.value === item)?.label || item}
                 <button
                   className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  onKeyDown={(e) => {
+                  onKeyDown={e => {
                     if (e.key === "Enter") {
                       handleUnselect(item)
                     }
                   }}
-                  onMouseDown={(e) => {
+                  onMouseDown={e => {
                     e.preventDefault()
                     e.stopPropagation()
                   }}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.preventDefault()
                     e.stopPropagation()
                     handleUnselect(item)
@@ -94,13 +94,13 @@ export function MultiSelect({
           <CommandInput placeholder="Search options..." />
           <CommandEmpty>No options found.</CommandEmpty>
           <CommandGroup className="max-h-64 overflow-auto">
-            {options.map((option) => (
+            {options.map(option => (
               <CommandItem
                 key={option.value}
                 onSelect={() => {
                   onChange(
                     value.includes(option.value)
-                      ? value.filter((item) => item !== option.value)
+                      ? value.filter(item => item !== option.value)
                       : [...value, option.value]
                   )
                   setOpen(true)

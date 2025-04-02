@@ -6,7 +6,14 @@ import { EditAccountDialog } from "@/components/accounts/EditAccountDialog"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +28,7 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table"
 import { ACCOUNT_TYPE_ICONS, ACCOUNT_TYPE_LABELS } from "@/constants"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -39,7 +46,7 @@ import {
   Pencil,
   Plus,
   Search,
-  Trash
+  Trash,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
@@ -47,15 +54,17 @@ interface AccountsPageProps {
   defaultType?: string
 }
 
-type SortField = 'name' | 'type' | 'bank'
-type SortDirection = 'asc' | 'desc'
+type SortField = "name" | "type" | "bank"
+type SortDirection = "asc" | "desc"
 
-export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
+export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
   const [selectedType] = useState<string>(defaultType)
   const [currentPage, setCurrentPage] = useState(1)
-  const [sortField, setSortField] = useState<SortField>('name')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const [balanceSortDirection, setBalanceSortDirection] = useState<'asc' | 'desc' | null>(null)
+  const [sortField, setSortField] = useState<SortField>("name")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [balanceSortDirection, setBalanceSortDirection] = useState<
+    "asc" | "desc" | null
+  >(null)
   const itemsPerPage = 25
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null)
@@ -74,8 +83,12 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
   const deleteMutation = useDeleteAccount()
 
   const { data: accountsResponse, isLoading } = useAccounts({
-    type: selectedType === 'owned' ? 'checking,savings,investment' :
-      selectedType === 'all' ? undefined : selectedType,
+    type:
+      selectedType === "owned"
+        ? "checking,savings,investment"
+        : selectedType === "all"
+          ? undefined
+          : selectedType,
     page: currentPage,
     per_page: itemsPerPage,
     sort_by: sortField,
@@ -93,54 +106,65 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
   const handleSort = (field: SortField) => {
     setBalanceSortDirection(null)
     if (sortField === field) {
-      const newDirection = sortDirection === 'asc' ? 'desc' : 'asc'
+      const newDirection = sortDirection === "asc" ? "desc" : "asc"
       setSortDirection(newDirection)
     } else {
       setSortField(field)
-      setSortDirection('asc')
+      setSortDirection("asc")
     }
     setCurrentPage(1)
   }
 
   const handleBalanceSort = () => {
-    setSortField('name')
-    setSortDirection('asc')
+    setSortField("name")
+    setSortDirection("asc")
     setBalanceSortDirection(prev => {
-      if (prev === null) return 'asc'
-      if (prev === 'asc') return 'desc'
+      if (prev === null) return "asc"
+      if (prev === "asc") return "desc"
       return null
     })
     setCurrentPage(1)
   }
 
   const sortedAccounts = [...(accounts || [])].sort((a, b) => {
-    if (balanceSortDirection === 'asc') {
+    if (balanceSortDirection === "asc") {
       return a.balance - b.balance
-    } else if (balanceSortDirection === 'desc') {
+    } else if (balanceSortDirection === "desc") {
       return b.balance - a.balance
     }
     return 0
   })
 
-  const totalBalance = sortedAccounts.reduce((sum: number, account: Account) => sum + account.balance, 0)
+  const totalBalance = sortedAccounts.reduce(
+    (sum: number, account: Account) => sum + account.balance,
+    0
+  )
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />
-    return sortDirection === 'asc'
-      ? <ArrowUpIcon className="ml-2 h-4 w-4" />
-      : <ArrowDownIcon className="ml-2 h-4 w-4" />
+    return sortDirection === "asc" ? (
+      <ArrowUpIcon className="ml-2 h-4 w-4" />
+    ) : (
+      <ArrowDownIcon className="ml-2 h-4 w-4" />
+    )
   }
 
   const BalanceSortIcon = () => {
-    if (balanceSortDirection === null) return <ArrowUpDown className="ml-2 h-4 w-4" />
-    return balanceSortDirection === 'asc'
-      ? <ArrowUpIcon className="ml-2 h-4 w-4" />
-      : <ArrowDownIcon className="ml-2 h-4 w-4" />
+    if (balanceSortDirection === null)
+      return <ArrowUpDown className="ml-2 h-4 w-4" />
+    return balanceSortDirection === "asc" ? (
+      <ArrowUpIcon className="ml-2 h-4 w-4" />
+    ) : (
+      <ArrowDownIcon className="ml-2 h-4 w-4" />
+    )
   }
 
-  const pageTitle = defaultType === 'new' ? 'Add Account' :
-    defaultType === 'link' ? 'Link Bank Account' :
-    'All Accounts'
+  const pageTitle =
+    defaultType === "new"
+      ? "Add Account"
+      : defaultType === "link"
+        ? "Link Bank Account"
+        : "All Accounts"
 
   useEffect(() => {
     setCurrentPage(1)
@@ -184,29 +208,29 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
 
   const getStatsText = () => {
     switch (defaultType) {
-      case 'expense':
+      case "expense":
         return {
-          title: 'Total Expense Accounts',
-          balance: 'Total Expenses Available',
-          banks: 'Connected Payment Methods'
+          title: "Total Expense Accounts",
+          balance: "Total Expenses Available",
+          banks: "Connected Payment Methods",
         }
-      case 'income':
+      case "income":
         return {
-          title: 'Total Income Accounts',
-          balance: 'Expected Income',
-          banks: 'Income Sources'
+          title: "Total Income Accounts",
+          balance: "Expected Income",
+          banks: "Income Sources",
         }
-      case 'regular':
+      case "regular":
         return {
-          title: 'Regular Accounts',
-          balance: 'Total Balance',
-          banks: 'Connected Banks'
+          title: "Regular Accounts",
+          balance: "Total Balance",
+          banks: "Connected Banks",
         }
       default:
         return {
-          title: 'Total Accounts',
-          balance: 'Net Worth',
-          banks: 'Connected Banks'
+          title: "Total Accounts",
+          balance: "Net Worth",
+          banks: "Connected Banks",
         }
     }
   }
@@ -274,19 +298,33 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
           ) : (
             <>
               <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">{statsText.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  {statsText.title}
+                </p>
                 <p className="text-2xl font-semibold mt-2">{totalItems}</p>
               </div>
               <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">{statsText.banks}</p>
+                <p className="text-sm text-muted-foreground">
+                  {statsText.banks}
+                </p>
                 <p className="text-2xl font-semibold mt-2">{banks.length}</p>
               </div>
               <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">{statsText.balance}</p>
-                <p className={`text-2xl font-semibold mt-2 ${defaultType === 'expense' ? 'text-destructive' : defaultType === 'income' ? 'text-success' : ''}`}>
+                <p className="text-sm text-muted-foreground">
+                  {statsText.balance}
+                </p>
+                <p
+                  className={`text-2xl font-semibold mt-2 ${
+                    defaultType === "expense"
+                      ? "text-destructive"
+                      : defaultType === "income"
+                        ? "text-success"
+                        : ""
+                  }`}
+                >
                   {new Intl.NumberFormat(undefined, {
-                    style: 'currency',
-                    currency: 'EUR'
+                    style: "currency",
+                    currency: "EUR",
                   }).format(Math.abs(totalBalance))}
                 </p>
               </div>
@@ -301,7 +339,7 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
             <Input
               placeholder="Search accounts..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className="pl-10 bg-background border-border/50"
             />
           </div>
@@ -326,10 +364,17 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
               <Button
                 variant="destructive"
                 className="w-full sm:w-auto"
-                onClick={() => setDeletingAccount(accounts.find(a => a.id === selectedAccounts[0]) || null)}
+                onClick={() =>
+                  setDeletingAccount(
+                    accounts.find(a => a.id === selectedAccounts[0]) || null
+                  )
+                }
               >
                 <Trash className="h-4 w-4 mr-2" />
-                Delete {selectedAccounts.length > 1 ? `(${selectedAccounts.length})` : ''}
+                Delete{" "}
+                {selectedAccounts.length > 1
+                  ? `(${selectedAccounts.length})`
+                  : ""}
               </Button>
             )}
           </div>
@@ -342,26 +387,29 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[50px]">
                   <Checkbox
-                    checked={selectedAccounts.length === sortedAccounts.length && sortedAccounts.length > 0}
+                    checked={
+                      selectedAccounts.length === sortedAccounts.length &&
+                      sortedAccounts.length > 0
+                    }
                     onCheckedChange={handleSelectAll}
                     aria-label="Select all"
                   />
                 </TableHead>
                 <TableHead
                   className="w-[300px] cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => handleSort('name')}
+                  onClick={() => handleSort("name")}
                 >
                   Name <SortIcon field="name" />
                 </TableHead>
                 <TableHead
                   className="w-[150px] cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => handleSort('type')}
+                  onClick={() => handleSort("type")}
                 >
                   Type <SortIcon field="type" />
                 </TableHead>
                 <TableHead
                   className="w-[200px] cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => handleSort('bank')}
+                  onClick={() => handleSort("bank")}
                 >
                   Bank <SortIcon field="bank" />
                 </TableHead>
@@ -377,12 +425,24 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={index}>
-                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-4" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-32" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-8" />
+                    </TableCell>
                   </TableRow>
                 ))
               ) : accounts.length === 0 ? (
@@ -417,23 +477,36 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
                       className={cn(`
                         hover:bg-muted/50
                         transition-colors
-                        ${selectedRowId === account.id ? 'bg-muted' : ''}
-                        ${selectedAccounts.includes(account.id) ? 'bg-muted/70' : ''}
+                        ${selectedRowId === account.id ? "bg-muted" : ""}
+                        ${
+                          selectedAccounts.includes(account.id)
+                            ? "bg-muted/70"
+                            : ""
+                        }
                       `)}
                       onMouseEnter={() => setSelectedRowId(account.id)}
                       onMouseLeave={() => setSelectedRowId(null)}
-                      onClick={() => navigate({ to: "/accounts/$accountId", params: { accountId: account.id.toString() } })}
+                      onClick={() =>
+                        navigate({
+                          to: "/accounts/$accountId",
+                          params: { accountId: account.id.toString() },
+                        })
+                      }
                     >
                       <TableCell>
                         <Checkbox
                           checked={selectedAccounts.includes(account.id)}
-                          onCheckedChange={(checked) => handleSelectAccount(account.id, checked as boolean)}
+                          onCheckedChange={checked =>
+                            handleSelectAccount(account.id, checked as boolean)
+                          }
                           onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
-                          <span className="text-lg">{ACCOUNT_TYPE_ICONS[account.type]}</span>
+                          <span className="text-lg">
+                            {ACCOUNT_TYPE_ICONS[account.type]}
+                          </span>
                           {account.name}
                         </div>
                       </TableCell>
@@ -454,13 +527,23 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
                               {bank.name}
                               <ExternalLink className="h-3 w-3" />
                             </a>
-                          ) : bank.name
-                        ) : 'Other'}
+                          ) : (
+                            bank.name
+                          )
+                        ) : (
+                          "Other"
+                        )}
                       </TableCell>
-                      <TableCell className={`text-right ${account.balance < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      <TableCell
+                        className={`text-right ${
+                          account.balance < 0
+                            ? "text-red-500"
+                            : "text-green-500"
+                        }`}
+                      >
                         {new Intl.NumberFormat(undefined, {
-                          style: 'currency',
-                          currency: 'EUR'
+                          style: "currency",
+                          currency: "EUR",
                         }).format(Math.abs(account.balance))}
                       </TableCell>
                       <TableCell>
@@ -471,7 +554,9 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditingAccount(account)}>
+                            <DropdownMenuItem
+                              onClick={() => setEditingAccount(account)}
+                            >
                               <Pencil className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
@@ -497,7 +582,9 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} accounts
+              Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+              {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}{" "}
+              accounts
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -548,33 +635,36 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
           <EditAccountDialog
             account={editingAccount}
             open={true}
-            onOpenChange={(open) => !open && setEditingAccount(null)}
+            onOpenChange={open => !open && setEditingAccount(null)}
           />
         )}
 
         <DeleteAccountDialog
           account={deletingAccount}
           open={!!deletingAccount}
-          onOpenChange={(open) => !open && setDeletingAccount(null)}
+          onOpenChange={open => !open && setDeletingAccount(null)}
           redirectTo="/accounts"
         />
 
         {isAddingAccount && (
           <AddAccountDialog
             open={isAddingAccount}
-            onOpenChange={(open) => !open && setIsAddingAccount(false)}
+            onOpenChange={open => !open && setIsAddingAccount(false)}
           />
         )}
 
         {isAddingBank && (
           <AddBankDialog
             open={isAddingBank}
-            onOpenChange={(open) => !open && setIsAddingBank(false)}
+            onOpenChange={open => !open && setIsAddingBank(false)}
           />
         )}
 
         {showBulkDeleteConfirm && (
-          <Dialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+          <Dialog
+            open={showBulkDeleteConfirm}
+            onOpenChange={setShowBulkDeleteConfirm}
+          >
             <DialogContent>
               <DialogHeader>
                 <DialogTitle className="text-red-500">
@@ -582,14 +672,18 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
                 </DialogTitle>
                 <DialogDescription className="space-y-3 pt-4">
                   <div className="text-red-500 font-medium">
-                    You are about to delete {selectedAccounts.length} accounts. This action cannot be undone.
+                    You are about to delete {selectedAccounts.length} accounts.
+                    This action cannot be undone.
                   </div>
                   <div className="max-h-[200px] overflow-y-auto">
                     <ul className="list-disc pl-4 space-y-1">
                       {accounts
                         .filter(a => selectedAccounts.includes(a.id))
                         .map(account => (
-                          <li key={account.id} className="text-sm text-muted-foreground">
+                          <li
+                            key={account.id}
+                            className="text-sm text-muted-foreground"
+                          >
                             {account.name} ({ACCOUNT_TYPE_LABELS[account.type]})
                           </li>
                         ))}
@@ -604,10 +698,7 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
                 >
                   Cancel
                 </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleBulkDelete}
-                >
+                <Button variant="destructive" onClick={handleBulkDelete}>
                   Delete {selectedAccounts.length} Accounts
                 </Button>
               </DialogFooter>
@@ -627,7 +718,7 @@ export function AccountsPage({ defaultType = 'all' }: AccountsPageProps) {
                   min={1}
                   max={totalPages}
                   value={manualPageInput}
-                  onChange={(e) => setManualPageInput(e.target.value)}
+                  onChange={e => setManualPageInput(e.target.value)}
                   placeholder={`Enter page (1-${totalPages})`}
                 />
               </div>

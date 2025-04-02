@@ -1,6 +1,6 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { parse, format } from 'date-fns'
+import { create } from "zustand"
+import { persist } from "zustand/middleware"
+import { parse, format } from "date-fns"
 
 interface DateRangeState {
   fromDate: Date
@@ -17,7 +17,7 @@ const getDefaultDates = () => {
   oneYearFromNow.setFullYear(today.getFullYear() + 1)
   return {
     from: today,
-    to: oneYearFromNow
+    to: oneYearFromNow,
   }
 }
 
@@ -25,27 +25,32 @@ const defaultDates = getDefaultDates()
 
 export const useDateRangeStore = create<DateRangeState>()(
   persist(
-    (set) => ({
+    set => ({
       fromDate: defaultDates.from,
       toDate: defaultDates.to,
       setFromDate: (date: Date) => set({ fromDate: date }),
       setToDate: (date: Date) => set({ toDate: date }),
-      setDateRange: (from: Date, to: Date) => set({ fromDate: from, toDate: to }),
+      setDateRange: (from: Date, to: Date) =>
+        set({ fromDate: from, toDate: to }),
     }),
     {
-      name: 'date-range-storage',
-      partialize: (state) => ({
-        fromDate: format(state.fromDate, 'yyyy-MM-dd'),
-        toDate: format(state.toDate, 'yyyy-MM-dd'),
+      name: "date-range-storage",
+      partialize: state => ({
+        fromDate: format(state.fromDate, "yyyy-MM-dd"),
+        toDate: format(state.toDate, "yyyy-MM-dd"),
       }),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => state => {
         if (state) {
           // Convert string dates back to Date objects
-          state.fromDate = parse(state.fromDate as string, 'yyyy-MM-dd', new Date())
-          state.toDate = parse(state.toDate as string, 'yyyy-MM-dd', new Date())
+          state.fromDate = parse(
+            state.fromDate as string,
+            "yyyy-MM-dd",
+            new Date()
+          )
+          state.toDate = parse(state.toDate as string, "yyyy-MM-dd", new Date())
         }
       },
       version: 1,
-    },
-  ),
+    }
+  )
 )

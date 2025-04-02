@@ -5,7 +5,13 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Command as CommandPrimitive } from "cmdk"
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react"
 
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -35,7 +41,7 @@ export const ComboboxInput = ({
 }: ComboboxInputProps) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [position, setPosition] = useState<'top' | 'bottom'>('bottom')
+  const [position, setPosition] = useState<"top" | "bottom">("bottom")
 
   const [isOpen, setOpen] = useState(false)
   const [selected, setSelected] = useState<Option>(value as Option)
@@ -51,7 +57,11 @@ export const ComboboxInput = ({
       const spaceAbove = rect.top - inputHeight
       const dropdownHeight = 200 // max-h-[200px] from the CommandGroup
 
-      setPosition(spaceBelow >= dropdownHeight || spaceBelow >= spaceAbove ? 'bottom' : 'top')
+      setPosition(
+        spaceBelow >= dropdownHeight || spaceBelow >= spaceAbove
+          ? "bottom"
+          : "top"
+      )
     }
   }, [isOpen])
 
@@ -70,7 +80,7 @@ export const ComboboxInput = ({
       // This is not a default behaviour of the <input /> field
       if (event.key === "Enter" && input.value !== "") {
         const optionToSelect = options.find(
-          (option) => option.label === input.value,
+          option => option.label === input.value
         )
         if (optionToSelect) {
           setSelected(optionToSelect)
@@ -82,7 +92,7 @@ export const ComboboxInput = ({
         input.blur()
       }
     },
-    [isOpen, options, onValueChange],
+    [isOpen, options, onValueChange]
   )
 
   const handleBlur = useCallback(() => {
@@ -103,7 +113,7 @@ export const ComboboxInput = ({
         inputRef?.current?.blur()
       }, 0)
     },
-    [onValueChange],
+    [onValueChange]
   )
 
   return (
@@ -122,8 +132,8 @@ export const ComboboxInput = ({
         <div
           className={cn(
             "animate-in fade-in-0 zoom-in-95 absolute z-10 w-full rounded-xl bg-white outline-none",
-            position === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1',
-            isOpen ? "block" : "hidden",
+            position === "bottom" ? "top-full mt-1" : "bottom-full mb-1",
+            isOpen ? "block" : "hidden"
           )}
         >
           <CommandList className="rounded-lg ring-1 ring-slate-200">
@@ -137,24 +147,28 @@ export const ComboboxInput = ({
             {options.length > 0 && !isLoading ? (
               <CommandGroup className="max-h-[200px] overflow-y-auto">
                 {options
-                  .filter((option) =>
-                    !inputValue || option.label.toLowerCase().includes(inputValue?.toLowerCase() || '')
+                  .filter(
+                    option =>
+                      !inputValue ||
+                      option.label
+                        .toLowerCase()
+                        .includes(inputValue?.toLowerCase() || "")
                   )
                   .slice(0, 5)
-                  .map((option) => {
+                  .map(option => {
                     const isSelected = selected?.value === option.value
                     return (
                       <CommandItem
                         key={option.value}
                         value={option.label}
-                        onMouseDown={(event) => {
+                        onMouseDown={event => {
                           event.preventDefault()
                           event.stopPropagation()
                         }}
                         onSelect={() => handleSelectOption(option)}
                         className={cn(
                           "flex w-full items-center gap-2",
-                          !isSelected ? "pl-8" : null,
+                          !isSelected ? "pl-8" : null
                         )}
                       >
                         {isSelected ? <Check className="w-4" /> : null}

@@ -16,30 +16,38 @@ import * as React from "react"
 import { Label, Pie, PieChart, ResponsiveContainer } from "recharts"
 
 interface Category {
-  color: string;
-  iconName: string;
-  iconSet: string;
+  color: string
+  iconName: string
+  iconSet: string
   name: {
-    en: string;
-    fr: string;
-  };
+    en: string
+    fr: string
+  }
 }
 
 interface ChartData {
-  category: string;
-  value: number;
-  originalValue: number;
-  fill: string;
+  category: string
+  value: number
+  originalValue: number
+  fill: string
 }
 
 export function CategoryChart() {
   const { type } = useCategories()
   const { dateRange } = useDateRange()
-  const startDate = formatDate(dateRange.startDate, 'yyyy-MM-dd')
-  const endDate = formatDate(dateRange.endDate, 'yyyy-MM-dd')
+  const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd")
+  const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd")
 
-  const { data: allCategories, isLoading: isLoadingCategories, error: categoriesError } = useAllCategories()
-  const { data: summaryData, isLoading: isLoadingSummary, error: summaryError } = useCategorySummary(startDate, endDate)
+  const {
+    data: allCategories,
+    isLoading: isLoadingCategories,
+    error: categoriesError,
+  } = useAllCategories()
+  const {
+    data: summaryData,
+    isLoading: isLoadingSummary,
+    error: summaryError,
+  } = useCategorySummary(startDate, endDate)
 
   const isLoading = isLoadingCategories || isLoadingSummary
   const error = categoriesError || summaryError
@@ -50,19 +58,19 @@ export function CategoryChart() {
       return { chartData: [], totalAmount: 0 }
     }
 
-    const categoryMapFr: Record<string, Category> = {};
-    const categories = allCategories[type] as unknown as Category[];
+    const categoryMapFr: Record<string, Category> = {}
+    const categories = allCategories[type] as unknown as Category[]
     categories.forEach((category: Category) => {
-      categoryMapFr[category.name.fr] = category;
-    });
+      categoryMapFr[category.name.fr] = category
+    })
 
     // Transform and sort the data by amount
     const transformedData = Object.entries(summaryData[type].by_category)
       .map(([name, details]) => {
         const categoryInfo = categoryMapFr[name] || {
           color: "#808080",
-          name: { en: name, fr: name }
-        };
+          name: { en: name, fr: name },
+        }
 
         return {
           category: categoryInfo.name.fr,
@@ -88,7 +96,7 @@ export function CategoryChart() {
       label: type === "expense" ? "Total Spending" : "Total Income",
     },
     ...Object.fromEntries(
-      chartData.map((item) => [
+      chartData.map(item => [
         item.category,
         {
           label: item.category,
@@ -105,7 +113,8 @@ export function CategoryChart() {
           <PiggyBank className="h-16 w-16 mb-4" />
           <p className="text-lg font-medium mb-2">No expenses yet!</p>
           <p className="text-sm text-center">
-            Looks like you're either really good at saving<br />
+            Looks like you're either really good at saving
+            <br />
             or haven't tracked any expenses yet.
           </p>
         </>
@@ -114,7 +123,8 @@ export function CategoryChart() {
           <Wallet className="h-16 w-16 mb-4" />
           <p className="text-lg font-medium mb-2">No income recorded</p>
           <p className="text-sm text-center">
-            Time to make it rain! 💸<br />
+            Time to make it rain! 💸
+            <br />
             Start tracking your income to see insights.
           </p>
         </>
@@ -145,7 +155,11 @@ export function CategoryChart() {
             config={chartConfig}
             className="mx-auto aspect-square h-[300px]"
           >
-            <ResponsiveContainer width="100%" height="100%" style={{ overflowY: "hidden" }}>
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              style={{ overflowY: "hidden" }}
+            >
               <PieChart>
                 <ChartTooltip
                   cursor={false}
@@ -199,7 +213,9 @@ export function CategoryChart() {
                               y={(viewBox.cy || 0) + 20}
                               className="fill-muted-foreground text-xs"
                             >
-                              {type === "expense" ? "Total Spending" : "Total Income"}
+                              {type === "expense"
+                                ? "Total Spending"
+                                : "Total Income"}
                             </tspan>
                           </text>
                         )
@@ -211,7 +227,7 @@ export function CategoryChart() {
             </ResponsiveContainer>
           </ChartContainer>
           <div className="flex flex-wrap gap-2 mt-4 justify-center">
-            {chartData.map((item) => (
+            {chartData.map(item => (
               <div key={item.category} className="flex items-center gap-1.5">
                 <div
                   className="h-2.5 w-2.5 rounded-full"

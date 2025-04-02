@@ -1,24 +1,24 @@
-import * as React from 'react';
+import * as React from "react"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Keyboard } from 'lucide-react';
-import { KeyboardShortcut } from '@/components/ui/keyboard-shortcut';
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Keyboard } from "lucide-react"
+import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut"
 
 const shortcuts = [
-  { key: 'N', description: 'Add new item' },
-  { key: 'E', description: 'Edit selected item' },
-  { key: 'D', description: 'Delete selected item' },
-  { key: 'Home', description: 'Go to top of list' },
-  { key: 'End', description: 'Go to bottom of list' },
-  { key: 'Alt + ←', description: 'Previous page' },
-  { key: 'Alt + →', description: 'Next page' },
-];
+  { key: "N", description: "Add new item" },
+  { key: "E", description: "Edit selected item" },
+  { key: "D", description: "Delete selected item" },
+  { key: "Home", description: "Go to top of list" },
+  { key: "End", description: "Go to bottom of list" },
+  { key: "Alt + ←", description: "Previous page" },
+  { key: "Alt + →", description: "Next page" },
+]
 
 export function KeyboardShortcutsHelp() {
   return (
@@ -40,10 +40,7 @@ export function KeyboardShortcutsHelp() {
         </DialogHeader>
         <div className="grid gap-4">
           {shortcuts.map(({ key, description }) => (
-            <div
-              key={key}
-              className="flex items-center justify-between"
-            >
+            <div key={key} className="flex items-center justify-between">
               <span className="text-sm">{description}</span>
               <KeyboardShortcut shortcut={key} />
             </div>
@@ -51,5 +48,5 @@ export function KeyboardShortcutsHelp() {
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

@@ -1,5 +1,5 @@
-import { useDeleteRefundGroup, useDeleteRefundItem } from '@/api/queries'
-import { Button } from '@/components/ui/button'
+import { useDeleteRefundGroup, useDeleteRefundItem } from "@/api/queries"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -7,11 +7,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { useToast } from '@/hooks/use-toast'
-import { RefundGroup, RefundItem } from '@/types'
-import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
+} from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
+import { RefundGroup, RefundItem } from "@/types"
+import { Loader2 } from "lucide-react"
+import { useState } from "react"
 
 interface DeleteRefundDialogProps {
   open: boolean
@@ -64,7 +64,7 @@ export function DeleteRefundDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-red-500">
-            🗑️ Delete {refundGroup ? 'Refund Group' : 'Refund'}
+            🗑️ Delete {refundGroup ? "Refund Group" : "Refund"}
           </DialogTitle>
           <DialogDescription className="pt-4">
             {refundGroup ? (
@@ -81,7 +81,8 @@ export function DeleteRefundDialog({
               </>
             ) : (
               <div className="text-red-500 font-medium">
-                You are about to delete this refund. This action cannot be undone.
+                You are about to delete this refund. This action cannot be
+                undone.
               </div>
             )}
           </DialogDescription>
@@ -105,7 +106,7 @@ export function DeleteRefundDialog({
                 Deleting...
               </>
             ) : (
-              'Delete'
+              "Delete"
             )}
           </Button>
         </DialogFooter>

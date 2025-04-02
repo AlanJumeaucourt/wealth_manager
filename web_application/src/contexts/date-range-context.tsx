@@ -17,11 +17,17 @@ interface DateRangeContextType {
   dateRange: DateRange
 }
 
-const DateRangeContext = createContext<DateRangeContextType | undefined>(undefined)
+const DateRangeContext = createContext<DateRangeContextType | undefined>(
+  undefined
+)
 
 function calculateDateRange(date: Date, scope: Scope): DateRange {
-  const startDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const endDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const startDate = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  )
+  const endDate = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  )
 
   switch (scope) {
     case "month":

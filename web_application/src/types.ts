@@ -7,7 +7,7 @@ export interface Bank {
 export interface Account {
   id: number
   name: string
-  type: 'checking' | 'expense' | 'income' | 'investment' | 'savings'
+  type: "checking" | "expense" | "income" | "investment" | "savings"
   balance: number
   bank_id: number
   user_id: number
@@ -84,64 +84,73 @@ export interface CategorySummaryResponse {
 }
 
 export interface SubcategoryData {
-  amount: number;
-  subcategory: string | null;
-  transactions_related: string[];
+  amount: number
+  subcategory: string | null
+  transactions_related: string[]
 }
 
 export interface CategoryData {
-  amount: number;
-  category: string;
-  subcategories: SubcategoryData[];
+  amount: number
+  category: string
+  subcategories: SubcategoryData[]
 }
 
 export interface PeriodData {
-  data: CategoryData[];
-  start_date: string;
-  end_date: string;
+  data: CategoryData[]
+  start_date: string
+  end_date: string
 }
 
 export interface PeriodSummaryResponse {
-  period: string;
-  summaries: PeriodData[];
+  period: string
+  summaries: PeriodData[]
 }
 
 export interface PeriodSummary {
-  period: string;
-  income: number;
-  expense: number;
-  net: number;
+  period: string
+  income: number
+  expense: number
+  net: number
 }
-
 
 // Refund types
 export interface RefundGroup {
-  id?: number;
-  name: string;
-  description?: string | null;
+  id?: number
+  name: string
+  description?: string | null
 }
 
 export interface RefundItem {
-  id?: number;
-  amount: number;
-  description?: string | null;
-  expense_transaction_id: number;
-  income_transaction_id: number;
-  refund_group_id?: number | null;
+  id?: number
+  amount: number
+  description?: string | null
+  expense_transaction_id: number
+  income_transaction_id: number
+  refund_group_id?: number | null
 }
 
-export interface Investment extends Omit<Transaction, 'id' | 'type' | 'category' | 'subcategory' | 'refunded_amount' | 'is_investment' | 'amount'> {
-  transaction_id: number;
-  investment_type: 'Buy' | 'Sell' | 'Deposit' | 'Withdrawal';
-  asset_id: number;
-  fee: number;
-  quantity: number;
-  tax: number;
-  total_paid?: number;
-  unit_price: number;
-  user_id: number;
+export interface Investment
+  extends Omit<
+    Transaction,
+    | "id"
+    | "type"
+    | "category"
+    | "subcategory"
+    | "refunded_amount"
+    | "is_investment"
+    | "amount"
+  > {
+  transaction_id: number
+  investment_type: "Buy" | "Sell" | "Deposit" | "Withdrawal"
+  asset_id: number
+  fee: number
+  quantity: number
+  tax: number
+  total_paid?: number
+  unit_price: number
+  user_id: number
 }
 
-export type TransactionField = 'date' | 'description' | 'category' | 'amount'
+export type TransactionField = "date" | "description" | "category" | "amount"
 
-export type TransactionType = 'expense' | 'income' | 'transfer'
+export type TransactionType = "expense" | "income" | "transfer"

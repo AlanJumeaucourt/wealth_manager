@@ -1,15 +1,15 @@
 import { useRouter } from "@tanstack/react-router"
 import {
-    ArrowRightLeft,
-    Briefcase,
-    Command,
-    LineChart,
-    LucideIcon,
-    PieChart,
-    Receipt,
-    RefreshCw,
-    SquareTerminal,
-    Wallet
+  ArrowRightLeft,
+  Briefcase,
+  Command,
+  LineChart,
+  LucideIcon,
+  PieChart,
+  Receipt,
+  RefreshCw,
+  SquareTerminal,
+  Wallet,
 } from "lucide-react"
 import * as React from "react"
 import { useMemo } from "react"
@@ -17,30 +17,30 @@ import { useMemo } from "react"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarHeader,
-    SidebarRail,
-    SidebarSeparator,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarHeader,
+  SidebarRail,
+  SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useUser } from "@/hooks/use-user.ts"
 import { userStorage } from "@/utils/user-storage"
 
 // Define types for navigation items
 type NavSubItem = {
-  title: string;
-  url: string;
-  isActive?: boolean;
+  title: string
+  url: string
+  isActive?: boolean
 }
 
 type NavItem = {
-  title: string;
-  url: string;
-  icon?: LucideIcon;
-  items?: NavSubItem[];
-  isActive?: boolean;
+  title: string
+  url: string
+  icon?: LucideIcon
+  items?: NavSubItem[]
+  isActive?: boolean
 }
 
 // Move static data to a separate constant
@@ -145,35 +145,46 @@ const STATIC_DATA = {
       title: "Refunds",
       url: "/refunds",
       icon: RefreshCw,
-    }
+    },
   ] as NavItem[],
 }
 
 // Memoized minimal sidebar component
-const MinimalSidebar = React.memo(({ className, ...props }: React.ComponentProps<typeof Sidebar>) => (
-  <Sidebar
-    collapsible="icon"
-    className={className}
-    variant="inset"
-    {...props}
-  >
-    <SidebarHeader className="p-4">
-      <div className="flex items-center gap-3 p-2 border-b border-sidebar-border">
-        <img src="/logo.webp" alt="WealthManager Logo" className="h-8 w-8 shrink-0" />
-        <h1 className="text-xl font-bold tracking-tight font-mono">WealthManager</h1>
-      </div>
-    </SidebarHeader>
-    <SidebarContent className="px-2">
-      <SidebarGroup>
-        <NavMain items={STATIC_DATA.navMain} />
-      </SidebarGroup>
-    </SidebarContent>
-    <SidebarRail />
-  </Sidebar>
-))
+const MinimalSidebar = React.memo(
+  ({ className, ...props }: React.ComponentProps<typeof Sidebar>) => (
+    <Sidebar
+      collapsible="icon"
+      className={className}
+      variant="inset"
+      {...props}
+    >
+      <SidebarHeader className="p-4">
+        <div className="flex items-center gap-3 p-2 border-b border-sidebar-border">
+          <img
+            src="/logo.webp"
+            alt="WealthManager Logo"
+            className="h-8 w-8 shrink-0"
+          />
+          <h1 className="text-xl font-bold tracking-tight font-mono">
+            WealthManager
+          </h1>
+        </div>
+      </SidebarHeader>
+      <SidebarContent className="px-2">
+        <SidebarGroup>
+          <NavMain items={STATIC_DATA.navMain} />
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarRail />
+    </Sidebar>
+  )
+)
 MinimalSidebar.displayName = "MinimalSidebar"
 
-export function AppSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  className,
+  ...props
+}: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter()
   const currentPath = router.state.location.pathname
   const { user, isLoading, error } = useUser()
@@ -184,16 +195,20 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
   }
 
   // Memoize navMain with active states
-  const navMainWithActive = useMemo(() =>
-    STATIC_DATA.navMain.map(item => ({
-      ...item,
-      isActive: currentPath === item.url ||
-                (item.items?.some(subItem => currentPath === subItem.url) ?? false),
-      items: item.items?.map((subItem) => ({
-        ...subItem,
-        isActive: currentPath === subItem.url
-      }))
-    })), [currentPath])
+  const navMainWithActive = useMemo(
+    () =>
+      STATIC_DATA.navMain.map(item => ({
+        ...item,
+        isActive:
+          currentPath === item.url ||
+          (item.items?.some(subItem => currentPath === subItem.url) ?? false),
+        items: item.items?.map(subItem => ({
+          ...subItem,
+          isActive: currentPath === subItem.url,
+        })),
+      })),
+    [currentPath]
+  )
 
   // If there's no token or we're loading, show minimal sidebar
   if (!token || isLoading) {
@@ -201,15 +216,18 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
   }
 
   if (error) {
-    console.error('User data fetch error:', error)
+    console.error("User data fetch error:", error)
   }
 
   // Memoize the split navigation sections
-  const navSections = useMemo(() => ({
-    first: navMainWithActive.slice(0, 1),
-    second: navMainWithActive.slice(1, 4),
-    third: navMainWithActive.slice(4)
-  }), [navMainWithActive])
+  const navSections = useMemo(
+    () => ({
+      first: navMainWithActive.slice(0, 1),
+      second: navMainWithActive.slice(1, 4),
+      third: navMainWithActive.slice(4),
+    }),
+    [navMainWithActive]
+  )
 
   return (
     <Sidebar
@@ -221,10 +239,16 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3 p-2 border-b border-sidebar-border">
           <div className="flex-shrink-0">
-            <img src="/logo.webp" alt="WealthManager Logo" className="h-8 w-8" />
+            <img
+              src="/logo.webp"
+              alt="WealthManager Logo"
+              className="h-8 w-8"
+            />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl tracking-tight font-serif truncate">WealthManager</h1>
+            <h1 className="text-xl tracking-tight font-serif truncate">
+              WealthManager
+            </h1>
           </div>
         </div>
       </SidebarHeader>
@@ -242,12 +266,7 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4">
-        {user && (
-          <NavUser
-            user={user}
-            data-debug={JSON.stringify(user)}
-          />
-        )}
+        {user && <NavUser user={user} data-debug={JSON.stringify(user)} />}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

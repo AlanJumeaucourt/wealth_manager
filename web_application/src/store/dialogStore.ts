@@ -1,5 +1,5 @@
-import { Transaction } from '@/types'
-import { create } from 'zustand'
+import { Transaction } from "@/types"
+import { create } from "zustand"
 
 interface DialogState {
   deleteTransaction: Transaction | null
@@ -8,9 +8,9 @@ interface DialogState {
   setEditTransaction: (transaction: Transaction | null) => void
 }
 
-export const useDialogStore = create<DialogState>((set) => ({
+export const useDialogStore = create<DialogState>(set => ({
   deleteTransaction: null,
-  setDeleteTransaction: (transaction) => set({ deleteTransaction: transaction }),
+  setDeleteTransaction: transaction => set({ deleteTransaction: transaction }),
   editTransaction: null,
-  setEditTransaction: (transaction) => set({ editTransaction: transaction }),
+  setEditTransaction: transaction => set({ editTransaction: transaction }),
 }))

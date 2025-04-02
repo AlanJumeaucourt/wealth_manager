@@ -1,10 +1,23 @@
 import { usePortfolioPerformance } from "@/api/queries"
 import { Card } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { useState } from "react"
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 
 type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "ALL"
 
@@ -25,23 +38,29 @@ const periodToDays: Record<TimePeriod, number> = {
   "1Y": 365,
   "3Y": 1095,
   "5Y": 1825,
-  "ALL": Infinity
+  ALL: Infinity,
 }
 
 interface PortfolioPerformanceChartProps {
   period: TimePeriod
 }
 
-export function PortfolioPerformanceChart({ period }: PortfolioPerformanceChartProps) {
+export function PortfolioPerformanceChart({
+  period,
+}: PortfolioPerformanceChartProps) {
   const { data: performanceData, isLoading } = usePortfolioPerformance()
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>("performance")
+  const [selectedMetric, setSelectedMetric] =
+    useState<MetricType>("performance")
   const [showStacked, setShowStacked] = useState(false)
 
   const formatDate = (date: string) => {
     const options: Intl.DateTimeFormatOptions = {
-      month: 'short',
-      day: 'numeric',
-      year: period === "3Y" || period === "5Y" || period === "ALL" ? 'numeric' : undefined
+      month: "short",
+      day: "numeric",
+      year:
+        period === "3Y" || period === "5Y" || period === "ALL"
+          ? "numeric"
+          : undefined,
     }
     return new Date(date).toLocaleDateString(undefined, options)
   }
@@ -63,8 +82,8 @@ export function PortfolioPerformanceChart({ period }: PortfolioPerformanceChartP
     if (!data) return []
 
     // Sort data points by date first
-    const sortedDataPoints = [...data.data_points].sort((a, b) =>
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+    const sortedDataPoints = [...data.data_points].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     )
 
     if (period === "ALL") return sortedDataPoints
@@ -107,14 +126,16 @@ export function PortfolioPerformanceChart({ period }: PortfolioPerformanceChartP
             const costBasis = asset.cost_basis_per_share || 0
             const currentPrice = asset.price
             if (costBasis > 0) {
-              transformedPoint[symbol] = ((currentPrice - costBasis) / costBasis) * 100
+              transformedPoint[symbol] =
+                ((currentPrice - costBasis) / costBasis) * 100
             } else {
               transformedPoint[symbol] = 0
             }
             break
           case "absolute_gain":
             // Calculate individual asset absolute gain
-            const gain = (asset.price - (asset.cost_basis_per_share || 0)) * asset.quantity
+            const gain =
+              (asset.price - (asset.cost_basis_per_share || 0)) * asset.quantity
             transformedPoint[symbol] = gain
             break
         }
@@ -132,25 +153,43 @@ export function PortfolioPerformanceChart({ period }: PortfolioPerformanceChartP
     return null
   }
 
-  const chartData = showStacked ? transformDataForStackedView(performanceData) : filterDataByPeriod(performanceData)
+  const chartData = showStacked
+    ? transformDataForStackedView(performanceData)
+    : filterDataByPeriod(performanceData)
 
   // Get unique asset symbols for stacked view
-  const assetSymbols = showStacked ?
-    Array.from(new Set(performanceData.data_points.flatMap(point =>
-      Object.keys(point.assets)
-    ))) : []
+  const assetSymbols = showStacked
+    ? Array.from(
+        new Set(
+          performanceData.data_points.flatMap(point =>
+            Object.keys(point.assets)
+          )
+        )
+      )
+    : []
 
   // Generate colors for assets
   const colors = [
-    "#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6",
-    "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16"
+    "#22c55e",
+    "#3b82f6",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#ec4899",
+    "#14b8a6",
+    "#f97316",
+    "#6366f1",
+    "#84cc16",
   ]
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <Select value={selectedMetric} onValueChange={(value: MetricType) => setSelectedMetric(value)}>
+          <Select
+            value={selectedMetric}
+            onValueChange={(value: MetricType) => setSelectedMetric(value)}
+          >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select metric" />
             </SelectTrigger>
@@ -203,18 +242,29 @@ export function PortfolioPerformanceChart({ period }: PortfolioPerformanceChartP
                     {showStacked ? (
                       <>
                         <p className="font-medium">
-                          Total: {formatValue(payload.reduce((sum, item) => sum + (Number(item.value) || 0), 0))}
+                          Total:{" "}
+                          {formatValue(
+                            payload.reduce(
+                              (sum, item) => sum + (Number(item.value) || 0),
+                              0
+                            )
+                          )}
                         </p>
-                        {payload.map((item) => (
-                          <p key={item.dataKey} className="text-sm text-muted-foreground">
-                            {item.dataKey}: {formatValue(Number(item.value) || 0)}
+                        {payload.map(item => (
+                          <p
+                            key={item.dataKey}
+                            className="text-sm text-muted-foreground"
+                          >
+                            {item.dataKey}:{" "}
+                            {formatValue(Number(item.value) || 0)}
                           </p>
                         ))}
                       </>
                     ) : (
                       <>
                         <p className="font-medium">
-                          {metricLabels[selectedMetric]}: {formatValue(data[selectedMetric])}
+                          {metricLabels[selectedMetric]}:{" "}
+                          {formatValue(data[selectedMetric])}
                         </p>
                         {selectedMetric === "total_value" && (
                           <>

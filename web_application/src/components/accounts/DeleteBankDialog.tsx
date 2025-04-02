@@ -49,7 +49,7 @@ export function DeleteBankDialog({
       setConfirmName("")
       setAcceptRisks(false)
     } catch (error) {
-      console.error('Failed to delete bank:', error)
+      console.error("Failed to delete bank:", error)
       toast({
         title: "😬 Oops!",
         description: "Couldn't delete the bank. It might have linked accounts.",
@@ -68,7 +68,9 @@ export function DeleteBankDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-red-500">🏦 Delete Bank: {bank.name}</DialogTitle>
+          <DialogTitle className="text-red-500">
+            🏦 Delete Bank: {bank.name}
+          </DialogTitle>
           <DialogDescription className="space-y-3 pt-4">
             <div className="text-red-500 font-medium">
               This action cannot be undone. This will:
@@ -89,9 +91,11 @@ export function DeleteBankDialog({
             </Label>
             <Input
               value={confirmName}
-              onChange={(e) => setConfirmName(e.target.value)}
+              onChange={e => setConfirmName(e.target.value)}
               placeholder={`Type ${bank.name} to confirm`}
-              className={!isConfirmNameValid && confirmName ? "border-red-500" : ""}
+              className={
+                !isConfirmNameValid && confirmName ? "border-red-500" : ""
+              }
             />
           </div>
 
@@ -99,13 +103,14 @@ export function DeleteBankDialog({
             <Checkbox
               id="acceptRisks"
               checked={acceptRisks}
-              onCheckedChange={(checked) => setAcceptRisks(checked as boolean)}
+              onCheckedChange={checked => setAcceptRisks(checked as boolean)}
             />
             <Label
               htmlFor="acceptRisks"
               className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              I understand that this action will delete all associated data and cannot be reversed
+              I understand that this action will delete all associated data and
+              cannot be reversed
             </Label>
           </div>
         </div>
@@ -130,9 +135,7 @@ export function DeleteBankDialog({
                 Deleting...
               </>
             ) : (
-              <>
-                🗑️ Delete Bank
-              </>
+              <>🗑️ Delete Bank</>
             )}
           </Button>
         </DialogFooter>
@@ -140,4 +143,3 @@ export function DeleteBankDialog({
     </Dialog>
   )
 }
-

@@ -28,7 +28,10 @@ interface AddAccountDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) {
+export function AddAccountDialog({
+  open,
+  onOpenChange,
+}: AddAccountDialogProps) {
   const [name, setName] = useState("")
   const [type, setType] = useState("")
   const [bankId, setBankId] = useState<string | undefined>(undefined)
@@ -46,9 +49,10 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
   useEffect(() => {
     function handleKeyPress(event: KeyboardEvent) {
       const target = event.target as HTMLElement
-      const isInput = target.tagName === 'INPUT' ||
-                     target.tagName === 'TEXTAREA' ||
-                     target.isContentEditable
+      const isInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
 
       if (isInput) return
 
@@ -57,19 +61,19 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
       const selectedBank = banks.find(b => b.id === selectedBankId)
       if (!selectedBank) return
 
-      if (event.key === 'e') {
+      if (event.key === "e") {
         event.preventDefault()
         setEditingBank(selectedBank)
       }
 
-      if (event.key === 'd') {
+      if (event.key === "d") {
         event.preventDefault()
         setDeletingBank(selectedBank)
       }
     }
 
-    document.addEventListener('keydown', handleKeyPress)
-    return () => document.removeEventListener('keydown', handleKeyPress)
+    document.addEventListener("keydown", handleKeyPress)
+    return () => document.removeEventListener("keydown", handleKeyPress)
   }, [selectedBankId, banks])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,10 +109,11 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
         onError: () => {
           toast({
             title: "😅 Oops!",
-            description: "The account creation hit a snag. Let's try that again!",
+            description:
+              "The account creation hit a snag. Let's try that again!",
             variant: "destructive",
           })
-        }
+        },
       }
     )
   }
@@ -126,7 +131,7 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
               <Input
                 id="name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={e => setName(e.target.value)}
                 placeholder="Enter account name"
                 required
               />
@@ -154,7 +159,7 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Bank</SelectItem>
-                  {banks.map((bank) => (
+                  {banks.map(bank => (
                     <SelectItem
                       key={bank.id}
                       value={bank.id.toString()}
@@ -165,31 +170,27 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
                       onBlur={() => setSelectedBankId(null)}
                     >
                       {bank.name}
-                      <span
-                        className="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity absolute right-2 flex items-center gap-2"
-                      >
+                      <span className="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity absolute right-2 flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.preventDefault()
                             e.stopPropagation()
                             setEditingBank(bank)
                           }}
-                        >
-                        </Button>
+                        ></Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.preventDefault()
                             e.stopPropagation()
                             setDeletingBank(bank)
                           }}
-                        >
-                        </Button>
+                        ></Button>
                       </span>
                     </SelectItem>
                   ))}
@@ -199,7 +200,9 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
           </div>
           <DialogFooter className="mt-6">
             <Button type="submit" disabled={createAccountMutation.isPending}>
-              {createAccountMutation.isPending ? "Creating..." : "Create Account"}
+              {createAccountMutation.isPending
+                ? "Creating..."
+                : "Create Account"}
             </Button>
           </DialogFooter>
         </form>
@@ -209,7 +212,7 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
         <DeleteBankDialog
           bank={deletingBank}
           open={!!deletingBank}
-          onOpenChange={(open) => !open && setDeletingBank(null)}
+          onOpenChange={open => !open && setDeletingBank(null)}
         />
       )}
 
@@ -217,7 +220,7 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
         <EditBankDialog
           bank={editingBank}
           open={!!editingBank}
-          onOpenChange={(open) => !open && setEditingBank(null)}
+          onOpenChange={open => !open && setEditingBank(null)}
         />
       )}
     </Dialog>

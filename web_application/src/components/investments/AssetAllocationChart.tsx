@@ -1,9 +1,23 @@
 import { usePortfolioSummary } from "@/api/queries"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
+import {
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts"
 
-const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+const COLORS = [
+  "#22c55e",
+  "#3b82f6",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+]
 
 export function AssetAllocationChart() {
   const { data: portfolioSummary, isLoading } = usePortfolioSummary()
@@ -21,14 +35,14 @@ export function AssetAllocationChart() {
     .map(asset => ({
       name: asset.name,
       value: (asset.current_value / portfolioSummary.total_value) * 100,
-      amount: asset.current_value
+      amount: asset.current_value,
     }))
 
   return (
     <ResponsiveContainer>
       <PieChart
         style={{
-          height: "90%"
+          height: "90%",
         }}
       >
         <Pie
@@ -61,7 +75,9 @@ export function AssetAllocationChart() {
                 <Card className="p-2">
                   <p className="text-sm font-medium">{item.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {`${Number(item.value).toFixed(1)}% - $${item.amount.toLocaleString()}`}
+                    {`${Number(item.value).toFixed(
+                      1
+                    )}% - $${item.amount.toLocaleString()}`}
                   </p>
                 </Card>
               )

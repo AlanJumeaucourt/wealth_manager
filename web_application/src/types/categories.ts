@@ -1,35 +1,35 @@
 export interface CategoryMetadata {
-  color: string;
-  iconName: string;
-  iconSet: string;
+  color: string
+  iconName: string
+  iconSet: string
   name: {
-    en: string;
-    fr: string;
-  };
+    en: string
+    fr: string
+  }
   subCategories: Array<{
-    iconName: string;
-    iconSet: string;
+    iconName: string
+    iconSet: string
     name: {
-      en: string;
-      fr: string;
-    };
-  }> | null;
+      en: string
+      fr: string
+    }
+  }> | null
 }
 
 export interface CategorySummary {
-  amount: number;
-  count: number;
-  transactions: Transaction[];
-  category: CategoryMetadata;
+  amount: number
+  count: number
+  transactions: Transaction[]
+  category: CategoryMetadata
 }
 
 export interface CategorySummarySection {
-  total: number;
-  by_category: Record<string, CategorySummary>;
+  total: number
+  by_category: Record<string, CategorySummary>
 }
 
 export interface CategorySummaryResponse {
-  income: CategorySummarySection;
-  expense: CategorySummarySection;
-  transfer: CategorySummarySection;
+  income: CategorySummarySection
+  expense: CategorySummarySection
+  transfer: CategorySummarySection
 }

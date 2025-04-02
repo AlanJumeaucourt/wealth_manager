@@ -1,27 +1,27 @@
 "use client"
 
 import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-    SidebarGroup,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarMenuSub,
-    SidebarMenuSubButton,
-    SidebarMenuSubItem,
-    useSidebar
+  SidebarGroup,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { Link } from "@tanstack/react-router"
 import { ChevronRight, type LucideIcon } from "lucide-react"
@@ -45,7 +45,7 @@ export function NavMain({
   return (
     <SidebarGroup>
       <SidebarMenu>
-        {items.map((item) => (
+        {items.map(item => (
           <Collapsible
             key={item.title}
             asChild
@@ -69,20 +69,21 @@ export function NavMain({
                         side="right"
                         align="start"
                         className="w-48"
-                        onCloseAutoFocus={(e) => e.preventDefault()}
+                        onCloseAutoFocus={e => e.preventDefault()}
                       >
                         <DropdownMenuLabel className="font-normal text-muted-foreground">
-                          <Link to={item.url} className="flex items-center gap-2">
+                          <Link
+                            to={item.url}
+                            className="flex items-center gap-2"
+                          >
                             {item.icon && <item.icon className="h-4 w-4" />}
                             <span>{item.title}</span>
                           </Link>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        {item.items.map((subItem) => (
+                        {item.items.map(subItem => (
                           <DropdownMenuItem key={subItem.title} asChild>
-                            <Link to={subItem.url}>
-                              {subItem.title}
-                            </Link>
+                            <Link to={subItem.url}>{subItem.title}</Link>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -99,7 +100,7 @@ export function NavMain({
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <SidebarMenuSub>
-                          {item.items.map((subItem) => (
+                          {item.items.map(subItem => (
                             <SidebarMenuSubItem key={subItem.title}>
                               <SidebarMenuSubButton asChild>
                                 <Link to={subItem.url}>

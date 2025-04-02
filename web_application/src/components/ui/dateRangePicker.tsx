@@ -8,11 +8,17 @@ import { Range } from "react-day-picker"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 interface DateRangePickerProps {
@@ -36,8 +42,12 @@ const getDefaultDateRange = (minDate: Date, maxDate: Date): Range => {
 }
 
 export function DateRangePicker({ minDate, maxDate }: DateRangePickerProps) {
-  const [dateRange, setDateRange] = React.useState<Range>(getDefaultDateRange(minDate, maxDate))
-  const [currentMonth, setCurrentMonth] = React.useState<Date>(getDefaultDateRange(minDate, maxDate).from)
+  const [dateRange, setDateRange] = React.useState<Range>(
+    getDefaultDateRange(minDate, maxDate)
+  )
+  const [currentMonth, setCurrentMonth] = React.useState<Date>(
+    getDefaultDateRange(minDate, maxDate).from
+  )
 
   const handleMonthChange = (month: number) => {
     const newDate = new Date(currentMonth)
@@ -62,14 +72,19 @@ export function DateRangePicker({ minDate, maxDate }: DateRangePickerProps) {
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {dateRange?.from && dateRange?.to
-            ? `${format(dateRange.from, "yyyy-MM-dd")} - ${format(dateRange.to, "yyyy-MM-dd")}`
-            : <span>Pick a date range</span>}
+          {dateRange?.from && dateRange?.to ? (
+            `${format(dateRange.from, "yyyy-MM-dd")} - ${format(
+              dateRange.to,
+              "yyyy-MM-dd"
+            )}`
+          ) : (
+            <span>Pick a date range</span>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0">
         <div className="flex justify-between items-center p-2 border-b">
-          <Select onValueChange={(value) => handleMonthChange(Number(value))}>
+          <Select onValueChange={value => handleMonthChange(Number(value))}>
             <SelectTrigger>
               <SelectValue placeholder={format(currentMonth, "LLLL")} />
             </SelectTrigger>
@@ -81,7 +96,7 @@ export function DateRangePicker({ minDate, maxDate }: DateRangePickerProps) {
               ))}
             </SelectContent>
           </Select>
-          <Select onValueChange={(value) => handleYearChange(Number(value))}>
+          <Select onValueChange={value => handleYearChange(Number(value))}>
             <SelectTrigger>
               <SelectValue placeholder={format(currentMonth, "yyyy")} />
             </SelectTrigger>

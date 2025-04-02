@@ -2,7 +2,8 @@ import { Transaction } from "@/types"
 import { useCallback, useState } from "react"
 
 export function useDeleteTransactionDialog() {
-  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null)
+  const [deletingTransaction, setDeletingTransaction] =
+    useState<Transaction | null>(null)
   const [isOpen, setIsOpen] = useState(false)
 
   const openDialog = useCallback((transaction: Transaction) => {
@@ -19,6 +20,6 @@ export function useDeleteTransactionDialog() {
     deletingTransaction,
     isOpen,
     openDialog,
-    closeDialog
+    closeDialog,
   }
 }

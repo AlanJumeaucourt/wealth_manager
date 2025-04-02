@@ -58,7 +58,7 @@ export function AddBankDialog({ open, onOpenChange }: AddBankDialogProps) {
             description: "The bank didn't make it to the vault. Try again?",
             variant: "destructive",
           })
-        }
+        },
       }
     )
   }
@@ -76,7 +76,7 @@ export function AddBankDialog({ open, onOpenChange }: AddBankDialogProps) {
               <Input
                 id="name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={e => setName(e.target.value)}
                 placeholder="Enter bank name"
                 required
               />
@@ -86,17 +86,14 @@ export function AddBankDialog({ open, onOpenChange }: AddBankDialogProps) {
               <Input
                 id="website"
                 value={website}
-                onChange={(e) => setWebsite(e.target.value)}
+                onChange={e => setWebsite(e.target.value)}
                 placeholder="Enter bank website"
                 type="url"
               />
             </div>
           </div>
           <DialogFooter className="mt-6">
-            <Button
-              type="submit"
-              disabled={createBankMutation.isPending}
-            >
+            <Button type="submit" disabled={createBankMutation.isPending}>
               {createBankMutation.isPending ? "Adding..." : "Add Bank"}
             </Button>
           </DialogFooter>

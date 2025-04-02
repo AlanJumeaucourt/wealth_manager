@@ -20,8 +20,15 @@ import Categories from "@/pages/Categories"
 import { Dashboard } from "@/pages/Dashboard"
 import GoCardlessAccounts from "@/pages/GoCardlessAccounts"
 import { InvestmentDetailPage } from "@/pages/InvestmentDetailPage"
-import { useDateRangeStore } from '@/store/dateRangeStore'
-import { Outlet, RootRoute, Route, Router, redirect, useRouter } from "@tanstack/react-router"
+import { useDateRangeStore } from "@/store/dateRangeStore"
+import {
+  Outlet,
+  RootRoute,
+  Route,
+  Router,
+  redirect,
+  useRouter,
+} from "@tanstack/react-router"
 import { parse } from "date-fns"
 import { KeyboardShortcutsHelp } from "./components/keyboard-shortcuts-help"
 import ConnectBank from "./pages/ConnectBank"
@@ -54,8 +61,8 @@ const authenticatedLayout = new Route({
   component: AuthenticatedLayout,
 })
 
-const dataMinDate = parse('2020-01-01', 'yyyy-MM-dd', new Date())
-const dataMaxDate = parse('2025-12-31', 'yyyy-MM-dd', new Date())
+const dataMinDate = parse("2020-01-01", "yyyy-MM-dd", new Date())
+const dataMaxDate = parse("2025-12-31", "yyyy-MM-dd", new Date())
 
 function AuthenticatedLayout() {
   const router = useRouter()
@@ -64,30 +71,40 @@ function AuthenticatedLayout() {
 
   // Helper function to get breadcrumb title
   const getBreadcrumbTitle = (path: string) => {
-    const segments = path.split('/').filter(Boolean)
+    const segments = path.split("/").filter(Boolean)
     const lastSegment = segments[segments.length - 1]
 
-    if (!lastSegment) return 'Dashboard'
+    if (!lastSegment) return "Dashboard"
 
     // Handle nested routes
     if (segments.length > 1) {
       const parentSegment = segments[segments.length - 2]
       switch (parentSegment) {
-        case 'accounts':
+        case "accounts":
           switch (lastSegment) {
-            case 'all': return 'All Accounts'
-            case 'regular': return 'Regular Accounts'
-            case 'expense': return 'Expense Accounts'
-            case 'income': return 'Income Accounts'
-            default: return 'Accounts'
+            case "all":
+              return "All Accounts"
+            case "regular":
+              return "Regular Accounts"
+            case "expense":
+              return "Expense Accounts"
+            case "income":
+              return "Income Accounts"
+            default:
+              return "Accounts"
           }
-        case 'transactions':
+        case "transactions":
           switch (lastSegment) {
-            case 'all': return 'All Transactions'
-            case 'income': return 'Income Transactions'
-            case 'expense': return 'Expense Transactions'
-            case 'transfer': return 'Transfer Transactions'
-            default: return 'Transactions'
+            case "all":
+              return "All Transactions"
+            case "income":
+              return "Income Transactions"
+            case "expense":
+              return "Expense Transactions"
+            case "transfer":
+              return "Transfer Transactions"
+            default:
+              return "Transactions"
           }
         default:
           return lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1)
@@ -99,11 +116,11 @@ function AuthenticatedLayout() {
 
   // Helper function to get home link
   const getHomeLink = (path: string) => {
-    const segments = path.split('/').filter(Boolean)
+    const segments = path.split("/").filter(Boolean)
     if (segments.length > 1) {
       return `/${segments[0]}`
     }
-    return '/dashboard'
+    return "/dashboard"
   }
 
   return (
@@ -119,14 +136,18 @@ function AuthenticatedLayout() {
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
                     <BreadcrumbLink href={getHomeLink(currentPath)}>
-                      {currentPath.includes('/accounts') ? 'Accounts' :
-                       currentPath.includes('/transactions') ? 'Transactions' :
-                       'Home'}
+                      {currentPath.includes("/accounts")
+                        ? "Accounts"
+                        : currentPath.includes("/transactions")
+                          ? "Transactions"
+                          : "Home"}
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage>{getBreadcrumbTitle(currentPath)}</BreadcrumbPage>
+                    <BreadcrumbPage>
+                      {getBreadcrumbTitle(currentPath)}
+                    </BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
@@ -136,7 +157,7 @@ function AuthenticatedLayout() {
             <div className="flex space-x-4 pt-2 pr-8">
               <DatePicker
                 selectedDate={fromDate}
-                onDateChange={(date) => {
+                onDateChange={date => {
                   if (date) {
                     setFromDate(date)
                   }
@@ -146,7 +167,7 @@ function AuthenticatedLayout() {
               />
               <DatePicker
                 selectedDate={toDate}
-                onDateChange={(date) => {
+                onDateChange={date => {
                   if (date) {
                     setToDate(date)
                   }
@@ -220,11 +241,15 @@ export const accountDetailRoute = new Route({
   path: "/accounts/$accountId",
   validateSearch: (search: Record<string, unknown>) => ({}),
   component: AccountDetailPage,
-  load: async ({ params: { accountId } }: { params: { accountId: string } }) => {
+  load: async ({
+    params: { accountId },
+  }: {
+    params: { accountId: string }
+  }) => {
     return {
-      accountId: parseInt(accountId)
+      accountId: parseInt(accountId),
     }
-  }
+  },
 })
 
 // Transactions routes
@@ -297,11 +322,15 @@ export const transactionDetailRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/transactions/$transactionId",
   component: () => <TransactionDetailPage />,
-  load: async ({ params: { transactionId } }: { params: { transactionId: number } }) => {
+  load: async ({
+    params: { transactionId },
+  }: {
+    params: { transactionId: number }
+  }) => {
     return {
-      transactionId: transactionId
+      transactionId: transactionId,
     }
-  }
+  },
 })
 
 const categoriesRoute = new Route({
@@ -366,9 +395,9 @@ export const investmentDetailRoute = new Route({
   component: InvestmentDetailPage,
   load: async ({ params: { symbol } }: { params: { symbol: string } }) => {
     return {
-      symbol
+      symbol,
     }
-  }
+  },
 })
 
 // GoCardless routes
@@ -388,7 +417,12 @@ const connectBankRoute = new Route({
 const settingsRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/settings",
-  component: () => <div className="p-8"><h1 className="text-3xl font-bold mb-4">Settings</h1><p>Settings page content will go here.</p></div>,
+  component: () => (
+    <div className="p-8">
+      <h1 className="text-3xl font-bold mb-4">Settings</h1>
+      <p>Settings page content will go here.</p>
+    </div>
+  ),
 })
 
 const gocardlessAccountsRoute = new Route({

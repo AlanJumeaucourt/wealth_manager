@@ -24,7 +24,7 @@ interface CategoriesStore {
   setType: (type: "income" | "expense" | "transfer") => void
 }
 
-export const useCategories = create<CategoriesStore>((set) => ({
+export const useCategories = create<CategoriesStore>(set => ({
   type: "expense",
   stats: {
     monthlyBudget: 3200,
@@ -35,13 +35,13 @@ export const useCategories = create<CategoriesStore>((set) => ({
       name: "",
       amount: 1500,
       difference: 50,
-      percentage: 46.8
+      percentage: 46.8,
     },
     dailyAverage: {
       amount: 78.33,
       difference: -12,
-      percentage: 85
-    }
+      percentage: 85,
+    },
   },
-  setType: (type) => set({ type })
+  setType: type => set({ type }),
 }))

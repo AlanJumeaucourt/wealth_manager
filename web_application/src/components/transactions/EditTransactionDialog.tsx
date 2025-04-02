@@ -28,13 +28,17 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { useAccounts, useCategoriesByType, useUpdateTransaction } from "../../api/queries"
+import {
+  useAccounts,
+  useCategoriesByType,
+  useUpdateTransaction,
+} from "../../api/queries"
 import { Account, CategoryMetadata } from "../../types"
 
 const formSchema = z.object({
   description: z.string().min(1, "Description is required"),
   amount: z.string().min(1, "Amount is required"),
-  type: z.enum(['expense', 'income', 'transfer']),
+  type: z.enum(["expense", "income", "transfer"]),
   category: z.string().min(1, "Category is required"),
   subcategory: z.string().optional(),
   date: z.string().min(1, "Date is required"),
@@ -48,7 +52,7 @@ interface Props {
 }
 
 export const EditTransactionDialog = memo(function EditTransactionDialog({
-  redirectTo
+  redirectTo,
 }: Props) {
   const { toast } = useToast()
   const [categoryOpen, setCategoryOpen] = useState(false)
@@ -56,17 +60,23 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: transaction ? {
-      description: transaction.description,
-      amount: transaction.amount.toString(),
-      type: transaction.type,
-      category: transaction.category,
-      subcategory: transaction.subcategory || "",
-      date: new Date(transaction.date).toISOString().split('T')[0],
-      date_accountability: transaction.date_accountability ? new Date(transaction.date_accountability).toISOString().split('T')[0] : new Date(transaction.date).toISOString().split('T')[0],
-      from_account_id: transaction.from_account_id,
-      to_account_id: transaction.to_account_id,
-    } : undefined,
+    defaultValues: transaction
+      ? {
+          description: transaction.description,
+          amount: transaction.amount.toString(),
+          type: transaction.type,
+          category: transaction.category,
+          subcategory: transaction.subcategory || "",
+          date: new Date(transaction.date).toISOString().split("T")[0],
+          date_accountability: transaction.date_accountability
+            ? new Date(transaction.date_accountability)
+                .toISOString()
+                .split("T")[0]
+            : new Date(transaction.date).toISOString().split("T")[0],
+          from_account_id: transaction.from_account_id,
+          to_account_id: transaction.to_account_id,
+        }
+      : undefined,
   })
 
   const watchType = form.watch("type")
@@ -76,7 +86,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
     per_page: 100,
   })
 
-  const { data: categories = [] } = useCategoriesByType(watchType || 'expense')
+  const { data: categories = [] } = useCategoriesByType(watchType || "expense")
   const updateMutation = useUpdateTransaction()
 
   // Reset form when transaction changes
@@ -88,25 +98,32 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
         type: transaction.type,
         category: transaction.category,
         subcategory: transaction.subcategory || "",
-        date: new Date(transaction.date).toISOString().split('T')[0],
-        date_accountability: transaction.date_accountability ? new Date(transaction.date_accountability).toISOString().split('T')[0] : new Date(transaction.date).toISOString().split('T')[0],
+        date: new Date(transaction.date).toISOString().split("T")[0],
+        date_accountability: transaction.date_accountability
+          ? new Date(transaction.date_accountability)
+              .toISOString()
+              .split("T")[0]
+          : new Date(transaction.date).toISOString().split("T")[0],
         from_account_id: transaction.from_account_id,
         to_account_id: transaction.to_account_id,
       })
     }
   }, [transaction, form])
 
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setEditTransaction(null)
-    }
-  }, [setEditTransaction])
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setEditTransaction(null)
+      }
+    },
+    [setEditTransaction]
+  )
 
   // Update account fields when type changes
   useEffect(() => {
     if (transaction && watchType !== transaction.type) {
-      form.setValue('from_account_id', undefined as any)
-      form.setValue('to_account_id', undefined as any)
+      form.setValue("from_account_id", undefined as any)
+      form.setValue("to_account_id", undefined as any)
     }
   }, [watchType, form, transaction])
 
@@ -115,7 +132,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
   const categoryOptions: Option[] = useMemo(() => {
     return (categories as CategoryMetadata[]).map(category => ({
       value: category.name.fr,
-      label: category.name.fr
+      label: category.name.fr,
     }))
   }, [categories])
 
@@ -128,27 +145,29 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
 
     return selectedCategory.subCategories.map(sub => ({
       value: sub.name.fr,
-      label: sub.name.fr
+      label: sub.name.fr,
     }))
   }, [categories, watchCategory])
 
   // Filter accounts based on type
   const fromAccounts = accounts.filter((account: Account) => {
-    if (watchType === 'expense') return account.type !== 'income'
-    if (watchType === 'transfer') return account.type !== 'income' && account.type !== 'expense'
+    if (watchType === "expense") return account.type !== "income"
+    if (watchType === "transfer")
+      return account.type !== "income" && account.type !== "expense"
     return false
   })
 
   const toAccounts = accounts.filter((account: Account) => {
-    if (watchType === 'income') return account.type !== 'expense'
-    if (watchType === 'transfer') return account.type !== 'income' && account.type !== 'expense'
+    if (watchType === "income") return account.type !== "expense"
+    if (watchType === "transfer")
+      return account.type !== "income" && account.type !== "expense"
     return false
   })
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (!transaction) return
 
-    console.log('Edit form submitted with values:', values)
+    console.log("Edit form submitted with values:", values)
     const submitData = {
       description: values.description,
       amount: values.amount,
@@ -157,32 +176,34 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
       subcategory: values.subcategory,
       date: values.date,
       date_accountability: values.date_accountability,
-      from_account_id: values.type === 'income' ? undefined : values.from_account_id,
-      to_account_id: values.type === 'expense' ? undefined : values.to_account_id,
+      from_account_id:
+        values.type === "income" ? undefined : values.from_account_id,
+      to_account_id:
+        values.type === "expense" ? undefined : values.to_account_id,
     }
-    console.log('Submitting edit data to API:', submitData)
+    console.log("Submitting edit data to API:", submitData)
     updateMutation.mutate(
       {
         id: transaction.id,
-        data: submitData
+        data: submitData,
       },
       {
         onSuccess: () => {
-          console.log('Transaction updated successfully')
+          console.log("Transaction updated successfully")
           toast({
             title: "Transaction Updated",
             description: "Your changes have been saved successfully.",
           })
           handleOpenChange(false)
         },
-        onError: (error) => {
-          console.error('Failed to update transaction:', error)
+        onError: error => {
+          console.error("Failed to update transaction:", error)
           toast({
             title: "Error",
             description: "Failed to update transaction. Please try again.",
             variant: "destructive",
           })
-        }
+        },
       }
     )
   }
@@ -191,7 +212,10 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
 
   return (
     <Dialog open={!!transaction} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[700px]" aria-describedby="edit-transaction-description">
+      <DialogContent
+        className="sm:max-w-[700px]"
+        aria-describedby="edit-transaction-description"
+      >
         <DialogHeader>
           <DialogTitle>Edit Transaction</DialogTitle>
           <div id="edit-transaction-description" className="mt-2">
@@ -273,7 +297,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
                         value={categoryOptions.find(
                           option => option.value === field.value
                         )}
-                        onValueChange={(option) => {
+                        onValueChange={option => {
                           field.onChange(option.value)
                           // Reset subcategory when category changes
                           form.setValue("subcategory", "")
@@ -286,7 +310,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
                 )}
               />
 
-              {watchType === 'expense' && subcategoryOptions.length > 0 && (
+              {watchType === "expense" && subcategoryOptions.length > 0 && (
                 <FormField
                   control={form.control}
                   name="subcategory"
@@ -300,7 +324,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
                           value={subcategoryOptions.find(
                             option => option.value === field.value
                           )}
-                          onValueChange={(option) => {
+                          onValueChange={option => {
                             field.onChange(option.value)
                           }}
                           placeholder="Search subcategory..."
@@ -342,7 +366,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {(watchType === 'expense' || watchType === 'transfer') && (
+              {(watchType === "expense" || watchType === "transfer") && (
                 <FormField
                   control={form.control}
                   name="from_account_id"
@@ -350,7 +374,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
                     <FormItem>
                       <FormLabel>From Account</FormLabel>
                       <Select
-                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        onValueChange={value => field.onChange(parseInt(value))}
                         value={field.value?.toString()}
                       >
                         <FormControl>
@@ -375,7 +399,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
                 />
               )}
 
-              {(watchType === 'income' || watchType === 'transfer') && (
+              {(watchType === "income" || watchType === "transfer") && (
                 <FormField
                   control={form.control}
                   name="to_account_id"
@@ -383,7 +407,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
                     <FormItem>
                       <FormLabel>To Account</FormLabel>
                       <Select
-                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        onValueChange={value => field.onChange(parseInt(value))}
                         value={field.value?.toString()}
                       >
                         <FormControl>
@@ -417,10 +441,7 @@ export const EditTransactionDialog = memo(function EditTransactionDialog({
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={updateMutation.isPending}
-              >
+              <Button type="submit" disabled={updateMutation.isPending}>
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </div>

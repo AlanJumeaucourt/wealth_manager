@@ -22,7 +22,14 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 
 const formSchema = z.object({
-  investment_type: z.enum(['Buy', 'Sell', 'Dividend', 'Interest', 'Deposit', 'Withdrawal']),
+  investment_type: z.enum([
+    "Buy",
+    "Sell",
+    "Dividend",
+    "Interest",
+    "Deposit",
+    "Withdrawal",
+  ]),
   asset_id: z.number(),
   date: z.string(),
   fee: z.number(),
@@ -49,7 +56,7 @@ export function EditInvestmentDialog({
   const { toast } = useToast()
   const updateMutation = useUpdateInvestment()
   const { data: accountsResponse } = useAccounts({
-    type: 'investment',
+    type: "investment",
     per_page: 1000,
   })
 
@@ -60,7 +67,7 @@ export function EditInvestmentDialog({
     defaultValues: {
       investment_type: investment.investment_type,
       asset_id: investment.asset_id,
-      date: new Date(investment.date).toISOString().split('T')[0],
+      date: new Date(investment.date).toISOString().split("T")[0],
       fee: investment.fee,
       from_account_id: investment.from_account_id,
       quantity: investment.quantity,
@@ -78,7 +85,9 @@ export function EditInvestmentDialog({
           ...data,
           date: new Date(data.date).toISOString(),
           date_accountability: new Date(data.date).toISOString(),
-          description: `${data.investment_type === 'Buy' ? 'Buy' : 'Sell'} ${data.quantity} units of asset ${data.asset_id}`,
+          description: `${data.investment_type === "Buy" ? "Buy" : "Sell"} ${
+            data.quantity
+          } units of asset ${data.asset_id}`,
         },
       })
       toast({
@@ -105,7 +114,9 @@ export function EditInvestmentDialog({
           <div className="space-y-4">
             <div>
               <Select
-                onValueChange={(value) => form.setValue('investment_type', value as any)}
+                onValueChange={value =>
+                  form.setValue("investment_type", value as any)
+                }
                 defaultValue={investment.investment_type}
               >
                 <SelectTrigger>
@@ -125,21 +136,23 @@ export function EditInvestmentDialog({
             <div>
               <Input
                 type="date"
-                {...form.register('date')}
+                {...form.register("date")}
                 className="w-full"
               />
             </div>
 
             <div>
               <Select
-                onValueChange={(value) => form.setValue('from_account_id', parseInt(value))}
+                onValueChange={value =>
+                  form.setValue("from_account_id", parseInt(value))
+                }
                 defaultValue={investment.from_account_id.toString()}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="From Account" />
                 </SelectTrigger>
                 <SelectContent>
-                  {accounts.map((account) => (
+                  {accounts.map(account => (
                     <SelectItem key={account.id} value={account.id.toString()}>
                       {account.name}
                     </SelectItem>
@@ -150,14 +163,16 @@ export function EditInvestmentDialog({
 
             <div>
               <Select
-                onValueChange={(value) => form.setValue('to_account_id', parseInt(value))}
+                onValueChange={value =>
+                  form.setValue("to_account_id", parseInt(value))
+                }
                 defaultValue={investment.to_account_id.toString()}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="To Account" />
                 </SelectTrigger>
                 <SelectContent>
-                  {accounts.map((account) => (
+                  {accounts.map(account => (
                     <SelectItem key={account.id} value={account.id.toString()}>
                       {account.name}
                     </SelectItem>
@@ -171,7 +186,7 @@ export function EditInvestmentDialog({
                 type="number"
                 placeholder="Quantity"
                 step="0.01"
-                {...form.register('quantity', { valueAsNumber: true })}
+                {...form.register("quantity", { valueAsNumber: true })}
               />
             </div>
 
@@ -180,7 +195,7 @@ export function EditInvestmentDialog({
                 type="number"
                 placeholder="Unit Price"
                 step="0.01"
-                {...form.register('unit_price', { valueAsNumber: true })}
+                {...form.register("unit_price", { valueAsNumber: true })}
               />
             </div>
 
@@ -189,7 +204,7 @@ export function EditInvestmentDialog({
                 type="number"
                 placeholder="Fee"
                 step="0.01"
-                {...form.register('fee', { valueAsNumber: true })}
+                {...form.register("fee", { valueAsNumber: true })}
               />
             </div>
 
@@ -198,7 +213,7 @@ export function EditInvestmentDialog({
                 type="number"
                 placeholder="Tax"
                 step="0.01"
-                {...form.register('tax', { valueAsNumber: true })}
+                {...form.register("tax", { valueAsNumber: true })}
               />
             </div>
           </div>

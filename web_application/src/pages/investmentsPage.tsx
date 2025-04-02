@@ -31,7 +31,9 @@ export function InvestmentsPage() {
         {/* Portfolio Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
+            <p className="text-sm text-muted-foreground">
+              Total Portfolio Value
+            </p>
             <p className="text-2xl font-semibold mt-2">
               {new Intl.NumberFormat(undefined, {
                 style: "currency",
@@ -41,14 +43,18 @@ export function InvestmentsPage() {
           </Card>
           <Card className="p-6">
             <p className="text-sm text-muted-foreground">Total Return</p>
-            <p className={cn(
-              "text-2xl font-semibold mt-2",
-              (portfolioSummary?.total_gain_loss ?? 0) > 0 ? "text-green-500" : "text-red-500"
-            )}>
+            <p
+              className={cn(
+                "text-2xl font-semibold mt-2",
+                (portfolioSummary?.total_gain_loss ?? 0) > 0
+                  ? "text-green-500"
+                  : "text-red-500"
+              )}
+            >
               {new Intl.NumberFormat(undefined, {
                 style: "currency",
                 currency: "EUR",
-                signDisplay: "always"
+                signDisplay: "always",
               }).format(portfolioSummary?.total_gain_loss ?? 0)}
             </p>
           </Card>
@@ -60,11 +66,18 @@ export function InvestmentsPage() {
               ) : (
                 <ArrowDown className="h-5 w-5 text-red-500" />
               )}
-              <p className={cn(
-                "text-2xl font-semibold",
-                (portfolioSummary?.total_gain_loss_percentage ?? 0) > 0 ? "text-green-500" : "text-red-500"
-              )}>
-                {Math.abs(portfolioSummary?.total_gain_loss_percentage ?? 0).toFixed(2)}%
+              <p
+                className={cn(
+                  "text-2xl font-semibold",
+                  (portfolioSummary?.total_gain_loss_percentage ?? 0) > 0
+                    ? "text-green-500"
+                    : "text-red-500"
+                )}
+              >
+                {Math.abs(
+                  portfolioSummary?.total_gain_loss_percentage ?? 0
+                ).toFixed(2)}
+                %
               </p>
             </div>
           </Card>
@@ -82,7 +95,10 @@ export function InvestmentsPage() {
           <Card className="p-6 lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Portfolio Performance</h2>
-              <Select value={selectedPeriod} onValueChange={(value: TimePeriod) => setSelectedPeriod(value)}>
+              <Select
+                value={selectedPeriod}
+                onValueChange={(value: TimePeriod) => setSelectedPeriod(value)}
+              >
                 <SelectTrigger className="w-[100px]">
                   <SelectValue placeholder="Period" />
                 </SelectTrigger>
@@ -111,7 +127,9 @@ export function InvestmentsPage() {
 
         {/* Asset Performance Chart */}
         <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Individual Asset Performance</h2>
+          <h2 className="text-lg font-semibold mb-4">
+            Individual Asset Performance
+          </h2>
           <AssetPerformanceChart period={selectedPeriod} />
         </Card>
 

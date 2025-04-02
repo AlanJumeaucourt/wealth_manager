@@ -7,11 +7,17 @@ import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 interface DatePickerProps {
@@ -21,7 +27,12 @@ interface DatePickerProps {
   maxDate: Date
 }
 
-export function DatePicker({ selectedDate, onDateChange, minDate, maxDate }: DatePickerProps) {
+export function DatePicker({
+  selectedDate,
+  onDateChange,
+  minDate,
+  maxDate,
+}: DatePickerProps) {
   const [currentMonth, setCurrentMonth] = React.useState<Date>(
     selectedDate || new Date()
   )
@@ -60,12 +71,19 @@ export function DatePicker({ selectedDate, onDateChange, minDate, maxDate }: Dat
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {selectedDate ? format(selectedDate, "yyyy-MM-dd") : <span>Pick a date</span>}
+          {selectedDate ? (
+            format(selectedDate, "yyyy-MM-dd")
+          ) : (
+            <span>Pick a date</span>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <div className="flex justify-between items-center p-2 border-b">
-          <Select onValueChange={handleMonthChange} value={currentMonth.getMonth().toString()}>
+          <Select
+            onValueChange={handleMonthChange}
+            value={currentMonth.getMonth().toString()}
+          >
             <SelectTrigger className="w-[110px]">
               <SelectValue>{format(currentMonth, "MMMM")}</SelectValue>
             </SelectTrigger>
@@ -77,7 +95,10 @@ export function DatePicker({ selectedDate, onDateChange, minDate, maxDate }: Dat
               ))}
             </SelectContent>
           </Select>
-          <Select onValueChange={handleYearChange} value={currentMonth.getFullYear().toString()}>
+          <Select
+            onValueChange={handleYearChange}
+            value={currentMonth.getFullYear().toString()}
+          >
             <SelectTrigger className="w-[95px]">
               <SelectValue>{format(currentMonth, "yyyy")}</SelectValue>
             </SelectTrigger>
@@ -102,9 +123,7 @@ export function DatePicker({ selectedDate, onDateChange, minDate, maxDate }: Dat
           defaultMonth={currentMonth}
           fromDate={minDate}
           toDate={maxDate}
-          disabled={(date) =>
-            date < minDate || date > maxDate
-          }
+          disabled={date => date < minDate || date > maxDate}
           initialFocus
         />
       </PopoverContent>

@@ -1,6 +1,11 @@
 "use client"
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { BarChart as Chart } from "@tremor/react"
 import { cn } from "@/lib/utils"
 
@@ -67,9 +72,7 @@ export function ChartTooltipContent({
               {item.name}
             </span>
           )}
-          <span className="font-bold">
-            {item.value.toLocaleString()}
-          </span>
+          <span className="font-bold">{item.value.toLocaleString()}</span>
         </div>
       ))}
     </div>

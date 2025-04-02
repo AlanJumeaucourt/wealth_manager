@@ -1,4 +1,9 @@
-import { useAccounts, useRefundGroups, useRefundItems, useTransactions } from "@/api/queries"
+import {
+  useAccounts,
+  useRefundGroups,
+  useRefundItems,
+  useTransactions,
+} from "@/api/queries"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog"
 import { EditTransactionDialog } from "@/components/transactions/EditTransactionDialog"
@@ -6,9 +11,19 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { transactionDetailRoute } from "@/Router"
 import { useDialogStore } from "@/store/dialogStore"
-import { useNavigate, useRouter, } from "@tanstack/react-router"
+import { useNavigate, useRouter } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowLeft, Calendar, ChevronDown, CreditCard, FileText, Pencil, RefreshCw, Tag, Trash } from "lucide-react"
+import {
+  ArrowLeft,
+  Calendar,
+  ChevronDown,
+  CreditCard,
+  FileText,
+  Pencil,
+  RefreshCw,
+  Tag,
+  Trash,
+} from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
 
 export function TransactionDetailPage() {
@@ -19,22 +34,24 @@ export function TransactionDetailPage() {
   const { setEditTransaction, setDeleteTransaction } = useDialogStore()
 
   // Always fetch these base queries
-  const { data: transactionsResponse, isLoading: isLoadingTransaction } = useTransactions({
-    id: transactionId,
-    per_page: 1
-  })
+  const { data: transactionsResponse, isLoading: isLoadingTransaction } =
+    useTransactions({
+      id: transactionId,
+      per_page: 1,
+    })
 
   const { data: accountsResponse, isLoading: isLoadingAccounts } = useAccounts({
-    type: 'checking,savings,investment,income,expense',
+    type: "checking,savings,investment,income,expense",
     per_page: 1000,
   })
 
-  const { data: refundItemsResponse, isLoading: isLoadingRefunds } = useRefundItems({
-    per_page: 1000,
-  })
+  const { data: refundItemsResponse, isLoading: isLoadingRefunds } =
+    useRefundItems({
+      per_page: 1000,
+    })
 
   const { data: refundGroupsResponse } = useRefundGroups({
-    per_page: 1000
+    per_page: 1000,
   })
 
   const transaction = transactionsResponse?.items[0]
@@ -45,7 +62,7 @@ export function TransactionDetailPage() {
   const refundItems = useMemo(() => {
     if (!transaction || !refundItemsResponse?.items) return []
     return refundItemsResponse.items.filter(item =>
-      transaction.type === 'expense'
+      transaction.type === "expense"
         ? item.expense_transaction_id === transaction.id
         : item.income_transaction_id === transaction.id
     )
@@ -54,7 +71,11 @@ export function TransactionDetailPage() {
   const linkedTransactionIds = useMemo(() => {
     if (!transaction) return []
     return refundItems
-      .map(item => transaction.type === 'expense' ? item.income_transaction_id : item.expense_transaction_id)
+      .map(item =>
+        transaction.type === "expense"
+          ? item.income_transaction_id
+          : item.expense_transaction_id
+      )
       .filter((id): id is number => !!id)
   }, [transaction, refundItems])
 
@@ -63,28 +84,37 @@ export function TransactionDetailPage() {
     linkedTransactionIds.length > 0
       ? {
           id: linkedTransactionIds,
-          per_page: linkedTransactionIds.length
+          per_page: linkedTransactionIds.length,
         }
       : undefined
   )
 
   const linkedTransactions = linkedTransactionsResponse?.items || []
 
-  const getAccountName = useCallback((accountId?: number) => {
-    if (!accountId) return ''
-    const account = accounts.find(a => a.id === accountId)
-    return account ? account.name : ''
-  }, [accounts])
+  const getAccountName = useCallback(
+    (accountId?: number) => {
+      if (!accountId) return ""
+      const account = accounts.find(a => a.id === accountId)
+      return account ? account.name : ""
+    },
+    [accounts]
+  )
 
-  const getRefundGroupName = useCallback((groupId?: number | null) => {
-    if (!groupId) return null
-    const group = refundGroups.find(g => g.id === groupId)
-    return group?.name || null
-  }, [refundGroups])
+  const getRefundGroupName = useCallback(
+    (groupId?: number | null) => {
+      if (!groupId) return null
+      const group = refundGroups.find(g => g.id === groupId)
+      return group?.name || null
+    },
+    [refundGroups]
+  )
 
-  const getLinkedTransaction = useCallback((transactionId: number) => {
-    return linkedTransactions.find(t => t.id === transactionId) || null
-  }, [linkedTransactions])
+  const getLinkedTransaction = useCallback(
+    (transactionId: number) => {
+      return linkedTransactions.find(t => t.id === transactionId) || null
+    },
+    [linkedTransactions]
+  )
 
   if (isLoadingTransaction || isLoadingAccounts || isLoadingRefunds) {
     return (
@@ -118,17 +148,19 @@ export function TransactionDetailPage() {
     )
   }
 
-  const transactionColor = transaction.type === 'expense'
-    ? 'text-destructive'
-    : transaction.type === 'income'
-      ? 'text-emerald-600'
-      : 'text-primary'
+  const transactionColor =
+    transaction.type === "expense"
+      ? "text-destructive"
+      : transaction.type === "income"
+        ? "text-emerald-600"
+        : "text-primary"
 
-  const transactionBgColor = transaction.type === 'expense'
-    ? 'bg-destructive/10'
-    : transaction.type === 'income'
-      ? 'bg-emerald-500/10'
-      : 'bg-primary/10'
+  const transactionBgColor =
+    transaction.type === "expense"
+      ? "bg-destructive/10"
+      : transaction.type === "income"
+        ? "bg-emerald-500/10"
+        : "bg-primary/10"
 
   return (
     <PageContainer>
@@ -175,25 +207,36 @@ export function TransactionDetailPage() {
             className="rounded-xl border bg-card p-6 space-y-4"
           >
             <div className="flex flex-col items-center text-center">
-              <span className={cn(
-                "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mb-3",
-                transactionBgColor,
-                transactionColor
-              )}>
-                {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+              <span
+                className={cn(
+                  "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mb-3",
+                  transactionBgColor,
+                  transactionColor
+                )}
+              >
+                {transaction.type.charAt(0).toUpperCase() +
+                  transaction.type.slice(1)}
               </span>
-              <h1 className="text-xl font-medium mb-3 max-w-md">{transaction.description}</h1>
-              <p className={cn("text-3xl font-semibold tracking-tight", transactionColor)}>
-                {transaction.type === 'transfer'
-                  ? new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'EUR'
+              <h1 className="text-xl font-medium mb-3 max-w-md">
+                {transaction.description}
+              </h1>
+              <p
+                className={cn(
+                  "text-3xl font-semibold tracking-tight",
+                  transactionColor
+                )}
+              >
+                {transaction.type === "transfer"
+                  ? new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: "EUR",
                     }).format(Math.abs(transaction.amount))
-                  : `${transaction.type === 'expense' ? '-' : '+'}${new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'EUR'
-                    }).format(Math.abs(transaction.amount))}`
-                }
+                  : `${
+                      transaction.type === "expense" ? "-" : "+"
+                    }${new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(Math.abs(transaction.amount))}`}
               </p>
             </div>
 
@@ -201,10 +244,10 @@ export function TransactionDetailPage() {
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <div className="text-sm">
-                  {new Date(transaction.date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                  {new Date(transaction.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
                   })}
                 </div>
               </div>
@@ -230,33 +273,42 @@ export function TransactionDetailPage() {
               Account Details
             </div>
             <div className="space-y-3">
-              {transaction.type === 'transfer' ? (
+              {transaction.type === "transfer" ? (
                 <>
                   <div>
                     <div className="text-sm text-muted-foreground">From</div>
-                    <div className="font-medium">{getAccountName(transaction.from_account_id)}</div>
+                    <div className="font-medium">
+                      {getAccountName(transaction.from_account_id)}
+                    </div>
                   </div>
                   <div>
                     <div className="text-sm text-muted-foreground">To</div>
-                    <div className="font-medium">{getAccountName(transaction.to_account_id)}</div>
+                    <div className="font-medium">
+                      {getAccountName(transaction.to_account_id)}
+                    </div>
                   </div>
                 </>
-              ) : transaction.type === 'expense' ? (
+              ) : transaction.type === "expense" ? (
                 <div>
                   <div className="text-sm text-muted-foreground">From</div>
-                  <div className="font-medium">{getAccountName(transaction.from_account_id)}</div>
+                  <div className="font-medium">
+                    {getAccountName(transaction.from_account_id)}
+                  </div>
                 </div>
               ) : (
                 <div>
                   <div className="text-sm text-muted-foreground">To</div>
-                  <div className="font-medium">{getAccountName(transaction.to_account_id)}</div>
+                  <div className="font-medium">
+                    {getAccountName(transaction.to_account_id)}
+                  </div>
                 </div>
               )}
             </div>
           </motion.div>
 
           {/* Refunds Section - Collapsible */}
-          {(transaction.type === 'expense' || (refundItems && refundItems.length > 0)) && (
+          {(transaction.type === "expense" ||
+            (refundItems && refundItems.length > 0)) && (
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -271,10 +323,12 @@ export function TransactionDetailPage() {
                   <RefreshCw className="h-4 w-4" />
                   <span>Refund Details</span>
                 </div>
-                <ChevronDown className={cn(
-                  "h-4 w-4 transition-transform",
-                  showRefunds && "rotate-180"
-                )} />
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform",
+                    showRefunds && "rotate-180"
+                  )}
+                />
               </Button>
 
               <AnimatePresence>
@@ -287,24 +341,39 @@ export function TransactionDetailPage() {
                     className="overflow-hidden"
                   >
                     <div className="rounded-xl border bg-card p-6 mt-3">
-                      {transaction.type === 'expense' && (
+                      {transaction.type === "expense" && (
                         <div className="mb-6 space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Total Refunded</span>
+                            <span className="text-sm text-muted-foreground">
+                              Total Refunded
+                            </span>
                             <span className="text-sm font-medium text-emerald-600">
-                              {new Intl.NumberFormat('en-US', {
-                                style: 'currency',
-                                currency: 'EUR'
-                              }).format(refundItems.reduce((total, item) => total + item.amount, 0))}
+                              {new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(
+                                refundItems.reduce(
+                                  (total, item) => total + item.amount,
+                                  0
+                                )
+                              )}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Remaining</span>
+                            <span className="text-sm text-muted-foreground">
+                              Remaining
+                            </span>
                             <span className="text-sm font-medium text-destructive">
-                              {new Intl.NumberFormat('en-US', {
-                                style: 'currency',
-                                currency: 'EUR'
-                              }).format(transaction.amount - refundItems.reduce((total, item) => total + item.amount, 0))}
+                              {new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(
+                                transaction.amount -
+                                  refundItems.reduce(
+                                    (total, item) => total + item.amount,
+                                    0
+                                  )
+                              )}
                             </span>
                           </div>
                         </div>
@@ -312,11 +381,15 @@ export function TransactionDetailPage() {
 
                       {refundItems && refundItems.length > 0 ? (
                         <div className="space-y-3">
-                          {refundItems.map((item) => {
+                          {refundItems.map(item => {
                             const linkedTransaction = getLinkedTransaction(
-                              transaction.type === 'expense' ? item.income_transaction_id : item.expense_transaction_id
+                              transaction.type === "expense"
+                                ? item.income_transaction_id
+                                : item.expense_transaction_id
                             )
-                            const refundGroupName = getRefundGroupName(item.refund_group_id)
+                            const refundGroupName = getRefundGroupName(
+                              item.refund_group_id
+                            )
 
                             return (
                               <div
@@ -325,23 +398,32 @@ export function TransactionDetailPage() {
                               >
                                 <div className="flex items-start justify-between">
                                   <div className="space-y-1">
-                                    <p className="font-medium">{item.description}</p>
+                                    <p className="font-medium">
+                                      {item.description}
+                                    </p>
                                     <time className="text-xs text-muted-foreground">
-                                      {new Date(item.date).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                      })}
+                                      {new Date(item.date).toLocaleDateString(
+                                        "en-US",
+                                        {
+                                          year: "numeric",
+                                          month: "short",
+                                          day: "numeric",
+                                        }
+                                      )}
                                     </time>
                                   </div>
-                                  <p className={cn(
-                                    "font-medium",
-                                    transaction.type === 'expense' ? 'text-emerald-600' : 'text-destructive'
-                                  )}>
-                                    {transaction.type === 'expense' ? '+' : '-'}
-                                    {new Intl.NumberFormat('en-US', {
-                                      style: 'currency',
-                                      currency: 'EUR'
+                                  <p
+                                    className={cn(
+                                      "font-medium",
+                                      transaction.type === "expense"
+                                        ? "text-emerald-600"
+                                        : "text-destructive"
+                                    )}
+                                  >
+                                    {transaction.type === "expense" ? "+" : "-"}
+                                    {new Intl.NumberFormat("en-US", {
+                                      style: "currency",
+                                      currency: "EUR",
                                     }).format(Math.abs(item.amount))}
                                   </p>
                                 </div>
@@ -357,10 +439,15 @@ export function TransactionDetailPage() {
                                         variant="ghost"
                                         size="sm"
                                         className="h-7 text-xs"
-                                        onClick={() => navigate({
-                                          to: "/transactions/$transactionId",
-                                          params: { transactionId: linkedTransaction.id.toString() }
-                                        })}
+                                        onClick={() =>
+                                          navigate({
+                                            to: "/transactions/$transactionId",
+                                            params: {
+                                              transactionId:
+                                                linkedTransaction.id.toString(),
+                                            },
+                                          })
+                                        }
                                       >
                                         <FileText className="h-3 w-3 mr-1" />
                                         View linked

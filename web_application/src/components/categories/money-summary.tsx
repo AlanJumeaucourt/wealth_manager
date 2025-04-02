@@ -9,10 +9,13 @@ import { ArrowDownIcon, ArrowRightIcon, ArrowUpIcon } from "lucide-react"
 
 export function MoneySummary() {
   const { dateRange } = useDateRange()
-  const startDate = formatDate(dateRange.startDate, 'yyyy-MM-dd')
-  const endDate = formatDate(dateRange.endDate, 'yyyy-MM-dd')
+  const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd")
+  const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd")
 
-  const { data: summaryData, isLoading } = useCategorySummary(startDate, endDate)
+  const { data: summaryData, isLoading } = useCategorySummary(
+    startDate,
+    endDate
+  )
 
   if (isLoading) {
     return (
@@ -38,7 +41,10 @@ export function MoneySummary() {
   if (totalIncome === 0) {
     savingsText = "(no income)"
   } else if (remainingMoney < 0) {
-    const overspendRate = ((Math.abs(remainingMoney) / totalIncome) * 100).toFixed(1)
+    const overspendRate = (
+      (Math.abs(remainingMoney) / totalIncome) *
+      100
+    ).toFixed(1)
     savingsText = `(${overspendRate}% overspent)`
   } else {
     const savingsRate = ((remainingMoney / totalIncome) * 100).toFixed(1)
@@ -50,13 +56,15 @@ export function MoneySummary() {
       <Card className="p-4 shadow-sm">
         <div className="flex items-center gap-2">
           <ArrowUpIcon className="h-4 w-4 text-green-500" />
-          <span className="text-sm font-medium text-muted-foreground">Total Income</span>
+          <span className="text-sm font-medium text-muted-foreground">
+            Total Income
+          </span>
         </div>
         <div className="mt-2">
           <span className="text-2xl font-bold text-green-500">
             {new Intl.NumberFormat(undefined, {
-              style: 'currency',
-              currency: 'EUR'
+              style: "currency",
+              currency: "EUR",
             }).format(totalIncome)}
           </span>
         </div>
@@ -65,13 +73,15 @@ export function MoneySummary() {
       <Card className="p-4 shadow-sm">
         <div className="flex items-center gap-2">
           <ArrowDownIcon className="h-4 w-4 text-destructive" />
-          <span className="text-sm font-medium text-muted-foreground">Total Expenses</span>
+          <span className="text-sm font-medium text-muted-foreground">
+            Total Expenses
+          </span>
         </div>
         <div className="mt-2">
           <span className="text-2xl font-bold text-destructive">
             {new Intl.NumberFormat(undefined, {
-              style: 'currency',
-              currency: 'EUR'
+              style: "currency",
+              currency: "EUR",
             }).format(totalExpenses)}
           </span>
         </div>
@@ -80,13 +90,19 @@ export function MoneySummary() {
       <Card className="p-4 shadow-sm">
         <div className="flex items-center gap-2">
           <ArrowRightIcon className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium text-muted-foreground">Remaining Money</span>
+          <span className="text-sm font-medium text-muted-foreground">
+            Remaining Money
+          </span>
         </div>
         <div className="mt-2">
-          <span className={`text-2xl font-bold ${remainingMoney >= 0 ? 'text-primary' : 'text-destructive'}`}>
+          <span
+            className={`text-2xl font-bold ${
+              remainingMoney >= 0 ? "text-primary" : "text-destructive"
+            }`}
+          >
             {new Intl.NumberFormat(undefined, {
-              style: 'currency',
-              currency: 'EUR'
+              style: "currency",
+              currency: "EUR",
             }).format(remainingMoney)}
           </span>
           <span className="ml-2 text-sm text-muted-foreground">

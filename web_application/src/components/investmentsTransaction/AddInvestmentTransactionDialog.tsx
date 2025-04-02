@@ -1,4 +1,9 @@
-import { useAccounts, useAssets, useCreateInvestment, useStockHistory } from "@/api/queries"
+import {
+  useAccounts,
+  useAssets,
+  useCreateInvestment,
+  useStockHistory,
+} from "@/api/queries"
 import { Button } from "@/components/ui/button"
 import { ComboboxInput } from "@/components/ui/comboboxInput"
 import {
@@ -19,13 +24,25 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowDownIcon, ArrowUpIcon, TrendingDown, TrendingUp } from "lucide-react"
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react"
 import { useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
 const formSchema = z.object({
-  investment_type: z.enum(['Buy', 'Sell', 'Dividend', 'Interest', 'Deposit', 'Withdrawal']),
+  investment_type: z.enum([
+    "Buy",
+    "Sell",
+    "Dividend",
+    "Interest",
+    "Deposit",
+    "Withdrawal",
+  ]),
   asset_id: z.number(),
   date: z.string(),
   fee: z.number(),
@@ -38,10 +55,26 @@ const formSchema = z.object({
 })
 
 const investment_typeS = [
-  { value: 'Buy', label: 'Buy', icon: <TrendingUp className="h-4 w-4 text-green-500" /> },
-  { value: 'Sell', label: 'Sell', icon: <TrendingDown className="h-4 w-4 text-red-500" /> },
-  { value: 'Deposit', label: 'Deposit', icon: <ArrowDownIcon className="h-4 w-4 text-blue-500" /> },
-  { value: 'Withdrawal', label: 'Withdrawal', icon: <ArrowUpIcon className="h-4 w-4 text-orange-500" /> },
+  {
+    value: "Buy",
+    label: "Buy",
+    icon: <TrendingUp className="h-4 w-4 text-green-500" />,
+  },
+  {
+    value: "Sell",
+    label: "Sell",
+    icon: <TrendingDown className="h-4 w-4 text-red-500" />,
+  },
+  {
+    value: "Deposit",
+    label: "Deposit",
+    icon: <ArrowDownIcon className="h-4 w-4 text-blue-500" />,
+  },
+  {
+    value: "Withdrawal",
+    label: "Withdrawal",
+    icon: <ArrowUpIcon className="h-4 w-4 text-orange-500" />,
+  },
 ]
 
 interface AddInvestmentDialogProps {
@@ -56,7 +89,9 @@ function accountsToOptions(accounts: Array<{ id: number; name: string }>) {
   }))
 }
 
-function assetsToOptions(assets: Array<{ id: number; name: string; symbol: string }>) {
+function assetsToOptions(
+  assets: Array<{ id: number; name: string; symbol: string }>
+) {
   return assets.map(asset => ({
     value: asset.id.toString(),
     label: `${asset.name} (${asset.symbol})`,
@@ -65,11 +100,14 @@ function assetsToOptions(assets: Array<{ id: number; name: string; symbol: strin
 
 type FormData = z.infer<typeof formSchema>
 
-export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogProps) {
+export function AddInvestmentDialog({
+  open,
+  onOpenChange,
+}: AddInvestmentDialogProps) {
   const { toast } = useToast()
   const createMutation = useCreateInvestment()
   const { data: accountsResponse } = useAccounts({
-    type: 'investment',
+    type: "investment",
     per_page: 1000,
   })
   const { data: assetsResponse } = useAssets()
@@ -80,9 +118,9 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      investment_type: 'Buy' as const,
+      investment_type: "Buy" as const,
       asset_id: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       fee: 0,
       from_account_id: 0,
       quantity: 0,
@@ -95,24 +133,25 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
 
   const accountOptions = accountsToOptions(accounts)
 
-  const selectedAsset = useMemo(() =>
-    assetsResponse?.items.find(
-      asset => asset.id.toString() === form.getValues('asset_id')?.toString()
-    ),
-    [assetsResponse?.items, form.getValues('asset_id')]
+  const selectedAsset = useMemo(
+    () =>
+      assetsResponse?.items.find(
+        asset => asset.id.toString() === form.getValues("asset_id")?.toString()
+      ),
+    [assetsResponse?.items, form.getValues("asset_id")]
   )
 
   const { data: stockHistory } = useStockHistory(selectedAsset?.symbol)
 
-  const selectedDate = form.watch('date')
+  const selectedDate = form.watch("date")
 
   useEffect(() => {
     if (stockHistory && selectedDate) {
       const priceData = stockHistory.find(p => p.date === selectedDate)
       if (priceData) {
-        const currentPrice = form.getValues('unit_price')
+        const currentPrice = form.getValues("unit_price")
         if (currentPrice === 0) {
-          form.setValue('unit_price', Number(priceData.close.toFixed(4)))
+          form.setValue("unit_price", Number(priceData.close.toFixed(4)))
         }
       }
     }
@@ -151,8 +190,10 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
             <div className="col-span-2">
               <Label>Transaction Type</Label>
               <Select
-                onValueChange={(value) => form.setValue('investment_type', value as any)}
-                defaultValue={form.getValues('investment_type')}
+                onValueChange={value =>
+                  form.setValue("investment_type", value as any)
+                }
+                defaultValue={form.getValues("investment_type")}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select type" />
@@ -176,10 +217,10 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
               <ComboboxInput
                 options={assetOptions}
                 value={assetOptions.find(
-                  opt => opt.value === form.getValues('asset_id')?.toString()
+                  opt => opt.value === form.getValues("asset_id")?.toString()
                 )}
-                onValueChange={(option) => {
-                  form.setValue('asset_id', parseInt(option.value))
+                onValueChange={option => {
+                  form.setValue("asset_id", parseInt(option.value))
                 }}
                 placeholder="Select asset"
                 emptyMessage="No assets found"
@@ -192,7 +233,7 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
               <Label>Date</Label>
               <Input
                 type="date"
-                {...form.register('date')}
+                {...form.register("date")}
                 className="w-full"
               />
             </div>
@@ -203,10 +244,11 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
               <ComboboxInput
                 options={accountOptions}
                 value={accountOptions.find(
-                  opt => opt.value === form.getValues('from_account_id')?.toString()
+                  opt =>
+                    opt.value === form.getValues("from_account_id")?.toString()
                 )}
-                onValueChange={(option) => {
-                  form.setValue('from_account_id', parseInt(option.value))
+                onValueChange={option => {
+                  form.setValue("from_account_id", parseInt(option.value))
                 }}
                 placeholder="Select source account"
                 emptyMessage="No accounts found"
@@ -219,10 +261,11 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
               <ComboboxInput
                 options={accountOptions}
                 value={accountOptions.find(
-                  opt => opt.value === form.getValues('to_account_id')?.toString()
+                  opt =>
+                    opt.value === form.getValues("to_account_id")?.toString()
                 )}
-                onValueChange={(option) => {
-                  form.setValue('to_account_id', parseInt(option.value))
+                onValueChange={option => {
+                  form.setValue("to_account_id", parseInt(option.value))
                 }}
                 placeholder="Select destination account"
                 emptyMessage="No accounts found"
@@ -237,7 +280,7 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
                 type="number"
                 placeholder="0.00"
                 step="0.01"
-                {...form.register('quantity', { valueAsNumber: true })}
+                {...form.register("quantity", { valueAsNumber: true })}
               />
             </div>
 
@@ -248,7 +291,7 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
                   type="number"
                   placeholder="0.0000"
                   step="0.0001"
-                  {...form.register('unit_price', { valueAsNumber: true })}
+                  {...form.register("unit_price", { valueAsNumber: true })}
                 />
                 {stockHistory && selectedDate && (
                   <div className="absolute right-0 top-0 h-full flex items-center pr-3">
@@ -258,9 +301,14 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
                       size="sm"
                       className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
                       onClick={() => {
-                        const priceData = stockHistory.find(p => p.date === selectedDate)
+                        const priceData = stockHistory.find(
+                          p => p.date === selectedDate
+                        )
                         if (priceData) {
-                          form.setValue('unit_price', Number(priceData.close.toFixed(4)))
+                          form.setValue(
+                            "unit_price",
+                            Number(priceData.close.toFixed(4))
+                          )
                         }
                       }}
                     >
@@ -271,12 +319,15 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
               </div>
               {stockHistory && selectedDate && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Market price: {new Intl.NumberFormat(undefined, {
-                    style: 'currency',
-                    currency: 'EUR',
+                  Market price:{" "}
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "EUR",
                     minimumFractionDigits: 4,
                     maximumFractionDigits: 4,
-                  }).format(stockHistory.find(p => p.date === selectedDate)?.close || 0)}
+                  }).format(
+                    stockHistory.find(p => p.date === selectedDate)?.close || 0
+                  )}
                 </p>
               )}
             </div>
@@ -288,7 +339,7 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
                 type="number"
                 placeholder="0.00"
                 step="0.01"
-                {...form.register('fee', { valueAsNumber: true })}
+                {...form.register("fee", { valueAsNumber: true })}
               />
             </div>
 
@@ -298,7 +349,7 @@ export function AddInvestmentDialog({ open, onOpenChange }: AddInvestmentDialogP
                 type="number"
                 placeholder="0.00"
                 step="0.01"
-                {...form.register('tax', { valueAsNumber: true })}
+                {...form.register("tax", { valueAsNumber: true })}
               />
             </div>
           </div>

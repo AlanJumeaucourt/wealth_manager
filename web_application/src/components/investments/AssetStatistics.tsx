@@ -56,9 +56,13 @@ export function AssetStatistics() {
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Best Performer</p>
           <p className="text-2xl font-semibold text-green-500">
-            {metrics.reduce((max, asset) =>
-              asset.gain_loss_percentage > max.gain_loss_percentage ? asset : max
-            ).symbol}
+            {
+              metrics.reduce((max, asset) =>
+                asset.gain_loss_percentage > max.gain_loss_percentage
+                  ? asset
+                  : max
+              ).symbol
+            }
           </p>
           <p className="text-sm text-green-500">
             +{Math.max(...metrics.map(m => m.gain_loss_percentage)).toFixed(2)}%
@@ -67,9 +71,13 @@ export function AssetStatistics() {
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Worst Performer</p>
           <p className="text-2xl font-semibold text-red-500">
-            {metrics.reduce((min, asset) =>
-              asset.gain_loss_percentage < min.gain_loss_percentage ? asset : min
-            ).symbol}
+            {
+              metrics.reduce((min, asset) =>
+                asset.gain_loss_percentage < min.gain_loss_percentage
+                  ? asset
+                  : min
+              ).symbol
+            }
           </p>
           <p className="text-sm text-red-500">
             {Math.min(...metrics.map(m => m.gain_loss_percentage)).toFixed(2)}%
@@ -78,12 +86,15 @@ export function AssetStatistics() {
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Largest Position</p>
           <p className="text-2xl font-semibold">
-            {metrics.reduce((max, asset) =>
-              asset.portfolioWeight > max.portfolioWeight ? asset : max
-            ).symbol}
+            {
+              metrics.reduce((max, asset) =>
+                asset.portfolioWeight > max.portfolioWeight ? asset : max
+              ).symbol
+            }
           </p>
           <p className="text-sm text-muted-foreground">
-            {Math.max(...metrics.map(m => m.portfolioWeight)).toFixed(2)}% of portfolio
+            {Math.max(...metrics.map(m => m.portfolioWeight)).toFixed(2)}% of
+            portfolio
           </p>
         </Card>
       </div>
@@ -104,7 +115,7 @@ export function AssetStatistics() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {metrics.map((asset) => (
+            {metrics.map(asset => (
               <TableRow key={asset.symbol}>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -114,10 +125,12 @@ export function AssetStatistics() {
                         <Button
                           variant="link"
                           className="h-6 p-0 text-sm text-muted-foreground hover:text-primary"
-                          onClick={() => navigate({
-                            to: "/investments/assets/$symbol/",
-                            params: { symbol: asset.symbol }
-                          })}
+                          onClick={() =>
+                            navigate({
+                              to: "/investments/assets/$symbol/",
+                              params: { symbol: asset.symbol },
+                            })
+                          }
                         >
                           {asset.symbol}
                         </Button>
@@ -128,7 +141,12 @@ export function AssetStatistics() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6"
-                                onClick={() => window.open(`https://finance.yahoo.com/quote/${asset.symbol}`, '_blank')}
+                                onClick={() =>
+                                  window.open(
+                                    `https://finance.yahoo.com/quote/${asset.symbol}`,
+                                    "_blank"
+                                  )
+                                }
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </Button>
@@ -146,7 +164,7 @@ export function AssetStatistics() {
                   <div className="font-medium">
                     {new Intl.NumberFormat(undefined, {
                       style: "currency",
-                      currency: "EUR"
+                      currency: "EUR",
                     }).format(asset.current_price)}
                   </div>
                 </TableCell>
@@ -157,7 +175,7 @@ export function AssetStatistics() {
                   <div className="font-medium">
                     {new Intl.NumberFormat(undefined, {
                       style: "currency",
-                      currency: "EUR"
+                      currency: "EUR",
                     }).format(asset.averageCost)}
                   </div>
                 </TableCell>
@@ -165,7 +183,7 @@ export function AssetStatistics() {
                   <div className="font-medium">
                     {new Intl.NumberFormat(undefined, {
                       style: "currency",
-                      currency: "EUR"
+                      currency: "EUR",
                     }).format(asset.cost_basis)}
                   </div>
                 </TableCell>
@@ -173,7 +191,7 @@ export function AssetStatistics() {
                   <div className="font-medium">
                     {new Intl.NumberFormat(undefined, {
                       style: "currency",
-                      currency: "EUR"
+                      currency: "EUR",
                     }).format(asset.current_value)}
                   </div>
                 </TableCell>
@@ -185,11 +203,16 @@ export function AssetStatistics() {
                           <p className="text-sm font-medium">
                             {asset.portfolioWeight.toFixed(2)}%
                           </p>
-                          <Progress value={asset.portfolioWeight} className="h-1" />
+                          <Progress
+                            value={asset.portfolioWeight}
+                            className="h-1"
+                          />
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Portfolio Weight: {asset.portfolioWeight.toFixed(2)}%</p>
+                        <p>
+                          Portfolio Weight: {asset.portfolioWeight.toFixed(2)}%
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -202,21 +225,29 @@ export function AssetStatistics() {
                       ) : (
                         <ArrowDown className="h-4 w-4 text-red-500" />
                       )}
-                      <p className={cn(
-                        "font-medium",
-                        asset.unrealizedGain > 0 ? "text-green-500" : "text-red-500"
-                      )}>
+                      <p
+                        className={cn(
+                          "font-medium",
+                          asset.unrealizedGain > 0
+                            ? "text-green-500"
+                            : "text-red-500"
+                        )}
+                      >
                         {new Intl.NumberFormat(undefined, {
                           style: "currency",
                           currency: "EUR",
-                          signDisplay: "always"
+                          signDisplay: "always",
                         }).format(asset.unrealizedGain)}
                       </p>
                     </div>
-                    <p className={cn(
-                      "text-sm",
-                      asset.unrealizedGainPercentage > 0 ? "text-green-500" : "text-red-500"
-                    )}>
+                    <p
+                      className={cn(
+                        "text-sm",
+                        asset.unrealizedGainPercentage > 0
+                          ? "text-green-500"
+                          : "text-red-500"
+                      )}
+                    >
                       {asset.unrealizedGainPercentage > 0 ? "+" : ""}
                       {asset.unrealizedGainPercentage.toFixed(2)}%
                     </p>
@@ -231,7 +262,10 @@ export function AssetStatistics() {
       {/* Legend/Info */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Info className="h-4 w-4" />
-        <p>Click on asset symbols to view detailed information and transaction history</p>
+        <p>
+          Click on asset symbols to view detailed information and transaction
+          history
+        </p>
       </div>
     </div>
   )

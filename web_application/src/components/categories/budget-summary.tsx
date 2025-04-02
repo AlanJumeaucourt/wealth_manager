@@ -34,7 +34,12 @@ export function BudgetSummary() {
     }
   }, [dateRange, fetchData])
 
-  const StatCard = ({ title, value, subValue, percentage }: {
+  const StatCard = ({
+    title,
+    value,
+    subValue,
+    percentage,
+  }: {
     title: string
     value: string
     subValue: string
@@ -63,7 +68,7 @@ export function BudgetSummary() {
             <div className="flex items-center">
               <div className="text-2xl font-bold">{value}</div>
               <div className="ml-2 flex items-center text-sm text-muted-foreground">
-                {subValue.startsWith('+') ? (
+                {subValue.startsWith("+") ? (
                   <TrendingUpIcon className="mr-1 h-4 w-4 text-green-500" />
                 ) : (
                   <TrendingDownIcon className="mr-1 h-4 w-4 text-red-500" />
@@ -86,19 +91,25 @@ export function BudgetSummary() {
       <StatCard
         title="Monthly Budget"
         value={formatCurrency(stats.monthlyBudget)}
-        subValue={`-${formatCurrency(stats.remaining)} (${stats.remainingPercentage}% remaining)`}
+        subValue={`-${formatCurrency(stats.remaining)} (${
+          stats.remainingPercentage
+        }% remaining)`}
         percentage={stats.usedPercentage}
       />
       <StatCard
         title="Biggest Category"
         value={formatCurrency(stats.biggestCategory.amount)}
-        subValue={`${stats.biggestCategory.difference >= 0 ? '+' : ''}${formatCurrency(stats.biggestCategory.difference)} vs last month`}
+        subValue={`${
+          stats.biggestCategory.difference >= 0 ? "+" : ""
+        }${formatCurrency(stats.biggestCategory.difference)} vs last month`}
         percentage={stats.biggestCategory.percentage}
       />
       <StatCard
         title="Daily Average"
         value={formatCurrency(stats.dailyAverage.amount)}
-        subValue={`${stats.dailyAverage.difference >= 0 ? '+' : ''}${formatCurrency(stats.dailyAverage.difference)} vs last month`}
+        subValue={`${
+          stats.dailyAverage.difference >= 0 ? "+" : ""
+        }${formatCurrency(stats.dailyAverage.difference)} vs last month`}
         percentage={stats.dailyAverage.percentage}
       />
     </div>

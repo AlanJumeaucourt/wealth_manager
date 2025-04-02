@@ -1,126 +1,153 @@
-import { createEndUserAgreement, createRequisition, fetchInstitutions } from '@/api/gocardlessApi';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { GoCardlessEndUserAgreement, GoCardlessInstitution } from '@/types/gocardless';
-import { useRouter } from '@tanstack/react-router';
-import { AlertCircle, ExternalLink, Loader2, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+  createEndUserAgreement,
+  createRequisition,
+  fetchInstitutions,
+} from "@/api/gocardlessApi"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  GoCardlessEndUserAgreement,
+  GoCardlessInstitution,
+} from "@/types/gocardless"
+import { useRouter } from "@tanstack/react-router"
+import { AlertCircle, ExternalLink, Loader2, Search } from "lucide-react"
+import { useEffect, useState } from "react"
 
 export default function ConnectBank() {
-  const router = useRouter();
-  const [institutions, setInstitutions] = useState<GoCardlessInstitution[]>([]);
-  const [filteredInstitutions, setFilteredInstitutions] = useState<GoCardlessInstitution[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedInstitution, setSelectedInstitution] = useState<GoCardlessInstitution | null>(null);
-  const [selectedCountry, setSelectedCountry] = useState<string>('');
-  const [connectProgress, setConnectProgress] = useState('');
+  const router = useRouter()
+  const [institutions, setInstitutions] = useState<GoCardlessInstitution[]>([])
+  const [filteredInstitutions, setFilteredInstitutions] = useState<
+    GoCardlessInstitution[]
+  >([])
+  const [loading, setLoading] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedInstitution, setSelectedInstitution] =
+    useState<GoCardlessInstitution | null>(null)
+  const [selectedCountry, setSelectedCountry] = useState<string>("")
+  const [connectProgress, setConnectProgress] = useState("")
 
   // List of European countries to choose from
   const countries = [
-    { code: 'AT', name: 'Austria' },
-    { code: 'BE', name: 'Belgium' },
-    { code: 'BG', name: 'Bulgaria' },
-    { code: 'HR', name: 'Croatia' },
-    { code: 'CY', name: 'Cyprus' },
-    { code: 'CZ', name: 'Czech Republic' },
-    { code: 'DK', name: 'Denmark' },
-    { code: 'EE', name: 'Estonia' },
-    { code: 'FI', name: 'Finland' },
-    { code: 'FR', name: 'France' },
-    { code: 'DE', name: 'Germany' },
-    { code: 'GR', name: 'Greece' },
-    { code: 'HU', name: 'Hungary' },
-    { code: 'IS', name: 'Iceland' },
-    { code: 'IE', name: 'Ireland' },
-    { code: 'IT', name: 'Italy' },
-    { code: 'LV', name: 'Latvia' },
-    { code: 'LI', name: 'Liechtenstein' },
-    { code: 'LT', name: 'Lithuania' },
-    { code: 'LU', name: 'Luxembourg' },
-    { code: 'MT', name: 'Malta' },
-    { code: 'NL', name: 'Netherlands' },
-    { code: 'NO', name: 'Norway' },
-    { code: 'PL', name: 'Poland' },
-    { code: 'PT', name: 'Portugal' },
-    { code: 'RO', name: 'Romania' },
-    { code: 'SK', name: 'Slovakia' },
-    { code: 'SI', name: 'Slovenia' },
-    { code: 'ES', name: 'Spain' },
-    { code: 'SE', name: 'Sweden' },
-    { code: 'GB', name: 'United Kingdom' },
-  ];
+    { code: "AT", name: "Austria" },
+    { code: "BE", name: "Belgium" },
+    { code: "BG", name: "Bulgaria" },
+    { code: "HR", name: "Croatia" },
+    { code: "CY", name: "Cyprus" },
+    { code: "CZ", name: "Czech Republic" },
+    { code: "DK", name: "Denmark" },
+    { code: "EE", name: "Estonia" },
+    { code: "FI", name: "Finland" },
+    { code: "FR", name: "France" },
+    { code: "DE", name: "Germany" },
+    { code: "GR", name: "Greece" },
+    { code: "HU", name: "Hungary" },
+    { code: "IS", name: "Iceland" },
+    { code: "IE", name: "Ireland" },
+    { code: "IT", name: "Italy" },
+    { code: "LV", name: "Latvia" },
+    { code: "LI", name: "Liechtenstein" },
+    { code: "LT", name: "Lithuania" },
+    { code: "LU", name: "Luxembourg" },
+    { code: "MT", name: "Malta" },
+    { code: "NL", name: "Netherlands" },
+    { code: "NO", name: "Norway" },
+    { code: "PL", name: "Poland" },
+    { code: "PT", name: "Portugal" },
+    { code: "RO", name: "Romania" },
+    { code: "SK", name: "Slovakia" },
+    { code: "SI", name: "Slovenia" },
+    { code: "ES", name: "Spain" },
+    { code: "SE", name: "Sweden" },
+    { code: "GB", name: "United Kingdom" },
+  ]
 
   useEffect(() => {
     if (selectedCountry) {
-      loadInstitutions(selectedCountry);
+      loadInstitutions(selectedCountry)
     } else {
-      setInstitutions([]);
-      setFilteredInstitutions([]);
+      setInstitutions([])
+      setFilteredInstitutions([])
     }
-  }, [selectedCountry]);
+  }, [selectedCountry])
 
   useEffect(() => {
     if (institutions.length > 0) {
       const filtered = institutions.filter(institution =>
         institution.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredInstitutions(filtered);
+      )
+      setFilteredInstitutions(filtered)
     }
-  }, [searchQuery, institutions]);
+  }, [searchQuery, institutions])
 
   const loadInstitutions = async (countryCode: string) => {
     try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchInstitutions(countryCode);
-      console.log('Institutions loaded:', data);
-      setInstitutions(data);
-      setFilteredInstitutions(data);
+      setLoading(true)
+      setError(null)
+      const data = await fetchInstitutions(countryCode)
+      console.log("Institutions loaded:", data)
+      setInstitutions(data)
+      setFilteredInstitutions(data)
     } catch (err: any) {
-      console.error('Error loading institutions:', err);
-      setError(err.message || 'Failed to load banks. Please try again.');
-      setInstitutions([]);
-      setFilteredInstitutions([]);
+      console.error("Error loading institutions:", err)
+      setError(err.message || "Failed to load banks. Please try again.")
+      setInstitutions([])
+      setFilteredInstitutions([])
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleInstitutionSelect = (institution: GoCardlessInstitution) => {
-    setSelectedInstitution(institution);
-  };
+    setSelectedInstitution(institution)
+  }
 
   const handleConnect = async () => {
-    if (!selectedInstitution) return;
+    if (!selectedInstitution) return
 
     try {
-      setConnecting(true);
-      setConnectProgress('Creating end user agreement...');
+      setConnecting(true)
+      setConnectProgress("Creating end user agreement...")
 
       // 1. Create end user agreement (optional step in the API flow)
-      let agreementId: string | undefined = undefined;
+      let agreementId: string | undefined = undefined
 
       try {
-        const agreement: GoCardlessEndUserAgreement = await createEndUserAgreement(
-          selectedInstitution.id,
-          parseInt(selectedInstitution.transaction_total_days || '90'), // Use institution's max transaction days if available
-          parseInt(selectedInstitution.max_access_valid_for_days || '90'), // Use institution's max access days if available
-          ['balances', 'details', 'transactions'] // accessScope
-        );
+        const agreement: GoCardlessEndUserAgreement =
+          await createEndUserAgreement(
+            selectedInstitution.id,
+            parseInt(selectedInstitution.transaction_total_days || "90"), // Use institution's max transaction days if available
+            parseInt(selectedInstitution.max_access_valid_for_days || "90"), // Use institution's max access days if available
+            ["balances", "details", "transactions"] // accessScope
+          )
 
-        console.log('End user agreement created:', agreement);
-        agreementId = agreement.id;
+        console.log("End user agreement created:", agreement)
+        agreementId = agreement.id
       } catch (err) {
-        console.warn('Could not create end user agreement, continuing with default values:', err);
+        console.warn(
+          "Could not create end user agreement, continuing with default values:",
+          err
+        )
       }
 
-      setConnectProgress('Initiating bank connection...');
+      setConnectProgress("Initiating bank connection...")
 
       // 2. Create requisition
       const requisition = await createRequisition(
@@ -128,26 +155,26 @@ export default function ConnectBank() {
         `${window.location.origin}/gocardless/callback`, // Redirect URL
         agreementId, // EUA agreement ID (optional)
         `wealth-${Date.now()}`, // Reference (unique ID)
-        'EN', // User language
+        "EN", // User language
         true // Account selection enabled
-      );
+      )
 
-      console.log('Requisition created:', requisition);
-      setConnectProgress('Redirecting to bank authentication...');
+      console.log("Requisition created:", requisition)
+      setConnectProgress("Redirecting to bank authentication...")
 
       // 3. Redirect to the bank's authorization page
-      window.location.href = requisition.link;
+      window.location.href = requisition.link
     } catch (err: any) {
-      console.error('Error connecting to bank:', err);
-      setError(err.message || 'Failed to connect to bank. Please try again.');
-      setConnecting(false);
+      console.error("Error connecting to bank:", err)
+      setError(err.message || "Failed to connect to bank. Please try again.")
+      setConnecting(false)
     }
-  };
+  }
 
   const handleCountryChange = (value: string) => {
-    setSelectedCountry(value);
-    setSelectedInstitution(null);
-  };
+    setSelectedCountry(value)
+    setSelectedInstitution(null)
+  }
 
   if (connecting) {
     return (
@@ -159,7 +186,7 @@ export default function ConnectBank() {
           Please wait while we prepare your bank connection...
         </p>
       </div>
-    );
+    )
   }
 
   return (
@@ -178,12 +205,11 @@ export default function ConnectBank() {
         )}
 
         <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">Select Country <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium mb-2">
+            Select Country <span className="text-red-500">*</span>
+          </label>
           <div className="flex items-start gap-4">
-            <Select
-              value={selectedCountry}
-              onValueChange={handleCountryChange}
-            >
+            <Select value={selectedCountry} onValueChange={handleCountryChange}>
               <SelectTrigger className="w-full md:w-64">
                 <SelectValue placeholder="Select a country" />
               </SelectTrigger>
@@ -207,12 +233,15 @@ export default function ConnectBank() {
         {selectedCountry && (
           <>
             <div className="relative mb-6">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={18}
+              />
               <Input
                 placeholder="Search for your bank..."
                 className="pl-10"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
 
@@ -230,7 +259,7 @@ export default function ConnectBank() {
                     <div>
                       <CardTitle>{selectedInstitution.name}</CardTitle>
                       <CardDescription>
-                        Available in: {selectedInstitution.countries.join(', ')}
+                        Available in: {selectedInstitution.countries.join(", ")}
                       </CardDescription>
                     </div>
                   </div>
@@ -238,26 +267,33 @@ export default function ConnectBank() {
                 <CardContent>
                   <div className="text-sm text-muted-foreground mb-4">
                     <p>
-                      By connecting your account, you'll be able to securely access your bank data
-                      including your transactions, balances and account details.
+                      By connecting your account, you'll be able to securely
+                      access your bank data including your transactions,
+                      balances and account details.
                     </p>
                     <p className="mt-2">
-                      Your credentials are never stored and the connection is secured through open banking.
+                      Your credentials are never stored and the connection is
+                      secured through open banking.
                     </p>
                     {selectedInstitution.transaction_total_days && (
                       <p className="mt-2">
-                        Available transaction history: up to {selectedInstitution.transaction_total_days} days
+                        Available transaction history: up to{" "}
+                        {selectedInstitution.transaction_total_days} days
                       </p>
                     )}
                     {selectedInstitution.max_access_valid_for_days && (
                       <p className="mt-2">
-                        Connection valid for: up to {selectedInstitution.max_access_valid_for_days} days
+                        Connection valid for: up to{" "}
+                        {selectedInstitution.max_access_valid_for_days} days
                       </p>
                     )}
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button variant="outline" onClick={() => setSelectedInstitution(null)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedInstitution(null)}
+                  >
                     Cancel
                   </Button>
                   <Button onClick={handleConnect} disabled={connecting}>
@@ -267,7 +303,7 @@ export default function ConnectBank() {
                         Connecting...
                       </>
                     ) : (
-                      'Connect'
+                      "Connect"
                     )}
                   </Button>
                 </CardFooter>
@@ -280,14 +316,16 @@ export default function ConnectBank() {
               <div>
                 {filteredInstitutions.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredInstitutions.map((institution) => (
+                    {filteredInstitutions.map(institution => (
                       <Card
                         key={institution.id}
                         className="cursor-pointer hover:border-primary transition-colors"
                         onClick={() => handleInstitutionSelect(institution)}
                       >
                         <CardHeader className="pb-2">
-                          <CardTitle className="text-lg">{institution.name}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {institution.name}
+                          </CardTitle>
                         </CardHeader>
                         <CardContent>
                           {institution.logo && (
@@ -306,7 +344,7 @@ export default function ConnectBank() {
                           )}
                           {institution.countries && (
                             <CardDescription>
-                              Available in: {institution.countries.join(', ')}
+                              Available in: {institution.countries.join(", ")}
                             </CardDescription>
                           )}
                         </CardContent>
@@ -316,10 +354,15 @@ export default function ConnectBank() {
                 ) : (
                   <div className="text-center py-12">
                     <p className="text-xl text-muted-foreground mb-4">
-                      {searchQuery ? `No banks found matching "${searchQuery}"` : 'No banks found for this country'}
+                      {searchQuery
+                        ? `No banks found matching "${searchQuery}"`
+                        : "No banks found for this country"}
                     </p>
                     {searchQuery && (
-                      <Button variant="outline" onClick={() => setSearchQuery('')}>
+                      <Button
+                        variant="outline"
+                        onClick={() => setSearchQuery("")}
+                      >
                         Clear Search
                       </Button>
                     )}
@@ -343,5 +386,5 @@ export default function ConnectBank() {
         </div>
       </div>
     </div>
-  );
+  )
 }

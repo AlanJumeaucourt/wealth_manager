@@ -2,10 +2,10 @@
 
 import { Button } from "@/components/ui/button"
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useDateRange } from "@/contexts/date-range-context"
 import { ChevronLeft, ChevronRight } from "lucide-react"
@@ -16,7 +16,10 @@ export function DateScopeSelector() {
   const formatDate = () => {
     switch (scope) {
       case "month":
-        return date.toLocaleString('default', { month: 'long', year: 'numeric' })
+        return date.toLocaleString("default", {
+          month: "long",
+          year: "numeric",
+        })
       case "quarter":
         const quarter = Math.floor(date.getMonth() / 3) + 1
         return `Q${quarter} ${date.getFullYear()}`
@@ -25,17 +28,19 @@ export function DateScopeSelector() {
     }
   }
 
-  const navigate = (direction: 'prev' | 'next') => {
+  const navigate = (direction: "prev" | "next") => {
     const newDate = new Date(date)
     switch (scope) {
       case "month":
-        newDate.setMonth(date.getMonth() + (direction === 'next' ? 1 : -1))
+        newDate.setMonth(date.getMonth() + (direction === "next" ? 1 : -1))
         break
       case "quarter":
-        newDate.setMonth(date.getMonth() + (direction === 'next' ? 3 : -3))
+        newDate.setMonth(date.getMonth() + (direction === "next" ? 3 : -3))
         break
       case "year":
-        newDate.setFullYear(date.getFullYear() + (direction === 'next' ? 1 : -1))
+        newDate.setFullYear(
+          date.getFullYear() + (direction === "next" ? 1 : -1)
+        )
         break
     }
     setDate(newDate)
@@ -44,7 +49,7 @@ export function DateScopeSelector() {
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-3 sm:p-4 rounded-lg border">
       <div className="flex items-center gap-2 w-full sm:w-auto">
-        {["month", "quarter", "year"].map((s) => (
+        {["month", "quarter", "year"].map(s => (
           <Button
             key={s}
             variant={scope === s ? "default" : "outline"}
@@ -60,7 +65,7 @@ export function DateScopeSelector() {
         <Button
           variant="outline"
           size="icon"
-          onClick={() => navigate('prev')}
+          onClick={() => navigate("prev")}
           className="h-8 w-8"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -75,62 +80,62 @@ export function DateScopeSelector() {
               {formatDate()}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="center"
-            className="min-w-[140px]"
-          >
-            {scope === "month" && Array.from({ length: 12 }, (_, i) => {
-              const d = new Date(date.getFullYear(), i)
-              return (
+          <DropdownMenuContent align="center" className="min-w-[140px]">
+            {scope === "month" &&
+              Array.from({ length: 12 }, (_, i) => {
+                const d = new Date(date.getFullYear(), i)
+                return (
+                  <DropdownMenuItem
+                    key={i}
+                    onClick={() => {
+                      const newDate = new Date(date)
+                      newDate.setMonth(i)
+                      setDate(newDate)
+                    }}
+                    className="text-sm"
+                  >
+                    {d.toLocaleString("default", { month: "long" })}
+                  </DropdownMenuItem>
+                )
+              })}
+            {scope === "quarter" &&
+              Array.from({ length: 4 }, (_, i) => (
                 <DropdownMenuItem
                   key={i}
                   onClick={() => {
                     const newDate = new Date(date)
-                    newDate.setMonth(i)
+                    newDate.setMonth(i * 3)
                     setDate(newDate)
                   }}
                   className="text-sm"
                 >
-                  {d.toLocaleString('default', { month: 'long' })}
+                  Q{i + 1}
                 </DropdownMenuItem>
-              )
-            })}
-            {scope === "quarter" && Array.from({ length: 4 }, (_, i) => (
-              <DropdownMenuItem
-                key={i}
-                onClick={() => {
-                  const newDate = new Date(date)
-                  newDate.setMonth(i * 3)
-                  setDate(newDate)
-                }}
-                className="text-sm"
-              >
-                Q{i + 1}
-              </DropdownMenuItem>
-            ))}
-            {scope === "year" && Array.from({ length: 5 }, (_, i) => {
-              const year = new Date().getFullYear() - 2 + i
-              return (
-                <DropdownMenuItem
-                  key={i}
-                  onClick={() => {
-                    const newDate = new Date(date)
-                    newDate.setFullYear(year)
-                    setDate(newDate)
-                  }}
-                  className="text-sm"
-                >
-                  {year}
-                </DropdownMenuItem>
-              )
-            })}
+              ))}
+            {scope === "year" &&
+              Array.from({ length: 5 }, (_, i) => {
+                const year = new Date().getFullYear() - 2 + i
+                return (
+                  <DropdownMenuItem
+                    key={i}
+                    onClick={() => {
+                      const newDate = new Date(date)
+                      newDate.setFullYear(year)
+                      setDate(newDate)
+                    }}
+                    className="text-sm"
+                  >
+                    {year}
+                  </DropdownMenuItem>
+                )
+              })}
           </DropdownMenuContent>
         </DropdownMenu>
 
         <Button
           variant="outline"
           size="icon"
-          onClick={() => navigate('next')}
+          onClick={() => navigate("next")}
           className="h-8 w-8"
         >
           <ChevronRight className="h-4 w-4" />

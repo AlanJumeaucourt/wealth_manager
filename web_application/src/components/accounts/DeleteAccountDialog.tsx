@@ -27,7 +27,7 @@ export function DeleteAccountDialog({
   account,
   open,
   onOpenChange,
-  redirectTo = "/accounts"
+  redirectTo = "/accounts",
 }: DeleteAccountDialogProps) {
   const [confirmName, setConfirmName] = useState("")
   const [acceptRisks, setAcceptRisks] = useState(false)
@@ -57,7 +57,7 @@ export function DeleteAccountDialog({
         navigate({
           to: redirectTo as any,
           params: {},
-          search: {}
+          search: {},
         })
       }
     } catch (error) {
@@ -74,7 +74,9 @@ export function DeleteAccountDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-red-500">💰 Delete Account: {account.name}</DialogTitle>
+          <DialogTitle className="text-red-500">
+            💰 Delete Account: {account.name}
+          </DialogTitle>
           <DialogDescription className="space-y-3 pt-4">
             <div className="text-red-500 font-medium">
               This action cannot be undone. This will:
@@ -90,13 +92,16 @@ export function DeleteAccountDialog({
         <div className="space-y-6 py-4">
           <div className="space-y-2">
             <Label>
-              Type <span className="font-medium">{account.name}</span> to confirm:
+              Type <span className="font-medium">{account.name}</span> to
+              confirm:
             </Label>
             <Input
               value={confirmName}
-              onChange={(e) => setConfirmName(e.target.value)}
+              onChange={e => setConfirmName(e.target.value)}
               placeholder={`Type ${account.name} to confirm`}
-              className={!isConfirmNameValid && confirmName ? "border-red-500" : ""}
+              className={
+                !isConfirmNameValid && confirmName ? "border-red-500" : ""
+              }
             />
           </div>
 
@@ -104,13 +109,14 @@ export function DeleteAccountDialog({
             <Checkbox
               id="acceptRisks"
               checked={acceptRisks}
-              onCheckedChange={(checked) => setAcceptRisks(checked as boolean)}
+              onCheckedChange={checked => setAcceptRisks(checked as boolean)}
             />
             <Label
               htmlFor="acceptRisks"
               className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              I understand that this action will delete all associated data and cannot be reversed
+              I understand that this action will delete all associated data and
+              cannot be reversed
             </Label>
           </div>
         </div>
@@ -139,9 +145,7 @@ export function DeleteAccountDialog({
                 Deleting...
               </>
             ) : (
-              <>
-                🗑️ Delete Account
-              </>
+              <>🗑️ Delete Account</>
             )}
           </Button>
         </DialogFooter>

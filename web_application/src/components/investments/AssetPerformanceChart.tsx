@@ -1,19 +1,31 @@
 import { usePortfolioPerformance, usePortfolioSummary } from "@/api/queries"
 import { Card } from "@/components/ui/card"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useState } from "react"
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import {
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 
 type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "ALL"
 
-type MetricType = "price" | "total_value" | "performance" | "tri" | "cost_basis_comparison"
+type MetricType =
+  | "price"
+  | "total_value"
+  | "performance"
+  | "tri"
+  | "cost_basis_comparison"
 
 interface AssetPerformanceChartProps {
   period: TimePeriod
@@ -26,7 +38,7 @@ const METRIC_LABELS: Record<MetricType, string> = {
   total_value: "Total Value",
   performance: "Performance (%)",
   tri: "Total Return Index",
-  cost_basis_comparison: "Price vs Cost Basis"
+  cost_basis_comparison: "Price vs Cost Basis",
 }
 
 interface AssetData {
@@ -42,8 +54,10 @@ interface AssetMetrics {
 }
 
 export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
-  const { data: performanceData, isLoading: isLoadingPerformance } = usePortfolioPerformance()
-  const { data: summaryData, isLoading: isLoadingSummary } = usePortfolioSummary()
+  const { data: performanceData, isLoading: isLoadingPerformance } =
+    usePortfolioPerformance()
+  const { data: summaryData, isLoading: isLoadingSummary } =
+    usePortfolioSummary()
   const [selectedAsset, setSelectedAsset] = useState<string>(ALL_ASSETS)
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("price")
 
@@ -58,13 +72,19 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
     .filter(asset => asset.shares > 0)
     .map(asset => ({
       symbol: asset.symbol,
-      price: performanceData.data_points[performanceData.data_points.length - 1]?.assets[asset.symbol]?.price || 0
+      price:
+        performanceData.data_points[performanceData.data_points.length - 1]
+          ?.assets[asset.symbol]?.price || 0,
     }))
     .sort((a, b) => a.price - b.price)
 
   const highPriceThreshold = 100 // Threshold to determine high-price assets
-  const lowPriceAssets = assetData.filter(asset => asset.price <= highPriceThreshold).map(asset => asset.symbol)
-  const highPriceAssets = assetData.filter(asset => asset.price > highPriceThreshold).map(asset => asset.symbol)
+  const lowPriceAssets = assetData
+    .filter(asset => asset.price <= highPriceThreshold)
+    .map(asset => asset.symbol)
+  const highPriceAssets = assetData
+    .filter(asset => asset.price > highPriceThreshold)
+    .map(asset => asset.symbol)
 
   // Transform data for individual asset performance
   const chartData = performanceData.data_points.map(point => {
@@ -75,21 +95,29 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
       if (selectedMetric === "performance") {
         const performanceData = Object.fromEntries(
           Object.entries(point.assets)
-            .filter(([symbol]) => lowPriceAssets.includes(symbol) || highPriceAssets.includes(symbol))
+            .filter(
+              ([symbol]) =>
+                lowPriceAssets.includes(symbol) ||
+                highPriceAssets.includes(symbol)
+            )
             .map(([symbol, data]) => {
               // Get the asset's cost basis from summary data
-              const assetSummary = summaryData.assets.find(a => a.symbol === symbol)
+              const assetSummary = summaryData.assets.find(
+                a => a.symbol === symbol
+              )
               if (!assetSummary) return [symbol, 0]
               const isHighPrice = highPriceAssets.includes(symbol)
               return [
                 isHighPrice ? symbol + "_high" : symbol,
-                ((data.total_value - assetSummary.cost_basis) / assetSummary.cost_basis) * 100
+                ((data.total_value - assetSummary.cost_basis) /
+                  assetSummary.cost_basis) *
+                  100,
               ]
             })
         )
         return {
           ...baseData,
-          ...performanceData
+          ...performanceData,
         }
       }
 
@@ -98,21 +126,27 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
         .filter(([symbol]) => lowPriceAssets.includes(symbol))
         .map(([symbol, data]) => [
           symbol,
-          selectedMetric === "total_value" ? data.total_value :
-          selectedMetric === "price" ? data.price : point.tri
+          selectedMetric === "total_value"
+            ? data.total_value
+            : selectedMetric === "price"
+              ? data.price
+              : point.tri,
         ])
       const highPriceEntries = filteredAssets
         .filter(([symbol]) => highPriceAssets.includes(symbol))
         .map(([symbol, data]) => [
           symbol + "_high",
-          selectedMetric === "total_value" ? data.total_value :
-          selectedMetric === "price" ? data.price : point.tri
+          selectedMetric === "total_value"
+            ? data.total_value
+            : selectedMetric === "price"
+              ? data.price
+              : point.tri,
         ])
 
       return {
         ...baseData,
         ...Object.fromEntries(lowPriceEntries),
-        ...Object.fromEntries(highPriceEntries)
+        ...Object.fromEntries(highPriceEntries),
       }
     }
 
@@ -126,9 +160,13 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
     let value: number
     switch (selectedMetric) {
       case "performance": {
-        const assetSummary = summaryData.assets.find(a => a.symbol === selectedAsset)
+        const assetSummary = summaryData.assets.find(
+          a => a.symbol === selectedAsset
+        )
         value = assetSummary
-          ? ((assetData.total_value - assetSummary.cost_basis) / assetSummary.cost_basis) * 100
+          ? ((assetData.total_value - assetSummary.cost_basis) /
+              assetSummary.cost_basis) *
+            100
           : 0
         break
       }
@@ -147,16 +185,27 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
 
     return {
       ...baseData,
-      [assetKey]: value
+      [assetKey]: value,
     }
   })
 
-  const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+  const COLORS = [
+    "#22c55e",
+    "#3b82f6",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#ec4899",
+  ]
 
   // Show selected asset or all assets if ALL_ASSETS is selected
-  const assetsToShow = selectedAsset === ALL_ASSETS
-    ? [...lowPriceAssets, ...highPriceAssets.map(symbol => symbol + "_high")]
-    : [selectedAsset + (highPriceAssets.includes(selectedAsset) ? "_high" : "")]
+  const assetsToShow =
+    selectedAsset === ALL_ASSETS
+      ? [...lowPriceAssets, ...highPriceAssets.map(symbol => symbol + "_high")]
+      : [
+          selectedAsset +
+            (highPriceAssets.includes(selectedAsset) ? "_high" : ""),
+        ]
 
   const formatValue = (value: number) => {
     switch (selectedMetric) {
@@ -192,7 +241,10 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
           </SelectContent>
         </Select>
 
-        <Select value={selectedMetric} onValueChange={(value: MetricType) => setSelectedMetric(value)}>
+        <Select
+          value={selectedMetric}
+          onValueChange={(value: MetricType) => setSelectedMetric(value)}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select metric..." />
           </SelectTrigger>
@@ -223,7 +275,7 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
             tickLine={false}
             axisLine={false}
             tickFormatter={formatValue}
-            domain={['auto', 'auto']}
+            domain={["auto", "auto"]}
           />
           {/* Right Y-axis for high-price assets */}
           <YAxis
@@ -234,7 +286,7 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
             tickLine={false}
             axisLine={false}
             tickFormatter={formatValue}
-            domain={['auto', 'auto']}
+            domain={["auto", "auto"]}
           />
           <Tooltip
             content={({ active, payload, label }) => {
@@ -243,13 +295,21 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
                   <Card className="p-2">
                     <p className="text-sm text-muted-foreground">{label}</p>
                     {payload.map((entry, index) => {
-                      const dataKey = entry.dataKey?.toString() || ''
-                      const isHighPrice = dataKey.endsWith('_high')
-                      const symbol = dataKey.replace('_high', '')
-                      const asset = summaryData.assets.find(a => a.symbol === symbol)
+                      const dataKey = entry.dataKey?.toString() || ""
+                      const isHighPrice = dataKey.endsWith("_high")
+                      const symbol = dataKey.replace("_high", "")
+                      const asset = summaryData.assets.find(
+                        a => a.symbol === symbol
+                      )
                       return (
-                        <p key={index} className="text-sm" style={{ color: entry.color }}>
-                          {`${asset?.name || symbol}: ${formatValue(Number(entry.value))}`}
+                        <p
+                          key={index}
+                          className="text-sm"
+                          style={{ color: entry.color }}
+                        >
+                          {`${asset?.name || symbol}: ${formatValue(
+                            Number(entry.value)
+                          )}`}
                         </p>
                       )
                     })}
@@ -260,7 +320,7 @@ export function AssetPerformanceChart({ period }: AssetPerformanceChartProps) {
             }}
           />
           {assetsToShow.map((symbol, index) => {
-            const isHighPrice = symbol.endsWith('_high')
+            const isHighPrice = symbol.endsWith("_high")
             return (
               <Line
                 key={symbol}

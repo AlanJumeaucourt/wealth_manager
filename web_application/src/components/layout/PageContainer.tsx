@@ -11,18 +11,22 @@ export function PageContainer({
   children,
   title,
   action,
-  className
+  className,
 }: PageContainerProps) {
   return (
-    <div className={cn(
-      "m-4 sm:m-6 p-4 sm:p-6 bg-card rounded-xl shadow-sm border border-border/50",
-      "transform-gpu will-change-transform",
-      "transition-transform duration-200 ease-in-out",
-      className
-    )}>
+    <div
+      className={cn(
+        "m-4 sm:m-6 p-4 sm:p-6 bg-card rounded-xl shadow-sm border border-border/50",
+        "transform-gpu will-change-transform",
+        "transition-transform duration-200 ease-in-out",
+        className
+      )}
+    >
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between gap-4">
-          {title && <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>}
+          {title && (
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          )}
           {action}
         </div>
       )}

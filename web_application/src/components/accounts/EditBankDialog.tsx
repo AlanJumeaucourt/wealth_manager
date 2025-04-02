@@ -1,11 +1,11 @@
 import { API_URL } from "@/api/queries"
 import { Button } from "@/components/ui/button"
 import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,7 +20,11 @@ interface EditBankDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function EditBankDialog({ bank, open, onOpenChange }: EditBankDialogProps) {
+export function EditBankDialog({
+  bank,
+  open,
+  onOpenChange,
+}: EditBankDialogProps) {
   const [name, setName] = useState(bank.name)
   const [website, setWebsite] = useState(bank.website || "")
   const queryClient = useQueryClient()
@@ -30,10 +34,10 @@ export function EditBankDialog({ bank, open, onOpenChange }: EditBankDialogProps
     mutationFn: async (data: { name: string; website?: string }) => {
       const token = localStorage.getItem("access_token")
       const response = await fetch(`${API_URL}/banks/${bank.id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       })
@@ -41,14 +45,14 @@ export function EditBankDialog({ bank, open, onOpenChange }: EditBankDialogProps
       return response.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['banks'] })
+      queryClient.invalidateQueries({ queryKey: ["banks"] })
       toast({
         title: "🏦 Bank Updated!",
         description: "Changes saved successfully!",
       })
       onOpenChange(false)
     },
-    onError: (error) => {
+    onError: error => {
       toast({
         title: "😅 Oops!",
         description: "Couldn't update the bank. Please try again.",
@@ -87,7 +91,7 @@ export function EditBankDialog({ bank, open, onOpenChange }: EditBankDialogProps
               <Input
                 id="name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={e => setName(e.target.value)}
                 placeholder="Enter bank name"
                 required
               />
@@ -97,17 +101,14 @@ export function EditBankDialog({ bank, open, onOpenChange }: EditBankDialogProps
               <Input
                 id="website"
                 value={website}
-                onChange={(e) => setWebsite(e.target.value)}
+                onChange={e => setWebsite(e.target.value)}
                 placeholder="Enter bank website"
                 type="url"
               />
             </div>
           </div>
           <DialogFooter className="mt-6">
-            <Button
-              type="submit"
-              disabled={updateBankMutation.isPending}
-            >
+            <Button type="submit" disabled={updateBankMutation.isPending}>
               {updateBankMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
