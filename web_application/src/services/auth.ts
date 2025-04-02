@@ -1,10 +1,16 @@
 import { API_URL } from '@/api/queries'
 import { QueryClient } from '@tanstack/react-query'
+import { userStorage } from '@/utils/user-storage'
 
 interface LoginResponse {
   access_token: string
   refresh_token: string
   token_type: string
+  user: {
+    id: number
+    email: string
+    name: string
+  }
 }
 
 interface AuthCredentials {
@@ -33,6 +39,13 @@ export const authService = {
 
     const data: LoginResponse = await response.json()
     localStorage.setItem('access_token', data.access_token)
+
+    // Store user data from login response
+    if (data.user) {
+      userStorage.setUser(data.user)
+      userStorage.updateLastFetch()
+    }
+
     return data
   },
 

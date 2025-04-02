@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useNavigate } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
+import { authService } from "@/services/auth"
 
 export function Landing() {
   const [email, setEmail] = useState("test@example.com")
@@ -25,25 +26,11 @@ export function Landing() {
     setIsLoading(true)
 
     try {
-      const response = await fetch(`${API_URL}/users/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        localStorage.setItem("access_token", data.access_token)
-        navigate({ to: "/dashboard" })
-      } else {
-        const errorData = await response.json()
-        setError(errorData.msg || "Login failed")
-      }
+      await authService.login({ email, password })
+      navigate({ to: "/dashboard" })
     } catch (error) {
       console.error("Login error:", error)
-      setError("Login failed. Please try again.")
+      setError(error instanceof Error ? error.message : "Login failed. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -92,6 +79,7 @@ export function Landing() {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   disabled={isLoading}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -103,6 +91,7 @@ export function Landing() {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   disabled={isLoading}
+                  required
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>

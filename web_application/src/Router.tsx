@@ -33,6 +33,7 @@ import { TransactionDetailPage } from "./pages/TransactionDetailPage"
 import { TransactionsPage } from "./pages/TransactionsPage"
 import { Wealth } from "./pages/Wealth"
 import { InvestmentsPage } from "./pages/investmentsPage"
+import { Signup } from "./pages/Signup"
 
 // Create a root route without search params validation
 const rootRoute = new RootRoute({
@@ -174,6 +175,12 @@ const landingRoute = new Route({
   getParentRoute: () => rootRoute,
   path: "/",
   component: Landing,
+})
+
+const signupRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: "/signup",
+  component: Signup,
 })
 
 const dashboardRoute = new Route({
@@ -393,6 +400,7 @@ const gocardlessAccountsRoute = new Route({
 // Define the route tree
 export const routeTree = rootRoute.addChildren([
   landingRoute,
+  signupRoute,
   authenticatedLayout.addChildren([
     dashboardRoute,
     // Accounts routes

@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
-import { API_URL } from "@/api/queries"
 
 export function Signup() {
   const [name, setName] = useState("")

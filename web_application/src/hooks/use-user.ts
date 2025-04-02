@@ -11,7 +11,7 @@ async function fetchUser(): Promise<User> {
     throw new Error('No token found')
   }
 
-  const response = await fetch(`${API_URL}/users/me`, {
+  const response = await fetch(`${API_URL}/users/`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -38,13 +38,13 @@ export function useUser() {
     queryKey: ['user'],
     queryFn: fetchUser,
     initialData: storedUser,
-    enabled: !!userStorage.getToken() && (userStorage.shouldFetchUser() || !storedUser),
+    enabled: !!userStorage.getToken(),
     retry: false,
-    staleTime: Infinity,
-    gcTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   })
 
   return {
