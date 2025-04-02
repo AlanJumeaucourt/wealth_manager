@@ -65,13 +65,14 @@ type SortField =
   | "fee"
   | "tax"
 type SortDirection = "asc" | "desc"
-type InvestmentTypeFilter = "all" | "Buy" | "Sell" | "Deposit" | "Withdrawal"
+type InvestmentTypeFilter = "all" | "Buy" | "Sell" | "Deposit" | "Withdrawal" | "Dividend"
 
 const INVESTMENT_TYPE_ICONS = {
   Buy: <TrendingUp className="h-4 w-4 text-green-500" />,
   Sell: <TrendingDown className="h-4 w-4 text-red-500" />,
   Deposit: <ArrowDownIcon className="h-4 w-4 text-blue-500" />,
   Withdrawal: <ArrowUpIcon className="h-4 w-4 text-orange-500" />,
+  Dividend: <ArrowDownIcon className="h-4 w-4 text-purple-500" />,
 }
 
 const INVESTMENT_TYPE_LABELS = {
@@ -79,6 +80,7 @@ const INVESTMENT_TYPE_LABELS = {
   Sell: "Sell",
   Deposit: "Deposit",
   Withdrawal: "Withdrawal",
+  Dividend: "Dividend",
 }
 
 export function InvestmentsTransactionPage() {
@@ -222,7 +224,12 @@ export function InvestmentsTransactionPage() {
   })
 
   const totalInvested = investments.reduce(
-    (sum, inv) => sum + (inv.total_paid || 0),
+    (sum, inv) => {
+      if (inv.investment_type === "Buy" || inv.investment_type === "Deposit" || inv.investment_type === "Dividend") {
+        return sum + (inv.total_paid || 0)
+      }
+      return sum
+    },
     0
   )
   const totalFees = investments.reduce((sum, inv) => sum + inv.fee, 0)
@@ -301,7 +308,7 @@ export function InvestmentsTransactionPage() {
 
         {/* Actions and Filters */}
         <div className="flex flex-col sm:flex-row justify-between gap-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 flex-1 min-w-0">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -316,9 +323,9 @@ export function InvestmentsTransactionPage() {
               onValueChange={value =>
                 setActivityTypeFilter(value as InvestmentTypeFilter)
               }
-              className="w-[400px]"
+              className="flex-1 min-w-0"
             >
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="Buy" className="text-green-500">
                   Buy
@@ -331,6 +338,9 @@ export function InvestmentsTransactionPage() {
                 </TabsTrigger>
                 <TabsTrigger value="Withdrawal" className="text-orange-500">
                   Withdraw
+                </TabsTrigger>
+                <TabsTrigger value="Dividend" className="text-purple-500">
+                  Dividend
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -645,7 +655,8 @@ export function InvestmentsTransactionPage() {
                             className={cn(
                               "font-medium",
                               investment.investment_type === "Buy" ||
-                                investment.investment_type === "Deposit"
+                                investment.investment_type === "Deposit" ||
+                                investment.investment_type === "Dividend"
                                 ? "text-green-600 dark:text-green-400"
                                 : "text-red-600 dark:text-red-400"
                             )}

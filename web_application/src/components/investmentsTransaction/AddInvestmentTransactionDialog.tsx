@@ -75,6 +75,11 @@ const investment_typeS = [
     label: "Withdrawal",
     icon: <ArrowUpIcon className="h-4 w-4 text-orange-500" />,
   },
+  {
+    value: "Dividend",
+    label: "Dividend",
+    icon: <ArrowDownIcon className="h-4 w-4 text-purple-500" />,
+  },
 ]
 
 interface AddInvestmentDialogProps {
@@ -145,6 +150,8 @@ export function AddInvestmentDialog({
 
   const selectedDate = form.watch("date")
 
+  const investmentType = form.watch("investment_type")
+
   useEffect(() => {
     if (stockHistory && selectedDate) {
       const priceData = stockHistory.find(p => p.date === selectedDate)
@@ -156,6 +163,12 @@ export function AddInvestmentDialog({
       }
     }
   }, [stockHistory, selectedDate, form])
+
+  useEffect(() => {
+    if (investmentType === "Dividend") {
+      form.setValue("quantity", 1)
+    }
+  }, [investmentType, form])
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -281,6 +294,7 @@ export function AddInvestmentDialog({
                 placeholder="0.00"
                 step="0.01"
                 {...form.register("quantity", { valueAsNumber: true })}
+                disabled={investmentType === "Dividend"}
               />
             </div>
 

@@ -141,7 +141,7 @@ export interface Investment
     | "amount"
   > {
   transaction_id: number
-  investment_type: "Buy" | "Sell" | "Deposit" | "Withdrawal"
+  investment_type: "Buy" | "Sell" | "Deposit" | "Withdrawal" | "Dividend"
   asset_id: number
   fee: number
   quantity: number
