@@ -136,3 +136,13 @@ The project uses GitHub Actions for CI/CD with separate deployment pipelines for
 - Showcase Website (`/`)
 - Mobile App (Expo)
 
+
+## 📦 Import from Firefly III
+
+Import transactions from Firefly III transactions export and some csv file to track investments.
+(very specific things for the maintainer of this repository)
+```bash
+python3 import_from_firefly.py 2024_10_04_transaction_export.csv --sync --delete-user
+python3 import_from_firefly.py csv/alan_cto.csv --investment --investment-account CTO --sync
+python3 import_from_firefly.py csv/alan_pea.csv --investment --investment-account PEA --sync
+```
