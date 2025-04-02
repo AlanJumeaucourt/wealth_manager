@@ -824,6 +824,12 @@ def fetch_and_filter_transactions(
                             executor.submit(wealthmanager_api.create_transaction_in_api, transaction)
                             for transaction in missing_transactions
                         ]
+                        for future in concurrent.futures.as_completed(futures):
+                            response = future.result()
+                            if response.status_code == 201:
+                                logging.info(f"Created transaction: {response.json()}")
+                            else:
+                                logging.error(f"Failed to create transaction: {response.text}")
                     print(f"Successfully added {len(missing_transactions)} transactions")
                 else:
                     print("No new transactions were added (all already exist)")
@@ -893,7 +899,7 @@ def process_batch(
         try:
             account_id = wealthmanager_api.get_account_id_from_name(name, acc_type)
             if account_id:
-                account_ids[name] = account_id
+                account_ids[f"{name}|{acc_type}"] = account_id
         except Exception as e:
             logging.exception(f"Error getting account ID for {name}|{acc_type}: {e}")
 
@@ -909,41 +915,52 @@ def process_batch(
         ):
             continue
 
-        # Get account IDs
-        source_account_id = account_ids.get(row["source_name"])
-        destination_account_id = account_ids.get(row["destination_name"])
+        # Get account types
+        source_account_type = account_name_type_mapping.get(
+            row["source_name"], account_type_mapping.get(row["source_type"], "Unknown")
+        )
+        destination_account_type = account_name_type_mapping.get(
+            row["destination_name"],
+            account_type_mapping.get(row["destination_type"], "Unknown"),
+        )
+
+        # Get account IDs using composite key
+        source_account_id = account_ids.get(f"{row['source_name']}|{source_account_type}")
+        destination_account_id = account_ids.get(f"{row['destination_name']}|{destination_account_type}")
 
         if not source_account_id or not destination_account_id:
-            logging.warning(f"Skipping transaction due to missing account IDs: {row['source_name']} -> {row['destination_name']}")
+            logging.warning(f"Skipping transaction due to missing account IDs: {row['source_name']}|{source_account_type} -> {row['destination_name']}|{destination_account_type}")
             continue
 
         # Handle special cases for transaction types
         if row["destination_name"] == "Prêt Etudiant CA":
             transaction_type = "transfer"
-            destination_account_id = account_ids.get("Prêt Etudiant CA")
+            destination_account_id = account_ids.get("Prêt Etudiant CA|savings")
         elif row["destination_name"] == "Solde initial du compte Prêt Etudiant CA":
             transaction_type = "expense"
-            destination_account_id = account_ids.get("Solde initial du compte Prêt Etudiant CA")
+            destination_account_id = account_ids.get("Solde initial du compte Prêt Etudiant CA|expense")
             print(f"{row['description']=}")
         else:
             transaction_type = wealthmanager_api.handle_transaction_type(row["type"])
 
         # Check if transaction already exists
+        # print(existing_transactions)
         is_missing = not any(
             transaction["date"] == row["date"][:10]
-            and transaction["source_account_id"] == source_account_id
-            and transaction["destination_account_id"] == destination_account_id
+            and transaction["from_account_id"] == source_account_id
+            and transaction["to_account_id"] == destination_account_id
             and transaction["amount"] == abs(float(row["amount"]))
             and transaction["type"] == transaction_type
             for transaction in existing_transactions
         )
 
         if is_missing:
+            print(f"Missing transaction: {row['date'][:10]} - {row['source_name']} -> {row['destination_name']} - {row['amount']} - {row['type']} - {row['budget']} - {row['description']}")
             # Create transaction data
             transaction_data = {
                 "date": row["date"][:10],
-                "source_account_id": source_account_id,
-                "destination_account_id": destination_account_id,
+                "from_account_id": source_account_id,
+                "to_account_id": destination_account_id,
                 "amount": abs(float(row["amount"])),
                 "type": transaction_type,
                 "description": row["description"] if not pd.isna(row["description"]) else "",
