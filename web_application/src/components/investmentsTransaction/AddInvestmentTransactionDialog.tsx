@@ -3,6 +3,7 @@ import {
   useAssets,
   useCreateInvestment,
   useStockHistory,
+  useUpdateInvestment,
 } from "@/api/queries"
 import { Button } from "@/components/ui/button"
 import { ComboboxInput } from "@/components/ui/comboboxInput"
@@ -33,6 +34,7 @@ import {
 import { useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { Investment } from "@/types"
 
 const formSchema = z.object({
   investment_type: z.enum([
@@ -85,6 +87,7 @@ const investment_typeS = [
 interface AddInvestmentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  investment?: Investment
 }
 
 function accountsToOptions(accounts: Array<{ id: number; name: string }>) {
@@ -108,9 +111,11 @@ type FormData = z.infer<typeof formSchema>
 export function AddInvestmentDialog({
   open,
   onOpenChange,
+  investment,
 }: AddInvestmentDialogProps) {
   const { toast } = useToast()
   const createMutation = useCreateInvestment()
+  const updateMutation = useUpdateInvestment()
   const { data: accountsResponse } = useAccounts({
     type: "investment",
     per_page: 1000,
@@ -123,15 +128,17 @@ export function AddInvestmentDialog({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      investment_type: "Buy" as const,
-      asset_id: 0,
-      date: new Date().toISOString().split("T")[0],
-      fee: 0,
-      from_account_id: 0,
-      quantity: 0,
-      tax: 0,
-      to_account_id: 0,
-      unit_price: 0,
+      investment_type: investment?.investment_type || "Buy" as const,
+      asset_id: investment?.asset_id || 0,
+      date: investment?.date
+        ? new Date(investment.date).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
+      fee: investment?.fee || 0,
+      from_account_id: investment?.from_account_id || 0,
+      quantity: investment?.quantity || 0,
+      tax: investment?.tax || 0,
+      to_account_id: investment?.to_account_id || 0,
+      unit_price: investment?.unit_price || 0,
       user_id: parseInt(localStorage.getItem("user_id") || "0"),
     },
   })
@@ -170,22 +177,55 @@ export function AddInvestmentDialog({
     }
   }, [investmentType, form])
 
+  useEffect(() => {
+    if (investment) {
+      form.reset({
+        investment_type: investment.investment_type,
+        asset_id: investment.asset_id,
+        date: new Date(investment.date).toISOString().split("T")[0],
+        fee: investment.fee,
+        from_account_id: investment.from_account_id,
+        quantity: investment.quantity,
+        tax: investment.tax,
+        to_account_id: investment.to_account_id,
+        unit_price: investment.unit_price,
+        user_id: parseInt(localStorage.getItem("user_id") || "0"),
+      })
+    }
+  }, [investment, form])
+
   const onSubmit = async (data: FormData) => {
     try {
-      await createMutation.mutateAsync({
-        ...data,
-        date: new Date(data.date).toISOString(),
-      })
-      toast({
-        title: "Investment Added",
-        description: "Your investment has been added successfully.",
-      })
+      if (investment) {
+        await updateMutation.mutateAsync({
+          id: investment.transaction_id,
+          data: {
+            ...data,
+            date: new Date(data.date).toISOString(),
+          },
+        })
+        toast({
+          title: "Investment Updated",
+          description: "Your investment has been updated successfully.",
+        })
+      } else {
+        await createMutation.mutateAsync({
+          ...data,
+          date: new Date(data.date).toISOString(),
+        })
+        toast({
+          title: "Investment Added",
+          description: "Your investment has been added successfully.",
+        })
+      }
       onOpenChange(false)
-      form.reset()
+      if (!investment) {
+        form.reset()
+      }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to add investment. Please try again.",
+        description: `Failed to ${investment ? 'update' : 'add'} investment. Please try again.`,
         variant: "destructive",
       })
     }
@@ -195,7 +235,7 @@ export function AddInvestmentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>Add Investment Transaction</DialogTitle>
+          <DialogTitle>{investment ? "Edit Investment Transaction" : "Add Investment Transaction"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
@@ -376,8 +416,13 @@ export function AddInvestmentDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Adding..." : "Add Investment"}
+            <Button
+              type="submit"
+              disabled={investment ? updateMutation.isPending : createMutation.isPending}
+            >
+              {investment
+                ? (updateMutation.isPending ? "Updating..." : "Update Investment")
+                : (createMutation.isPending ? "Adding..." : "Add Investment")}
             </Button>
           </DialogFooter>
         </form>

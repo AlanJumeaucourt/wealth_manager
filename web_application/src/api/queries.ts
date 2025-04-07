@@ -38,7 +38,8 @@ export const QueryKeys = {
     ] as QueryKeyArray,
   investments: ["investments"] as QueryKeyArray,
   investmentById: (id: number) => ["investments", id] as QueryKeyArray,
-  portfolioPerformance: () => ["portfolio", "performance"] as QueryKeyArray,
+  portfolioPerformance: (period?: string) => 
+    ["portfolio", "performance", period] as QueryKeyArray,
   portfolioSummary: (accountId?: number) =>
     ["portfolio", "summary", accountId] as QueryKeyArray,
   assetTransactions: (symbol: string) =>
@@ -853,15 +854,16 @@ interface PortfolioPerformance {
     assets: {
       [symbol: string]: {
         price: number
-        quantity: number
+        shares: number
         total_value: number
-        cost_basis_per_share?: number // Added to match the provided data structure
+        cost_basis_per_share?: number
       }
     }
+    cumulative_dividends: number
     date: string
-    net_invested?: number // Added to match the provided data structure
+    net_invested: number
     performance: number
-    total_gains?: number // Added to match the provided data structure
+    total_gains: number
     total_value: number
     tri: number
   }>
@@ -874,9 +876,9 @@ interface PortfolioPerformance {
   }
 }
 
-export function usePortfolioPerformance() {
+export function usePortfolioPerformance(period: string = "1Y") {
   return createQuery<PortfolioPerformance>({
-    queryKey: QueryKeys.portfolioPerformance(),
-    queryFn: () => fetchWithAuth(`investments/portfolio/performance`),
+    queryKey: QueryKeys.portfolioPerformance(period),
+    queryFn: () => fetchWithAuth(`investments/portfolio/performance?period=${period}`),
   })
 }

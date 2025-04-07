@@ -11,7 +11,7 @@ services:
       - SQLITE_DB_PATH=/app/data/wealth.db
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-here}
     ports:
-      - "5000:5000"
+      - "5001:5000"
     networks:
       - wealth-network
     env_file:

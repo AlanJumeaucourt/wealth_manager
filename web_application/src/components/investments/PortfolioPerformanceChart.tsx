@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
+import { TimePeriod } from "@/types"
 import { useState } from "react"
 import {
   Area,
@@ -18,8 +19,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-
-type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "ALL"
 
 type MetricType = "performance" | "total_value" | "absolute_gain"
 
@@ -38,7 +37,7 @@ const periodToDays: Record<TimePeriod, number> = {
   "1Y": 365,
   "3Y": 1095,
   "5Y": 1825,
-  ALL: Infinity,
+  "max": Infinity,
 }
 
 interface PortfolioPerformanceChartProps {
@@ -58,7 +57,7 @@ export function PortfolioPerformanceChart({
       month: "short",
       day: "numeric",
       year:
-        period === "3Y" || period === "5Y" || period === "ALL"
+        period === "3Y" || period === "5Y" || period === "max"
           ? "numeric"
           : undefined,
     }
@@ -86,7 +85,7 @@ export function PortfolioPerformanceChart({
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     )
 
-    if (period === "ALL") return sortedDataPoints
+    if (period === "max") return sortedDataPoints
 
     const days = periodToDays[period]
     const now = new Date()
@@ -135,7 +134,7 @@ export function PortfolioPerformanceChart({
           case "absolute_gain":
             // Calculate individual asset absolute gain
             const gain =
-              (asset.price - (asset.cost_basis_per_share || 0)) * asset.quantity
+              (asset.price - (asset.cost_basis_per_share || 0)) * asset.shares
             transformedPoint[symbol] = gain
             break
         }

@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TimePeriod } from "@/types"
 import { useState } from "react"
 import {
   Line,
@@ -17,8 +18,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-
-type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "ALL"
 
 type MetricType =
   | "price"
@@ -48,7 +47,7 @@ interface AssetData {
 
 interface AssetMetrics {
   price: number
-  quantity: number
+  shares: number
   total_value: number
   cost_basis_per_share: number
 }

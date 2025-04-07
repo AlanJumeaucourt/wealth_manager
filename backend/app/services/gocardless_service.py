@@ -741,7 +741,9 @@ class GoCardlessService:
                             "status": account_data["status"],
                             "owner_name": account_data["owner_name"],
                             "currency": account_data["currency"],
-                            "balance": float(account_data["balance"]) if account_data["balance"] else 0,
+                            "balance": float(account_data["balance"])
+                            if account_data["balance"]
+                            else 0,
                             "account_type": account_data["account_type"],
                         },
                     )

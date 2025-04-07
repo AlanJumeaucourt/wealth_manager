@@ -16,6 +16,7 @@ fake = Faker()
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+logger = logging.getLogger(__name__)
 
 # Add a cache for accounts
 _accounts_cache: dict[str, Any] | None = None
@@ -112,6 +113,7 @@ account_name_type_mapping = {
     "Cardif PER": "investment",
     "Revolut": "checking",
     "Solde initial du compte Prêt Etudiant CA": "expense",
+    "Paypal Alan": "checking",
 }
 
 bank_website_mapping = {
@@ -124,7 +126,14 @@ account_dictionary: dict[str, str] = {}
 
 
 class WealthManagerApi:
-    def __init__(self, base_url: str, name: str, email: str, password: str, delete_if_exists: bool = False):
+    def __init__(
+        self,
+        base_url: str,
+        name: str,
+        email: str,
+        password: str,
+        delete_if_exists: bool = False,
+    ):
         self.base_url = base_url
         self.name = name
         self.email = email
@@ -157,13 +166,19 @@ class WealthManagerApi:
                     logging.info(f"Successfully recreated user: {self.email}")
                     self._login_user()
                 else:
-                    logging.error(f"Failed to recreate user: {create_user_r.status_code}, {create_user_r.text}")
-                    raise Exception(f"Failed to recreate user: {create_user_r.status_code}")
+                    logging.error(
+                        f"Failed to recreate user: {create_user_r.status_code}, {create_user_r.text}"
+                    )
+                    raise Exception(
+                        f"Failed to recreate user: {create_user_r.status_code}"
+                    )
             else:
                 # Just login with existing user
                 self._login_user()
         else:
-            logging.error(f"Failed to create user: {create_user_r.status_code}, {create_user_r.text}")
+            logging.error(
+                f"Failed to create user: {create_user_r.status_code}, {create_user_r.text}"
+            )
             raise Exception(f"Failed to create user: {create_user_r.status_code}")
 
         # Verify we have a valid JWT token
@@ -177,7 +192,9 @@ class WealthManagerApi:
             self.jwt_token = login_user_r.json()["access_token"]
             logging.info(f"Successfully logged in user: {self.email}")
         else:
-            logging.error(f"Failed to log in user: {login_user_r.status_code}, {login_user_r.text}")
+            logging.error(
+                f"Failed to log in user: {login_user_r.status_code}, {login_user_r.text}"
+            )
             raise Exception(f"Failed to log in user: {login_user_r.status_code}")
 
     def create_user(self):
@@ -531,11 +548,14 @@ class WealthManagerApi:
         response = requests.get(url, headers=headers)
         return response
 
-    def get_dividend_transactions(self, number_of_transactions: int = 1000) -> list[dict[str, Any]]:
+    def get_dividend_transactions(
+        self, number_of_transactions: int = 1000
+    ) -> list[dict[str, Any]]:
         """Get dividend transactions from the API.
 
         Returns:
             list[dict[str, Any]]: List of dividend transactions
+
         """
         url = f"{self.base_url}/transactions?subcategory=Dividends&per_page={number_of_transactions}"
         headers = {
@@ -545,17 +565,22 @@ class WealthManagerApi:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json().get("items", [])
-        logging.error(f"Failed to retrieve dividend transactions: {response.status_code}, {response.text}")
+        logging.error(
+            f"Failed to retrieve dividend transactions: {response.status_code}, {response.text}"
+        )
         return []
 
 
-def process_investment_csv(csv_data: str, account_name: str, wealthmanager_api: WealthManagerApi = None):
+def process_investment_csv(
+    csv_data: str, account_name: str, wealthmanager_api: WealthManagerApi = None
+):
     """Process investment transactions from CSV data.
 
     Args:
         csv_data (str): CSV string containing investment transactions
         account_name (str): Name of the investment account (e.g. "Boursorama CTO", "Boursorama PEA")
         wealthmanager_api (WealthManagerApi, optional): API instance. If None, will only analyze without syncing.
+
     """
     # Read the CSV data into a DataFrame
     df = pd.read_csv(StringIO(csv_data))
@@ -573,13 +598,19 @@ def process_investment_csv(csv_data: str, account_name: str, wealthmanager_api: 
         }
         response = requests.get(url, headers=headers)
         existing_investments = deduplicate_investments(response.json().get("items", []))
-        logging.info(f"Existing investment transactions: length {len(existing_investments)}")
+        logging.info(
+            f"Existing investment transactions: length {len(existing_investments)}"
+        )
         if existing_investments:
-            logging.info(f"Sample existing investment structure: {existing_investments[0]}")
+            logging.info(
+                f"Sample existing investment structure: {existing_investments[0]}"
+            )
 
         # Get existing dividends
         existing_dividends = wealthmanager_api.get_dividend_transactions()
-        logging.info(f"Existing dividend transactions: length {len(existing_dividends)}")
+        logging.info(
+            f"Existing dividend transactions: length {len(existing_dividends)}"
+        )
         if existing_dividends:
             logging.info(f"Sample existing dividend structure: {existing_dividends[0]}")
 
@@ -601,7 +632,9 @@ def process_investment_csv(csv_data: str, account_name: str, wealthmanager_api: 
 
     if wealthmanager_api:
         # Get account IDs
-        boursorama_id = wealthmanager_api.get_account_id_from_name(account_name, account_type)
+        boursorama_id = wealthmanager_api.get_account_id_from_name(
+            account_name, account_type
+        )
         boursorama_espece_id = wealthmanager_api.get_account_id_from_name(
             cash_account_name, "investment"
         )
@@ -619,16 +652,24 @@ def process_investment_csv(csv_data: str, account_name: str, wealthmanager_api: 
         if row["activityType"] in ["BUY", "SELL", "DIVIDEND"]:
             # In dry run mode without API, we need to skip ID validation
             if not wealthmanager_api:
-                print(f"Transaction: {row['activityType']} {row['quantity']} {row['symbol']} @ {row['unitPrice']} on {row['date'][:10]}")
+                print(
+                    f"Transaction: {row['activityType']} {row['quantity']} {row['symbol']} @ {row['unitPrice']} on {row['date'][:10]}"
+                )
                 continue
 
             # Get asset ID if needed
             if row["symbol"] not in asset_ids:
-                asset_ids[row["symbol"]] = wealthmanager_api.get_or_create_asset(row["symbol"])
+                asset_ids[row["symbol"]] = wealthmanager_api.get_or_create_asset(
+                    row["symbol"]
+                )
 
             # Create investment transaction structure for comparison
             from_id = boursorama_espece_id
             to_id = boursorama_id
+
+            # Reverse from and to account if the activity is a SELL
+            if row["activityType"] == "SELL":
+                from_id, to_id = to_id, from_id
 
             investment_data = {
                 "from_account_id": from_id,
@@ -644,26 +685,38 @@ def process_investment_csv(csv_data: str, account_name: str, wealthmanager_api: 
 
             # Check if the investment transaction already exists
             is_missing = not any(
-                existing_investment["from_account_id"] == investment_data["from_account_id"]
-                and existing_investment["to_account_id"] == investment_data["to_account_id"]
+                existing_investment["from_account_id"]
+                == investment_data["from_account_id"]
+                and existing_investment["to_account_id"]
+                == investment_data["to_account_id"]
                 and existing_investment["asset_id"] == investment_data["asset_id"]
-                and existing_investment["investment_type"] == investment_data["activity_type"]
+                and existing_investment["investment_type"]
+                == investment_data["activity_type"]
                 and existing_investment["date"] == investment_data["date"]
                 and existing_investment["quantity"] == investment_data["quantity"]
-                and abs(existing_investment["unit_price"] - investment_data["unit_price"]) < 0.001
+                and abs(
+                    existing_investment["unit_price"] - investment_data["unit_price"]
+                )
+                < 0.001
                 and abs(existing_investment["fee"] - investment_data["fee"]) < 0.001
                 for existing_investment in existing_investments
             )
 
             if is_missing:
                 missing_investments.append(investment_data)
-                print(f"Would add investment: {row['activityType']} {row['quantity']} {row['symbol']} @ {row['unitPrice']} on {row['date'][:10]}")
+                print(
+                    f"Would add investment: {row['activityType']} {row['quantity']} {row['symbol']} @ {row['unitPrice']} on {row['date'][:10]}"
+                )
 
                 # Only sync if requested
-                if wealthmanager_api and getattr(wealthmanager_api, 'sync_enabled', True):
+                if wealthmanager_api and getattr(
+                    wealthmanager_api, "sync_enabled", True
+                ):
                     try:
-                        response = wealthmanager_api.create_investment_transaction_in_api(
-                            investment_data
+                        response = (
+                            wealthmanager_api.create_investment_transaction_in_api(
+                                investment_data
+                            )
                         )
                         if response.status_code == 201:
                             logging.info(
@@ -679,9 +732,9 @@ def process_investment_csv(csv_data: str, account_name: str, wealthmanager_api: 
 
             else:
                 already_exists += 1
-                print(f"Already exists: {row['activityType']} {row['quantity']} {row['symbol']} @ {row['unitPrice']} on {row['date'][:10]}")
-
-
+                print(
+                    f"Already exists: {row['activityType']} {row['quantity']} {row['symbol']} @ {row['unitPrice']} on {row['date'][:10]}"
+                )
     print(f"\nSummary for {account_name}:")
     print(f"Total transactions in CSV: {total_transactions}")
 
@@ -689,9 +742,11 @@ def process_investment_csv(csv_data: str, account_name: str, wealthmanager_api: 
         print(f"Transactions already in database: {already_exists}")
         print(f"Transactions that would be added: {len(missing_investments)}")
 
-        if getattr(wealthmanager_api, 'sync_enabled', False):
+        if getattr(wealthmanager_api, "sync_enabled", False):
             if len(missing_investments) > 0 or len(missing_dividends) > 0:
-                print(f"Added {len(missing_investments)} new investment transactions and {len(missing_dividends)} new dividend transactions to the database")
+                print(
+                    f"Added {len(missing_investments)} new investment transactions and {len(missing_dividends)} new dividend transactions to the database"
+                )
             else:
                 print("No new transactions were added (all already exist)")
         elif len(missing_investments) > 0 or len(missing_dividends) > 0:
@@ -718,9 +773,9 @@ def fetch_and_filter_transactions(
         already_exists = 0
 
         if wealthmanager_api:
-            existing_transactions_response = wealthmanager_api.get_transactions_from_api(
-                999999
-            ).json()
+            existing_transactions_response = (
+                wealthmanager_api.get_transactions_from_api(999999).json()
+            )
             existing_transactions = existing_transactions_response.get("items", [])
             existing_accounts = wealthmanager_api.get_accounts_from_api()
             logging.info(f"Existing transactions: length {len(existing_transactions)}")
@@ -761,7 +816,9 @@ def fetch_and_filter_transactions(
                         and account["type"] == source_account_type
                         for account in existing_accounts
                     ):
-                        missing_accounts.add(f"{row['source_name']}|{source_account_type}")
+                        missing_accounts.add(
+                            f"{row['source_name']}|{source_account_type}"
+                        )
 
                 if not any(
                     f"{row['destination_name']}|{destination_account_type}" in account
@@ -787,7 +844,7 @@ def fetch_and_filter_transactions(
                     batch,
                     existing_transactions,
                     wealthmanager_api,
-                    wealthmanager_api.sync_enabled if wealthmanager_api else False
+                    wealthmanager_api.sync_enabled if wealthmanager_api else False,
                 )
                 for batch in batches
             ]
@@ -808,20 +865,24 @@ def fetch_and_filter_transactions(
             print(f"Transactions already in database: {already_exists}")
             print(f"Transactions that would be added: {len(missing_transactions)}")
 
-            if getattr(wealthmanager_api, 'sync_enabled', False):
+            if getattr(wealthmanager_api, "sync_enabled", False):
                 # Create missing accounts and add missing transactions only if sync is enabled
                 if missing_accounts:
                     print(f"Creating {len(missing_accounts)} missing accounts...")
                     for account in missing_accounts:
                         name, acc_type = account.split("|")
                         bank_id = wealthmanager_api.bank_id_from_account_name(name)
-                        wealthmanager_api.create_account_in_api(name, acc_type, "EUR", bank_id)
+                        wealthmanager_api.create_account_in_api(
+                            name, acc_type, "EUR", bank_id
+                        )
 
                 if missing_transactions:
                     print(f"Adding {len(missing_transactions)} missing transactions...")
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         futures = [
-                            executor.submit(wealthmanager_api.create_transaction_in_api, transaction)
+                            executor.submit(
+                                wealthmanager_api.create_transaction_in_api, transaction
+                            )
                             for transaction in missing_transactions
                         ]
                         for future in concurrent.futures.as_completed(futures):
@@ -829,15 +890,21 @@ def fetch_and_filter_transactions(
                             if response.status_code == 201:
                                 logging.info(f"Created transaction: {response.json()}")
                             else:
-                                logging.error(f"Failed to create transaction: {response.text}")
-                    print(f"Successfully added {len(missing_transactions)} transactions")
+                                logging.error(
+                                    f"Failed to create transaction: {response.text}"
+                                )
+                    print(
+                        f"Successfully added {len(missing_transactions)} transactions"
+                    )
                 else:
                     print("No new transactions were added (all already exist)")
             elif len(missing_transactions) > 0:
                 print("Use --sync to add these transactions to the database")
             else:
                 print("Unable to check against database (no API connection)")
-                print("Use --sync to check against existing transactions and add missing ones")
+                print(
+                    "Use --sync to check against existing transactions and add missing ones"
+                )
 
     except FileNotFoundError:
         logging.exception(f"Error: The file '{file_path}' was not found.")
@@ -847,7 +914,10 @@ def fetch_and_filter_transactions(
 
 
 def process_batch(
-    batch: pd.DataFrame, existing_transactions: list[dict[str, Any]], wealthmanager_api: WealthManagerApi, add_transactions: bool
+    batch: pd.DataFrame,
+    existing_transactions: list[dict[str, Any]],
+    wealthmanager_api: WealthManagerApi,
+    add_transactions: bool,
 ) -> dict[str, Any]:
     batch_missing_transactions = []
     batch_existing_transactions = 0
@@ -872,11 +942,15 @@ def process_batch(
                 "destination": row["destination_name"],
                 "amount": abs(float(row["amount"])),
                 "type": row["type"],
-                "description": row["description"] if not pd.isna(row["description"]) else ""
+                "description": row["description"]
+                if not pd.isna(row["description"])
+                else "",
             }
             batch_missing_transactions.append(transaction_data)
 
-            print(f"Transaction: {row['date'][:10]} - {row['source_name']} -> {row['destination_name']} - {row['amount']} - {row['type']} - {row['budget']} - {row['description']}")
+            print(
+                f"Transaction: {row['date'][:10]} - {row['source_name']} -> {row['destination_name']} - {row['amount']} - {row['type']} - {row['budget']} - {row['description']}"
+            )
 
         return {"missing": batch_missing_transactions, "existing": 0}
 
@@ -925,11 +999,17 @@ def process_batch(
         )
 
         # Get account IDs using composite key
-        source_account_id = account_ids.get(f"{row['source_name']}|{source_account_type}")
-        destination_account_id = account_ids.get(f"{row['destination_name']}|{destination_account_type}")
+        source_account_id = account_ids.get(
+            f"{row['source_name']}|{source_account_type}"
+        )
+        destination_account_id = account_ids.get(
+            f"{row['destination_name']}|{destination_account_type}"
+        )
 
         if not source_account_id or not destination_account_id:
-            logging.warning(f"Skipping transaction due to missing account IDs: {row['source_name']}|{source_account_type} -> {row['destination_name']}|{destination_account_type}")
+            logging.warning(
+                f"Skipping transaction due to missing account IDs: {row['source_name']}|{source_account_type} -> {row['destination_name']}|{destination_account_type}"
+            )
             continue
 
         # Handle special cases for transaction types
@@ -938,7 +1018,9 @@ def process_batch(
             destination_account_id = account_ids.get("Prêt Etudiant CA|savings")
         elif row["destination_name"] == "Solde initial du compte Prêt Etudiant CA":
             transaction_type = "expense"
-            destination_account_id = account_ids.get("Solde initial du compte Prêt Etudiant CA|expense")
+            destination_account_id = account_ids.get(
+                "Solde initial du compte Prêt Etudiant CA|expense"
+            )
             print(f"{row['description']=}")
         else:
             transaction_type = wealthmanager_api.handle_transaction_type(row["type"])
@@ -955,7 +1037,9 @@ def process_batch(
         )
 
         if is_missing:
-            print(f"Missing transaction: {row['date'][:10]} - {row['source_name']} -> {row['destination_name']} - {row['amount']} - {row['type']} - {row['budget']} - {row['description']}")
+            print(
+                f"Missing transaction: {row['date'][:10]} - {row['source_name']} -> {row['destination_name']} - {row['amount']} - {row['type']} - {row['budget']} - {row['description']}"
+            )
             # Create transaction data
             transaction_data = {
                 "date": row["date"][:10],
@@ -963,7 +1047,9 @@ def process_batch(
                 "to_account_id": destination_account_id,
                 "amount": abs(float(row["amount"])),
                 "type": transaction_type,
-                "description": row["description"] if not pd.isna(row["description"]) else "",
+                "description": row["description"]
+                if not pd.isna(row["description"])
+                else "",
                 "date_accountability": row["date"][:10],
                 "category": wealthmanager_api.transform_budget_to_categories(
                     str(row["budget"]), row["type"]
@@ -977,9 +1063,14 @@ def process_batch(
         else:
             batch_existing_transactions += 1
 
-        print(f"Transaction: {row['date'][:10]} - {row['source_name']} -> {row['destination_name']} - {row['amount']} - {row['type']} - {row['budget']} - {row['description']}")
+        print(
+            f"Transaction: {row['date'][:10]} - {row['source_name']} -> {row['destination_name']} - {row['amount']} - {row['type']} - {row['budget']} - {row['description']}"
+        )
 
-    return {"missing": batch_missing_transactions, "existing": batch_existing_transactions}
+    return {
+        "missing": batch_missing_transactions,
+        "existing": batch_existing_transactions,
+    }
 
 
 def deduplicate_investments(investments: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1019,17 +1110,36 @@ def deduplicate_investments(investments: list[dict[str, Any]]) -> list[dict[str,
 import argparse
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Import data from Firefly CSV to WealthManager API")
+    parser = argparse.ArgumentParser(
+        description="Import data from Firefly CSV to WealthManager API"
+    )
     parser.add_argument("csv_file", help="Path to the Firefly CSV file to import")
-    parser.add_argument("--sync", action="store_true", help="Sync data to WealthManager API")
-    parser.add_argument("--delete-user", action="store_true", help="Delete user if exists and recreate")
-    parser.add_argument("--investment", action="store_true", help="Process as investment transactions")
-    parser.add_argument("--investment-account", choices=["CTO", "PEA"],
-                        help="Investment account type (required if --investment is used)")
-    parser.add_argument("--api-url", default="http://localhost:5000", help="WealthManager API URL")
-    parser.add_argument("--user-email", default="a@a.com", help="User email for WealthManager API")
-    parser.add_argument("--user-password", default="aaaaaa", help="User password for WealthManager API")
-    parser.add_argument("--user-name", default="a", help="User name for WealthManager API")
+    parser.add_argument(
+        "--sync", action="store_true", help="Sync data to WealthManager API"
+    )
+    parser.add_argument(
+        "--delete-user", action="store_true", help="Delete user if exists and recreate"
+    )
+    parser.add_argument(
+        "--investment", action="store_true", help="Process as investment transactions"
+    )
+    parser.add_argument(
+        "--investment-account",
+        choices=["CTO", "PEA"],
+        help="Investment account type (required if --investment is used)",
+    )
+    parser.add_argument(
+        "--api-url", default="http://localhost:5000", help="WealthManager API URL"
+    )
+    parser.add_argument(
+        "--user-email", default="a@a.com", help="User email for WealthManager API"
+    )
+    parser.add_argument(
+        "--user-password", default="aaaaaa", help="User password for WealthManager API"
+    )
+    parser.add_argument(
+        "--user-name", default="a", help="User name for WealthManager API"
+    )
 
     args = parser.parse_args()
 
@@ -1039,7 +1149,7 @@ if __name__ == "__main__":
         name=args.user_name,
         email=args.user_email,
         password=args.user_password,
-        delete_if_exists=args.delete_user
+        delete_if_exists=args.delete_user,
     )
 
     # Set a flag to indicate whether syncing is enabled
@@ -1049,7 +1159,7 @@ if __name__ == "__main__":
         if not args.investment_account:
             parser.error("--investment-account is required when using --investment")
 
-        with open(args.csv_file, 'r') as f:
+        with open(args.csv_file) as f:
             csv_data = f.read()
 
         account_name = f"Boursorama {args.investment_account}"

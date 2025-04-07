@@ -9,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
@@ -28,12 +27,13 @@ import { useState } from "react"
 import {
   Area,
   AreaChart,
-  ReferenceLine,
+  ReferenceDot,
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis,
+  YAxis
 } from "recharts"
+import { TimePeriod } from "@/types"
 
 interface AssetTransaction {
   activity_type:
@@ -43,6 +43,7 @@ interface AssetTransaction {
     | "Interest"
     | "Deposit"
     | "Withdrawal"
+  amount: number
   date: string
   fee: number
   id: number
@@ -115,16 +116,16 @@ interface AssetDetails {
   }
 }
 
-type TimePeriod = "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "ALL"
-
 const periodToDays: Record<TimePeriod, number> = {
+  "1D": 1,
+  "1W": 7,
   "1M": 30,
   "3M": 90,
   "6M": 180,
   "1Y": 365,
   "3Y": 1095,
   "5Y": 1825,
-  ALL: Infinity,
+  "max": Infinity
 }
 
 export function InvestmentDetailPage() {
@@ -145,7 +146,12 @@ export function InvestmentDetailPage() {
         }
       )
       if (!response.ok) throw new Error("Failed to fetch transactions")
-      return response.json()
+      const data = await response.json()
+      // Remove duplicate transactions (each transaction appears twice in the data)
+      const uniqueTransactions = data.filter((transaction: AssetTransaction, index: number, self: AssetTransaction[]) =>
+        index === self.findIndex((t) => t.id === transaction.id)
+      )
+      return uniqueTransactions
     },
   })
 
@@ -186,7 +192,7 @@ export function InvestmentDetailPage() {
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     )
 
-    if (selectedPeriod === "ALL") return sortedDataPoints
+    if (selectedPeriod === "max") return sortedDataPoints
 
     const days = periodToDays[selectedPeriod]
     const now = new Date()
@@ -213,7 +219,7 @@ export function InvestmentDetailPage() {
       year:
         selectedPeriod === "3Y" ||
         selectedPeriod === "5Y" ||
-        selectedPeriod === "ALL"
+        selectedPeriod === "max"
           ? "numeric"
           : undefined,
     }
@@ -383,6 +389,18 @@ export function InvestmentDetailPage() {
                         maximumFractionDigits: 0,
                       }).format(value)
                     }
+                    domain={[
+                      (dataMin: number) => {
+                        // Calculate the minimum value with 5% padding below
+                        const min = Math.min(...filteredPriceHistory.map(d => d.close));
+                        return min * 0.95;
+                      },
+                      (dataMax: number) => {
+                        // Calculate the maximum value with 5% padding above
+                        const max = Math.max(...filteredPriceHistory.map(d => d.close));
+                        return max * 1.05;
+                      }
+                    ]}
                   />
                   <Tooltip
                     content={({ active, payload }) => {
@@ -446,8 +464,8 @@ export function InvestmentDetailPage() {
                     fillOpacity={1}
                     fill="url(#colorPrice)"
                   />
-                  {/* Transaction markers */}
-                  {transactions?.map(transaction => {
+                  {/* Transaction markers - only show Buy/Sell transactions */}
+                  {transactions?.filter(t => t.activity_type === "Buy" || t.activity_type === "Sell").map(transaction => {
                     // Find the closest price data point to the transaction date
                     const transactionDate = new Date(transaction.date)
                     const closestDataPoint = filteredPriceHistory?.length
@@ -467,25 +485,18 @@ export function InvestmentDetailPage() {
                     if (!closestDataPoint) return null
 
                     return (
-                      <ReferenceLine
+                      <ReferenceDot
                         key={`${transaction.id}-${transaction.activity_type}`}
                         x={closestDataPoint.date}
-                        stroke={
+                        y={closestDataPoint.close}
+                        r={4}
+                        fill={
                           transaction.activity_type === "Buy"
                             ? "hsl(var(--success))"
                             : "hsl(var(--destructive))"
                         }
-                        strokeDasharray="3 3"
-                        label={{
-                          position: "top",
-                          value: "●",
-                          fill:
-                            transaction.activity_type === "Buy"
-                              ? "hsl(var(--success))"
-                              : "hsl(var(--destructive))",
-                          fontSize: 24,
-                          offset: 8,
-                        }}
+                        stroke="white"
+                        strokeWidth={1}
                       />
                     )
                   })}
@@ -656,150 +667,124 @@ export function InvestmentDetailPage() {
         </div>
 
         {/* Transactions and Dividends */}
-        <Tabs defaultValue="transactions" className="space-y-6">
-          <TabsList className="w-full justify-start">
-            <TabsTrigger
-              value="transactions"
-              className="flex items-center gap-2"
-            >
-              <Wallet className="h-4 w-4" />
-              Transactions
-            </TabsTrigger>
-            <TabsTrigger value="dividends" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Dividends
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="transactions">
-            <Card className="p-6">
-              <div className="space-y-6">
-                {transactions
-                  ?.sort(
-                    (a, b) =>
-                      new Date(b.date).getTime() - new Date(a.date).getTime()
-                  )
-                  .map(transaction => (
-                    <div
-                      key={`${transaction.id}-${transaction.activity_type}`}
-                      className="flex items-center gap-4 p-4 rounded-lg bg-muted"
-                    >
-                      <div
-                        className={cn(
-                          "p-2 rounded-full",
-                          transaction.activity_type === "Buy"
-                            ? "bg-green-500/10"
-                            : "bg-red-500/10"
-                        )}
-                      >
-                        {transaction.activity_type === "Buy" ? (
-                          <ArrowUp className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <ArrowDown className="h-4 w-4 text-red-500" />
-                        )}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold">Transaction History</h2>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="space-y-2">
+            {transactions
+              ?.sort(
+                (a, b) =>
+                  new Date(b.date).getTime() - new Date(a.date).getTime()
+              )
+              .map(transaction => (
+                <div
+                  key={`${transaction.id}-${transaction.activity_type}`}
+                  className={cn(
+                    "flex items-center gap-2 p-2 rounded-lg",
+                    transaction.activity_type === "Buy"
+                      ? "bg-green-500/5 border border-green-500/20"
+                      : transaction.activity_type === "Sell"
+                      ? "bg-red-500/5 border border-red-500/20"
+                      : "bg-primary/5 border border-primary/20"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "p-2 rounded-full",
+                      transaction.activity_type === "Buy"
+                        ? "bg-green-500/10"
+                        : transaction.activity_type === "Sell"
+                        ? "bg-red-500/10"
+                        : "bg-primary/10"
+                    )}
+                  >
+                    {transaction.activity_type === "Buy" ? (
+                      <ArrowUp className="h-4 w-4 text-green-500" />
+                    ) : transaction.activity_type === "Sell" ? (
+                      <ArrowDown className="h-4 w-4 text-red-500" />
+                    ) : (
+                      <DollarSign className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
+                  <div className="flex-1 grid grid-cols-2 md:grid-cols-6 gap-2">
+                    <div className="md:col-span-3">
+                      <div className="text-xs text-muted-foreground font-medium">
+                        {transaction.activity_type === "Dividend" ? "DIVIDEND" : transaction.activity_type.toUpperCase()} • {format(new Date(transaction.date), "MMM d, yyyy")}
                       </div>
-                      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground">
-                            Date
-                          </div>
-                          <div className="font-medium">
-                            {format(new Date(transaction.date), "MMM d, yyyy")}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">
-                            Quantity
-                          </div>
-                          <div className="font-medium">
-                            {transaction.activity_type === "Buy" ? "+" : "-"}
-                            {transaction.quantity} shares
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">
-                            Price
-                          </div>
-                          <div className="font-medium">
-                            {new Intl.NumberFormat(undefined, {
-                              style: "currency",
-                              currency: assetInfo?.currency || "USD",
-                            }).format(transaction.unit_price)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">
-                            Total
-                          </div>
-                          <div className="font-medium">
-                            {new Intl.NumberFormat(undefined, {
-                              style: "currency",
-                              currency: assetInfo?.currency || "USD",
-                            }).format(transaction.total_paid)}
-                          </div>
-                        </div>
+                      <div className="font-medium">
+                        {transaction.activity_type === "Dividend"
+                          ? `Dividend Payment`
+                          : `${transaction.activity_type === "Buy" ? "Bought" : "Sold"} ${transaction.quantity} shares`}
                       </div>
                     </div>
-                  ))}
-                {(!transactions || transactions.length === 0) && (
-                  <div className="text-center py-6 text-muted-foreground">
-                    No transactions found
-                  </div>
-                )}
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="dividends">
-            <Card className="p-6">
-              <div className="space-y-6">
-                {assetDetails?.dividends &&
-                  Object.entries(assetDetails.dividends)
-                    .sort(
-                      (a, b) =>
-                        new Date(b[0]).getTime() - new Date(a[0]).getTime()
-                    )
-                    .map(([date, amount]) => (
-                      <div
-                        key={date}
-                        className="flex items-center gap-4 p-4 rounded-lg bg-muted"
-                      >
-                        <div className="p-2 rounded-full bg-primary/10">
-                          <DollarSign className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex-1 grid grid-cols-2 gap-4">
-                          <div>
-                            <div className="text-sm text-muted-foreground">
-                              Payment Date
-                            </div>
-                            <div className="font-medium">
-                              {format(new Date(date), "MMM d, yyyy")}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-sm text-muted-foreground">
-                              Amount
-                            </div>
+                    <div className="col-span-1 md:col-span-3 flex items-end justify-end space-x-2">
+                      {transaction.activity_type === "Dividend" ? (
+                        <>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Gross</div>
                             <div className="font-medium">
                               {new Intl.NumberFormat(undefined, {
                                 style: "currency",
                                 currency: assetInfo?.currency || "USD",
-                              }).format(amount)}
+                              }).format(transaction.amount)}
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                {(!assetDetails?.dividends ||
-                  Object.keys(assetDetails.dividends).length === 0) && (
-                  <div className="text-center py-6 text-muted-foreground">
-                    No dividends found
+                          {transaction.fee > 0 && (
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground">Fee</div>
+                              <div className="font-medium text-red-500">
+                                -{new Intl.NumberFormat(undefined, {
+                                  style: "currency",
+                                  currency: assetInfo?.currency || "USD",
+                                }).format(transaction.fee)}
+                              </div>
+                            </div>
+                          )}
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Net</div>
+                            <div className="font-medium font-bold">
+                              {new Intl.NumberFormat(undefined, {
+                                style: "currency",
+                                currency: assetInfo?.currency || "USD",
+                              }).format(transaction.amount - transaction.fee)}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Price</div>
+                            <div className="font-medium">
+                              {new Intl.NumberFormat(undefined, {
+                                style: "currency",
+                                currency: assetInfo?.currency || "USD",
+                              }).format(transaction.unit_price)}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Total</div>
+                            <div className="font-medium font-bold">
+                              {new Intl.NumberFormat(undefined, {
+                                style: "currency",
+                                currency: assetInfo?.currency || "USD",
+                              }).format(transaction.total_paid)}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
+              ))}
+            {(!transactions || transactions.length === 0) && (
+              <div className="text-center py-6 text-muted-foreground">
+                No transactions found
               </div>
-            </Card>
-          </TabsContent>
-        </Tabs>
+            )}
+          </div>
+        </Card>
       </div>
     </PageContainer>
   )

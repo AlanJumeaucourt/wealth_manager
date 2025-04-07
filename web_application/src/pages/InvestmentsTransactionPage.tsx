@@ -1,7 +1,6 @@
 import { useAccounts, useAssets, useInvestments } from "@/api/queries"
 import { AddInvestmentDialog } from "@/components/investmentsTransaction/AddInvestmentTransactionDialog"
 import { DeleteInvestmentDialog } from "@/components/investmentsTransaction/DeleteInvestmentTransactionDialog"
-import { EditInvestmentDialog } from "@/components/investmentsTransaction/EditInvestmentTransactionDialog"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -54,7 +53,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, memo, useMemo } from "react"
 
 type SortField =
   | "date"
@@ -83,6 +82,236 @@ const INVESTMENT_TYPE_LABELS = {
   Dividend: "Dividend",
 }
 
+const createMemoizedHelpers = (accounts: any[], assets: any[]) => {
+  const getAccountName = (accountId?: number) => {
+    if (!accountId) return ""
+    const account = accounts.find(a => a.id === accountId)
+    return account ? account.name : ""
+  }
+
+  const getAssetSymbol = (assetId?: number) => {
+    if (!assetId) return ""
+    const asset = assets.find(a => a.id === assetId)
+    return asset ? asset.symbol : ""
+  }
+
+  return { getAccountName, getAssetSymbol }
+}
+
+const InvestmentTableRow = memo(function InvestmentTableRow({
+  investment,
+  selectedInvestments,
+  onSelectInvestment,
+  onEdit,
+  onDelete,
+  getAccountName,
+  getAssetSymbol,
+  navigate,
+}: {
+  investment: Investment
+  selectedInvestments: number[]
+  onSelectInvestment: (id: number, checked: boolean) => void
+  onEdit: (investment: Investment) => void
+  onDelete: (investment: Investment) => void
+  getAccountName: (id?: number) => string
+  getAssetSymbol: (id?: number) => string
+  navigate: (params: any) => void
+}) {
+  const formattedDate = useMemo(() => {
+    const date = new Date(investment.date)
+    return {
+      date: date.toLocaleDateString(),
+      time: date.toLocaleTimeString()
+    }
+  }, [investment.date])
+
+  const formattedValues = useMemo(() => ({
+    quantity: investment.quantity.toLocaleString(),
+    unitPrice: new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "EUR",
+    }).format(investment.unit_price),
+    fee: new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "EUR",
+    }).format(investment.fee),
+    tax: new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "EUR",
+    }).format(investment.tax),
+    total: new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "EUR",
+    }).format(investment.total_paid || 0)
+  }), [investment.quantity, investment.unit_price, investment.fee, investment.tax, investment.total_paid])
+
+  const fromAccountName = getAccountName(investment.from_account_id)
+  const toAccountName = getAccountName(investment.to_account_id)
+
+  return (
+    <TableRow
+      className="group border-l-2 hover:bg-muted/50 transition-colors"
+    >
+      <TableCell>
+        <Checkbox
+          checked={selectedInvestments.includes(investment.transaction_id)}
+          onCheckedChange={checked =>
+            onSelectInvestment(investment.transaction_id, checked as boolean)
+          }
+          onClick={e => e.stopPropagation()}
+        />
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-col">
+          <span>{formattedDate.date}</span>
+          <span className="text-xs text-muted-foreground">{formattedDate.time}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className={cn(
+          "flex items-center gap-2 rounded-md border px-2 py-1 w-fit",
+          "bg-background"
+        )}>
+          {INVESTMENT_TYPE_ICONS[investment.investment_type]}
+          <span className="text-sm font-medium">
+            {INVESTMENT_TYPE_LABELS[investment.investment_type]}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell>
+        {investment.asset_id && (
+          <Button
+            variant="link"
+            className="p-0 h-auto font-medium hover:underline"
+            onClick={() =>
+              navigate({
+                to: "/investments/assets/$symbol",
+                params: {
+                  symbol: getAssetSymbol(investment.asset_id),
+                },
+              })
+            }
+          >
+            {getAssetSymbol(investment.asset_id)}
+          </Button>
+        )}
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-col gap-1">
+          {investment.from_account_id && (
+            <Button
+              variant="link"
+              className="p-0 h-auto font-medium hover:underline text-muted-foreground"
+              onClick={() =>
+                navigate({
+                  to: "/accounts/$id",
+                  params: {
+                    id: investment.from_account_id.toString(),
+                  },
+                })
+              }
+            >
+              <span className="text-xs mr-1">From:</span>
+              {fromAccountName}
+            </Button>
+          )}
+          {investment.to_account_id && (
+            <Button
+              variant="link"
+              className="p-0 h-auto font-medium hover:underline text-muted-foreground"
+              onClick={() =>
+                navigate({
+                  to: "/accounts/$id",
+                  params: {
+                    id: investment.to_account_id.toString(),
+                  },
+                })
+              }
+            >
+              <span className="text-xs mr-1">To:</span>
+              {toAccountName}
+            </Button>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex flex-col items-end">
+          <span className="font-medium">{formattedValues.quantity}</span>
+          <span className="text-xs text-muted-foreground">units</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex flex-col items-end">
+          <span className="font-medium">{formattedValues.unitPrice}</span>
+          <span className="text-xs text-muted-foreground">per unit</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex flex-col items-end">
+          <span className={cn(
+            "font-medium",
+            investment.fee > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
+          )}>
+            {formattedValues.fee}
+          </span>
+          <span className="text-xs text-muted-foreground">fee</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex flex-col items-end">
+          <span className={cn(
+            "font-medium",
+            investment.tax > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
+          )}>
+            {formattedValues.tax}
+          </span>
+          <span className="text-xs text-muted-foreground">tax</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex flex-col items-end">
+          <span className={cn(
+            "font-medium",
+            investment.investment_type === "Buy" ||
+            investment.investment_type === "Deposit" ||
+            investment.investment_type === "Dividend"
+              ? "text-green-600 dark:text-green-400"
+              : "text-red-600 dark:text-red-400"
+          )}>
+            {formattedValues.total}
+          </span>
+          <span className="text-xs text-muted-foreground">total</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onEdit(investment)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onDelete(investment)}
+              className="text-red-600 dark:text-red-400"
+            >
+              <Trash className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  )
+})
+
 export function InvestmentsTransactionPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>("date")
@@ -96,12 +325,11 @@ export function InvestmentsTransactionPage() {
   const [deletingInvestment, setDeletingInvestment] =
     useState<Investment | null>(null)
   const { toast } = useToast()
-  const [selectedRowId, setSelectedRowId] = useState<number | null>(null)
   const tableRef = useRef<HTMLTableElement>(null)
+  const [selectedInvestments, setSelectedInvestments] = useState<number[]>([])
   const [isAddingInvestment, setIsAddingInvestment] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const debouncedSearch = useDebounce(searchTerm, 300)
-  const [selectedInvestments, setSelectedInvestments] = useState<number[]>([])
   const [isEnteringPage, setIsEnteringPage] = useState(false)
   const [manualPageInput, setManualPageInput] = useState("")
   const navigate = useNavigate()
@@ -128,17 +356,10 @@ export function InvestmentsTransactionPage() {
   const accounts = accountsResponse?.items || []
   const assets = assetsResponse?.items || []
 
-  const getAccountName = (accountId?: number) => {
-    if (!accountId) return ""
-    const account = accounts.find(a => a.id === accountId)
-    return account ? account.name : ""
-  }
-
-  const getAssetSymbol = (assetId?: number) => {
-    if (!assetId) return ""
-    const asset = assets.find(a => a.id === assetId)
-    return asset ? asset.symbol : ""
-  }
+  const { getAccountName, getAssetSymbol } = useMemo(
+    () => createMemoizedHelpers(accounts, assets),
+    [accounts, assets]
+  )
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -188,9 +409,9 @@ export function InvestmentsTransactionPage() {
       }
     },
     onEdit: () => {
-      if (selectedRowId && !editingInvestment) {
+      if (selectedInvestments.length > 0 && !editingInvestment) {
         const investment = investments.find(
-          i => i.transaction_id === selectedRowId
+          i => i.transaction_id === selectedInvestments[0]
         )
         if (investment) {
           setEditingInvestment(investment)
@@ -198,9 +419,9 @@ export function InvestmentsTransactionPage() {
       }
     },
     onDelete: () => {
-      if (selectedRowId && !deletingInvestment) {
+      if (selectedInvestments.length > 0 && !deletingInvestment) {
         const investment = investments.find(
-          i => i.transaction_id === selectedRowId
+          i => i.transaction_id === selectedInvestments[0]
         )
         if (investment) {
           setDeletingInvestment(investment)
@@ -408,8 +629,7 @@ export function InvestmentsTransactionPage() {
                     Type <SortIcon field="investment_type" />
                   </TableHead>
                   <TableHead className="w-[150px]">Asset</TableHead>
-                  <TableHead className="w-[200px]">From Account</TableHead>
-                  <TableHead className="w-[200px]">To Account</TableHead>
+                  <TableHead className="w-[300px]">Accounts</TableHead>
                   <TableHead
                     className="w-[150px] cursor-pointer hover:text-primary transition-colors text-right"
                     onClick={() => handleSort("quantity")}
@@ -499,206 +719,17 @@ export function InvestmentsTransactionPage() {
                   </TableRow>
                 ) : (
                   filteredInvestments.map(investment => (
-                    <TableRow
+                    <InvestmentTableRow
                       key={investment.transaction_id}
-                      className={cn(`
-                        group
-                        border-l-2
-                        hover:bg-muted/50
-                        transition-colors
-                        ${
-                          selectedRowId === investment.transaction_id
-                            ? "bg-muted"
-                            : ""
-                        }
-                      `)}
-                      onMouseEnter={() =>
-                        setSelectedRowId(investment.transaction_id)
-                      }
-                      onMouseLeave={() => setSelectedRowId(null)}
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedInvestments.includes(
-                            investment.transaction_id
-                          )}
-                          onCheckedChange={checked =>
-                            handleSelectInvestment(
-                              investment.transaction_id,
-                              checked as boolean
-                            )
-                          }
-                          onClick={e => e.stopPropagation()}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span>
-                            {new Date(investment.date).toLocaleDateString()}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(investment.date).toLocaleTimeString()}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div
-                          className={cn(
-                            "flex items-center gap-2 rounded-md border px-2 py-1 w-fit",
-                            "bg-background"
-                          )}
-                        >
-                          {INVESTMENT_TYPE_ICONS[investment.investment_type]}
-                          <span className="text-sm font-medium">
-                            {INVESTMENT_TYPE_LABELS[investment.investment_type]}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {investment.asset_id && (
-                          <Button
-                            variant="link"
-                            className="p-0 h-auto font-medium hover:underline"
-                            onClick={() =>
-                              navigate({
-                                to: "/investments/assets/$symbol",
-                                params: {
-                                  symbol: getAssetSymbol(investment.asset_id),
-                                },
-                              })
-                            }
-                          >
-                            {getAssetSymbol(investment.asset_id)}
-                          </Button>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {getAccountName(investment.from_account_id)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {getAccountName(investment.to_account_id)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end">
-                          <span className="font-medium">
-                            {investment.quantity.toLocaleString()}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            units
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end">
-                          <span className="font-medium">
-                            {new Intl.NumberFormat(undefined, {
-                              style: "currency",
-                              currency: "EUR",
-                            }).format(investment.unit_price)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            per unit
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end">
-                          <span
-                            className={cn(
-                              "font-medium",
-                              investment.fee > 0
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-muted-foreground"
-                            )}
-                          >
-                            {new Intl.NumberFormat(undefined, {
-                              style: "currency",
-                              currency: "EUR",
-                            }).format(investment.fee)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            fee
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end">
-                          <span
-                            className={cn(
-                              "font-medium",
-                              investment.tax > 0
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-muted-foreground"
-                            )}
-                          >
-                            {new Intl.NumberFormat(undefined, {
-                              style: "currency",
-                              currency: "EUR",
-                            }).format(investment.tax)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            tax
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end">
-                          <span
-                            className={cn(
-                              "font-medium",
-                              investment.investment_type === "Buy" ||
-                                investment.investment_type === "Deposit" ||
-                                investment.investment_type === "Dividend"
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-red-600 dark:text-red-400"
-                            )}
-                          >
-                            {new Intl.NumberFormat(undefined, {
-                              style: "currency",
-                              currency: "EUR",
-                            }).format(investment.total_paid || 0)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            total
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => setEditingInvestment(investment)}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setDeletingInvestment(investment)}
-                              className="text-red-600 dark:text-red-400"
-                            >
-                              <Trash className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
+                      investment={investment}
+                      selectedInvestments={selectedInvestments}
+                      onSelectInvestment={handleSelectInvestment}
+                      onEdit={setEditingInvestment}
+                      onDelete={setDeletingInvestment}
+                      getAccountName={getAccountName}
+                      getAssetSymbol={getAssetSymbol}
+                      navigate={navigate}
+                    />
                   ))
                 )}
               </TableBody>
@@ -774,26 +805,22 @@ export function InvestmentsTransactionPage() {
         )}
 
         {/* Dialogs */}
-        {editingInvestment && (
-          <EditInvestmentDialog
-            investment={editingInvestment}
-            open={true}
-            onOpenChange={open => !open && setEditingInvestment(null)}
-          />
-        )}
+        <AddInvestmentDialog
+          open={isAddingInvestment || !!editingInvestment}
+          onOpenChange={open => {
+            if (!open) {
+              setIsAddingInvestment(false)
+              setEditingInvestment(null)
+            }
+          }}
+          investment={editingInvestment || undefined}
+        />
 
         <DeleteInvestmentDialog
           investment={deletingInvestment}
           open={!!deletingInvestment}
           onOpenChange={open => !open && setDeletingInvestment(null)}
         />
-
-        {isAddingInvestment && (
-          <AddInvestmentDialog
-            open={isAddingInvestment}
-            onOpenChange={open => !open && setIsAddingInvestment(false)}
-          />
-        )}
 
         <Dialog open={isEnteringPage} onOpenChange={setIsEnteringPage}>
           <DialogContent className="sm:max-w-[425px]">

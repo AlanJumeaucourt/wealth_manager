@@ -1,11 +1,12 @@
 import { usePortfolioPerformance } from "@/api/queries"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TimePeriod } from "@/types"
 import { cn } from "@/lib/utils"
 import { ArrowDown, ArrowUp } from "lucide-react"
 
 interface PerformanceMetricsProps {
-  period: string
+  period: TimePeriod
 }
 
 export function PerformanceMetrics({ period }: PerformanceMetricsProps) {

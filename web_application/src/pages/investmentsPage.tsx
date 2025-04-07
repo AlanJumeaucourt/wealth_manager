@@ -1,4 +1,4 @@
-import { usePortfolioSummary } from "@/api/queries"
+import { usePortfolioSummary, usePortfolioPerformance } from "@/api/queries"
 import { AssetAllocationChart } from "@/components/investments/AssetAllocationChart"
 import { AssetPerformanceChart } from "@/components/investments/AssetPerformanceChart"
 import { AssetStatistics } from "@/components/investments/AssetStatistics"
@@ -16,14 +16,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { TimePeriod } from "@/types"
 import { ArrowDown, ArrowUp, Plus } from "lucide-react"
 import { useState } from "react"
-
-type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "max"
 
 export function InvestmentsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("1Y")
   const { data: portfolioSummary } = usePortfolioSummary()
+  const { data: performanceData } = usePortfolioPerformance(selectedPeriod)
 
   return (
     <PageContainer title="Investment Portfolio">

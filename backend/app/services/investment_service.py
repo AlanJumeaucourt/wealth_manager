@@ -362,12 +362,21 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 raise ValueError(f"Asset with ID {validated_data['asset_id']} not found")
             asset_symbol = result[0]["symbol"]
 
+            if validated_data["activity_type"] == "Buy":
+                description = f"Buy {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
+            elif validated_data["activity_type"] == "Sell":
+                description = f"Sell {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
+            elif validated_data["activity_type"] == "Dividend":
+                description = f"Dividend {asset_symbol} -> {validated_data['unit_price']}€"
+            else:
+                description = f"{validated_data['activity_type'].title()} {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
+
             # Prepare transaction data
             transaction_data = {
                 "user_id": validated_data["user_id"],
                 "date": validated_data["date"],
                 "date_accountability": validated_data["date"],
-                "description": f"{validated_data['activity_type'].title()} {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€",
+                "description": description,
                 "amount": (validated_data["quantity"] * validated_data["unit_price"])
                 + validated_data["fee"]
                 + validated_data["tax"],
@@ -497,13 +506,35 @@ class InvestmentService(BaseService[InvestmentTransaction]):
         # Calculate initial and net investment
         initial_investment = 0
         total_withdrawals = 0
+        total_dividends = 0
         for tx in investment_transactions:
             if tx["investment_type"] == "Buy":
                 initial_investment += tx["total_paid"]
             elif tx["investment_type"] == "Sell":
                 total_withdrawals += tx["total_paid"]
+            elif tx["investment_type"] == "Dividend":
+                total_dividends += tx["total_paid"]
 
         net_investment = initial_investment - total_withdrawals
+
+        # Get additional dividend metrics
+        # Calculate current year and previous year dividend totals
+        current_year = datetime.now().year
+        current_year_dividends = 0
+        previous_year_dividends = 0
+
+        for tx in investment_transactions:
+            if tx["investment_type"] == "Dividend":
+                tx_date = datetime.strptime(tx["date"].split("T")[0], "%Y-%m-%d")
+                if tx_date.year == current_year:
+                    current_year_dividends += tx["total_paid"]
+                elif tx_date.year == current_year - 1:
+                    previous_year_dividends += tx["total_paid"]
+
+        # Calculate year-over-year dividend growth
+        dividend_growth = 0
+        if previous_year_dividends > 0:
+            dividend_growth = ((current_year_dividends - previous_year_dividends) / previous_year_dividends) * 100
 
         query = f"""--sql
         SELECT
@@ -533,6 +564,13 @@ class InvestmentService(BaseService[InvestmentTransaction]):
             "initial_investment": initial_investment,
             "net_investment": net_investment,
             "total_withdrawals": total_withdrawals,
+            "dividend_metrics": {
+                "total_dividends_received": round(total_dividends, 2),
+                "current_year_dividends": round(current_year_dividends, 2),
+                "previous_year_dividends": round(previous_year_dividends, 2),
+                "dividend_growth": round(dividend_growth, 2),
+                "monthly_income_estimate": round(current_year_dividends / max(datetime.now().month, 1) * (1/12), 2),
+            },
             "total_gain_loss": 0,
             "total_gain_loss_percentage": 0,
             "assets": [],
@@ -562,6 +600,22 @@ class InvestmentService(BaseService[InvestmentTransaction]):
             position_value = holding["shares"] * current_prices[symbol]
             total_portfolio_value += position_value
             largest_position = max(largest_position, position_value)
+
+        # Calculate dividend yield
+        dividend_yield = 0
+        if total_portfolio_value > 0:
+            # Use 12-month trailing dividend data if available, else use current year data
+            if previous_year_dividends > 0:
+                # Weighted average of current and previous year for a 12-month trailing amount
+                month_weight = datetime.now().month / 12
+                trailing_12m_dividends = (current_year_dividends * month_weight) + (previous_year_dividends * (1 - month_weight))
+                dividend_yield = (trailing_12m_dividends / total_portfolio_value) * 100
+            else:
+                # If no previous year data, annualize current year
+                annualized_dividends = (current_year_dividends / max(datetime.now().month, 1)) * 12
+                dividend_yield = (annualized_dividends / total_portfolio_value) * 100
+
+        summary["dividend_metrics"]["portfolio_yield"] = round(dividend_yield, 2)
 
         # Calculate Herfindahl-Hirschman Index (HHI) for diversification
         position_weights = []
@@ -620,17 +674,20 @@ class InvestmentService(BaseService[InvestmentTransaction]):
 
         # Calculate total gain/loss and percentage using net investment
         summary["total_gain_loss"] = round(
-            summary["total_value"] - summary["net_investment"], 2
+            summary["total_value"] + total_dividends - summary["net_investment"], 2
         )
         if summary["net_investment"] > 0:
             summary["total_gain_loss_percentage"] = round(
-                (summary["total_value"] - summary["net_investment"])
+                (summary["total_value"] + total_dividends - summary["net_investment"])
                 / summary["net_investment"]
                 * 100,
-                2,
+                2
             )
         else:
             summary["total_gain_loss_percentage"] = 0
+
+        # Add a flag indicating that dividends are included in returns
+        summary["returns_include_dividends"] = True
 
         # Calculate diversification metrics
         if position_weights:
@@ -658,23 +715,23 @@ class InvestmentService(BaseService[InvestmentTransaction]):
         self,
         user_id: int,
     ) -> dict[str, Any]:
-        """Get portfolio performance over time."""
-        # Convert period to date range
-        end_date = datetime.now().date()
-
+        """Get portfolio performance over time, optimized for speed."""
         query = """--sql
         SELECT
             t.date,
             i.quantity,
             i.unit_price,
             a.symbol,
-            i.investment_type
+            i.investment_type,
+            i.fee,
+            i.tax,
+            i.total_paid  -- Ensure total_paid is fetched
         FROM transactions t
         JOIN investment_details i ON t.id = i.transaction_id
         JOIN assets a ON i.asset_id = a.id
         WHERE t.user_id = ?
         AND t.is_investment = TRUE
-        ORDER BY t.date
+        ORDER BY t.date ASC -- Crucial: ensure transactions are sorted by date
         """
 
         try:
@@ -683,209 +740,263 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 params=[user_id],
             )
         except NoResultFoundError:
-            # Handle the case where no transactions are found
-            return {
-                "data_points": [],
-            }
+            return {"data_points": [], "summary": {}} # Return empty if no transactions
 
+        if not transactions:
+            return {"data_points": [], "summary": {}}
+
+        # Determine date range
         start_date = datetime.strptime(
             transactions[0]["date"].split("T")[0], "%Y-%m-%d"
         ).date()
-        # Create a list of all dates in the range
+        end_date = datetime.now().date()
         all_dates = [
             start_date + timedelta(days=i)
             for i in range((end_date - start_date).days + 1)
         ]
 
-        # Track owned assets and their quantities
-        owned_assets = {}
-        initial_investment = 0  # Track total money invested
-        total_withdrawals = 0  # Track total money withdrawn
-
         # Pre-fetch historical prices for all unique symbols
         unique_symbols = {tx["symbol"] for tx in transactions}
-        historical_prices = {}
-
-        # Convert dates to datetime for yfinance
+        historical_prices: dict[str, dict[str, float]] = {}
         start_datetime = datetime.combine(start_date, datetime.min.time())
         end_datetime = datetime.combine(end_date, datetime.max.time())
 
         for symbol in unique_symbols:
-            symbol_prices = self._fetch_yahoo_history(
-                symbol, start_datetime, end_datetime
-            )
-            if symbol_prices:
+            # Fetch history first
+            symbol_prices = self._fetch_yahoo_history(symbol, start_datetime, end_datetime)
                 historical_prices[symbol] = symbol_prices
-            else:
-                # If we can't get historical prices, create a price history from transactions
-                historical_prices[symbol] = {}
+
+            # If history is sparse, fill gaps using transaction prices
+            tx_prices = {}
+            last_known_price = None
                 for tx in transactions:
                     if tx["symbol"] == symbol:
-                        historical_prices[symbol][tx["date"]] = tx["unit_price"]
+                   tx_date_str = tx["date"].split("T")[0]
+                   # Use unit price only if not already in history (prefer market close)
+                   if tx_date_str not in historical_prices[symbol]:
+                       tx_prices[tx_date_str] = tx["unit_price"]
+                   last_known_price = tx["unit_price"] # Keep track of the very last tx price
 
-        data_points = []
+            # Merge transaction prices into history, giving precedence to history
+            historical_prices[symbol].update(tx_prices)
 
-        for i, date in enumerate(all_dates):
-            date_str = date.isoformat()
+            # Store the last known transaction price as a fallback
+            if symbol not in historical_prices or not historical_prices[symbol]:
+                 # If absolutely no price data, try latest db price or default to 0
+                 latest_db_price = self._get_latest_transaction_price_symbol(symbol)
+                 if latest_db_price:
+                     historical_prices[symbol] = {"fallback_latest": latest_db_price}
+                 elif last_known_price:
+                     historical_prices[symbol] = {"fallback_latest": last_known_price}
+                 else:
+                     logger.warning(f"Could not find any price for {symbol}, defaulting to 0")
+                     historical_prices[symbol] = {"fallback_latest": 0}
 
-            # Initialize or copy previous day's holdings
-            if i > 0:
-                owned_assets[date_str] = owned_assets[
-                    all_dates[i - 1].isoformat()
-                ].copy()
-            else:
-                owned_assets[date_str] = {}
 
-            # Process transactions for this date
-            for tx in transactions:
-                tx_date = tx["date"].split("T")[0]  # Extract just the date part (YYYY-MM-DD)
-                if tx_date == date_str:
+        # --- Step 1: Process transactions chronologically ---
+        owned_assets: dict[str, float] = {}
+        initial_investment = 0.0
+        total_withdrawals = 0.0
+        total_dividends_received = 0.0 # Initialize dividend tracking
+        # Store state *after* transaction on that date
+        portfolio_states: dict[str, dict[str, Any]] = {}
+
+        for tx in transactions:
+            tx_date_str = tx["date"].split("T")[0]
                     symbol = tx["symbol"]
-                    if symbol not in owned_assets[date_str]:
-                        owned_assets[date_str][symbol] = 0
+                    quantity = tx["quantity"]
+                    investment_type = tx["investment_type"].lower()
+            total_paid = tx["total_paid"] # Use total_paid from transaction
+            unit_price = tx["unit_price"] # Needed for sell proceeds calculation
+            fee = tx.get("fee", 0) or 0 # Handle None from DB
+            tax = tx.get("tax", 0) or 0 # Handle None from DB
 
-                    transaction_value = tx["quantity"] * tx["unit_price"]
-                    if tx["investment_type"] in ["Buy", "Deposit"]:
-                        owned_assets[date_str][symbol] += tx["quantity"]
-                        initial_investment += transaction_value
-                    elif tx["investment_type"] in ["Sell", "Withdrawal"]:
-                        owned_assets[date_str][symbol] -= tx["quantity"]
-                        # Instead of adding to total_withdrawals, track realized gains/losses immediately
-                        # Get cost basis at time of sale
-                        sell_date_buys = [
-                            t
-                            for t in transactions
-                            if t["symbol"] == tx["symbol"]
-                            and t["date"] <= tx["date"]
-                            and t["investment_type"] == "Buy"
-                        ]
-                        if sell_date_buys:
-                            total_buy_cost = sum(
-                                t["quantity"] * t["unit_price"] for t in sell_date_buys
-                            )
-                            total_buy_quantity = sum(
-                                t["quantity"] for t in sell_date_buys
-                            )
-                            avg_cost = (
-                                total_buy_cost / total_buy_quantity
-                                if total_buy_quantity > 0
-                                else 0
-                            )
-                            # Calculate realized gain/loss and adjust initial investment
-                            realized_gain = (tx["unit_price"] - avg_cost) * tx[
-                                "quantity"
-                            ]
-                            # Reduce initial investment by cost basis of sold shares
-                            initial_investment -= avg_cost * tx["quantity"]
-                        if owned_assets[date_str][symbol] <= 0:
-                            del owned_assets[date_str][symbol]
-                    elif tx["investment_type"] in ["Dividend", "Interest"]:
-                        # Dividend and Interest are types of income, not affecting the quantity
-                        pass
 
-            # Create data point for this date
+                    # Initialize asset if not exists
+                    if symbol not in owned_assets:
+                owned_assets[symbol] = 0.0
+
+            # Update holdings and investment/withdrawal tracking
+                    if investment_type == "buy":
+                        owned_assets[symbol] += quantity
+                initial_investment += total_paid # Use total_paid for cost
+                    elif investment_type == "sell":
+                # Calculate proceeds based on sell price * quantity minus fees/taxes
+                proceeds = (quantity * unit_price) - fee - tax
+                        owned_assets[symbol] -= quantity
+                total_withdrawals += proceeds # Track money received from sell
+            elif investment_type == "dividend":
+                # Accumulate total dividends received using total_paid
+                total_dividends_received += total_paid
+            # Other types (like 'split', 'fee', 'tax') might exist but don't directly affect holdings or net investment here
+
+            # Remove asset if quantity drops to 0 or below
+            if symbol in owned_assets and owned_assets[symbol] <= 1e-9: # Use tolerance for float comparison
+                del owned_assets[symbol]
+
+            # Store a copy of the state for this date
+            portfolio_states[tx_date_str] = {
+                "holdings": owned_assets.copy(),
+                "net_invested": initial_investment - total_withdrawals,
+                "cumulative_dividends": total_dividends_received, # Store cumulative dividends
+            }
+
+        # --- Step 2: Calculate daily portfolio values ---
+        data_points = []
+        # Initialize with state before first transaction (empty holdings, zero investment/dividends)
+        last_known_state = {"holdings": {}, "net_invested": 0.0, "cumulative_dividends": 0.0}
+        # Get sorted list of dates where state changed
+        state_change_dates = sorted(portfolio_states.keys())
+        state_idx = 0
+
+        for date in all_dates:
+            date_str = date.strftime("%Y-%m-%d")
+
+            # Update to the latest known state on or before the current date
+            while (
+                state_idx < len(state_change_dates)
+                and state_change_dates[state_idx] <= date_str
+            ):
+                last_known_state = portfolio_states[state_change_dates[state_idx]]
+                state_idx += 1
+
+            current_holdings = last_known_state["holdings"]
+            current_net_invested = last_known_state["net_invested"]
+            current_cumulative_dividends = last_known_state["cumulative_dividends"]
+
+            # Calculate portfolio value for this date
+            total_value = 0.0
             assets_data = {}
-            total_value = 0
 
-            for symbol, quantity in owned_assets[date_str].items():
-                # Get price for this date from historical data
-                price = historical_prices[symbol].get(
-                    date_str,
-                    # Fallback to last known price if no price for this date
-                    next(
-                        (
-                            p
-                            for d, p in sorted(
-                                historical_prices[symbol].items(), reverse=True
-                            )
-                            if d <= date_str
-                        ),
-                        0,  # Default to 0 if no earlier price found
-                    ),
-                )
+            if not current_holdings: # Skip calculation if no holdings
+                 if data_points: # Carry forward previous day's zero value if needed
+                      data_points.append({
+                          "date": date_str,
+                          "total_value": 0.0,
+                          "performance": 0.0,
+                          "performance_without_dividends": 0.0,
+                          "absolute_gain": 0.0,
+                          "assets": {},
+                          "tri": 0.0,
+                          "cumulative_dividends": round(current_cumulative_dividends, 2),
+                          "net_invested": round(current_net_invested, 2),
+                          "total_gains": round(-current_net_invested, 2), # Loss equals net invested if value is 0
+                          "total_gains_without_dividends": round(current_net_invested, 2)
+                      })
+                 continue # Move to next date
 
-                # Calculate cost basis per share for this asset up to this date
-                buy_transactions = [
-                    tx
-                    for tx in transactions
-                    if tx["symbol"] == symbol
-                    and tx["date"] <= date_str
-                    and tx["investment_type"] == "Buy"
-                ]
 
-                total_buy_cost = sum(
-                    tx["quantity"] * tx["unit_price"] for tx in buy_transactions
-                )
-                total_buy_quantity = sum(tx["quantity"] for tx in buy_transactions)
-                cost_basis_per_share = (
-                    total_buy_cost / total_buy_quantity if total_buy_quantity > 0 else 0
-                )
+            for symbol, shares in current_holdings.items():
+                if shares <= 1e-9: # Should not happen due to earlier check, but good practice
+                    continue
 
-                asset_value = quantity * price
-                assets_data[symbol] = {
-                    "price": price,
-                    "quantity": quantity,
-                    "total_value": asset_value,
-                    "cost_basis_per_share": cost_basis_per_share,
-                }
-                total_value += asset_value
+                price = None
+                symbol_price_history = historical_prices.get(symbol, {})
 
-            # Calculate total gains using cost basis per share
-            total_gains = 0
-            current_investment = 0  # Track current investment based on remaining shares
-            for symbol, asset_data in assets_data.items():
-                quantity = asset_data["quantity"]
-                price = asset_data["price"]
-                cost_basis_per_share = asset_data["cost_basis_per_share"]
-
-                # Calculate gain/loss for this position
-                position_gain = quantity * (price - cost_basis_per_share)
-                total_gains += position_gain
-                # Add to current investment
-                current_investment += quantity * cost_basis_per_share
-
-            # Calculate performance based on current investment value
-            performance = (
-                (total_gains / current_investment * 100)
-                if current_investment > 0
-                else 0
-            )
-
-            # Calculate TRI (Total Return Index)
-            # Base TRI on initial value of 100
-            if i == 0:
-                tri_value = 100  # Initial TRI value
-            else:
-                prev_tri = data_points[i - 1]["tri"]
-                prev_value = data_points[i - 1]["total_value"]
-                if prev_value > 0:
-                    daily_return = (total_value - prev_value) / prev_value
-                    tri_value = prev_tri * (1 + daily_return)
+                # 1. Try exact date match
+                if date_str in symbol_price_history:
+                    price = symbol_price_history[date_str]
                 else:
-                    tri_value = prev_tri
+                    # 2. Find the closest *previous* date with a price
+                    closest_date_str = None
+                    for price_date_str in symbol_price_history:
+                        # Skip fallback keys if they exist
+                        if price_date_str == "fallback_latest": continue
+                        # Check if the price date is on or before the current processing date
+                        if price_date_str <= date_str:
+                            # If it's the first valid date found, or later than the current closest
+                            if closest_date_str is None or price_date_str > closest_date_str:
+                                closest_date_str = price_date_str
 
-            data_points.append(
-                {
-                    "date": date_str,
-                    "total_value": total_value,
-                    "performance": round(performance, 2),
-                    "absolute_gain": round(total_gains, 2),
-                    "assets": assets_data,
-                    "tri": round(tri_value, 2),
-                    "net_invested": initial_investment - total_withdrawals,
-                    "total_gains": total_gains,
-                }
-            )
+                    if closest_date_str:
+                        price = symbol_price_history[closest_date_str]
+
+                # 3. If still no price, use the fallback latest price if available
+                if price is None and "fallback_latest" in symbol_price_history:
+                     price = symbol_price_history["fallback_latest"]
+
+
+                # If price is still None or zero after all checks, log and skip/use 0
+                if price is None or price <= 0:
+                if price is None:
+                          logger.warning(f"No price found for {symbol} on or before {date_str}. Using 0.")
+                     price = 0.0 # Default to 0 if no price could be determined
+
+
+                    asset_value = shares * price
+                    total_value += asset_value
+                    assets_data[symbol] = {
+                    "shares": round(shares, 4), # Increase precision for shares
+                    "price": round(price, 4),
+                    "total_value": round(asset_value, 2)
+                    }
+
+            # Calculate performance metrics
+            total_gains = total_value + current_cumulative_dividends - current_net_invested
+
+            # Calculate standard performance (without dividends)
+            performance_without_dividends = 0.0
+            if abs(current_net_invested) > 1e-9: # Avoid division by zero
+                performance_without_dividends = (total_value - current_net_invested) / current_net_invested * 100
+
+            # Calculate performance including dividends
+            performance = 0.0
+            if abs(current_net_invested) > 1e-9: # Avoid division by zero
+                performance = (total_value + current_cumulative_dividends - current_net_invested) / current_net_invested * 100
+
+            tri_value = 0.0
+            if abs(current_net_invested) > 1e-9: # Avoid division by zero
+                 # TRI calculation: (Ending Value / Beginning Value) * 100
+                 # Here, 'Beginning Value' is represented by net_invested, and we include dividends in 'Ending Value'
+                 # A TRI of 100 means value equals net investment.
+                 tri_value = ((total_value + current_cumulative_dividends) / current_net_invested) * 100 if current_net_invested > 0 else 0 # Handle cases where net investment could be negative due to large withdrawals
+
+
+            # Append data point only if there's value or it's the first day
+            # Avoid adding points with zero value unless net_invested is non-zero (represents loss)
+            # Or if it's the very first day after the first transaction
+            is_first_day_after_tx = date_str >= state_change_dates[0] if state_change_dates else False
+            if total_value > 1e-9 or abs(current_net_invested) > 1e-9 or (not data_points and is_first_day_after_tx) :
+                data_points.append(
+                    {
+                        "date": date_str,
+                        "total_value": round(total_value, 2),
+                        "performance": round(performance, 2),
+                        "performance_without_dividends": round(performance_without_dividends, 2),
+                        "absolute_gain": round(total_gains, 2),
+                        "assets": assets_data,
+                        "tri": round(tri_value, 2),
+                        "cumulative_dividends": round(current_cumulative_dividends, 2),
+                        "net_invested": round(current_net_invested, 2),
+                        "total_gains": round(total_gains, 2),
+                        "total_gains_without_dividends": round(total_value - current_net_invested, 2)
+                    }
+                )
+
+
         return {
             "data_points": data_points,
-            "summary": {
-                "initial_investment": initial_investment,
-                "total_withdrawals": total_withdrawals,
-                "net_investment": initial_investment - total_withdrawals,
-                "current_value": data_points[-1]["total_value"] if data_points else 0,
-                "total_return": data_points[-1]["performance"] if data_points else 0,
-            },
         }
+
+    def _get_latest_transaction_price_symbol(self, symbol: str) -> float | None:
+        """Helper to get latest transaction price just by symbol"""
+        query = """
+        SELECT i.unit_price
+        FROM investment_details i
+        JOIN transactions t ON i.transaction_id = t.id
+        JOIN assets a ON i.asset_id = a.id
+        WHERE a.symbol = ?
+        ORDER BY t.date DESC
+        LIMIT 1
+        """
+        try:
+            result = self.db_manager.execute_select(query, [symbol])
+            if result:
+                return float(result[0]["unit_price"])
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching latest transaction price for symbol {symbol}: {e}")
+            return None
 
     def delete(self, item_id: int, user_id: int) -> bool:
         try:

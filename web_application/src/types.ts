@@ -154,3 +154,5 @@ export interface Investment
 export type TransactionField = "date" | "description" | "category" | "amount"
 
 export type TransactionType = "expense" | "income" | "transfer"
+
+export type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "max"
