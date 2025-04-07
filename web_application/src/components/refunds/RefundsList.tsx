@@ -2,24 +2,24 @@ import { useTransactions } from "@/api/queries"
 import { CreateRefundModal } from "@/components/refunds/CreateRefundModal"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { RefundGroup, RefundItem, Transaction } from "@/types"
 import {
-  ArrowRight,
-  ArrowUpRight,
-  Calendar,
-  DollarSign,
-  MoreHorizontal,
-  Pencil,
-  Trash,
-  Wallet,
-  ArrowDownRight,
-  Sparkles,
+    ArrowDownRight,
+    ArrowRight,
+    ArrowUpRight,
+    Calendar,
+    DollarSign,
+    MoreHorizontal,
+    Pencil,
+    Sparkles,
+    Trash,
+    Wallet,
 } from "lucide-react"
 import { useState } from "react"
 
@@ -135,11 +135,29 @@ export function RefundsList({
               <Calendar className="w-4 h-4" />
               {formatDate(expense.date)}
             </div>
-            <div className="flex items-center gap-1.5 text-red-600 font-medium">
-              <DollarSign className="w-4 h-4" />$
-              {Math.abs(expense.amount).toFixed(2)}
+            <div className="flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4" />
+              {expense.refunded_amount > 0 ? (
+                <>
+                  <span className="line-through text-gray-400 mr-1">
+                    ${Math.abs(expense.amount).toFixed(2)}
+                  </span>
+                  <span className="text-red-600 font-medium">
+                    ${Math.abs(expense.amount - expense.refunded_amount).toFixed(2)}
+                  </span>
+                </>
+              ) : (
+                <span className="text-red-600 font-medium">
+                  ${Math.abs(expense.amount).toFixed(2)}
+                </span>
+              )}
             </div>
           </div>
+          {expense.refunded_amount > amount && (
+            <div className="text-xs text-amber-600">
+              Has additional refunds: ${(expense.refunded_amount - amount).toFixed(2)}
+            </div>
+          )}
         </div>
       </div>
       <div className="space-y-3">
@@ -195,22 +213,22 @@ export function RefundsList({
     onEdit: () => {
       if (!hoveredItem) return
 
-      if (hoveredItem.type === "group") {
-        handleEditGroup(hoveredItem.id)
-      } else {
-        const item = refundItems.find(i => i.id === hoveredItem.id)
-        if (item) handleEditStandaloneItem(item)
-      }
+        if (hoveredItem.type === "group") {
+          handleEditGroup(hoveredItem.id)
+        } else {
+          const item = refundItems.find(i => i.id === hoveredItem.id)
+          if (item) handleEditStandaloneItem(item)
+        }
     },
     onDelete: () => {
       if (!hoveredItem) return
 
-      if (hoveredItem.type === "group") {
-        const group = refundGroups.find(g => g.id === hoveredItem.id)
-        if (group) onDeleteRefundGroup(group)
-      } else {
-        const item = refundItems.find(i => i.id === hoveredItem.id)
-        if (item) onDeleteRefundItem(item)
+        if (hoveredItem.type === "group") {
+          const group = refundGroups.find(g => g.id === hoveredItem.id)
+          if (group) onDeleteRefundGroup(group)
+        } else {
+          const item = refundItems.find(i => i.id === hoveredItem.id)
+          if (item) onDeleteRefundItem(item)
       }
     },
     disabled: !!editingRefund
@@ -407,10 +425,26 @@ export function RefundsList({
                                   {formatDate(transaction.date)}
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <DollarSign className="w-4 h-4" />$
-                                  {Math.abs(transaction.amount).toFixed(2)}
+                                  <DollarSign className="w-4 h-4" />
+                                  {transaction.refunded_amount > totalRefunded ? (
+                                    <>
+                                      <span className="line-through text-gray-400 mr-1">
+                                        ${Math.abs(transaction.amount).toFixed(2)}
+                                      </span>
+                                      <span className="text-red-600 font-medium">
+                                        ${Math.abs(transaction.amount - transaction.refunded_amount).toFixed(2)}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>${Math.abs(transaction.amount).toFixed(2)}</>
+                                  )}
                                 </div>
                               </div>
+                              {transaction.refunded_amount > totalRefunded && (
+                                <div className="text-xs text-amber-600 mt-1">
+                                  Has additional refunds: ${(transaction.refunded_amount - totalRefunded).toFixed(2)}
+                                </div>
+                              )}
                             </div>
                             <div className="text-right">
                               <div className="font-medium text-green-600">
@@ -595,3 +629,6 @@ export function RefundsList({
     </div>
   )
 }
+
+
+

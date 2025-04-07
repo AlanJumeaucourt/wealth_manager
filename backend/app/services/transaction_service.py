@@ -182,6 +182,10 @@ class TransactionService(BaseService):
                 transaction["refund_items"] = refunds_by_transaction.get(
                     transaction["id"], []
                 )
+                # Calculate total refunded amount for each transaction
+                transaction["refunded_amount"] = sum(
+                    refund["amount"] for refund in transaction["refund_items"]
+                )
 
         return {
             "items": transactions,

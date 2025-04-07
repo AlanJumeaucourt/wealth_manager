@@ -28,6 +28,13 @@ export interface Transaction {
   subcategory?: string
   refunded_amount: number
   is_investment: boolean
+  refund_items?: Array<{
+    amount: number;
+    date: string;
+    description: string
+    id: number
+    refund_group_id?: number | null
+  }>
 }
 
 export interface ApiResponse<T> {

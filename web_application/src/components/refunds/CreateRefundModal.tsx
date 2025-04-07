@@ -3,6 +3,8 @@ import {
   useCreateRefundItem,
   useDeleteRefundItem,
   useTransactions,
+  useUpdateRefundGroup,
+  useUpdateRefundItem,
 } from "@/api/queries"
 import { Button } from "@/components/ui/button"
 import {
@@ -62,6 +64,8 @@ export function CreateRefundModal({
   const [incomeSearch, setIncomeSearch] = useState("")
   const [expenseSearch, setExpenseSearch] = useState("")
   const [isInitialized, setIsInitialized] = useState(false)
+  const [groupName, setGroupName] = useState("")
+  const [groupDescription, setGroupDescription] = useState("")
   const debouncedIncomeSearch = useDebounce(incomeSearch, 300)
   const debouncedExpenseSearch = useDebounce(expenseSearch, 300)
 
@@ -230,6 +234,8 @@ export function CreateRefundModal({
   const createRefundGroup = useCreateRefundGroup()
   const createRefundItem = useCreateRefundItem()
   const deleteRefundItem = useDeleteRefundItem()
+  const updateRefundGroup = useUpdateRefundGroup()
+  const updateRefundItem = useUpdateRefundItem()
 
   // Handle selection changes
   const handleSelectionChange = (
@@ -287,6 +293,25 @@ export function CreateRefundModal({
 
     if (isLoading) return
 
+    // Find the existing refund group name if it exists
+    if (editMode.refundGroupId) {
+      // We'll need to fetch the refund group details in a real implementation
+      // For now, generate a default name based on the expenses
+      const expenseDescriptions = editExpenses
+        ?.map(exp => exp.description)
+        .filter(Boolean)
+        .slice(0, 2) || []
+
+      const defaultName = expenseDescriptions.length > 1
+        ? `Multiple Expenses Refund (${expenseDescriptions[0]}, ...)`
+        : expenseDescriptions.length === 1
+          ? `${expenseDescriptions[0]} Refund`
+          : `Refund Group`
+
+      setGroupName(defaultName)
+      setGroupDescription(`Refund group for ${editExpenses?.length || 0} expense(s) and ${editIncomes?.length || 0} income(s)`)
+    }
+
     // Create allocations from existing refund items
     const existingAllocations = new Map(
       editMode.refundItems.map(item => [
@@ -329,6 +354,8 @@ export function CreateRefundModal({
       setSelectedIncomes([])
       setSelectedExpenses([])
       setAllocations([])
+      setGroupName("")
+      setGroupDescription("")
       setStep("expenses")
       setIsInitialized(false)
     }
@@ -364,11 +391,13 @@ export function CreateRefundModal({
       const activeAllocations = allocations.filter(a => a.amount > 0)
       const uniqueExpenseIds = new Set(activeAllocations.map(a => a.expenseId))
       const uniqueIncomeIds = new Set(activeAllocations.map(a => a.incomeId))
-      const needsGroup = uniqueExpenseIds.size > 1 || uniqueIncomeIds.size > 1
+      const needsGroup = uniqueExpenseIds.size > 1 || uniqueIncomeIds.size > 1 || editMode?.refundGroupId
 
       let refundGroupId = editMode?.refundGroupId
 
+      // Handle refund group - create new or update existing
       if (!refundGroupId && needsGroup) {
+        // Create a new group
         const expenseDescriptions = Array.from(uniqueExpenseIds)
           .map(id => selectedExpenses.find(e => e.id === id)?.description)
           .filter(Boolean)
@@ -379,46 +408,108 @@ export function CreateRefundModal({
           0
         )
 
-        const groupName =
+        // Use user-provided name or fall back to a generated one
+        const defaultGroupName =
           expenseDescriptions.length > 1
             ? `Multiple Expenses Refund (${expenseDescriptions[0]}, ...)`
             : `${expenseDescriptions[0]} Refund`
 
+        const finalGroupName = groupName || defaultGroupName
+
+        // Generate a default description if none provided
+        const defaultDescription = `Refund group for ${
+          uniqueExpenseIds.size
+        } expense(s) and ${
+          uniqueIncomeIds.size
+        } income(s) totaling $${totalAmount.toFixed(2)}`
+
+        const finalDescription = groupDescription || defaultDescription
+
         const group = await createRefundGroup.mutateAsync({
-          name: groupName,
-          description: `Refund group for ${
-            uniqueExpenseIds.size
-          } expense(s) and ${
-            uniqueIncomeIds.size
-          } income(s) totaling $${totalAmount.toFixed(2)}`,
+          name: finalGroupName,
+          description: finalDescription,
         })
 
         refundGroupId = group.id
+      } else if (refundGroupId) {
+        // Update existing group if name or description changed
+        await updateRefundGroup.mutateAsync({
+          id: refundGroupId,
+          data: {
+            name: groupName,
+            description: groupDescription
+          }
+        })
       }
 
       if (editMode) {
-        await Promise.all(
-          editMode.refundItems.map(item =>
-            deleteRefundItem.mutateAsync(item.id)
-          )
+        // Get existing allocations to compare with new ones
+        const existingAllocations = new Map(
+          editMode.refundItems.map(item => [
+            `${item.expenseId}-${item.incomeId}`,
+            {
+              id: item.id,
+              amount: item.amount
+            }
+          ])
         )
-      }
 
-      // Only create refund items for allocations with amount > 0
-      for (const allocation of activeAllocations) {
-        const expense = selectedExpenses.find(
-          e => e.id === allocation.expenseId
-        )!
-        await createRefundItem.mutateAsync({
-          amount: allocation.amount,
-          description: `Refund: ${expense.description} (${(
-            (allocation.amount / Math.abs(expense.amount)) *
-            100
-          ).toFixed(1)}%)`,
-          expense_transaction_id: allocation.expenseId,
-          income_transaction_id: allocation.incomeId,
-          refund_group_id: refundGroupId,
-        })
+        // Items to update or create
+        for (const allocation of activeAllocations) {
+          const key = `${allocation.expenseId}-${allocation.incomeId}`
+          const existingItem = existingAllocations.get(key)
+
+          if (existingItem) {
+            // Only update if amount has changed
+            if (existingItem.amount !== allocation.amount) {
+              await updateRefundItem.mutateAsync({
+                id: existingItem.id,
+                data: {
+                  amount: allocation.amount
+                }
+              })
+            }
+            // Remove from map to track which ones were processed
+            existingAllocations.delete(key)
+          } else {
+            // Create new refund item
+            const expense = selectedExpenses.find(
+              e => e.id === allocation.expenseId
+            )!
+            await createRefundItem.mutateAsync({
+              amount: allocation.amount,
+              description: `Refund: ${expense.description} (${(
+                (allocation.amount / Math.abs(expense.amount)) *
+                100
+              ).toFixed(1)}%)`,
+              expense_transaction_id: allocation.expenseId,
+              income_transaction_id: allocation.incomeId,
+              refund_group_id: refundGroupId,
+            })
+          }
+        }
+
+        // Delete any remaining items that weren't updated
+        for (const [_, item] of existingAllocations.entries()) {
+          await deleteRefundItem.mutateAsync(item.id)
+        }
+      } else {
+        // Create new refund items
+        for (const allocation of activeAllocations) {
+          const expense = selectedExpenses.find(
+            e => e.id === allocation.expenseId
+          )!
+          await createRefundItem.mutateAsync({
+            amount: allocation.amount,
+            description: `Refund: ${expense.description} (${(
+              (allocation.amount / Math.abs(expense.amount)) *
+              100
+            ).toFixed(1)}%)`,
+            expense_transaction_id: allocation.expenseId,
+            income_transaction_id: allocation.incomeId,
+            refund_group_id: refundGroupId,
+          })
+        }
       }
 
       toast({
@@ -435,7 +526,10 @@ export function CreateRefundModal({
       setSelectedIncomes([])
       setSelectedExpenses([])
       setAllocations([])
+      setGroupName("")
+      setGroupDescription("")
       setStep("expenses")
+      setIsInitialized(false)
     } catch (error) {
       toast({
         title: "Error",
@@ -489,7 +583,15 @@ export function CreateRefundModal({
 
   const isValid = () => {
     if (!selectedIncomes.length || !selectedExpenses.length) return false
-    return allocations.some(a => a.amount > 0)
+
+    // Check if any allocations have an amount > 0
+    const hasPositiveAllocations = allocations.some(a => a.amount > 0);
+
+    // Check if a group name is required and provided
+    const needsGroup = selectedExpenses.length > 1 || selectedIncomes.length > 1 || editMode?.refundGroupId;
+    const hasValidGroupName = !needsGroup || (groupName && groupName.trim().length > 0);
+
+    return hasPositiveAllocations && hasValidGroupName;
   }
 
   const getTotalRefundAmount = () => {
@@ -581,9 +683,25 @@ export function CreateRefundModal({
                                   transaction.date
                                 ).toLocaleDateString()}
                               </div>
+                              {transaction.refund_items && transaction.refund_items.length > 0 && (
+                                <div className="text-xs text-amber-600 mt-0.5">
+                                  {transaction.refund_items.length} refund(s) associated
+                                </div>
+                              )}
                             </div>
-                            <div className="text-lg font-semibold text-red-600 shrink-0">
-                              ${Math.abs(transaction.amount).toFixed(2)}
+                            <div className="text-lg font-semibold text-red-600 shrink-0 flex flex-col items-end">
+                              {transaction.refunded_amount > 0 ? (
+                                <>
+                                  <span className="line-through text-gray-500 text-sm">
+                                    ${Math.abs(transaction.amount).toFixed(2)}
+                                  </span>
+                                  <span>
+                                    ${Math.abs(transaction.amount - transaction.refunded_amount).toFixed(2)}
+                                  </span>
+                                </>
+                              ) : (
+                                <span>${Math.abs(transaction.amount).toFixed(2)}</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -699,6 +817,11 @@ export function CreateRefundModal({
                                   transaction.date
                                 ).toLocaleDateString()}
                               </div>
+                              {transaction.refund_items && transaction.refund_items.length > 0 && (
+                                <div className="text-xs text-amber-600 mt-0.5">
+                                  Used in {transaction.refund_items.length} refund(s)
+                                </div>
+                              )}
                             </div>
                             <div className="text-lg font-semibold text-green-600 shrink-0">
                               ${transaction.amount.toFixed(2)}
@@ -753,9 +876,23 @@ export function CreateRefundModal({
                       <div className="text-sm text-gray-500">
                         {new Date(expense.date).toLocaleDateString()}
                       </div>
+                      {expense.refunded_amount > 0 && (
+                        <div className="text-xs text-amber-600 mt-1">
+                          Already has ${expense.refunded_amount.toFixed(2)} in existing refunds
+                        </div>
+                      )}
                     </div>
                     <div className="text-lg font-semibold text-red-600">
-                      ${Math.abs(expense.amount).toFixed(2)}
+                      {expense.refunded_amount > 0 ? (
+                        <>
+                          <span className="line-through text-gray-500 text-sm mr-2">
+                            ${Math.abs(expense.amount).toFixed(2)}
+                          </span>
+                          ${Math.abs(expense.amount - expense.refunded_amount).toFixed(2)}
+                        </>
+                      ) : (
+                        <>${Math.abs(expense.amount).toFixed(2)}</>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -874,6 +1011,47 @@ export function CreateRefundModal({
                 Review and confirm your refund allocations before creating
               </p>
             </div>
+
+            {/* Group Name Configuration */}
+            {(editMode?.refundGroupId || selectedExpenses.length > 1 || selectedIncomes.length > 1) && (
+              <div className="rounded-lg border bg-white p-4 space-y-4">
+                <div className="text-sm font-medium text-gray-500">
+                  Refund Group Configuration
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label htmlFor="group-name" className="block text-sm font-medium text-gray-700 mb-1">
+                      Group Name <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      id="group-name"
+                      value={groupName}
+                      onChange={(e) => setGroupName(e.target.value)}
+                      placeholder="Enter a name for this refund group"
+                      className={`w-full ${!groupName.trim() ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    />
+                    {!groupName.trim() && (
+                      <p className="mt-1 text-sm text-red-600">Group name is required</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="group-description" className="block text-sm font-medium text-gray-700 mb-1">
+                      Description (Optional)
+                    </label>
+                    <Input
+                      id="group-description"
+                      value={groupDescription}
+                      onChange={(e) => setGroupDescription(e.target.value)}
+                      placeholder="Enter an optional description"
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-lg border bg-white divide-y">
               <div className="p-4">
                 <div className="text-sm font-medium text-gray-500 mb-2">
@@ -930,14 +1108,35 @@ export function CreateRefundModal({
                         <div className="text-sm text-gray-500">
                           {new Date(expense.date).toLocaleDateString()}
                         </div>
+                        {expense.refunded_amount > 0 && expense.refunded_amount !== totalRefunded && (
+                          <div className="text-xs text-amber-600">
+                            Already has ${expense.refunded_amount.toFixed(2)} in other refunds
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-semibold text-red-600">
-                          ${Math.abs(expense.amount).toFixed(2)}
-                        </div>
-                        <div className="text-sm text-green-600">
-                          ${totalRefunded.toFixed(2)} refunded
-                        </div>
+                        {expense.refunded_amount > 0 && expense.refunded_amount !== totalRefunded ? (
+                          <>
+                            <div className="text-lg font-semibold text-red-600">
+                              <span className="line-through text-gray-500 text-sm mr-2">
+                                ${Math.abs(expense.amount).toFixed(2)}
+                              </span>
+                              ${Math.abs(expense.amount - expense.refunded_amount).toFixed(2)}
+                            </div>
+                            <div className="text-sm text-green-600">
+                              ${totalRefunded.toFixed(2)} new refund
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-lg font-semibold text-red-600">
+                              ${Math.abs(expense.amount).toFixed(2)}
+                            </div>
+                            <div className="text-sm text-green-600">
+                              ${totalRefunded.toFixed(2)} refunded
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                     {expenseAllocations.map((allocation, index) => {
@@ -1030,6 +1229,35 @@ export function CreateRefundModal({
       })),
     })
   }, [step, selectedIncomes, selectedExpenses, allocations])
+
+  // Generate a default group name based on selected transactions
+  useEffect(() => {
+    // Don't update if the user has manually entered a name or if we're in edit mode
+    if (groupName || (editMode?.refundGroupId && isInitialized)) return;
+
+    if (selectedExpenses.length > 0) {
+      const expenseDescriptions = selectedExpenses
+        .map(exp => exp.description)
+        .slice(0, 2);
+
+      if (expenseDescriptions.length > 1) {
+        setGroupName(`Multiple Expenses (${expenseDescriptions[0]}, ...)`);
+      } else if (expenseDescriptions.length === 1) {
+        setGroupName(`${expenseDescriptions[0]} Refund`);
+      }
+
+      // Set a default description too
+      const totalExpenseAmount = selectedExpenses.reduce(
+        (sum, exp) => sum + Math.abs(exp.amount),
+        0
+      );
+
+      setGroupDescription(
+        `Refund group for ${selectedExpenses.length} expense(s) ` +
+        `totaling $${totalExpenseAmount.toFixed(2)}`
+      );
+    }
+  }, [selectedExpenses, groupName, editMode?.refundGroupId, isInitialized]);
 
   return (
     <Dialog
