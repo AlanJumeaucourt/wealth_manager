@@ -11,11 +11,15 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { RefundGroup, RefundItem, Transaction } from "@/types"
 import {
   ArrowRight,
+  ArrowUpRight,
   Calendar,
   DollarSign,
   MoreHorizontal,
   Pencil,
   Trash,
+  Wallet,
+  ArrowDownRight,
+  Sparkles,
 } from "lucide-react"
 import { useState } from "react"
 
@@ -68,7 +72,6 @@ export function RefundsList({
 
   // Group standalone refund items (not part of a group)
   const standaloneItems = refundItems.filter(item => !item.refund_group_id)
-  console.log("standaloneItems", standaloneItems)
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString(undefined, {
@@ -77,6 +80,32 @@ export function RefundsList({
       day: "numeric",
     })
   }
+
+  // Calculate summary statistics
+  const calculateSummary = () => {
+    const totalExpenses = refundItems.reduce((sum, item) => {
+      const tx = transactionsMap.get(item.expense_transaction_id)
+      return sum + (tx ? Math.abs(tx.amount) : 0)
+    }, 0)
+
+    const totalRefunds = refundItems.reduce((sum, item) => sum + item.amount, 0)
+
+    const refundRate = totalExpenses > 0 ? (totalRefunds / totalExpenses) * 100 : 0
+
+    const totalGroups = refundGroups.length
+    const totalIndividualRefunds = standaloneItems.length
+
+    return {
+      totalExpenses,
+      totalRefunds,
+      refundRate,
+      totalGroups,
+      totalIndividualRefunds,
+      totalRefundItems: refundItems.length
+    }
+  }
+
+  const summary = calculateSummary()
 
   const RefundCard = ({
     expense,
@@ -90,12 +119,15 @@ export function RefundsList({
     item: RefundItem
   }) => (
     <div
-      className="grid md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg"
+      className="grid md:grid-cols-2 gap-4 p-4 bg-white rounded-lg border border-gray-100 shadow-sm transition-all hover:shadow-md"
       onMouseEnter={() => setHoveredItem({ type: "item", id: item.id! })}
       onMouseLeave={() => setHoveredItem(null)}
     >
       <div className="space-y-3">
-        <div className="text-sm font-medium text-gray-500">Expense</div>
+        <div className="text-sm font-medium text-gray-500 flex items-center">
+          <ArrowDownRight className="w-4 h-4 mr-1.5 text-red-500" />
+          Expense
+        </div>
         <div className="space-y-2">
           <div className="font-medium">{expense.description}</div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
@@ -103,7 +135,7 @@ export function RefundsList({
               <Calendar className="w-4 h-4" />
               {formatDate(expense.date)}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 text-red-600 font-medium">
               <DollarSign className="w-4 h-4" />$
               {Math.abs(expense.amount).toFixed(2)}
             </div>
@@ -111,7 +143,10 @@ export function RefundsList({
         </div>
       </div>
       <div className="space-y-3">
-        <div className="text-sm font-medium text-gray-500">Refund</div>
+        <div className="text-sm font-medium text-gray-500 flex items-center">
+          <ArrowUpRight className="w-4 h-4 mr-1.5 text-green-500" />
+          Refund
+        </div>
         <div className="space-y-2">
           <div className="font-medium">{income.description}</div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
@@ -119,7 +154,7 @@ export function RefundsList({
               <Calendar className="w-4 h-4" />
               {formatDate(income.date)}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 text-green-600 font-medium">
               <DollarSign className="w-4 h-4" />${amount.toFixed(2)}
             </div>
           </div>
@@ -157,30 +192,77 @@ export function RefundsList({
   }
 
   useKeyboardShortcuts({
-    onKeyDown: e => {
+    onEdit: () => {
       if (!hoveredItem) return
 
-      if (e.key === "e") {
-        if (hoveredItem.type === "group") {
-          handleEditGroup(hoveredItem.id)
-        } else {
-          const item = refundItems.find(i => i.id === hoveredItem.id)
-          if (item) handleEditStandaloneItem(item)
-        }
-      } else if (e.key === "d") {
-        if (hoveredItem.type === "group") {
-          const group = refundGroups.find(g => g.id === hoveredItem.id)
-          if (group) onDeleteRefundGroup(group)
-        } else {
-          const item = refundItems.find(i => i.id === hoveredItem.id)
-          if (item) onDeleteRefundItem(item)
-        }
+      if (hoveredItem.type === "group") {
+        handleEditGroup(hoveredItem.id)
+      } else {
+        const item = refundItems.find(i => i.id === hoveredItem.id)
+        if (item) handleEditStandaloneItem(item)
       }
     },
+    onDelete: () => {
+      if (!hoveredItem) return
+
+      if (hoveredItem.type === "group") {
+        const group = refundGroups.find(g => g.id === hoveredItem.id)
+        if (group) onDeleteRefundGroup(group)
+      } else {
+        const item = refundItems.find(i => i.id === hoveredItem.id)
+        if (item) onDeleteRefundItem(item)
+      }
+    },
+    disabled: !!editingRefund
   })
 
   return (
     <div className="space-y-8">
+      {/* Summary Dashboard */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Refund Summary</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="text-sm text-gray-500">Total Refunds</div>
+              <div className="text-2xl font-semibold text-green-600 mt-1">
+                ${summary.totalRefunds.toFixed(2)}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {summary.totalRefundItems} refund items
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="text-sm text-gray-500">Original Expenses</div>
+              <div className="text-2xl font-semibold text-red-600 mt-1">
+                ${summary.totalExpenses.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="text-sm text-gray-500">Refund Rate</div>
+              <div className="text-2xl font-semibold mt-1 flex items-center">
+                {summary.refundRate.toFixed(1)}%
+                <Sparkles className="w-4 h-4 ml-2 text-yellow-500" />
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="text-sm text-gray-500">Categories</div>
+              <div className="flex gap-2 mt-1">
+                <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                  {summary.totalGroups} groups
+                </div>
+                <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm">
+                  {summary.totalIndividualRefunds} individual
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Grouped Refunds */}
       {refundGroups.map(group => {
         const groupItems = refundItems.filter(
@@ -206,7 +288,7 @@ export function RefundsList({
         return (
           <div
             key={group.id}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all hover:shadow-md"
             onMouseEnter={() =>
               setHoveredItem({ type: "group", id: group.id! })
             }
@@ -223,7 +305,7 @@ export function RefundsList({
                 </div>
                 <div className="flex items-start gap-4">
                   <div className="text-right">
-                    <div className="text-2xl font-semibold">
+                    <div className="text-2xl font-semibold text-green-600">
                       ${totalIncome.toFixed(2)}
                     </div>
                     <div className="text-sm text-gray-500">
@@ -258,7 +340,8 @@ export function RefundsList({
               {/* Summary */}
               <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">
+                  <div className="text-sm text-gray-500 mb-1 flex items-center">
+                    <ArrowDownRight className="w-4 h-4 mr-1.5 text-red-500" />
                     Total Expenses
                   </div>
                   <div className="text-lg font-semibold text-red-600">
@@ -266,7 +349,8 @@ export function RefundsList({
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">
+                  <div className="text-sm text-gray-500 mb-1 flex items-center">
+                    <ArrowUpRight className="w-4 h-4 mr-1.5 text-green-500" />
                     Total Refunds
                   </div>
                   <div className="text-lg font-semibold text-green-600">
@@ -274,7 +358,10 @@ export function RefundsList({
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">Refund Rate</div>
+                  <div className="text-sm text-gray-500 mb-1 flex items-center">
+                    <Sparkles className="w-4 h-4 mr-1.5 text-yellow-500" />
+                    Refund Rate
+                  </div>
                   <div className="text-lg font-semibold">
                     {refundPercentage.toFixed(1)}%
                   </div>
@@ -285,7 +372,8 @@ export function RefundsList({
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Expenses */}
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-gray-500">
+                  <h3 className="text-sm font-medium text-gray-500 flex items-center">
+                    <Wallet className="w-4 h-4 mr-1.5 text-red-500" />
                     Expenses
                   </h3>
                   <div className="space-y-2">
@@ -306,7 +394,7 @@ export function RefundsList({
                       return (
                         <div
                           key={id}
-                          className="p-4 bg-gray-50 rounded-lg space-y-2"
+                          className="p-4 bg-gray-50 rounded-lg space-y-2 border border-gray-100"
                         >
                           <div className="flex justify-between items-start">
                             <div className="space-y-1">
@@ -342,13 +430,13 @@ export function RefundsList({
                             return (
                               <div
                                 key={item.id}
-                                className="flex items-center gap-2 text-sm pl-4"
+                                className="flex items-center gap-2 text-sm pl-4 py-1 border-t border-gray-100 mt-2"
                               >
-                                <ArrowRight className="w-4 h-4 text-gray-400" />
+                                <ArrowRight className="w-4 h-4 text-green-500" />
                                 <span className="text-gray-600">
                                   {income.description}:
                                 </span>
-                                <span className="font-medium">
+                                <span className="font-medium text-green-600">
                                   ${item.amount.toFixed(2)}
                                 </span>
                               </div>
@@ -362,7 +450,10 @@ export function RefundsList({
 
                 {/* Incomes */}
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-gray-500">Refunds</h3>
+                  <h3 className="text-sm font-medium text-gray-500 flex items-center">
+                    <Wallet className="w-4 h-4 mr-1.5 text-green-500" />
+                    Refunds
+                  </h3>
                   <div className="space-y-2">
                     {Array.from(uniqueIncomeIds).map(id => {
                       const transaction = transactionsMap.get(id)
@@ -380,7 +471,7 @@ export function RefundsList({
                       return (
                         <div
                           key={id}
-                          className="p-4 bg-gray-50 rounded-lg space-y-2"
+                          className="p-4 bg-gray-50 rounded-lg space-y-2 border border-gray-100"
                         >
                           <div className="flex justify-between items-start">
                             <div className="space-y-1">
@@ -416,9 +507,9 @@ export function RefundsList({
                             return (
                               <div
                                 key={item.id}
-                                className="flex items-center gap-2 text-sm pl-4"
+                                className="flex items-center gap-2 text-sm pl-4 py-1 border-t border-gray-100 mt-2"
                               >
-                                <ArrowRight className="w-4 h-4 text-gray-400" />
+                                <ArrowRight className="w-4 h-4 text-red-500" />
                                 <span className="text-gray-600">
                                   {expense.description}:
                                 </span>
@@ -442,17 +533,17 @@ export function RefundsList({
       {/* Standalone Refunds */}
       {standaloneItems.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Individual Refunds</h2>
-          <div className="space-y-4">
+          <h2 className="text-lg font-semibold flex items-center">
+            <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm mr-2">
+              {standaloneItems.length}
+            </span>
+            Individual Refunds
+          </h2>
+          <div className="grid md:grid-cols-2 gap-4">
             {standaloneItems.map(item => {
               const expense = transactionsMap.get(item.expense_transaction_id)
               const income = transactionsMap.get(item.income_transaction_id)
-              {
-                console.log("expense", expense)
-              }
-              {
-                console.log("income", income)
-              }
+
               if (!expense || !income) return null
 
               return (

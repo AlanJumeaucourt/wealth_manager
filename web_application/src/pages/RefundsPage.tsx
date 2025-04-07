@@ -28,8 +28,8 @@ export function RefundsPage() {
     (refundItems?.items.length || 0) > 0
 
   useKeyboardShortcuts({
-    onKeyDown: e => {
-      if (e.key === "n" && !isCreateModalOpen) {
+    onNew: () => {
+      if (!isCreateModalOpen) {
         setIsCreateModalOpen(true)
       }
     },
