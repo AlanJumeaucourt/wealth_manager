@@ -5,50 +5,57 @@ import { EditTransactionDialog } from "@/components/transactions/EditTransaction
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useToast } from "@/hooks/use-toast"
 import { useDebounce } from "@/hooks/useDebounce"
 import { useDateRangeStore } from "@/store/dateRangeStore"
 import { useDialogStore } from "@/store/dialogStore"
 import {
-  Account,
-  Transaction,
-  TransactionField,
-  TransactionType,
+    Account,
+    Transaction,
+    TransactionField,
+    TransactionType,
 } from "@/types"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
-  ArrowDownIcon,
-  ArrowUpDown,
-  ArrowUpIcon,
-  Pencil,
-  Plus,
-  Search,
-  Trash,
-  X,
+    ArrowDownIcon,
+    ArrowUpDown,
+    ArrowUpIcon,
+    Pencil,
+    Plus,
+    RotateCcw,
+    Search,
+    Trash,
+    X
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
@@ -224,7 +231,51 @@ const TransactionRow = memo(function TransactionRow({
         {new Date(transaction.date).toLocaleDateString()}
       </TableCell>
       <TableCell className="font-medium">
-        {transaction.description}
+        <div className="flex items-center gap-2">
+          {transaction.description}
+          {transaction.refunded_amount > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-flex items-center text-amber-600">
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                    <span className="text-xs">
+                      {new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: "EUR",
+                      }).format(transaction.refunded_amount)}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-sm">
+                    {transaction.type === "expense"
+                      ? `Refunded amount: ${new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: "EUR",
+                        }).format(transaction.refunded_amount)}`
+                      : `Used in refund(s): ${new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: "EUR",
+                        }).format(transaction.refunded_amount)}`
+                    }
+                  </p>
+                  {transaction.refund_items && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {transaction.refund_items.length} refund allocation{transaction.refund_items.length > 1 ? 's' : ''}
+                    </p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+        {transaction.refund_items && transaction.refund_items.length > 0 && (
+          <div className="text-xs text-amber-600 font-normal flex items-center mt-0.5">
+            <RotateCcw className="h-3 w-3 mr-1" />
+            {transaction.refund_items.length} refund allocation{transaction.refund_items.length > 1 ? 's' : ''}
+          </div>
+        )}
         <div className="text-xs text-muted-foreground">
           {transaction.type === "transfer" ? (
             <>
@@ -353,17 +404,36 @@ const TransactionRow = memo(function TransactionRow({
               : "text-blue-600"
         }`}
       >
-        {transaction.type === "transfer"
-          ? new Intl.NumberFormat("en-US", {
-              style: "currency",
-              currency: "EUR",
-            }).format(Math.abs(transaction.amount))
-          : `${
-              transaction.type === "expense" ? "-" : "+"
-            }${new Intl.NumberFormat("en-US", {
-              style: "currency",
-              currency: "EUR",
-            }).format(Math.abs(transaction.amount))}`}
+        {transaction.type === "transfer" ? (
+          new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "EUR",
+          }).format(Math.abs(transaction.amount))
+        ) : transaction.refunded_amount > 0 ? (
+          <div className="flex flex-col items-end">
+            <span className="line-through text-gray-500 text-sm">
+              {transaction.type === "expense" ? "−" : "+"}
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "EUR",
+              }).format(Math.abs(transaction.amount))}
+            </span>
+            <span>
+              {transaction.type === "expense" ? "−" : "+"}
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "EUR",
+              }).format(Math.abs(transaction.amount - transaction.refunded_amount))}
+            </span>
+          </div>
+        ) : (
+          `${
+            transaction.type === "expense" ? "-" : "+"
+          }${new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "EUR",
+          }).format(Math.abs(transaction.amount))}`
+        )}
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-end gap-1">
