@@ -39,8 +39,8 @@ export function AssetStatistics() {
   const totalValue = portfolioSummary.total_value
   const metrics = sortedAssets.map(asset => ({
     ...asset,
-    averageCost: asset.cost_basis / asset.shares,
-    portfolioWeight: (asset.current_value / totalValue) * 100,
+    averageCost: asset.avg_buy_price,
+    portfolioWeight: asset.portfolio_percentage,
     unrealizedGain: asset.gain_loss,
     unrealizedGainPercentage: asset.gain_loss_percentage,
   }))
@@ -127,7 +127,7 @@ export function AssetStatistics() {
                           className="h-6 p-0 text-sm text-muted-foreground hover:text-primary"
                           onClick={() =>
                             navigate({
-                              to: "/investments/assets/$symbol/",
+                              to: "/investments/assets/$symbol",
                               params: { symbol: asset.symbol },
                             })
                           }
@@ -164,7 +164,7 @@ export function AssetStatistics() {
                   <div className="font-medium">
                     {new Intl.NumberFormat(undefined, {
                       style: "currency",
-                      currency: "EUR",
+                      currency: portfolioSummary.currency,
                     }).format(asset.current_price)}
                   </div>
                 </TableCell>
@@ -175,7 +175,7 @@ export function AssetStatistics() {
                   <div className="font-medium">
                     {new Intl.NumberFormat(undefined, {
                       style: "currency",
-                      currency: "EUR",
+                      currency: portfolioSummary.currency,
                     }).format(asset.averageCost)}
                   </div>
                 </TableCell>
@@ -183,7 +183,7 @@ export function AssetStatistics() {
                   <div className="font-medium">
                     {new Intl.NumberFormat(undefined, {
                       style: "currency",
-                      currency: "EUR",
+                      currency: portfolioSummary.currency,
                     }).format(asset.cost_basis)}
                   </div>
                 </TableCell>
@@ -191,7 +191,7 @@ export function AssetStatistics() {
                   <div className="font-medium">
                     {new Intl.NumberFormat(undefined, {
                       style: "currency",
-                      currency: "EUR",
+                      currency: portfolioSummary.currency,
                     }).format(asset.current_value)}
                   </div>
                 </TableCell>
@@ -235,7 +235,7 @@ export function AssetStatistics() {
                       >
                         {new Intl.NumberFormat(undefined, {
                           style: "currency",
-                          currency: "EUR",
+                          currency: portfolioSummary.currency,
                           signDisplay: "always",
                         }).format(asset.unrealizedGain)}
                       </p>
@@ -248,8 +248,9 @@ export function AssetStatistics() {
                           : "text-red-500"
                       )}
                     >
-                      {asset.unrealizedGainPercentage > 0 ? "+" : ""}
-                      {asset.unrealizedGainPercentage.toFixed(2)}%
+                      {(asset.unrealizedGainPercentage > 0 ? "+" : "") +
+                        asset.unrealizedGainPercentage.toFixed(2)}
+                      %
                     </p>
                   </div>
                 </TableCell>

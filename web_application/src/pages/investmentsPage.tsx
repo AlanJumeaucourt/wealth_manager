@@ -1,10 +1,8 @@
-import { usePortfolioSummary, usePortfolioPerformance } from "@/api/queries"
+import { usePortfolioPerformance, usePortfolioSummary } from "@/api/queries"
 import { AssetAllocationChart } from "@/components/investments/AssetAllocationChart"
 import { AssetPerformanceChart } from "@/components/investments/AssetPerformanceChart"
 import { AssetStatistics } from "@/components/investments/AssetStatistics"
-import { PerformanceMetrics } from "@/components/investments/PerformanceMetrics"
 import { PortfolioPerformanceChart } from "@/components/investments/PortfolioPerformanceChart"
-import { RiskMetricsCard } from "@/components/investments/RiskMetricsCard"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -17,7 +15,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { TimePeriod } from "@/types"
-import { ArrowDown, ArrowUp, Plus } from "lucide-react"
+import { ArrowDown, ArrowUp, GiftIcon, PercentIcon, PieChart, Plus } from "lucide-react"
 import { useState } from "react"
 
 export function InvestmentsPage() {
@@ -25,11 +23,15 @@ export function InvestmentsPage() {
   const { data: portfolioSummary } = usePortfolioSummary()
   const { data: performanceData } = usePortfolioPerformance(selectedPeriod)
 
+  const lastUpdate = portfolioSummary?.last_update
+    ? new Date(portfolioSummary.last_update).toLocaleString()
+    : "Unknown"
+
   return (
-    <PageContainer title="Investment Portfolio">
+    <PageContainer title="Investment Portfolio" action={<p className="text-sm text-muted-foreground">Last updated: {lastUpdate}</p>}>
       <div className="space-y-6">
         {/* Portfolio Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="p-6">
             <p className="text-sm text-muted-foreground">
               Total Portfolio Value
@@ -37,7 +39,7 @@ export function InvestmentsPage() {
             <p className="text-2xl font-semibold mt-2">
               {new Intl.NumberFormat(undefined, {
                 style: "currency",
-                currency: "EUR",
+                currency: portfolioSummary?.currency ?? "EUR",
               }).format(portfolioSummary?.total_value ?? 0)}
             </p>
           </Card>
@@ -53,9 +55,14 @@ export function InvestmentsPage() {
             >
               {new Intl.NumberFormat(undefined, {
                 style: "currency",
-                currency: "EUR",
+                currency: portfolioSummary?.currency ?? "EUR",
                 signDisplay: "always",
               }).format(portfolioSummary?.total_gain_loss ?? 0)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {portfolioSummary?.returns_include_dividends
+                ? "Including dividends"
+                : "Excluding dividends"}
             </p>
           </Card>
           <Card className="p-6">
@@ -81,13 +88,134 @@ export function InvestmentsPage() {
               </p>
             </div>
           </Card>
+          <Card className="p-6">
+            <p className="text-sm text-muted-foreground">
+              Dividend Yield
+            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <GiftIcon className="h-5 w-5 text-blue-500" />
+              <p className="text-2xl font-semibold text-blue-500">
+                {(portfolioSummary?.dividend_metrics?.portfolio_yield ?? 0) * 100}%
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {new Intl.NumberFormat(undefined, {
+                style: "currency",
+                currency: portfolioSummary?.currency ?? "EUR",
+              }).format(portfolioSummary?.dividend_metrics?.monthly_income_estimate ?? 0)} monthly est.
+            </p>
+          </Card>
         </div>
 
-        {/* Performance Metrics */}
-        <PerformanceMetrics period={selectedPeriod} />
+        {/* Investment & Metrics Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="p-6">
+            <div className="flex items-center mb-4">
+              <h2 className="text-lg font-semibold">Investment Summary</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Initial Investment</span>
+                <span className="font-medium">
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: portfolioSummary?.currency ?? "EUR",
+                  }).format(portfolioSummary?.initial_investment ?? 0)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Net Investment</span>
+                <span className="font-medium">
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: portfolioSummary?.currency ?? "EUR",
+                  }).format(portfolioSummary?.net_investment ?? 0)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total Withdrawals</span>
+                <span className="font-medium">
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: portfolioSummary?.currency ?? "EUR",
+                  }).format(portfolioSummary?.total_withdrawals ?? 0)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="text-muted-foreground">Total Gain/Loss</span>
+                <span
+                  className={cn(
+                    "font-semibold",
+                    (portfolioSummary?.total_gain_loss ?? 0) > 0
+                      ? "text-green-500"
+                      : "text-red-500"
+                  )}
+                >
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: portfolioSummary?.currency ?? "EUR",
+                    signDisplay: "always",
+                  }).format(portfolioSummary?.total_gain_loss ?? 0)}
+                </span>
+              </div>
+            </div>
+          </Card>
 
-        {/* Risk Metrics */}
-        <RiskMetricsCard />
+          <Card className="p-6">
+            <div className="flex items-center mb-4">
+              <h2 className="text-lg font-semibold">Portfolio Metrics</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <PieChart className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Diversification Score</span>
+                </div>
+                <span className="font-medium">
+                  {portfolioSummary?.metrics?.diversification_score?.toFixed(1) ?? 0}/100
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <PercentIcon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Largest Position</span>
+                </div>
+                <span className="font-medium">
+                  {portfolioSummary?.metrics?.largest_position_percentage?.toFixed(1) ?? 0}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <ArrowUp className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Total Dividends</span>
+                </div>
+                <span className="font-medium">
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: portfolioSummary?.currency ?? "EUR",
+                  }).format(portfolioSummary?.dividend_metrics?.total_dividends_received ?? 0)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <ArrowUp className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Dividend Growth (YoY)</span>
+                </div>
+                <span
+                  className={cn(
+                    "font-medium",
+                    (portfolioSummary?.dividend_metrics?.dividend_growth ?? 0) > 0
+                      ? "text-green-500"
+                      : "text-red-500"
+                  )}
+                >
+                  {(portfolioSummary?.dividend_metrics?.dividend_growth ?? 0) > 0 ? "+" : ""}
+                  {portfolioSummary?.dividend_metrics?.dividend_growth?.toFixed(2) ?? 0}%
+                </span>
+              </div>
+            </div>
+          </Card>
+        </div>
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

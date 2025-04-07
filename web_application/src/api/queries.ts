@@ -1,4 +1,4 @@
-import { Account, Bank, RefundGroup, RefundItem, Transaction } from "@/types"
+import { Account, Bank, PortfolioSummary, RefundGroup, RefundItem, Transaction } from "@/types"
 import { handleTokenExpiration } from "@/utils/auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
@@ -483,22 +483,7 @@ interface PortfolioRiskMetrics {
   volatility: number
 }
 
-interface PortfolioSummary {
-  assets: Array<{
-    cost_basis: number
-    current_price: number
-    current_value: number
-    gain_loss: number
-    gain_loss_percentage: number
-    name: string
-    shares: number
-    symbol: string
-  }>
-  total_cost: number
-  total_gain_loss: number
-  total_gain_loss_percentage: number
-  total_value: number
-}
+// Using the PortfolioSummary interface from types.ts
 
 export function usePortfolioSummary(accountId?: number) {
   return createQuery<PortfolioSummary>({

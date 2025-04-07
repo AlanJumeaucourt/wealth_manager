@@ -34,9 +34,15 @@ export function AssetAllocationChart() {
     .filter(asset => asset.current_value > 0)
     .map(asset => ({
       name: asset.name,
-      value: (asset.current_value / portfolioSummary.total_value) * 100,
+      value: asset.portfolio_percentage,
       amount: asset.current_value,
+      symbol: asset.symbol,
     }))
+
+  const currencyFormatter = new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: portfolioSummary.currency,
+  })
 
   return (
     <ResponsiveContainer>
@@ -64,7 +70,7 @@ export function AssetAllocationChart() {
           formatter={(value, entry: any) => {
             const item = data.find(d => d.name === value)
             if (!item) return value
-            return `${value} - $${item.amount.toLocaleString()})`
+            return `${value} - ${currencyFormatter.format(item.amount)}`
           }}
         />
         <Tooltip
@@ -74,10 +80,9 @@ export function AssetAllocationChart() {
               return (
                 <Card className="p-2">
                   <p className="text-sm font-medium">{item.name}</p>
+                  <p className="text-sm text-gray-500">{item.symbol}</p>
                   <p className="text-sm text-muted-foreground">
-                    {`${Number(item.value).toFixed(
-                      1
-                    )}% - $${item.amount.toLocaleString()}`}
+                    {`${Number(item.value).toFixed(1)}% - ${currencyFormatter.format(item.amount)}`}
                   </p>
                 </Card>
               )

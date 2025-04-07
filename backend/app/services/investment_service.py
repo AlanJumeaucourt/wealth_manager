@@ -764,18 +764,18 @@ class InvestmentService(BaseService[InvestmentTransaction]):
         for symbol in unique_symbols:
             # Fetch history first
             symbol_prices = self._fetch_yahoo_history(symbol, start_datetime, end_datetime)
-                historical_prices[symbol] = symbol_prices
+            historical_prices[symbol] = symbol_prices
 
             # If history is sparse, fill gaps using transaction prices
             tx_prices = {}
             last_known_price = None
-                for tx in transactions:
-                    if tx["symbol"] == symbol:
-                   tx_date_str = tx["date"].split("T")[0]
-                   # Use unit price only if not already in history (prefer market close)
-                   if tx_date_str not in historical_prices[symbol]:
-                       tx_prices[tx_date_str] = tx["unit_price"]
-                   last_known_price = tx["unit_price"] # Keep track of the very last tx price
+            for tx in transactions:
+                if tx["symbol"] == symbol:
+                    tx_date_str = tx["date"].split("T")[0]
+                    # Use unit price only if not already in history (prefer market close)
+                    if tx_date_str not in historical_prices[symbol]:
+                        tx_prices[tx_date_str] = tx["unit_price"]
+                    last_known_price = tx["unit_price"] # Keep track of the very last tx price
 
             # Merge transaction prices into history, giving precedence to history
             historical_prices[symbol].update(tx_prices)
@@ -803,27 +803,26 @@ class InvestmentService(BaseService[InvestmentTransaction]):
 
         for tx in transactions:
             tx_date_str = tx["date"].split("T")[0]
-                    symbol = tx["symbol"]
-                    quantity = tx["quantity"]
-                    investment_type = tx["investment_type"].lower()
+            symbol = tx["symbol"]
+            quantity = tx["quantity"]
+            investment_type = tx["investment_type"].lower()
             total_paid = tx["total_paid"] # Use total_paid from transaction
             unit_price = tx["unit_price"] # Needed for sell proceeds calculation
             fee = tx.get("fee", 0) or 0 # Handle None from DB
             tax = tx.get("tax", 0) or 0 # Handle None from DB
 
-
-                    # Initialize asset if not exists
-                    if symbol not in owned_assets:
+            # Initialize asset if not exists
+            if symbol not in owned_assets:
                 owned_assets[symbol] = 0.0
 
             # Update holdings and investment/withdrawal tracking
-                    if investment_type == "buy":
-                        owned_assets[symbol] += quantity
+            if investment_type == "buy":
+                owned_assets[symbol] += quantity
                 initial_investment += total_paid # Use total_paid for cost
-                    elif investment_type == "sell":
+            elif investment_type == "sell":
                 # Calculate proceeds based on sell price * quantity minus fees/taxes
                 proceeds = (quantity * unit_price) - fee - tax
-                        owned_assets[symbol] -= quantity
+                owned_assets[symbol] -= quantity
                 total_withdrawals += proceeds # Track money received from sell
             elif investment_type == "dividend":
                 # Accumulate total dividends received using total_paid
@@ -918,18 +917,18 @@ class InvestmentService(BaseService[InvestmentTransaction]):
 
                 # If price is still None or zero after all checks, log and skip/use 0
                 if price is None or price <= 0:
-                if price is None:
-                          logger.warning(f"No price found for {symbol} on or before {date_str}. Using 0.")
-                     price = 0.0 # Default to 0 if no price could be determined
+                    if price is None:
+                        logger.warning(f"No price found for {symbol} on or before {date_str}. Using 0.")
+                    price = 0.0 # Default to 0 if no price could be determined
 
 
-                    asset_value = shares * price
-                    total_value += asset_value
-                    assets_data[symbol] = {
+                asset_value = shares * price
+                total_value += asset_value
+                assets_data[symbol] = {
                     "shares": round(shares, 4), # Increase precision for shares
                     "price": round(price, 4),
                     "total_value": round(asset_value, 2)
-                    }
+                }
 
             # Calculate performance metrics
             total_gains = total_value + current_cumulative_dividends - current_net_invested

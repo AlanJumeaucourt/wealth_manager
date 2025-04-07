@@ -156,3 +156,46 @@ export type TransactionField = "date" | "description" | "category" | "amount"
 export type TransactionType = "expense" | "income" | "transfer"
 
 export type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "max"
+
+export interface AssetSummary {
+  avg_buy_price: number
+  cost_basis: number
+  current_price: number
+  current_value: number
+  gain_loss: number
+  gain_loss_percentage: number
+  name: string
+  portfolio_percentage: number
+  shares: number
+  symbol: string
+}
+
+export interface DividendMetrics {
+  current_year_dividends: number
+  dividend_growth: number
+  monthly_income_estimate: number
+  portfolio_yield: number
+  previous_year_dividends: number
+  total_dividends_received: number
+}
+
+export interface PortfolioMetrics {
+  diversification_score: number
+  largest_position_percentage: number
+  number_of_positions: number
+}
+
+export interface PortfolioSummary {
+  assets: AssetSummary[]
+  currency: string
+  dividend_metrics: DividendMetrics
+  initial_investment: number
+  last_update: string
+  metrics: PortfolioMetrics
+  net_investment: number
+  returns_include_dividends: boolean
+  total_gain_loss: number
+  total_gain_loss_percentage: number
+  total_value: number
+  total_withdrawals: number
+}
