@@ -117,6 +117,7 @@ export function CreateRefundModal({
         setAllIncomeTransactions(prev => [...prev, ...incomeTransactions.items])
       }
       setHasMoreIncomes(incomeTransactions.total > incomePage * 20)
+      setIsLoadingMoreIncomes(false)
     }
   }, [incomeTransactions, incomePage])
 
@@ -131,6 +132,7 @@ export function CreateRefundModal({
         ])
       }
       setHasMoreExpenses(expenseTransactions.total > expensePage * 20)
+      setIsLoadingMoreExpenses(false)
     }
   }, [expenseTransactions, expensePage])
 
@@ -158,11 +160,12 @@ export function CreateRefundModal({
           !isLoadingMoreIncomes &&
           step === "incomes"
         ) {
+          console.log("Loading more incomes")
           setIsLoadingMoreIncomes(true)
           setIncomePage(prev => prev + 1)
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1, rootMargin: "100px" }
     )
 
     const expenseObserver = new IntersectionObserver(
@@ -174,11 +177,12 @@ export function CreateRefundModal({
           !isLoadingMoreExpenses &&
           step === "expenses"
         ) {
+          console.log("Loading more expenses")
           setIsLoadingMoreExpenses(true)
           setExpensePage(prev => prev + 1)
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1, rootMargin: "100px" }
     )
 
     if (incomeLoadMoreRef.current) {
@@ -204,15 +208,6 @@ export function CreateRefundModal({
     isLoadingMoreExpenses,
     step,
   ])
-
-  // Reset loading states when data arrives
-  useEffect(() => {
-    setIsLoadingMoreIncomes(false)
-  }, [incomeTransactions])
-
-  useEffect(() => {
-    setIsLoadingMoreExpenses(false)
-  }, [expenseTransactions])
 
   // Replace individual transaction queries with a single query for all IDs
   const expenseIds = editMode?.refundItems.map(item => item.expenseId) || []
@@ -533,7 +528,7 @@ export function CreateRefundModal({
                   className="pl-9"
                 />
               </div>
-              <div className=" overflow-y-auto rounded-lg border bg-white">
+              <div className="h-[400px] overflow-y-auto rounded-lg border bg-white expense-container">
                 {isLoadingExpenses && expensePage === 1 ? (
                   <div className="flex items-center justify-center h-full">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -599,8 +594,19 @@ export function CreateRefundModal({
                         ref={expenseLoadMoreRef}
                         className="p-4 flex justify-center"
                       >
-                        {isLoadingMoreExpenses && (
+                        {isLoadingMoreExpenses ? (
                           <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setIsLoadingMoreExpenses(true);
+                              setExpensePage(prev => prev + 1);
+                            }}
+                          >
+                            Load More
+                          </Button>
                         )}
                       </div>
                     )}
@@ -640,7 +646,7 @@ export function CreateRefundModal({
                   className="pl-9"
                 />
               </div>
-              <div className="h-[400px] overflow-y-auto rounded-lg border bg-white">
+              <div className="h-[400px] overflow-y-auto rounded-lg border bg-white income-container">
                 {isLoadingIncomes && incomePage === 1 ? (
                   <div className="flex items-center justify-center h-full">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -706,8 +712,19 @@ export function CreateRefundModal({
                         ref={incomeLoadMoreRef}
                         className="p-4 flex justify-center"
                       >
-                        {isLoadingMoreIncomes && (
+                        {isLoadingMoreIncomes ? (
                           <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setIsLoadingMoreIncomes(true);
+                              setIncomePage(prev => prev + 1);
+                            }}
+                          >
+                            Load More
+                          </Button>
                         )}
                       </div>
                     )}
