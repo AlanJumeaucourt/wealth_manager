@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { RefundGroup, RefundItem } from "@/types"
 import { Loader2, Plus } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 export function RefundsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -22,10 +22,28 @@ export function RefundsPage() {
     per_page: 100,
   })
 
+  // Log the deletion state
+  useEffect(() => {
+    console.log("Deletion state changed:", {
+      deletingRefundGroup,
+      deletingRefundItem,
+      deleteDialogOpen: !!deletingRefundGroup || !!deletingRefundItem
+    })
+  }, [deletingRefundGroup, deletingRefundItem])
+
   const isLoading = isLoadingGroups || isLoadingItems
   const hasRefunds =
     (refundGroups?.items.length || 0) > 0 ||
     (refundItems?.items.length || 0) > 0
+
+  const handleDeleteDialogChange = (open: boolean) => {
+    console.log("DeleteDialog open changed to:", open)
+    if (!open) {
+      console.log("Resetting deleting states")
+      setDeletingRefundGroup(null)
+      setDeletingRefundItem(null)
+    }
+  }
 
   useKeyboardShortcuts({
     onNew: () => {
@@ -68,8 +86,14 @@ export function RefundsPage() {
         <RefundsList
           refundGroups={refundGroups?.items || []}
           refundItems={refundItems?.items || []}
-          onDeleteRefundGroup={setDeletingRefundGroup}
-          onDeleteRefundItem={setDeletingRefundItem}
+          onDeleteRefundGroup={group => {
+            console.log("Setting refund group to delete:", group)
+            setDeletingRefundGroup(group)
+          }}
+          onDeleteRefundItem={item => {
+            console.log("Setting refund item to delete:", item)
+            setDeletingRefundItem(item)
+          }}
         />
       )}
 
@@ -80,12 +104,7 @@ export function RefundsPage() {
 
       <DeleteRefundDialog
         open={!!deletingRefundGroup || !!deletingRefundItem}
-        onOpenChange={open => {
-          if (!open) {
-            setDeletingRefundGroup(null)
-            setDeletingRefundItem(null)
-          }
-        }}
+        onOpenChange={handleDeleteDialogChange}
         refundGroup={deletingRefundGroup || undefined}
         refundItem={deletingRefundItem || undefined}
       />

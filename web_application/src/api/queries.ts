@@ -38,7 +38,7 @@ export const QueryKeys = {
     ] as QueryKeyArray,
   investments: ["investments"] as QueryKeyArray,
   investmentById: (id: number) => ["investments", id] as QueryKeyArray,
-  portfolioPerformance: (period?: string) => 
+  portfolioPerformance: (period?: string) =>
     ["portfolio", "performance", period] as QueryKeyArray,
   portfolioSummary: (accountId?: number) =>
     ["portfolio", "summary", accountId] as QueryKeyArray,
@@ -98,14 +98,31 @@ async function fetchWithAuth<T>(
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    if (handleTokenExpiration(error)) {
-      throw new Error("Token expired")
+    // Handle error responses
+    try {
+      const error = await response.json()
+      if (handleTokenExpiration(error)) {
+        throw new Error("Token expired")
+      }
+      throw new Error(`Failed to ${options.method || "fetch"} ${endpoint}: ${error.message || "Unknown error"}`)
+    } catch (jsonError) {
+      // If response is not JSON, just throw a generic error
+      throw new Error(`Failed to ${options.method || "fetch"} ${endpoint}: ${response.statusText}`)
     }
-    throw new Error(`Failed to ${options.method || "fetch"} ${endpoint}`)
   }
 
-  return response.json()
+  // For DELETE operations that return no content (204)
+  // or if response body is empty
+  if (options.method === "DELETE" || response.headers.get("content-length") === "0") {
+    return {} as T;
+  }
+
+  try {
+    return await response.json();
+  } catch (jsonError) {
+    console.warn(`Empty or invalid JSON response from ${endpoint}`);
+    return {} as T;
+  }
 }
 
 // Helper for invalidating queries with special cases
@@ -131,15 +148,32 @@ function createBatchDeleteMutation<T extends { id?: number }>(
   queryClient: ReturnType<typeof useQueryClient>
 ) {
   return useMutation({
-    mutationFn: (ids: number[]) =>
-      fetchWithAuth<BatchDeleteResponse>(`${endpoint}/batch/delete`, {
-        method: "POST",
-        body: { ids },
-      }),
-    onSuccess: () => {
-      queryKeysToInvalidate.forEach(key => invalidateQueries(queryClient, key))
+    mutationFn: async (ids: number[]) => {
+      try {
+        // Ensure we have a valid array of IDs
+        if (!Array.isArray(ids) || ids.length === 0) {
+          throw new Error("No items selected for deletion");
+        }
+
+        // The backend already returns the specific BatchDeleteResponse format
+        return await fetchWithAuth<BatchDeleteResponse>(`${endpoint}/batch/delete`, {
+          method: "POST",
+          body: { ids },
+        });
+      } catch (error) {
+        console.error(`Batch delete error for ${endpoint}:`, error);
+        throw error;
+      }
     },
-  })
+    onSuccess: (result) => {
+      console.log(`Batch delete results for ${endpoint}:`, result);
+      // Invalidate relevant queries to refresh data
+      queryKeysToInvalidate.forEach(key => invalidateQueries(queryClient, key));
+    },
+    onError: (error) => {
+      console.error(`Batch delete operation failed for ${endpoint}:`, error);
+    }
+  });
 }
 
 // Common query configuration

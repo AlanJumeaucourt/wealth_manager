@@ -572,7 +572,7 @@ class WealthManagerApi:
 
 
 def process_investment_csv(
-    csv_data: str, account_name: str, wealthmanager_api: WealthManagerApi = None
+    csv_data: str, account_name: str, wealthmanager_api: WealthManagerApi | None = None
 ):
     """Process investment transactions from CSV data.
 
@@ -583,7 +583,13 @@ def process_investment_csv(
 
     """
     # Read the CSV data into a DataFrame
-    df = pd.read_csv(StringIO(csv_data))
+    df = pd.read_csv(
+        StringIO(csv_data),
+        comment="#",
+        skip_blank_lines=True,
+        engine="python",  # Use python engine for more flexible parsing
+        on_bad_lines="warn",  # Skip lines that can't be parsed correctly
+    )
     df = df.sort_values(by="date", ascending=True)
 
     # Fetch existing investments and dividends - we need this even in dry run mode to show accurate missing count
@@ -1138,7 +1144,7 @@ if __name__ == "__main__":
         "--user-password", default="aaaaaa", help="User password for WealthManager API"
     )
     parser.add_argument(
-        "--user-name", default="a", help="User name for WealthManager API"
+        "--user-name", default="Alan J", help="User name for WealthManager API"
     )
 
     args = parser.parse_args()

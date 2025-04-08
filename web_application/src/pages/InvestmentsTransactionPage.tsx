@@ -1,5 +1,6 @@
 import { useAccounts, useAssets, useInvestments } from "@/api/queries"
 import { AddInvestmentDialog } from "@/components/investmentsTransaction/AddInvestmentTransactionDialog"
+import { BatchDeleteInvestmentsButton, BatchDeleteResponse } from "@/components/investmentsTransaction/BatchDeleteInvestmentsButton"
 import { DeleteInvestmentDialog } from "@/components/investmentsTransaction/DeleteInvestmentTransactionDialog"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
@@ -53,7 +54,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react"
-import { useEffect, useRef, useState, memo, useMemo } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 
 type SortField =
   | "date"
@@ -491,6 +492,18 @@ export function InvestmentsTransactionPage() {
     },
   ]
 
+  // Fix the type for the batch delete handler
+  const handleBatchDeleteSuccess = (result: BatchDeleteResponse) => {
+    // Clear selections after successful delete
+    if (result.total_successful > 0) {
+      setSelectedInvestments([]);
+      toast({
+        title: "Investments deleted",
+        description: `Successfully deleted ${result.total_successful} investment transactions.`
+      });
+    }
+  };
+
   return (
     <PageContainer title="Investment Transactions">
       <div className="space-y-6">
@@ -570,23 +583,11 @@ export function InvestmentsTransactionPage() {
           <div className="flex gap-2">
             {selectedInvestments.length > 0 && (
               <>
-                <Button
-                  variant="destructive"
-                  className="w-full sm:w-auto"
-                  onClick={() =>
-                    setDeletingInvestment(
-                      investments.find(
-                        i => i.transaction_id === selectedInvestments[0]
-                      ) || null
-                    )
-                  }
-                >
-                  <Trash className="h-4 w-4 mr-2" />
-                  Delete{" "}
-                  {selectedInvestments.length > 1
-                    ? `(${selectedInvestments.length})`
-                    : ""}
-                </Button>
+                <BatchDeleteInvestmentsButton
+                  selectedInvestments={investments.filter(i => selectedInvestments.includes(i.transaction_id))}
+                  onSuccess={handleBatchDeleteSuccess}
+                  disabled={isLoading}
+                />
                 <Button variant="outline" className="w-full sm:w-auto">
                   <Download className="h-4 w-4 mr-2" />
                   Export

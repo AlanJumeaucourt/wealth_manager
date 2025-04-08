@@ -1,38 +1,40 @@
 import { useAccounts, useAllCategories, useTransactions } from "@/api/queries"
+import { PageContainer } from "@/components/layout/PageContainer"
 import { AddTransactionDialog } from "@/components/transactions/AddTransactionDialog"
+import { BatchDeleteResponse, BatchDeleteTransactionsButton } from "@/components/transactions/BatchDeleteTransactionsButton"
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog"
 import { EditTransactionDialog } from "@/components/transactions/EditTransactionDialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table"
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useToast } from "@/hooks/use-toast"
@@ -40,25 +42,24 @@ import { useDebounce } from "@/hooks/useDebounce"
 import { useDateRangeStore } from "@/store/dateRangeStore"
 import { useDialogStore } from "@/store/dialogStore"
 import {
-    Account,
-    Transaction,
-    TransactionField,
-    TransactionType,
+  Account,
+  Transaction,
+  TransactionField,
+  TransactionType,
 } from "@/types"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
-    ArrowDownIcon,
-    ArrowUpDown,
-    ArrowUpIcon,
-    Pencil,
-    Plus,
-    RotateCcw,
-    Search,
-    Trash,
-    X
+  ArrowDownIcon,
+  ArrowUpDown,
+  ArrowUpIcon,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+  Trash,
+  X
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-
 interface TransactionsPageProps {
   defaultType?: string
 }
@@ -757,412 +758,414 @@ export function TransactionsPage({
     onNextPage: () => handlePageChange(Math.min(totalPages, pageFilter + 1)),
   })
 
+  // Fix the type for the batch delete handler
+  const handleBatchDeleteSuccess = (result: BatchDeleteResponse) => {
+    // Clear selections after successful delete
+    if (result.total_successful > 0) {
+      setSelectedTransactions([]);
+      toast({
+        title: "Transactions deleted",
+        description: `Successfully deleted ${result.total_successful} transactions.`
+      });
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {shouldShowSkeleton ? (
-          Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="bg-card rounded-xl p-6 shadow-sm border border-border/50"
-            >
-              <Skeleton className="h-4 w-24 mb-2" />
-              <Skeleton className="h-8 w-32" />
-            </div>
-          ))
-        ) : (
-          <>
-            <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-              <p className="text-sm text-muted-foreground">{statsText.count}</p>
-              <p className="text-2xl font-semibold mt-2">{totalItems}</p>
-            </div>
-            <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-              <p className="text-sm text-muted-foreground">
-                {statsText.average}
-              </p>
-              <p className="text-2xl font-semibold mt-2">
-                {new Intl.NumberFormat(undefined, {
-                  style: "currency",
-                  currency: "EUR",
-                }).format(
-                  Math.abs((transactionsResponse?.total_amount || 0) / 12)
-                )}
-              </p>
-            </div>
-            <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-              <p className="text-sm text-muted-foreground">{statsText.title}</p>
-              <p
-                className={`text-2xl font-semibold mt-2 ${
-                  defaultType === "expense"
-                    ? "text-destructive"
-                    : defaultType === "income"
-                      ? "text-green-600"
-                      : ""
-                }`}
+    <PageContainer title={defaultType === "all" ? "All Transactions" : `${defaultType.charAt(0).toUpperCase() + defaultType.slice(1)} Transactions`}>
+
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {shouldShowSkeleton ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="bg-card rounded-xl p-6 shadow-sm border border-border/50"
               >
-                {new Intl.NumberFormat(undefined, {
-                  style: "currency",
-                  currency: "EUR",
-                }).format(Math.abs(transactionsResponse?.total_amount || 0))}
-              </p>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Type
-            </label>
-            <Select value={typeFilter} onValueChange={handleTypeChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="expense">Expense</SelectItem>
-                <SelectItem value="transfer">Transfer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Date Range
-            </label>
-            <Select defaultValue="all" onValueChange={handleDateRangeChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select date range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-                <SelectItem value="all">All time</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Category
-            </label>
-            <Select
-              value={categoryFilter || "all"}
-              onValueChange={handleCategoryChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {allCategories &&
-                  Object.entries(allCategories).flatMap(([type, categories]) =>
-                    categories.map(category => (
-                      <SelectItem
-                        key={category.name.fr}
-                        value={category.name.fr}
-                      >
-                        {category.name.fr}
-                      </SelectItem>
-                    ))
-                  )}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Account
-            </label>
-            <Select
-              value={accountFilter || "all"}
-              onValueChange={handleAccountChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Accounts</SelectItem>
-                {accounts.map(account => (
-                  <SelectItem key={account.id} value={account.id.toString()}>
-                    {account.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {activeFilters.length > 0 && (
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
-            <div className="flex items-center gap-2 flex-wrap">
-              {activeFilters.map(filter => (
-                <span
-                  key={filter.type}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary"
-                >
-                  {filter.label}
-                  <button
-                    className="ml-1 text-primary hover:text-primary/80"
-                    onClick={() => removeFilter(filter)}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <button
-              className="text-sm text-muted-foreground hover:text-foreground"
-              onClick={clearAllFilters}
-            >
-              Clear all filters
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search transactions..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-10 bg-background border-border/50"
-          />
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          {isLoadingAccounts ? (
-            <Skeleton className="h-10 w-[140px]" />
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-8 w-32" />
+              </div>
+            ))
           ) : (
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={() => setIsAddingTransaction(true)}
-              disabled={isLoadingAccounts}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Transaction
-            </Button>
-          )}
-          {selectedTransactions.length > 0 && (
-            <Button
-              variant="destructive"
-              className="w-full sm:w-auto"
-              onClick={() => {
-                const transaction = transactions.find(
-                  t => t.id === selectedTransactions[0]
-                )
-                if (transaction) {
-                  setDeleteTransaction(transaction)
-                }
-              }}
-            >
-              <Trash className="h-4 w-4 mr-2" />
-              Delete{" "}
-              {selectedTransactions.length > 1
-                ? `(${selectedTransactions.length})`
-                : ""}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-card rounded-xl shadow-sm border border-border/50 overflow-hidden">
-        <Table ref={tableRef}>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={
-                    selectedTransactions.length === transactions.length &&
-                    transactions.length > 0
-                  }
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Select all"
-                />
-              </TableHead>
-              <TableHead
-                className="w-[150px] cursor-pointer hover:text-primary transition-colors"
-                onClick={() => handleSort("date")}
-              >
-                Date <SortIcon field="date" />
-              </TableHead>
-              <TableHead
-                className="w-[400px] cursor-pointer hover:text-primary transition-colors"
-                onClick={() => handleSort("description")}
-              >
-                Description <SortIcon field="description" />
-              </TableHead>
-              <TableHead
-                className="w-[150px] cursor-pointer hover:text-primary transition-colors"
-                onClick={() => handleSort("category")}
-              >
-                Category <SortIcon field="category" />
-              </TableHead>
-              <TableHead
-                className="text-right w-[150px] cursor-pointer hover:text-primary transition-colors"
-                onClick={() => handleSort("amount")}
-              >
-                Amount <SortIcon field="amount" />
-              </TableHead>
-              <TableHead className="w-[100px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shouldShowSkeleton ? (
-              Array.from({ length: 5 }).map((_, index) => skeletonCells())
-            ) : displayTransactions.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={getEmptyStateColspan()}
-                  className="h-32 text-center"
+            <>
+              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
+                <p className="text-sm text-muted-foreground">{statsText.count}</p>
+                <p className="text-2xl font-semibold mt-2">{totalItems}</p>
+              </div>
+              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
+                <p className="text-sm text-muted-foreground">
+                  {statsText.average}
+                </p>
+                <p className="text-2xl font-semibold mt-2">
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format(
+                    Math.abs((transactionsResponse?.total_amount || 0) / 12)
+                  )}
+                </p>
+              </div>
+              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
+                <p className="text-sm text-muted-foreground">{statsText.title}</p>
+                <p
+                  className={`text-2xl font-semibold mt-2 ${
+                    defaultType === "expense"
+                      ? "text-destructive"
+                      : defaultType === "income"
+                        ? "text-green-600"
+                        : ""
+                  }`}
                 >
-                  <div className="flex flex-col items-center justify-center text-muted-foreground">
-                    <p>No transactions found</p>
-                    <Button
-                      variant="link"
-                      onClick={() => setIsAddingTransaction(true)}
-                      className="mt-2"
-                    >
-                      Add your first transaction
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              displayTransactions.map(transaction => (
-                <TransactionRow
-                  key={transaction.id}
-                  transaction={transaction}
-                  isSelected={selectedTransactions.includes(transaction.id)}
-                  onSelect={handleSelectTransaction}
-                  onEdit={setEditTransaction}
-                  onDelete={setDeleteTransaction}
-                  getAccountName={getAccountName}
-                  getCategoryColor={getCategoryColor}
-                  navigate={navigate}
-                  search={search}
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {(pageFilter - 1) * itemsPerPage + 1} to{" "}
-            {Math.min(pageFilter * itemsPerPage, totalItems)} of {totalItems}{" "}
-            transactions
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(1)}
-              disabled={pageFilter === 1}
-            >
-              First
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(Math.max(1, pageFilter - 1))}
-              disabled={pageFilter === 1}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEnteringPage(true)}
-            >
-              Page {pageFilter} of {totalPages}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                handlePageChange(Math.min(totalPages, pageFilter + 1))
-              }
-              disabled={pageFilter === totalPages}
-            >
-              Next
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(totalPages)}
-              disabled={pageFilter === totalPages}
-            >
-              Last
-            </Button>
-          </div>
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format(Math.abs(transactionsResponse?.total_amount || 0))}
+                </p>
+              </div>
+            </>
+          )}
         </div>
-      )}
 
-      <EditTransactionDialog redirectTo="/transactions/all" />
-      <DeleteTransactionDialog redirectTo="/transactions/all" />
-
-      {isAddingTransaction && (
-        <AddTransactionDialog
-          open={isAddingTransaction}
-          onOpenChange={open => !open && setIsAddingTransaction(false)}
-          defaultType={defaultType === "all" ? undefined : defaultType}
-        />
-      )}
-
-      <Dialog open={isEnteringPage} onOpenChange={setIsEnteringPage}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Go to Page</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Input
-                type="number"
-                min={1}
-                max={totalPages}
-                value={manualPageInput}
-                onChange={e => setManualPageInput(e.target.value)}
-                placeholder={`Enter page (1-${totalPages})`}
-              />
+        <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Type
+              </label>
+              <Select value={typeFilter} onValueChange={handleTypeChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Date Range
+              </label>
+              <Select defaultValue="all" onValueChange={handleDateRangeChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select date range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="90d">Last 90 days</SelectItem>
+                  <SelectItem value="all">All time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Category
+              </label>
+              <Select
+                value={categoryFilter || "all"}
+                onValueChange={handleCategoryChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {allCategories &&
+                    Object.entries(allCategories).flatMap(([type, categories]) =>
+                      categories.map(category => (
+                        <SelectItem
+                          key={category.name.fr}
+                          value={category.name.fr}
+                        >
+                          {category.name.fr}
+                        </SelectItem>
+                      ))
+                    )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Account
+              </label>
+              <Select
+                value={accountFilter || "all"}
+                onValueChange={handleAccountChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  {accounts.map(account => (
+                    <SelectItem key={account.id} value={account.id.toString()}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsEnteringPage(false)
-                setManualPageInput("")
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                const pageNum = parseInt(manualPageInput)
-                if (pageNum >= 1 && pageNum <= totalPages) {
-                  handlePageChange(pageNum)
+
+          {activeFilters.length > 0 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
+              <div className="flex items-center gap-2 flex-wrap">
+                {activeFilters.map(filter => (
+                  <span
+                    key={filter.type}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary"
+                  >
+                    {filter.label}
+                    <button
+                      className="ml-1 text-primary hover:text-primary/80"
+                      onClick={() => removeFilter(filter)}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <button
+                className="text-sm text-muted-foreground hover:text-foreground"
+                onClick={clearAllFilters}
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full sm:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search transactions..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10 bg-background border-border/50"
+            />
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            {isLoadingAccounts ? (
+              <Skeleton className="h-10 w-[140px]" />
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setIsAddingTransaction(true)}
+                disabled={isLoadingAccounts}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Transaction
+              </Button>
+            )}
+            {selectedTransactions.length > 0 && (
+              <BatchDeleteTransactionsButton
+                selectedTransactions={transactions.filter(t => selectedTransactions.includes(t.id))}
+                onSuccess={handleBatchDeleteSuccess}
+                disabled={isLoading}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="bg-card rounded-xl shadow-sm border border-border/50 overflow-hidden">
+          <Table ref={tableRef}>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={
+                      selectedTransactions.length === transactions.length &&
+                      transactions.length > 0
+                    }
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+                <TableHead
+                  className="w-[150px] cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => handleSort("date")}
+                >
+                  Date <SortIcon field="date" />
+                </TableHead>
+                <TableHead
+                  className="w-[400px] cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => handleSort("description")}
+                >
+                  Description <SortIcon field="description" />
+                </TableHead>
+                <TableHead
+                  className="w-[150px] cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => handleSort("category")}
+                >
+                  Category <SortIcon field="category" />
+                </TableHead>
+                <TableHead
+                  className="text-right w-[150px] cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => handleSort("amount")}
+                >
+                  Amount <SortIcon field="amount" />
+                </TableHead>
+                <TableHead className="w-[100px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shouldShowSkeleton ? (
+                Array.from({ length: 5 }).map((_, index) => skeletonCells())
+              ) : displayTransactions.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={getEmptyStateColspan()}
+                    className="h-32 text-center"
+                  >
+                    <div className="flex flex-col items-center justify-center text-muted-foreground">
+                      <p>No transactions found</p>
+                      <Button
+                        variant="link"
+                        onClick={() => setIsAddingTransaction(true)}
+                        className="mt-2"
+                      >
+                        Add your first transaction
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                displayTransactions.map(transaction => (
+                  <TransactionRow
+                    key={transaction.id}
+                    transaction={transaction}
+                    isSelected={selectedTransactions.includes(transaction.id)}
+                    onSelect={handleSelectTransaction}
+                    onEdit={setEditTransaction}
+                    onDelete={setDeleteTransaction}
+                    getAccountName={getAccountName}
+                    getCategoryColor={getCategoryColor}
+                    navigate={navigate}
+                    search={search}
+                  />
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {(pageFilter - 1) * itemsPerPage + 1} to{" "}
+              {Math.min(pageFilter * itemsPerPage, totalItems)} of {totalItems}{" "}
+              transactions
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={pageFilter === 1}
+              >
+                First
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(Math.max(1, pageFilter - 1))}
+                disabled={pageFilter === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEnteringPage(true)}
+              >
+                Page {pageFilter} of {totalPages}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  handlePageChange(Math.min(totalPages, pageFilter + 1))
+                }
+                disabled={pageFilter === totalPages}
+              >
+                Next
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={pageFilter === totalPages}
+              >
+                Last
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <EditTransactionDialog redirectTo="/transactions/all" />
+        <DeleteTransactionDialog redirectTo="/transactions/all" />
+
+        {isAddingTransaction && (
+          <AddTransactionDialog
+            open={isAddingTransaction}
+            onOpenChange={open => !open && setIsAddingTransaction(false)}
+            defaultType={defaultType === "all" ? undefined : defaultType}
+          />
+        )}
+
+        <Dialog open={isEnteringPage} onOpenChange={setIsEnteringPage}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Go to Page</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={manualPageInput}
+                  onChange={e => setManualPageInput(e.target.value)}
+                  placeholder={`Enter page (1-${totalPages})`}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
                   setIsEnteringPage(false)
                   setManualPageInput("")
-                } else {
-                  toast({
-                    title: "Invalid page number",
-                    description: `Please enter a number between 1 and ${totalPages}`,
-                    variant: "destructive",
-                  })
-                }
-              }}
-            >
-              Go to Page
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const pageNum = parseInt(manualPageInput)
+                  if (pageNum >= 1 && pageNum <= totalPages) {
+                    handlePageChange(pageNum)
+                    setIsEnteringPage(false)
+                    setManualPageInput("")
+                  } else {
+                    toast({
+                      title: "Invalid page number",
+                      description: `Please enter a number between 1 and ${totalPages}`,
+                      variant: "destructive",
+                    })
+                  }
+                }}
+              >
+                Go to Page
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+  </PageContainer>
   )
 }

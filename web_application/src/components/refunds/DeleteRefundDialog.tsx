@@ -11,7 +11,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { RefundGroup, RefundItem } from "@/types"
 import { Loader2 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 interface DeleteRefundDialogProps {
   open: boolean
@@ -28,39 +28,106 @@ export function DeleteRefundDialog({
 }: DeleteRefundDialogProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
-  const deleteRefundGroup = useDeleteRefundGroup()
-  const deleteRefundItem = useDeleteRefundItem()
+
+  // Get mutation hooks with direct access to their states
+  const deleteRefundGroupMutation = useDeleteRefundGroup()
+  const deleteRefundItemMutation = useDeleteRefundItem()
+
+  // Reset deleting state when dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      setIsDeleting(false)
+    }
+  }, [open])
+
+  // Watch mutation states to detect completion
+  useEffect(() => {
+    // Only check if we're in deleting state
+    if (!isDeleting) return
+
+    const isGroupDeleting = deleteRefundGroupMutation.isPending
+    const isItemDeleting = deleteRefundItemMutation.isPending
+
+    // If we were deleting and both mutations are no longer pending
+    if (!isGroupDeleting && !isItemDeleting) {
+      const groupError = deleteRefundGroupMutation.error
+      const itemError = deleteRefundItemMutation.error
+
+      // Check for errors
+      if (groupError || itemError) {
+        console.error("Deletion error:", groupError || itemError)
+        toast({
+          title: "Error",
+          description: "Failed to delete the refund. Please try again.",
+          variant: "destructive",
+        })
+        setIsDeleting(false)
+      } else {
+        // No errors, successfully deleted
+        if (refundGroup) {
+          toast({
+            title: "Refund group deleted",
+            description: `Successfully deleted "${refundGroup.name}"`,
+          })
+        } else if (refundItem) {
+          toast({
+            title: "Refund deleted",
+            description: "Successfully deleted the refund",
+          })
+        }
+        // Close dialog after successful deletion
+        onOpenChange(false)
+      }
+    }
+  }, [
+    isDeleting,
+    deleteRefundGroupMutation.isPending,
+    deleteRefundItemMutation.isPending,
+    deleteRefundGroupMutation.error,
+    deleteRefundItemMutation.error,
+    refundGroup,
+    refundItem,
+    toast,
+    onOpenChange
+  ])
 
   const handleDelete = async () => {
+    if (isDeleting) return
+
+    setIsDeleting(true)
+
     try {
-      setIsDeleting(true)
-      if (refundGroup) {
-        await deleteRefundGroup.mutateAsync(refundGroup.id!)
+      if (refundGroup && refundGroup.id) {
+        console.log("Deleting refund group with ID:", refundGroup.id)
+        deleteRefundGroupMutation.mutate(refundGroup.id)
+      } else if (refundItem && refundItem.id) {
+        console.log("Deleting refund item with ID:", refundItem.id)
+        deleteRefundItemMutation.mutate(refundItem.id)
+      } else {
+        console.error("Nothing to delete: no valid refund group or item provided")
+        setIsDeleting(false)
         toast({
-          title: "Refund group deleted",
-          description: `Successfully deleted "${refundGroup.name}"`,
-        })
-      } else if (refundItem) {
-        await deleteRefundItem.mutateAsync(refundItem.id!)
-        toast({
-          title: "Refund deleted",
-          description: "Successfully deleted the refund",
+          title: "Error",
+          description: "Nothing to delete. Please try again.",
+          variant: "destructive",
         })
       }
-      onOpenChange(false)
     } catch (error) {
+      console.error("Error triggering deletion:", error)
+      setIsDeleting(false)
       toast({
         title: "Error",
-        description: "Failed to delete the refund. Please try again.",
+        description: "Failed to start deletion process. Please try again.",
         variant: "destructive",
       })
-    } finally {
-      setIsDeleting(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={isDeleting ? undefined : onOpenChange}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-red-500">
@@ -98,7 +165,7 @@ export function DeleteRefundDialog({
           <Button
             variant="destructive"
             onClick={handleDelete}
-            disabled={isDeleting}
+            disabled={isDeleting || deleteRefundGroupMutation.isPending || deleteRefundItemMutation.isPending}
           >
             {isDeleting ? (
               <>

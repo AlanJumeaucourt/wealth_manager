@@ -7,6 +7,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { RefundGroup, RefundItem, Transaction } from "@/types"
 import {
@@ -22,12 +23,24 @@ import {
     Wallet,
 } from "lucide-react"
 import { useState } from "react"
+import { BatchDeleteRefundsButton } from "./BatchDeleteRefundsButton"
 
 interface RefundsListProps {
   refundGroups: RefundGroup[]
   refundItems: RefundItem[]
   onDeleteRefundGroup: (group: RefundGroup) => void
   onDeleteRefundItem: (item: RefundItem) => void
+}
+
+// Match the backend response format
+interface BatchDeleteResponse {
+  successful: number[];
+  failed: Array<{
+    id: number;
+    error: string;
+  }>;
+  total_successful: number;
+  total_failed: number;
 }
 
 export function RefundsList({
@@ -65,6 +78,10 @@ export function RefundsList({
     id: number
   } | null>(null)
 
+  // Add state for batch selection
+  const [selectedGroups, setSelectedGroups] = useState<RefundGroup[]>([]);
+  const [selectedItems, setSelectedItems] = useState<RefundItem[]>([]);
+
   // Create a map of all transactions
   const transactionsMap = new Map<number, Transaction>(
     (transactionsData?.items || []).map(t => [t.id, t])
@@ -72,6 +89,55 @@ export function RefundsList({
 
   // Group standalone refund items (not part of a group)
   const standaloneItems = refundItems.filter(item => !item.refund_group_id)
+
+  // Add toggles for selection
+  const toggleGroupSelection = (group: RefundGroup) => {
+    setSelectedGroups(prev => {
+      const isSelected = prev.some(g => g.id === group.id);
+      return isSelected
+        ? prev.filter(g => g.id !== group.id)
+        : [...prev, group];
+    });
+  };
+
+  const toggleItemSelection = (item: RefundItem) => {
+    setSelectedItems(prev => {
+      const isSelected = prev.some(i => i.id === item.id);
+      return isSelected
+        ? prev.filter(i => i.id !== item.id)
+        : [...prev, item];
+    });
+  };
+
+  const clearSelections = () => {
+    setSelectedGroups([]);
+    setSelectedItems([]);
+  };
+
+  // Handle batch delete success
+  const handleBatchDeleteSuccess = (result: BatchDeleteResponse) => {
+    // If all selected items were successfully deleted, clear the selections
+    if (result.total_successful > 0) {
+      clearSelections();
+    } else {
+      // Handle partial failure - remove successfully deleted items from selection
+      setSelectedGroups(prev =>
+        prev.filter(group => !result.successful.includes(group.id!))
+      );
+      setSelectedItems(prev =>
+        prev.filter(item => !result.successful.includes(item.id!))
+      );
+    }
+  };
+
+  // Check if a group or item is selected
+  const isGroupSelected = (groupId: number) => {
+    return selectedGroups.some(g => g.id === groupId);
+  };
+
+  const isItemSelected = (itemId: number) => {
+    return selectedItems.some(i => i.id === itemId);
+  };
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString(undefined, {
@@ -236,6 +302,34 @@ export function RefundsList({
 
   return (
     <div className="space-y-8">
+      {/* Batch Actions */}
+      {(selectedGroups.length > 0 || selectedItems.length > 0) && (
+        <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="text-sm">
+            {selectedGroups.length > 0 && (
+              <span className="mr-4">{selectedGroups.length} groups selected</span>
+            )}
+            {selectedItems.length > 0 && (
+              <span>{selectedItems.length} refunds selected</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearSelections}
+            >
+              Clear Selection
+            </Button>
+            <BatchDeleteRefundsButton
+              selectedRefundGroups={selectedGroups}
+              selectedRefundItems={selectedItems}
+              onSuccess={handleBatchDeleteSuccess}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Summary Dashboard */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6">
@@ -306,12 +400,20 @@ export function RefundsList({
         return (
           <div
             key={group.id}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all hover:shadow-md"
+            className={`bg-white rounded-lg shadow-sm border ${
+              isGroupSelected(group.id!) ? "border-primary" : "border-gray-200"
+            } overflow-hidden transition-all hover:shadow-md relative`}
             onMouseEnter={() =>
               setHoveredItem({ type: "group", id: group.id! })
             }
             onMouseLeave={() => setHoveredItem(null)}
           >
+            <div className="absolute top-4 left-4 z-10">
+              <Checkbox
+                checked={isGroupSelected(group.id!)}
+                onCheckedChange={() => toggleGroupSelection(group)}
+              />
+            </div>
             <div className="p-6 space-y-6">
               {/* Header */}
               <div className="flex justify-between items-start">
@@ -582,6 +684,12 @@ export function RefundsList({
 
               return (
                 <div key={item.id} className="relative group">
+                  <div className="absolute top-2 left-2 z-10">
+                    <Checkbox
+                      checked={isItemSelected(item.id!)}
+                      onCheckedChange={() => toggleItemSelection(item)}
+                    />
+                  </div>
                   <RefundCard
                     expense={expense}
                     income={income}
@@ -629,6 +737,7 @@ export function RefundsList({
     </div>
   )
 }
+
 
 
 
