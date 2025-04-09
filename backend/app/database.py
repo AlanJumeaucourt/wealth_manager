@@ -370,6 +370,22 @@ class DatabaseManager:
                     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
                 )
             """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS custom_prices (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    open DECIMAL(10,4) NOT NULL,
+                    high DECIMAL(10,4) NOT NULL,
+                    low DECIMAL(10,4) NOT NULL,
+                    close DECIMAL(10,4) NOT NULL,
+                    volume INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            """,
         ]
 
         views = [

@@ -371,23 +371,152 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 )
             asset_symbol = result[0]["symbol"]
 
+            # Get the investment account ID (to_account_id for buys, from_account_id for sells)
+            investment_account_id = (
+                validated_data["to_account_id"]
+                if validated_data["activity_type"] == "Buy"
+                else validated_data["from_account_id"]
+            )
+
+# Initialize to avoid reference before assignment
+
+            try:
+                pl_account_query = """
+                SELECT id FROM accounts
+                WHERE user_id = ? AND name = 'Investment P/L' AND type = 'expense'
+                """
+                pl_account_expense_result = self.db_manager.execute_select(
+                    pl_account_query, [validated_data["user_id"]]
+                )
+                pl_account_expense_id = pl_account_expense_result[0]["id"]
+
+                pl_account_query = """
+                SELECT id FROM accounts
+                WHERE user_id = ? AND name = 'Investment P/L' AND type = 'income'
+                """
+                pl_account_income_result = self.db_manager.execute_select(
+                    pl_account_query, [validated_data["user_id"]]
+                )
+                pl_account_income_id = pl_account_income_result[0]["id"]
+            except NoResultFoundError:
+                # Create Investment P/L account if it doesn't exist
+                # First, get a bank ID for the user
+                bank_query = "SELECT id FROM banks WHERE user_id = ? LIMIT 1"
+                bank_result = self.db_manager.execute_select(
+                    bank_query, [validated_data["user_id"]]
+                )
+
+                if not bank_result:
+                    raise ValueError("No bank found for user. Please create a bank first.")
+
+                bank_id = bank_result[0]["id"]
+
+                # Now create the Investment P/L account
+                create_pl_expense_account_query = """
+                INSERT INTO accounts (user_id, name, type, bank_id)
+                VALUES (?, 'Investment P/L', 'expense', ?)
+                RETURNING id
+                """
+                pl_account_expense_result = self.db_manager.execute_insert_returning(
+                    create_pl_expense_account_query,
+                    [validated_data["user_id"], bank_id]
+                )
+                pl_account_expense_id = pl_account_expense_result["id"]
+
+                # Create Investment P/L income account
+                create_pl_income_account_query = """
+                INSERT INTO accounts (user_id, name, type, bank_id)
+                VALUES (?, 'Investment P/L', 'income', ?)
+                RETURNING id
+                """
+                pl_account_income_result = self.db_manager.execute_insert_returning(
+                    create_pl_income_account_query,
+                    [validated_data["user_id"], bank_id]
+                )
+                pl_account_income_id = pl_account_income_result["id"]
+
             if validated_data["activity_type"] == "Buy":
                 description = f"Buy {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
-                amount = validated_data["quantity"] * validated_data["unit_price"]
-                +validated_data["fee"]
-                +validated_data["tax"]
+                amount = validated_data["quantity"] * validated_data["unit_price"] + validated_data["fee"] + validated_data["tax"]
             elif validated_data["activity_type"] == "Sell":
-                description = f"Sell {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
-                amount = validated_data["quantity"] * validated_data["unit_price"]
-                -validated_data["fee"]
-                -validated_data["tax"]
-            elif validated_data["activity_type"] == "Dividend":
-                description = (
-                    f"Dividend {asset_symbol} -> {validated_data['unit_price']}€"
+                # Calculate the original cost basis for this sale
+                cost_basis_query = """
+                SELECT SUM(i.quantity * i.unit_price + i.fee + i.tax) as total_cost,
+                       SUM(i.quantity) as total_quantity
+                FROM investment_details i
+                JOIN transactions t ON i.transaction_id = t.id
+                WHERE i.asset_id = ? AND t.user_id = ? AND i.investment_type = 'Buy'
+                """
+                cost_basis_result = self.db_manager.execute_select(
+                    cost_basis_query,
+                    [validated_data["asset_id"], validated_data["user_id"]]
                 )
+
+                if not cost_basis_result or cost_basis_result[0]["total_quantity"] == 0:
+                    raise ValueError("No cost basis found for this asset")
+
+                total_cost = float(cost_basis_result[0]["total_cost"])
+                total_quantity = float(cost_basis_result[0]["total_quantity"])
+
+                # Calculate the portion of cost basis for this sale
+                sale_ratio = validated_data["quantity"] / total_quantity
+                cost_basis_for_sale = total_cost * sale_ratio
+
+                # Calculate sale proceeds
+                sale_proceeds = (
+                    validated_data["quantity"] * validated_data["unit_price"]
+                    - validated_data["fee"]
+                    - validated_data["tax"]
+                )
+
+                # Calculate profit/loss
+                profit_loss = sale_proceeds - cost_basis_for_sale
+
+                description = f"Sell {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
+                amount = sale_proceeds  # This is the main transaction amount
+
+                # Create profit/loss transaction if there is a gain or loss
+                if abs(profit_loss) > 0.01:  # Use small threshold to avoid floating point issues
+
+                    if profit_loss > 0:
+                        pl_description = (
+                        f"Investment P/L for {asset_symbol} sale: gain"
+                        )
+                        from_account_id = pl_account_income_id
+                        to_account_id = investment_account_id
+                        type = "income"
+                    else:
+                        pl_description = (
+                        f"Investment P/L for {asset_symbol} sale: loss"
+                        )
+                        from_account_id = investment_account_id
+                        to_account_id = pl_account_expense_id
+                        type = "expense"
+                    pl_transaction_data = {
+                        "user_id": validated_data["user_id"],
+                        "date": validated_data["date"],
+                        "date_accountability": validated_data["date"],
+                        "description": pl_description,
+                        "amount": abs(profit_loss),
+                        "from_account_id": from_account_id,
+                        "to_account_id": to_account_id,
+                        "category": "Investissements",
+                        "type": type,
+                    }
+
+                    # Insert P/L transaction
+                    pl_columns = ", ".join(pl_transaction_data.keys())
+                    pl_placeholders = ", ".join(["?" for _ in pl_transaction_data])
+                    pl_query = f"INSERT INTO transactions ({pl_columns}) VALUES ({pl_placeholders}) RETURNING *"
+                    pl_transaction_result = self.db_manager.execute_insert_returning(
+                        pl_query, params=list(pl_transaction_data.values())
+                    )
+            elif validated_data["activity_type"] == "Dividend":
+                description = f"Dividend {asset_symbol} -> {validated_data['unit_price']}€"
                 amount = validated_data["unit_price"]
             else:
                 description = f"{validated_data['activity_type'].title()} {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
+                amount = validated_data["quantity"] * validated_data["unit_price"]
 
             # Prepare transaction data
             transaction_data = {
@@ -431,19 +560,9 @@ class InvestmentService(BaseService[InvestmentTransaction]):
             columns = ", ".join(investment_data.keys())
             placeholders = ", ".join(["?" for _ in investment_data])
             query = f"INSERT INTO investment_details ({columns}) VALUES ({placeholders}) RETURNING *"
-            print(f"query={query}")
-            print(f"params={list(investment_data.values())}")
-
             investment_result = self.db_manager.execute_insert_returning(
                 query=query, params=list(investment_data.values())
             )
-            print(f"investment_result={investment_result}")
-
-            # Get current price from Yahoo Finance
-            cursor = connection.cursor()
-            # First get the symbol for the asset
-            symbol_query = "SELECT symbol FROM assets WHERE id = ?"
-            cursor.execute(symbol_query, (validated_data["asset_id"],))
 
             connection.commit()
 
@@ -470,7 +589,6 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 connection.rollback()
             logger.error(f"Error creating investment transaction: {e}")
             raise
-
     def get_asset_transactions(self, user_id: int, symbol: str) -> list[dict[str, Any]]:
         """Get all transactions for a specific asset symbol."""
         query = """--sql

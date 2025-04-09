@@ -84,7 +84,14 @@ class InvestmentTransaction:
     id: int | None = field(default=None)
 
     def __post_init__(self) -> None:
-        if self.activity_type not in ["buy", "sell", "dividend", "interest", "deposit", "withdrawal"]:
+        if self.activity_type not in [
+            "buy",
+            "sell",
+            "dividend",
+            "interest",
+            "deposit",
+            "withdrawal",
+        ]:
             raise ValueError("Invalid activity type.")
 
 
@@ -120,3 +127,20 @@ class RefundItem:
     refund_group_id: int | None = field(default=None)
     description: str | None = field(default=None)
     id: int | None = field(default=None)
+
+
+@dataclass
+class CustomPrice:
+    """Data class for custom price entries."""
+
+    id: int | None = None
+    symbol: str = ""
+    date: str = ""
+    open: float = 0.0
+    high: float = 0.0
+    low: float = 0.0
+    close: float = 0.0
+    volume: int = 0
+    created_at: str | None = None
+    updated_at: str | None = None
+    user_id: int | None = None

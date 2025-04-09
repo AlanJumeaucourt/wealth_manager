@@ -201,6 +201,34 @@ class StockService:
         logger.info(f"Getting historical prices for {symbol} (period: {period})")
         cache_key = f"{symbol}_period_{period}"
 
+        # First check for custom prices
+        custom_prices = self.get_custom_prices(symbol)
+        if custom_prices:
+            logger.info(f"Found {len(custom_prices)} custom prices for {symbol}")
+
+            # Filter by period if needed
+            if period and period != "max":
+                try:
+                    days = 0
+                    if period.endswith("d"):
+                        days = int(period[:-1])
+                    elif period.endswith("mo"):
+                        days = int(period[:-2]) * 30
+                    elif period.endswith("y") or period.endswith("Y"):
+                        days = int(period[:-1]) * 365
+
+                    if days > 0:
+                        cutoff_date = (datetime.now() - timedelta(days=days)).strftime(
+                            "%Y-%m-%d"
+                        )
+                        custom_prices = [
+                            p for p in custom_prices if p["date"] >= cutoff_date
+                        ]
+                except Exception as e:
+                    logger.error(f"Error filtering custom prices by period: {e}")
+
+            return custom_prices
+
         try:
             ticker = yf.Ticker(symbol)
             hist = ticker.history(period=period, interval="1d")
@@ -322,6 +350,13 @@ class StockService:
         """Get the current price of an asset."""
         logger.info(f"Getting current price for {symbol}")
         cache_key = f"{symbol}_basic_info"
+
+        # Check for custom prices first
+        custom_prices = self.get_custom_prices(symbol)
+        if custom_prices and len(custom_prices) > 0:
+            # Get the most recent custom price
+            custom_prices.sort(key=lambda x: x["date"], reverse=True)
+            return float(custom_prices[0]["close"])
 
         try:
             cached_data = self.cache_manager._get_cached_data(cache_key, "basic_info")
@@ -458,3 +493,119 @@ class StockService:
         except Exception as e:
             logger.error(f"Error fetching stock details for {symbol}: {e!s}")
             return None
+
+    def add_custom_price(self, symbol: str, date: str, price_data: dict) -> bool:
+        """Add a custom price for an asset."""
+        try:
+            # Validate and sanitize inputs
+            close_price = float(price_data.get("close", 0))
+            if close_price <= 0:
+                logger.error(f"Invalid close price for {symbol}: {close_price}")
+                return False
+
+            # Use close price for all values if not provided
+            open_price = float(price_data.get("open", close_price))
+            high_price = float(price_data.get("high", close_price))
+            low_price = float(price_data.get("low", close_price))
+            volume = int(price_data.get("volume", 0))
+
+            # Ensure high is the highest value
+            high_price = max(high_price, open_price, close_price, low_price)
+            # Ensure low is the lowest value
+            low_price = min(low_price, open_price, close_price, high_price)
+
+            query = """--sql
+            INSERT INTO custom_prices
+                (symbol, date, open, high, low, close, volume)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(symbol, date) DO UPDATE SET
+                open = excluded.open,
+                high = excluded.high,
+                low = excluded.low,
+                close = excluded.close,
+                volume = excluded.volume
+            """
+
+            self.db_manager.execute_update(
+                query=query,
+                params=[
+                    symbol,
+                    date,
+                    open_price,
+                    high_price,
+                    low_price,
+                    close_price,
+                    volume,
+                ],
+            )
+
+            # Invalidate cache for this symbol
+            self.cache_manager._update_cache(
+                symbol=f"{symbol}_period_max", data={}, cache_type="historical_prices"
+            )
+            self.cache_manager._update_cache(
+                symbol=f"{symbol}_basic_info", data={}, cache_type="basic_info"
+            )
+
+            logger.info(f"Added custom price for {symbol} on {date}: {close_price}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error adding custom price for {symbol}: {e}")
+            return False
+
+    def get_custom_prices(self, symbol: str) -> list[HistoricalPrice]:
+        """Get custom prices for an asset."""
+        try:
+            query = """--sql
+            SELECT date, open, high, low, close, volume
+            FROM custom_prices
+            WHERE symbol = ?
+            ORDER BY date ASC
+            """
+
+            result = self.db_manager.execute_select(query, [symbol])
+            if not result:
+                return []
+
+            return [
+                {
+                    "date": row["date"],
+                    "value": float(row["close"]),
+                    "volume": int(row["volume"]),
+                    "open": float(row["open"]),
+                    "high": float(row["high"]),
+                    "low": float(row["low"]),
+                    "close": float(row["close"]),
+                }
+                for row in result
+            ]
+
+        except Exception as e:
+            logger.error(f"Error getting custom prices for {symbol}: {e}")
+            return []
+
+    def delete_custom_price(self, symbol: str, date: str) -> bool:
+        """Delete a custom price for an asset."""
+        try:
+            query = """--sql
+            DELETE FROM custom_prices
+            WHERE symbol = ? AND date = ?
+            """
+
+            self.db_manager.execute_update(query, [symbol, date])
+
+            # Invalidate cache for this symbol
+            self.cache_manager._update_cache(
+                symbol=f"{symbol}_period_max", data={}, cache_type="historical_prices"
+            )
+            self.cache_manager._update_cache(
+                symbol=f"{symbol}_basic_info", data={}, cache_type="basic_info"
+            )
+
+            logger.info(f"Deleted custom price for {symbol} on {date}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error deleting custom price for {symbol}: {e}")
+            return False

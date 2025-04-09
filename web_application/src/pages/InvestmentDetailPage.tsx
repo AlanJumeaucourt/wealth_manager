@@ -1,4 +1,5 @@
 import { API_URL, useStockHistory } from "@/api/queries"
+import { CustomPriceDialog } from "@/components/investments/CustomPriceDialog"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -10,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { TimePeriod } from "@/types"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { format } from "date-fns"
@@ -33,7 +35,6 @@ import {
   XAxis,
   YAxis
 } from "recharts"
-import { TimePeriod } from "@/types"
 
 interface AssetTransaction {
   activity_type:
@@ -234,13 +235,11 @@ export function InvestmentDetailPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2"
+                variant="outline"
                 onClick={() => navigate({ to: "/investments" })}
               >
-                <ArrowLeft className="h-4 w-4" />
-                Back
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Investments
               </Button>
               <div className="text-muted-foreground">/</div>
               <div className="text-sm text-muted-foreground">
@@ -252,6 +251,9 @@ export function InvestmentDetailPage() {
             </h1>
           </div>
         </div>
+
+        {/* Add the custom price dialog component */}
+        <CustomPriceDialog symbol={symbol} currency={assetInfo?.currency || "USD"} />
 
         {/* Quick Stats */}
         <div className="grid gap-4 md:grid-cols-4">

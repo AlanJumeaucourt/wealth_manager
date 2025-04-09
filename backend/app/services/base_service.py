@@ -44,6 +44,46 @@ class BaseService(Generic[T]):
             print(f"Error creating {self.table_name}: {e}")
             return None
 
+    def batch_create(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        """Create multiple items in a batch operation.
+
+        Args:
+            items: List of dictionaries containing item data
+
+        Returns:
+            Dictionary containing successful and failed creations
+        """
+        if not items:
+            return {
+                "successful": [],
+                "failed": [],
+                "total_successful": 0,
+                "total_failed": 0,
+            }
+
+        successful = []
+        failed = []
+
+        for item in items:
+            try:
+                columns = ", ".join(item.keys())
+                placeholders = ", ".join(["?" for _ in item])
+                query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
+                result = self.db_manager.execute_insert_returning(
+                    query, list(item.values())
+                )
+                created_item = self.model_class(**result)
+                successful.append(created_item)
+            except Exception as e:
+                failed.append({"data": item, "error": str(e)})
+
+        return {
+            "successful": successful,
+            "failed": failed,
+            "total_successful": len(successful),
+            "total_failed": len(failed),
+        }
+
     def get_by_id(self, item_id: int, user_id: int) -> T | None:
         try:
             query = f"SELECT * FROM {self.table_name} WHERE id = ? AND user_id = ?"
@@ -152,7 +192,7 @@ class BaseService(Generic[T]):
         try:
             results = self.db_manager.execute_select(query, params)
             successful = [self.model_class(**result) for result in results]
-            updated_ids = {cast(int, result["id"]) for result in results}
+            updated_ids = {cast("int", result["id"]) for result in results}
 
             # Identify failed updates
             failed = [
@@ -210,7 +250,7 @@ class BaseService(Generic[T]):
 
             # Get the IDs that exist and belong to the user
             results = self.db_manager.execute_select(verify_query, verify_params)
-            existing_ids = [cast(int, result["id"]) for result in results]
+            existing_ids = [cast("int", result["id"]) for result in results]
 
             if not existing_ids:
                 return {

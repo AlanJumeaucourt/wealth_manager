@@ -52,6 +52,8 @@ export const QueryKeys = {
   stockHistory: (symbol: string) =>
     ["stocks", symbol, "history"] as QueryKeyArray,
   portfolioRiskMetrics: ["portfolio", "risk-metrics"] as QueryKeyArray,
+  customPrices: (symbol: string) =>
+    ["stocks", symbol, "custom-prices"] as QueryKeyArray,
 } as const
 
 // Common interfaces
@@ -449,14 +451,155 @@ export const {
 
 // Example of using the new fetch utility for queries
 export function useStockHistory(symbol: string | undefined) {
-  return createQuery<StockPrice[] | null>({
-    queryKey: QueryKeys.stockHistory(symbol || ""),
-    queryFn: () =>
-      symbol
-        ? fetchWithAuth(`stocks/${symbol}/history`)
-        : Promise.resolve(null),
+  return createQuery<StockPrice[]>({
+    queryKey: symbol ? QueryKeys.stockHistory(symbol) : ["stocks", "history", null],
+    queryFn: async () => {
+      if (!symbol) return []
+      return fetchWithAuth(`stocks/${symbol}/history`)
+    },
     enabled: !!symbol,
   })
+}
+
+export function useCustomPrices(symbol: string) {
+  return useQuery({
+    queryKey: ['customPrices', symbol],
+    queryFn: async () => {
+      const response = await fetchWithAuth(`stocks/${symbol}/custom-prices`);
+      return response.data;
+    },
+    enabled: !!symbol,
+  });
+}
+
+interface CustomPriceData {
+  close: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
+}
+
+interface AddCustomPriceResponse {
+  message: string;
+  price?: {
+    date: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  };
+}
+
+interface BatchOperationResponse {
+  message: string;
+  details: {
+    successful: any[];
+    failed: Array<{
+      data?: any;
+      error: string;
+    }>;
+    total_successful: number;
+    total_failed: number;
+  };
+}
+
+export function useAddCustomPrice() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    AddCustomPriceResponse,
+    Error,
+    { symbol: string; date: string; price: CustomPriceData }
+  >({
+    mutationFn: async ({ symbol, date, price }) => {
+      const response = await fetchWithAuth(`stocks/${symbol}/custom-prices`, {
+        method: 'POST',
+        body: {
+          date,
+          ...price
+        }
+      });
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
+    },
+  });
+}
+
+export function useBatchAddCustomPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    BatchOperationResponse,
+    Error,
+    {
+      symbol: string;
+      prices: Array<{
+        date: string;
+        price: CustomPriceData
+      }>
+    }
+  >({
+    mutationFn: async ({ symbol, prices }) => {
+      // No need to reformat prices since they're already in the right format
+      const response = await fetchWithAuth(`stocks/${symbol}/custom-prices`, {
+        method: 'POST',
+        body: prices
+      });
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
+    },
+  });
+}
+
+interface DeleteCustomPriceResponse {
+  message: string;
+}
+
+export function useDeleteCustomPrice() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    DeleteCustomPriceResponse,
+    Error,
+    { symbol: string; date: string }
+  >({
+    mutationFn: async ({ symbol, date }) => {
+      const response = await fetchWithAuth(`stocks/${symbol}/custom-prices/${date}`, {
+        method: 'DELETE'
+      });
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
+    },
+  });
+}
+
+export function useBatchDeleteCustomPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    BatchOperationResponse,
+    Error,
+    { symbol: string; dates: string[] }
+  >({
+    mutationFn: async ({ symbol, dates }) => {
+      const response = await fetchWithAuth(`stocks/${symbol}/custom-prices/batch`, {
+        method: 'DELETE',
+        body: dates
+      });
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
+    },
+  });
 }
 
 export function usePortfolioRiskMetrics() {
