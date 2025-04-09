@@ -1,4 +1,4 @@
-import { Account, Bank, PortfolioSummary, RefundGroup, RefundItem, Transaction } from "@/types"
+import { Account, ApiResponse, Bank, Investment, PortfolioSummary, RefundGroup, RefundItem, Transaction } from "@/types"
 import { handleTokenExpiration } from "@/utils/auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
@@ -432,7 +432,7 @@ export const {
 } = refundItemOperations
 
 // Example usage for investments
-const investmentOperations = createCrudOperations<Investment>({
+const investmentOperations = createCrudOperations<Investment & { id?: number }>({
   endpoint: "investments",
   queryKeysToInvalidate: [
     "investments",
@@ -466,7 +466,7 @@ export function useCustomPrices(symbol: string) {
     queryKey: ['customPrices', symbol],
     queryFn: async () => {
       const response = await fetchWithAuth(`stocks/${symbol}/custom-prices`);
-      return response.data;
+      return (response as ApiResponse<any>).data;
     },
     enabled: !!symbol,
   });
@@ -521,7 +521,7 @@ export function useAddCustomPrice() {
           ...price
         }
       });
-      return response.data;
+      return (response as ApiResponse<AddCustomPriceResponse>).data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
@@ -549,7 +549,7 @@ export function useBatchAddCustomPrices() {
         method: 'POST',
         body: prices
       });
-      return response.data;
+      return (response as ApiResponse<BatchOperationResponse>).data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
@@ -573,7 +573,7 @@ export function useDeleteCustomPrice() {
       const response = await fetchWithAuth(`stocks/${symbol}/custom-prices/${date}`, {
         method: 'DELETE'
       });
-      return response.data;
+      return (response as ApiResponse<DeleteCustomPriceResponse>).data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
@@ -594,7 +594,7 @@ export function useBatchDeleteCustomPrices() {
         method: 'DELETE',
         body: dates
       });
-      return response.data;
+      return (response as ApiResponse<BatchOperationResponse>).data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
@@ -618,27 +618,6 @@ interface StockPrice {
   open: number
   value: number
   volume: number
-}
-
-interface Investment {
-  id?: number
-  investment_type:
-    | "Buy"
-    | "Sell"
-    | "Dividend"
-    | "Interest"
-    | "Deposit"
-    | "Withdrawal"
-  asset_id: number
-  date: string
-  fee: number
-  from_account_id: number
-  quantity: number
-  tax: number
-  to_account_id: number
-  total_paid?: number
-  unit_price: number
-  user_id: number
 }
 
 interface RiskMetricsByAsset {
