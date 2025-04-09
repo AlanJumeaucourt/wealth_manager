@@ -231,6 +231,33 @@ export function AccountDetailPage() {
               }).format(Math.abs(account.balance))}
             </p>
           </div>
+          {account.type === "investment" && (
+            <>
+              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+                <p className="text-sm text-muted-foreground">Market Value</p>
+                <p className="text-2xl font-semibold mt-2">
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format(account.market_value || 0)}
+                </p>
+              </div>
+              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+                <p className="text-sm text-muted-foreground">Profit/Loss</p>
+                <p className={`text-2xl font-semibold mt-2 ${
+                  account.market_value && account.market_value - account.balance > 0
+                    ? "text-success"
+                    : "text-destructive"
+                }`}>
+                  {account.market_value && account.market_value - account.balance > 0 ? "+" : ""}
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format((account.market_value || 0) - account.balance)}
+                </p>
+              </div>
+            </>
+          )}
           <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
             <p className="text-sm text-muted-foreground">Latest Transaction</p>
             <p className="text-2xl font-semibold mt-2">{getLastUpdated()}</p>

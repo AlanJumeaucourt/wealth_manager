@@ -3,7 +3,9 @@ from typing import Any
 from app.exceptions import NoResultFoundError
 from app.models import Account
 from app.services.base_service import BaseService, ListQueryParams
+import logging
 
+logger = logging.getLogger(__name__)
 
 class AccountService(BaseService):
     def __init__(self) -> None:
@@ -25,6 +27,13 @@ class AccountService(BaseService):
         # Update balances for items
         for account in result["items"]:
             account["balance"] = self.calculate_balance(account_id=account["id"])
+
+            # Add market value for investment accounts
+            if account["type"] == "investment":
+                account["market_value"] = self.calculate_market_value(account_id=account["id"])
+            else:
+                account["market_value"] = None
+
         return result
 
     def calculate_balance(self, account_id: int) -> float:
@@ -40,6 +49,48 @@ class AccountService(BaseService):
         except Exception as e:
             print(f"Error getting account balance: {e}")
             return 0
+
+    def calculate_market_value(self, account_id: int) -> float:
+        """Calculate the market value of all assets in an investment account."""
+        try:
+            # Get all assets owned in this account using the new view
+            query = """
+            SELECT
+                aba.asset_id,
+                aba.symbol,
+                aba.quantity
+            FROM asset_balances_by_account aba
+            WHERE aba.account_id = ?
+            """
+
+            assets = self.db_manager.execute_select(query, [account_id])
+
+            if not assets:
+                return None
+
+            # Import here to avoid circular imports
+            from app.services.stock_service import StockService
+            stock_service = StockService()
+
+            total_market_value = 0.0
+
+            for asset in assets:
+                symbol = asset["symbol"]
+                quantity = float(asset["quantity"])
+
+                # Get current price
+                current_price = stock_service.get_current_price(symbol)
+
+                if current_price:
+                    market_value = quantity * current_price
+                    total_market_value += market_value
+            if round(total_market_value, 2) == 0.00:
+                total_market_value = None
+            return round(total_market_value, 2)
+
+        except Exception as e:
+            logger.warning(f"Error calculating market value for account {account_id}: {e}")
+            return None
 
     def sum_accounts_balances_over_days(
         self,

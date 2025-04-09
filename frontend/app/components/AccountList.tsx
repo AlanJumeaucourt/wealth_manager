@@ -58,7 +58,35 @@ const AccountList: React.FC = () => {
         renderItem={({ item }) => (
           <View style={styles.accountItem}>
             <Text style={styles.accountName}>{item.name}</Text>
-            <Text style={styles.accountType}>{item.type}</Text>
+            <View style={styles.accountDetails}>
+              <Text style={styles.accountType}>{item.type}</Text>
+              <Text style={styles.accountBalance}>
+                {new Intl.NumberFormat('fr-FR', {
+                  style: 'currency',
+                  currency: 'EUR',
+                }).format(item.balance)}
+              </Text>
+              {item.type === 'investment' && item.market_value !== null && (
+                <>
+                  <Text style={styles.marketValue}>
+                    Market Value: {new Intl.NumberFormat('fr-FR', {
+                      style: 'currency',
+                      currency: 'EUR',
+                    }).format(item.market_value)}
+                  </Text>
+                  <Text style={[
+                    styles.profitLoss,
+                    { color: item.market_value - item.balance > 0 ? darkTheme.colors.success : darkTheme.colors.error }
+                  ]}>
+                    {item.market_value - item.balance > 0 ? '+' : ''}
+                    {new Intl.NumberFormat('fr-FR', {
+                      style: 'currency',
+                      currency: 'EUR',
+                    }).format(item.market_value - item.balance)}
+                  </Text>
+                </>
+              )}
+            </View>
           </View>
         )}
         onEndReached={loadMoreAccounts}
@@ -112,6 +140,24 @@ const styles = StyleSheet.create({
   accountType: {
     fontSize: 14,
     color: darkTheme.colors.textSecondary,
+  },
+  accountDetails: {
+    marginTop: 4,
+  },
+  accountBalance: {
+    fontSize: 14,
+    color: darkTheme.colors.text,
+    fontWeight: 'bold',
+  },
+  marketValue: {
+    fontSize: 12,
+    color: darkTheme.colors.textSecondary,
+    marginTop: 2,
+  },
+  profitLoss: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: 'bold',
   },
 });
 

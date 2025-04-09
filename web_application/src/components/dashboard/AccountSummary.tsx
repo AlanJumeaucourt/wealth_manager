@@ -95,6 +95,18 @@ export function AccountSummary({ accounts, banks }: Props) {
     {} as Record<Account["type"], number>
   )
 
+  // Calculate total market value and profit/loss for investments
+  const investmentSummary = accounts
+    .filter(account => account.type === "investment")
+    .reduce(
+      (acc, account) => {
+        acc.totalMarketValue += account.market_value || 0;
+        acc.totalProfitLoss += (account.market_value || 0) - account.balance;
+        return acc;
+      },
+      { totalMarketValue: 0, totalProfitLoss: 0 }
+    );
+
   // Sort bank names and put "Other" at the end
   const sortedBankNames = Object.keys(accountsByBank).sort((a, b) => {
     if (a === "Other") return 1
@@ -172,12 +184,37 @@ export function AccountSummary({ accounts, banks }: Props) {
               Investments
             </span>
           </div>
-          <p className="text-lg sm:text-xl font-semibold mt-2 text-foreground break-words">
-            {new Intl.NumberFormat(undefined, {
-              style: "currency",
-              currency: "EUR",
-            }).format(Math.abs(balancesByType.investment || 0))}
-          </p>
+          <div className="flex flex-col gap-1">
+            <p className="text-lg sm:text-xl font-semibold mt-2 text-foreground break-words">
+              {new Intl.NumberFormat(undefined, {
+                style: "currency",
+                currency: "EUR",
+              }).format(Math.abs(balancesByType.investment || 0))}
+            </p>
+            {investmentSummary.totalMarketValue > 0 && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Market Value: {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format(investmentSummary.totalMarketValue)}
+                </p>
+                <p className={`text-sm ${
+                  investmentSummary.totalProfitLoss > 0
+                    ? "text-success"
+                    : "text-destructive"
+                }`}>
+                  {investmentSummary.totalProfitLoss > 0 ? "+" : ""}
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format(investmentSummary.totalProfitLoss)}
+                  {" "}
+                  ({((investmentSummary.totalProfitLoss / (balancesByType.investment || 1)) * 100).toFixed(2)}%)
+                </p>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -275,18 +312,45 @@ export function AccountSummary({ accounts, banks }: Props) {
                               </span>
                             </div>
                           </div>
-                          <span
-                            className={`font-semibold ${
-                              account.balance < 0
-                                ? "text-destructive"
-                                : "text-success"
-                            }`}
-                          >
-                            {new Intl.NumberFormat(undefined, {
-                              style: "currency",
-                              currency: "EUR",
-                            }).format(Math.abs(account.balance))}
-                          </span>
+                          <div className="flex flex-col items-end">
+                            <span
+                              className={`font-semibold ${
+                                account.balance < 0
+                                  ? "text-red-2OO"
+                                  : ""
+                              }`}
+                            >
+                              {new Intl.NumberFormat(undefined, {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(Math.abs(account.balance))}
+                            </span>
+                            {account.type === "investment" && account.market_value !== null && (
+                              <div className="flex flex-col items-end text-sm">
+                                <span className="text-muted-foreground">
+                                  Market Value: {new Intl.NumberFormat(undefined, {
+                                    style: "currency",
+                                    currency: "EUR",
+                                  }).format(account.market_value)}
+                                </span>
+                                {account.market_value !== null && (
+                                  <span
+                                    className={
+                                      account.market_value - account.balance > 0
+                                        ? "text-green-500"
+                                        : "text-red-500"
+                                    }
+                                  >
+                                    {account.market_value - account.balance > 0 ? "+" : ""}
+                                    {new Intl.NumberFormat(undefined, {
+                                      style: "currency",
+                                      currency: "EUR",
+                                    }).format(account.market_value - account.balance)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

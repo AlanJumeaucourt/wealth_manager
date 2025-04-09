@@ -71,8 +71,18 @@ export function EditAccountDialog({ account, open, onOpenChange }: Props) {
   }, [account, form])
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!account || !account.id) {
+      console.error("No account ID available for update");
+      toast({
+        title: "Error",
+        description: "Could not update account: missing account ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
     updateAccountMutation.mutate(
-      { accountId: account.id, data: values },
+      { id: account.id, data: values },
       {
         onSuccess: () => {
           toast({

@@ -431,6 +431,47 @@ class DatabaseManager:
                 GROUP BY t.user_id, i.asset_id, a.symbol, a.name
                 HAVING quantity > 0;
             """,
+            """--sql
+                CREATE VIEW IF NOT EXISTS asset_balances_by_account AS
+                SELECT
+                    t.user_id,
+                    CASE
+                        WHEN i.investment_type IN ('Buy', 'Deposit') THEN t.to_account_id
+                        WHEN i.investment_type IN ('Sell', 'Withdrawal') THEN t.from_account_id
+                    END as account_id,
+                    acc.name as account_name,
+                    acc.type as account_type,
+                    i.asset_id,
+                    a.symbol,
+                    a.name as asset_name,
+                    SUM(
+                        CASE
+                            WHEN i.investment_type IN ('Buy', 'Deposit') THEN i.quantity
+                            WHEN i.investment_type IN ('Sell', 'Withdrawal') THEN -i.quantity
+                            ELSE 0
+                        END
+                    ) as quantity,
+                    MAX(t.date) as last_transaction_date
+                FROM investment_details i
+                JOIN transactions t ON i.transaction_id = t.id
+                JOIN assets a ON i.asset_id = a.id
+                JOIN accounts acc ON (
+                    (i.investment_type IN ('Buy', 'Deposit') AND acc.id = t.to_account_id) OR
+                    (i.investment_type IN ('Sell', 'Withdrawal') AND acc.id = t.from_account_id)
+                )
+                GROUP BY
+                    t.user_id,
+                    CASE
+                        WHEN i.investment_type IN ('Buy', 'Deposit') THEN t.to_account_id
+                        WHEN i.investment_type IN ('Sell', 'Withdrawal') THEN t.from_account_id
+                    END,
+                    acc.name,
+                    acc.type,
+                    i.asset_id,
+                    a.symbol,
+                    a.name
+                HAVING quantity > 0;
+            """,
         ]
 
         triggers = [

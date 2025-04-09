@@ -617,7 +617,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
         self, user_id: int, account_id: int | None = None
     ) -> dict[str, Any]:
         """Get portfolio summary with current holdings and values."""
-        account_filter = "AND aa.account_id = ?" if account_id else ""
+        account_filter = "AND aba.account_id = ?" if account_id else ""
         params = [user_id]
         if account_id:
             params.append(account_id)
@@ -675,19 +675,18 @@ class InvestmentService(BaseService[InvestmentTransaction]):
 
         query = f"""--sql
         SELECT
-            a.symbol,
-            a.name,
-            ab.quantity as shares,
+            aba.symbol,
+            aba.asset_name as name,
+            aba.quantity as shares,
             (SELECT AVG(i.unit_price)
              FROM investment_details i
              JOIN transactions t ON i.transaction_id = t.id
-             WHERE i.asset_id = a.id
+             WHERE i.asset_id = aba.asset_id
              AND t.user_id = ?
              AND t.is_investment = TRUE
              AND i.investment_type = 'Buy') as avg_buy_price
-        FROM asset_balances ab
-        JOIN assets a ON ab.asset_id = a.id
-        WHERE ab.user_id = ? {account_filter}
+        FROM asset_balances_by_account aba
+        WHERE aba.user_id = ? {account_filter}
         """
 
         params = [user_id, user_id]

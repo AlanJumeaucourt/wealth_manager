@@ -10,9 +10,7 @@ export interface Account {
   type: "checking" | "expense" | "income" | "investment" | "savings"
   balance: number
   bank_id: number
-  user_id: number
-
-  account_number: string
+  market_value: number
 }
 
 export interface Transaction {

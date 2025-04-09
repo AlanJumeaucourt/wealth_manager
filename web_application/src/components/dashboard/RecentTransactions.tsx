@@ -135,11 +135,12 @@ export function RecentTransactions({ transactions }: Props) {
             <span
               className={`font-semibold ${
                 transaction.type === "expense"
-                  ? "text-destructive"
-                  : "text-success"
+                  ? "text-red-500"
+                  : transaction.type === "transfer"
+                  ? "text-blue-500"
+                  : "text-green-500"
               }`}
             >
-              {transaction.type === "expense" ? "-" : "+"}
               {new Intl.NumberFormat(undefined, {
                 style: "currency",
                 currency: "EUR",

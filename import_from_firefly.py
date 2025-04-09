@@ -87,7 +87,7 @@ account_name_type_mapping = {
     "Crédit Agricole Courant": "checking",
     "Lendermarket P2P": "investment",
     "Boursorama Espèce CTO": "investment",
-    "Fortuneo Courant": "investment",
+    "Fortuneo Courant": "checking",
     "Edenred Ticket restaurant": "checking",
     "Boursorama Espèce PEA": "investment",
     "Abeille Vie Assurance Vie": "investment",
@@ -286,6 +286,8 @@ class WealthManagerApi:
             return self.bank_id_from_bank_name("Boursorama")
         if account_name.startswith("Crédit Agricole"):
             return self.bank_id_from_bank_name("Crédit Agricole")
+        if account_name.startswith("Fortuneo"):
+            return self.bank_id_from_bank_name("Fortuneo")
         if "P2P" in account_name:
             return self.bank_id_from_bank_name("P2P")
         return self.bank_id_from_bank_name("Other")
