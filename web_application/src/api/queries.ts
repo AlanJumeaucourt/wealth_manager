@@ -1010,7 +1010,7 @@ export function usePeriodSummary(
   })
 }
 
-interface PortfolioPerformance {
+export interface PortfolioPerformance {
   data_points: Array<{
     absolute_gain: number
     assets: {

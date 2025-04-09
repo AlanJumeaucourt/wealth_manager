@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowDownRight, ArrowUpRight, BarChart3, DollarSign, PiggyBank, Leaf } from "lucide-react"
 import { PortfolioSummary } from "@/types"
-import { Line, LineChart, ResponsiveContainer } from "recharts"
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { PortfolioPerformance } from "@/api/queries"
 
 interface PortfolioHighlightsProps {
   portfolioSummary?: PortfolioSummary
-  performanceData?: any
+  performanceData?: PortfolioPerformance
 }
 
 export function PortfolioHighlights({ portfolioSummary, performanceData }: PortfolioHighlightsProps) {
@@ -24,13 +25,38 @@ export function PortfolioHighlights({ portfolioSummary, performanceData }: Portf
     return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
   }
 
+  // Format date for tooltip
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
   // Get performance chart data from performance data if available
-  const chartData = performanceData?.data_points?.map((point: any) => ({
+  const chartData = performanceData?.data_points?.map((point) => ({
     date: point.date,
-    value: point.performance * 100
+    value: point.total_gains
   })) || []
 
   const isPositiveReturn = (portfolioSummary?.total_gain_loss || 0) >= 0
+
+  // Custom tooltip component for the chart
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-background border border-border shadow-sm rounded-lg p-2 text-xs">
+          <p className="font-medium">{formatDate(payload[0].payload.date)}</p>
+          <p className={`${payload[0].value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            {formatPercent(payload[0].value)}
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
 
   return (
     <Card>
@@ -103,19 +129,23 @@ export function PortfolioHighlights({ portfolioSummary, performanceData }: Portf
         {chartData.length > 0 && (
           <div className="mt-4 h-[100px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+              <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                 <defs>
                   <linearGradient id="colorPerformance" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.8} />
                     <stop offset="95%" stopColor="hsl(217, 91%, 97%)" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
+                <XAxis dataKey="date" hide={true} />
+                <YAxis hide={true} />
+                <Tooltip content={<CustomTooltip />} />
                 <Line
                   type="monotone"
                   dataKey="value"
                   stroke={isPositiveReturn ? "hsl(142, 76%, 36%)" : "hsl(0, 84%, 60%)"}
                   strokeWidth={2}
                   dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0 }}
                 />
               </LineChart>
             </ResponsiveContainer>
