@@ -10,6 +10,8 @@ import {
   RefreshCw,
   SquareTerminal,
   Wallet,
+  Home,
+  Layout,
 } from "lucide-react"
 import * as React from "react"
 import { useMemo } from "react"
@@ -64,9 +66,14 @@ const STATIC_DATA = {
   ],
   navMain: [
     {
-      title: "Overview",
+      title: "Welcome",
       url: "/dashboard",
-      icon: SquareTerminal,
+      icon: Home,
+    },
+    {
+      title: "Overview",
+      url: "/legacy-dashboard",
+      icon: Layout,
     },
     {
       title: "Wealth",

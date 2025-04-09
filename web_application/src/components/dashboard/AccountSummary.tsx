@@ -54,7 +54,7 @@ export function AccountSummary({ accounts, banks }: Props) {
       }
     },
     onNew: () => {
-      navigate({ to: "/accounts/new" })
+      navigate({ to: "/accounts/all" })
     },
   })
 
@@ -100,11 +100,28 @@ export function AccountSummary({ accounts, banks }: Props) {
     .filter(account => account.type === "investment")
     .reduce(
       (acc, account) => {
-        acc.totalMarketValue += account.market_value || 0;
-        acc.totalProfitLoss += (account.market_value || 0) - account.balance;
+        // Use market_value if available, otherwise use balance
+        const effectiveMarketValue = account.market_value !== null ? account.market_value : account.balance;
+        acc.totalMarketValue += effectiveMarketValue;
+        // Only calculate profit/loss if market_value is available
+        if (account.market_value !== null) {
+          acc.totalProfitLoss += account.market_value - account.balance;
+        }
+        // Track how many accounts have market values for percentage calculation
+        if (account.market_value !== null) {
+          acc.accountsWithMarketValue += 1;
+        }
+        acc.totalAccounts += 1;
+        acc.totalBalance += account.balance;
         return acc;
       },
-      { totalMarketValue: 0, totalProfitLoss: 0 }
+      {
+        totalMarketValue: 0,
+        totalProfitLoss: 0,
+        accountsWithMarketValue: 0,
+        totalAccounts: 0,
+        totalBalance: 0
+      }
     );
 
   // Sort bank names and put "Other" at the end
@@ -191,28 +208,26 @@ export function AccountSummary({ accounts, banks }: Props) {
                 currency: "EUR",
               }).format(Math.abs(balancesByType.investment || 0))}
             </p>
-            {investmentSummary.totalMarketValue > 0 && (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  Market Value: {new Intl.NumberFormat(undefined, {
-                    style: "currency",
-                    currency: "EUR",
-                  }).format(investmentSummary.totalMarketValue)}
-                </p>
-                <p className={`text-sm ${
-                  investmentSummary.totalProfitLoss > 0
-                    ? "text-success"
-                    : "text-destructive"
-                }`}>
-                  {investmentSummary.totalProfitLoss > 0 ? "+" : ""}
-                  {new Intl.NumberFormat(undefined, {
-                    style: "currency",
-                    currency: "EUR",
-                  }).format(investmentSummary.totalProfitLoss)}
-                  {" "}
-                  ({((investmentSummary.totalProfitLoss / (balancesByType.investment || 1)) * 100).toFixed(2)}%)
-                </p>
-              </>
+            <p className="text-sm text-muted-foreground">
+              Market Value: {new Intl.NumberFormat(undefined, {
+                style: "currency",
+                currency: "EUR",
+              }).format(investmentSummary.totalMarketValue)}
+            </p>
+            {investmentSummary.accountsWithMarketValue > 0 && (
+              <p className={`text-sm ${
+                investmentSummary.totalProfitLoss > 0
+                  ? "text-success"
+                  : "text-destructive"
+              }`}>
+                {investmentSummary.totalProfitLoss > 0 ? "+" : ""}
+                {new Intl.NumberFormat(undefined, {
+                  style: "currency",
+                  currency: "EUR",
+                }).format(investmentSummary.totalProfitLoss)}
+                {" "}
+                ({((investmentSummary.totalProfitLoss / investmentSummary.totalBalance) * 100).toFixed(2)}%)
+              </p>
             )}
           </div>
         </div>

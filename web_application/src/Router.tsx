@@ -18,6 +18,7 @@ import { AccountDetailPage } from "@/pages/AccountDetailPage"
 import { AccountsPage } from "@/pages/AccountsPage"
 import Categories from "@/pages/Categories"
 import { Dashboard } from "@/pages/Dashboard"
+import { Welcome } from "@/pages/Welcome"
 import GoCardlessAccounts from "@/pages/GoCardlessAccounts"
 import { InvestmentDetailPage } from "@/pages/InvestmentDetailPage"
 import { useDateRangeStore } from "@/store/dateRangeStore"
@@ -207,6 +208,13 @@ const signupRoute = new Route({
 const dashboardRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/dashboard",
+  component: Welcome,
+})
+
+// Add a legacy dashboard route
+const legacyDashboardRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/legacy-dashboard",
   component: Dashboard,
 })
 
@@ -437,6 +445,7 @@ export const routeTree = rootRoute.addChildren([
   signupRoute,
   authenticatedLayout.addChildren([
     dashboardRoute,
+    legacyDashboardRoute,
     // Accounts routes
     accountsAllRoute,
     accountsRegularRoute,
