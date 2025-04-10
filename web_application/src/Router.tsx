@@ -449,7 +449,7 @@ const gocardlessAccountsRoute = new Route({
   component: GoCardlessAccounts,
 })
 
-// Export/Import route
+// Data Manager route
 const exportImportRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/export-import",
