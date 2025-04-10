@@ -60,6 +60,7 @@ export const QueryKeys = {
   assets: ["assets"] as QueryKeyArray,
   stockHistory: (symbol: string) =>
     ["stocks", symbol, "history"] as QueryKeyArray,
+  stockSearch: (query: string) => ["stocks", "search", query] as QueryKeyArray,
   portfolioRiskMetrics: ["portfolio", "risk-metrics"] as QueryKeyArray,
   customPrices: (symbol: string) =>
     ["stocks", symbol, "custom-prices"] as QueryKeyArray,
@@ -533,6 +534,17 @@ export function useStockHistory(symbol: string | undefined) {
       return fetchWithAuth(`stocks/${symbol}/history`)
     },
     enabled: !!symbol,
+  })
+}
+
+export function useStockSearch(query: string) {
+  return createQuery<Array<{symbol: string, name: string}>>({
+    queryKey: QueryKeys.stockSearch(query),
+    queryFn: async () => {
+      if (!query || query.length < 2) return []
+      return fetchWithAuth(`stocks/search?q=${encodeURIComponent(query)}`)
+    },
+    enabled: query.length >= 2,
   })
 }
 
@@ -1169,10 +1181,14 @@ export function useBatchCreateAssets() {
 
 export function useCreateAsset() {
   const queryClient = useQueryClient()
-  return createMutation<Asset, { symbol: string; name: string }>({
+  return useMutation<Asset, Error, { symbol: string; name: string }>({
     mutationFn: (data) => fetchWithAuth("assets", { method: "POST", body: data }),
     onSuccess: () => {
+      // Invalidate all related queries to ensure UI is updated
       invalidateQueries(queryClient, "assets")
+      invalidateQueries(queryClient, "investments")
+      // Force a complete refetch of the assets query
+      queryClient.refetchQueries({ queryKey: QueryKeys.assets })
     },
   })
 }

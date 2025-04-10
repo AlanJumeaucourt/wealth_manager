@@ -4,6 +4,7 @@ import {
   useCreateAsset,
   useCreateInvestment,
   useStockHistory,
+  useStockSearch,
   useUpdateInvestment
 } from "@/api/queries"
 import { Button } from "@/components/ui/button"
@@ -246,9 +247,44 @@ export function AddInvestmentDialog({
     }
   }
 
+  // Create a state to track the selected asset option for the ComboboxInput
+  const [selectedAssetOption, setSelectedAssetOption] = useState<{value: string, label: string} | undefined>(
+    assetId ? assetOptions.find(opt => opt.value === assetId.toString()) : undefined
+  )
+
+  // Update selectedAssetOption when assetOptions or assetId changes
+  useEffect(() => {
+    if (assetId) {
+      const option = assetOptions.find(opt => opt.value === assetId.toString())
+      if (option) {
+        setSelectedAssetOption(option)
+      }
+    }
+  }, [assetOptions, assetId])
+
   const onAssetCreated = async (asset: { id: number; symbol: string; name: string }) => {
+    // Update the form value immediately
     form.setValue("asset_id", asset.id)
-    await refetchAssets()
+
+    // Update the local state
+    setAssetId(asset.id)
+
+    // Create the asset option directly
+    const newAssetOption = {
+      value: asset.id.toString(),
+      label: `${asset.name} (${asset.symbol})`
+    }
+
+    // Set the selected asset option directly
+    setSelectedAssetOption(newAssetOption)
+
+    // Close the asset dialog
+    setIsAddingAsset(false)
+
+    toast({
+      title: "Asset Selected",
+      description: `Asset "${asset.symbol}" has been created and selected.`,
+    })
   }
 
   return (
@@ -290,7 +326,7 @@ export function AddInvestmentDialog({
                 <Label>Asset</Label>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   className="h-6 px-2 text-xs flex items-center gap-1 hover:text-primary"
                   onClick={() => setIsAddingAsset(true)}
@@ -298,18 +334,35 @@ export function AddInvestmentDialog({
                   <PlusCircle className="h-3 w-3" /> Add New Asset
                 </Button>
               </div>
-              <ComboboxInput
-                options={assetOptions}
-                value={assetOptions.find(
-                  opt => opt.value === form.getValues("asset_id")?.toString()
-                )}
-                onValueChange={option => {
-                  form.setValue("asset_id", parseInt(option.value))
-                }}
-                placeholder="Select asset"
-                emptyMessage="No assets found"
-                isLoading={!assetsResponse}
-              />
+              <div className="relative">
+                <ComboboxInput
+                  options={assetOptions}
+                  value={selectedAssetOption || assetOptions.find(
+                    opt => opt.value === (assetId?.toString() || form.getValues("asset_id")?.toString())
+                  )}
+                  onValueChange={option => {
+                    form.setValue("asset_id", parseInt(option.value))
+                    setAssetId(parseInt(option.value))
+                    setSelectedAssetOption(option)
+                  }}
+                  placeholder="Select asset"
+                  emptyMessage={
+                    <div className="p-2 text-center">
+                      <p className="text-sm text-muted-foreground mb-2">No assets found</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setIsAddingAsset(true);
+                        }}
+                      >
+                        <PlusCircle className="h-3 w-3 mr-1" /> Create New Asset
+                      </Button>
+                    </div>
+                  }
+                  isLoading={!assetsResponse}
+                />
+              </div>
             </div>
 
             {/* Date */}
@@ -480,6 +533,8 @@ function AddAssetDialog({
 }) {
   const { toast } = useToast()
   const createAssetMutation = useCreateAsset()
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const { data: searchResults = [], isLoading: isSearching } = useStockSearch(searchQuery);
 
   const form = useForm<AssetFormData>({
     resolver: zodResolver(assetFormSchema),
@@ -488,6 +543,12 @@ function AddAssetDialog({
       name: "",
     },
   })
+
+  const selectSearchResult = (result: {symbol: string, name: string}) => {
+    form.setValue("symbol", result.symbol);
+    form.setValue("name", result.name);
+    setSearchQuery("");
+  };
 
   const onSubmit = async (data: AssetFormData) => {
     try {
@@ -518,11 +579,39 @@ function AddAssetDialog({
           <div className="grid grid-cols-1 gap-4">
             <div>
               <Label htmlFor="symbol">Symbol</Label>
-              <Input
-                id="symbol"
-                placeholder="AAPL"
-                {...form.register("symbol")}
-              />
+              <div className="relative">
+                <Input
+                  id="symbol"
+                  placeholder="Enter or search for a symbol (e.g., AAPL)"
+                  {...form.register("symbol")}
+                  onChange={(e) => {
+                    form.setValue("symbol", e.target.value);
+                    setSearchQuery(e.target.value);
+                  }}
+                />
+                {isSearching && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 mb-2">
+                You can enter any symbol or select from suggestions below
+              </p>
+              {searchResults.length > 0 && (
+                <div className="mt-1 border rounded-md shadow-sm max-h-48 overflow-y-auto bg-background">
+                  {searchResults.map((result, index) => (
+                    <div
+                      key={index}
+                      className="p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                      onClick={() => selectSearchResult(result)}
+                    >
+                      <div className="font-medium">{result.symbol}</div>
+                      <div className="text-sm text-muted-foreground">{result.name}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {form.formState.errors.symbol && (
                 <p className="text-sm text-red-500 mt-1">
                   {form.formState.errors.symbol.message}
@@ -533,7 +622,7 @@ function AddAssetDialog({
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                placeholder="Apple Inc."
+                placeholder="Asset name (e.g., Apple Inc.)"
                 {...form.register("name")}
               />
               {form.formState.errors.name && (

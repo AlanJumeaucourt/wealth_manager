@@ -1,16 +1,16 @@
 import {
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
 } from "@/components/ui/command"
 import { Command as CommandPrimitive } from "cmdk"
 import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type KeyboardEvent,
 } from "react"
 
 import { Skeleton } from "@/components/ui/skeleton"
@@ -46,6 +46,14 @@ export const ComboboxInput = ({
   const [isOpen, setOpen] = useState(false)
   const [selected, setSelected] = useState<Option>(value as Option)
   const [inputValue, setInputValue] = useState<string>(value?.label || "")
+
+  // Update selected and inputValue when value prop changes
+  useEffect(() => {
+    if (value) {
+      setSelected(value)
+      setInputValue(value.label)
+    }
+  }, [value])
 
   useEffect(() => {
     if (isOpen && containerRef.current && inputRef.current) {
