@@ -1,9 +1,10 @@
 import {
   useAccounts,
   useAssets,
+  useCreateAsset,
   useCreateInvestment,
   useStockHistory,
-  useUpdateInvestment,
+  useUpdateInvestment
 } from "@/api/queries"
 import { Button } from "@/components/ui/button"
 import { ComboboxInput } from "@/components/ui/comboboxInput"
@@ -24,17 +25,18 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { Investment } from "@/types"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  PlusCircle,
   TrendingDown,
-  TrendingUp,
+  TrendingUp
 } from "lucide-react"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Investment } from "@/types"
 
 const formSchema = z.object({
   investment_type: z.enum([
@@ -84,6 +86,14 @@ const investment_typeS = [
   },
 ]
 
+const assetFormSchema = z.object({
+  symbol: z.string().min(1, "Symbol is required"),
+  name: z.string().min(1, "Name is required"),
+})
+
+type FormData = z.infer<typeof formSchema>
+type AssetFormData = z.infer<typeof assetFormSchema>
+
 interface AddInvestmentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -106,8 +116,6 @@ function assetsToOptions(
   }))
 }
 
-type FormData = z.infer<typeof formSchema>
-
 export function AddInvestmentDialog({
   open,
   onOpenChange,
@@ -120,7 +128,8 @@ export function AddInvestmentDialog({
     type: "investment",
     per_page: 1000,
   })
-  const { data: assetsResponse } = useAssets()
+  const { data: assetsResponse, refetch: refetchAssets } = useAssets()
+  const [isAddingAsset, setIsAddingAsset] = useState(false)
 
   const accounts = accountsResponse?.items || []
   const assetOptions = assetsToOptions(assetsResponse?.items || [])
@@ -145,18 +154,23 @@ export function AddInvestmentDialog({
 
   const accountOptions = accountsToOptions(accounts)
 
+  const [assetId, setAssetId] = useState<number | undefined>(form.getValues("asset_id") || undefined)
+
+  useEffect(() => {
+    setAssetId(form.getValues("asset_id") || undefined)
+  }, [form])
+
   const selectedAsset = useMemo(
     () =>
       assetsResponse?.items.find(
-        asset => asset.id.toString() === form.getValues("asset_id")?.toString()
+        asset => asset.id.toString() === (assetId?.toString() || form.getValues("asset_id")?.toString())
       ),
-    [assetsResponse?.items, form.getValues("asset_id")]
+    [assetsResponse?.items, assetId, form]
   )
 
   const { data: stockHistory } = useStockHistory(selectedAsset?.symbol)
 
   const selectedDate = form.watch("date")
-
   const investmentType = form.watch("investment_type")
 
   useEffect(() => {
@@ -191,6 +205,7 @@ export function AddInvestmentDialog({
         unit_price: investment.unit_price,
         user_id: parseInt(localStorage.getItem("user_id") || "0"),
       })
+      setAssetId(investment.asset_id)
     }
   }, [investment, form])
 
@@ -231,6 +246,11 @@ export function AddInvestmentDialog({
     }
   }
 
+  const onAssetCreated = async (asset: { id: number; symbol: string; name: string }) => {
+    form.setValue("asset_id", asset.id)
+    await refetchAssets()
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
@@ -266,7 +286,18 @@ export function AddInvestmentDialog({
 
             {/* Asset */}
             <div className="col-span-2">
-              <Label>Asset</Label>
+              <div className="flex justify-between mb-2">
+                <Label>Asset</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs flex items-center gap-1 hover:text-primary"
+                  onClick={() => setIsAddingAsset(true)}
+                >
+                  <PlusCircle className="h-3 w-3" /> Add New Asset
+                </Button>
+              </div>
               <ComboboxInput
                 options={assetOptions}
                 value={assetOptions.find(
@@ -423,6 +454,108 @@ export function AddInvestmentDialog({
               {investment
                 ? (updateMutation.isPending ? "Updating..." : "Update Investment")
                 : (createMutation.isPending ? "Adding..." : "Add Investment")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+
+      {/* Add Asset Dialog */}
+      <AddAssetDialog
+        open={isAddingAsset}
+        onOpenChange={setIsAddingAsset}
+        onAssetCreated={onAssetCreated}
+      />
+    </Dialog>
+  )
+}
+
+function AddAssetDialog({
+  open,
+  onOpenChange,
+  onAssetCreated,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onAssetCreated: (asset: { id: number; symbol: string; name: string }) => void
+}) {
+  const { toast } = useToast()
+  const createAssetMutation = useCreateAsset()
+
+  const form = useForm<AssetFormData>({
+    resolver: zodResolver(assetFormSchema),
+    defaultValues: {
+      symbol: "",
+      name: "",
+    },
+  })
+
+  const onSubmit = async (data: AssetFormData) => {
+    try {
+      const result = await createAssetMutation.mutateAsync(data)
+      toast({
+        title: "Asset Created",
+        description: `Asset "${data.symbol}" has been created successfully.`,
+      })
+      onAssetCreated(result)
+      onOpenChange(false)
+      form.reset()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create asset. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Add New Asset</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label htmlFor="symbol">Symbol</Label>
+              <Input
+                id="symbol"
+                placeholder="AAPL"
+                {...form.register("symbol")}
+              />
+              {form.formState.errors.symbol && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.symbol.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                placeholder="Apple Inc."
+                {...form.register("name")}
+              />
+              {form.formState.errors.name && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.name.message}
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              type="button"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={createAssetMutation.isPending}
+            >
+              {createAssetMutation.isPending ? "Creating..." : "Create Asset"}
             </Button>
           </DialogFooter>
         </form>

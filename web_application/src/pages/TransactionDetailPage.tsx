@@ -1,8 +1,8 @@
 import {
-    useAccounts,
-    useRefundGroups,
-    useRefundItems,
-    useTransactions,
+  useAccounts,
+  useRefundGroups,
+  useRefundItems,
+  useTransactions,
 } from "@/api/queries"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog"
@@ -15,16 +15,16 @@ import { useDialogStore } from "@/store/dialogStore"
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "framer-motion"
 import {
-    ArrowLeft,
-    Calendar,
-    ChevronDown,
-    CreditCard,
-    FileText,
-    Pencil,
-    Plus,
-    RefreshCw,
-    Tag,
-    Trash,
+  ArrowLeft,
+  Calendar,
+  ChevronDown,
+  CreditCard,
+  FileText,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Tag,
+  Trash,
 } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
 
@@ -182,17 +182,18 @@ export function TransactionDetailPage() {
             Back
           </Button>
           <div className="flex gap-2">
-            {transaction.type === "expense" && transaction.refunded_amount < Math.abs(transaction.amount) && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-amber-600 border-amber-600 hover:bg-amber-50"
-                onClick={() => navigate({ to: "/refunds" })}
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Add Refund
-              </Button>
-            )}
+            {transaction.type === "expense" &&
+              transaction.refunded_amount < Math.abs(transaction.amount) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-amber-600 border-amber-600 hover:bg-amber-50"
+                  onClick={() => navigate({ to: "/refunds" })}
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Add Refund
+                </Button>
+              )}
             <Button
               variant="ghost"
               size="sm"
@@ -235,7 +236,9 @@ export function TransactionDetailPage() {
               </h1>
               {transaction.refunded_amount > 0 ? (
                 <div className="flex flex-col items-center w-full max-w-sm">
-                  <p className={cn("text-lg line-through text-muted-foreground")}>
+                  <p
+                    className={cn("text-lg line-through text-muted-foreground")}
+                  >
                     {transaction.type === "transfer"
                       ? new Intl.NumberFormat("en-US", {
                           style: "currency",
@@ -258,13 +261,21 @@ export function TransactionDetailPage() {
                       ? new Intl.NumberFormat("en-US", {
                           style: "currency",
                           currency: "EUR",
-                        }).format(Math.abs(transaction.amount - transaction.refunded_amount))
+                        }).format(
+                          Math.abs(
+                            transaction.amount - transaction.refunded_amount
+                          )
+                        )
                       : `${
                           transaction.type === "expense" ? "-" : "+"
                         }${new Intl.NumberFormat("en-US", {
                           style: "currency",
                           currency: "EUR",
-                        }).format(Math.abs(transaction.amount - transaction.refunded_amount))}`}
+                        }).format(
+                          Math.abs(
+                            transaction.amount - transaction.refunded_amount
+                          )
+                        )}`}
                   </p>
 
                   <div className="flex items-center text-amber-600 mt-1 text-sm gap-1">
@@ -279,14 +290,24 @@ export function TransactionDetailPage() {
                       }).format(transaction.refunded_amount)}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      ({Math.round((transaction.refunded_amount / Math.abs(transaction.amount)) * 100)}%)
+                      (
+                      {Math.round(
+                        (transaction.refunded_amount /
+                          Math.abs(transaction.amount)) *
+                          100
+                      )}
+                      %)
                     </span>
                   </div>
 
                   {transaction.type === "expense" && (
                     <div className="w-full mt-3">
                       <Progress
-                        value={Math.round((transaction.refunded_amount / Math.abs(transaction.amount)) * 100)}
+                        value={Math.round(
+                          (transaction.refunded_amount /
+                            Math.abs(transaction.amount)) *
+                            100
+                        )}
                         className="h-2"
                         indicatorClassName="bg-amber-500"
                       />
@@ -394,10 +415,14 @@ export function TransactionDetailPage() {
               transition={{ delay: 0.2 }}
             >
               <Button
-                variant={refundItems && refundItems.length > 0 ? "default" : "outline"}
+                variant={
+                  refundItems && refundItems.length > 0 ? "default" : "outline"
+                }
                 className={cn(
                   "w-full justify-between",
-                  refundItems && refundItems.length > 0 && "bg-amber-600 hover:bg-amber-700 text-white"
+                  refundItems &&
+                    refundItems.length > 0 &&
+                    "bg-amber-600 hover:bg-amber-700 text-white"
                 )}
                 onClick={() => setShowRefunds(!showRefunds)}
               >
@@ -463,9 +488,15 @@ export function TransactionDetailPage() {
                             <div className="flex mb-2 items-center justify-between">
                               <div>
                                 <span className="text-xs font-semibold inline-block text-emerald-600">
-                                  {Math.round((refundItems.reduce(
-                                    (total, item) => total + item.amount,
-                                    0) / Math.abs(transaction.amount)) * 100)}% Refunded
+                                  {Math.round(
+                                    (refundItems.reduce(
+                                      (total, item) => total + item.amount,
+                                      0
+                                    ) /
+                                      Math.abs(transaction.amount)) *
+                                      100
+                                  )}
+                                  % Refunded
                                 </span>
                               </div>
                               <div className="text-right">
@@ -479,16 +510,25 @@ export function TransactionDetailPage() {
                                         (total, item) => total + item.amount,
                                         0
                                       )
-                                  )} remaining
+                                  )}{" "}
+                                  remaining
                                 </span>
                               </div>
                             </div>
                             <div className="overflow-hidden h-2 text-xs flex rounded bg-muted">
                               <div
                                 style={{
-                                  width: `${Math.min(100, Math.round((refundItems.reduce(
-                                    (total, item) => total + item.amount,
-                                    0) / Math.abs(transaction.amount)) * 100))}%`
+                                  width: `${Math.min(
+                                    100,
+                                    Math.round(
+                                      (refundItems.reduce(
+                                        (total, item) => total + item.amount,
+                                        0
+                                      ) /
+                                        Math.abs(transaction.amount)) *
+                                        100
+                                    )
+                                  )}%`,
                                 }}
                                 className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-emerald-500"
                               ></div>
@@ -499,7 +539,9 @@ export function TransactionDetailPage() {
 
                       {refundItems && refundItems.length > 0 ? (
                         <div className="space-y-4">
-                          <h3 className="text-sm font-medium">Refund Allocations</h3>
+                          <h3 className="text-sm font-medium">
+                            Refund Allocations
+                          </h3>
                           <div className="space-y-3">
                             {refundItems.map(item => {
                               const linkedTransaction = getLinkedTransaction(
@@ -519,18 +561,18 @@ export function TransactionDetailPage() {
                                   <div className="flex items-start justify-between">
                                     <div className="space-y-1">
                                       <p className="font-medium">
-                                        {linkedTransaction?.description || item.description}
+                                        {linkedTransaction?.description ||
+                                          item.description}
                                       </p>
                                       <time className="text-xs text-muted-foreground flex items-center">
                                         <Calendar className="h-3 w-3 mr-1" />
-                                        {new Date(linkedTransaction?.date || item.date).toLocaleDateString(
-                                          "en-US",
-                                          {
-                                            year: "numeric",
-                                            month: "short",
-                                            day: "numeric",
-                                          }
-                                        )}
+                                        {new Date(
+                                          linkedTransaction?.date || item.date
+                                        ).toLocaleDateString("en-US", {
+                                          year: "numeric",
+                                          month: "short",
+                                          day: "numeric",
+                                        })}
                                       </time>
                                     </div>
                                     <p
@@ -541,7 +583,9 @@ export function TransactionDetailPage() {
                                           : "text-destructive"
                                       )}
                                     >
-                                      {transaction.type === "expense" ? "+" : "-"}
+                                      {transaction.type === "expense"
+                                        ? "+"
+                                        : "-"}
                                       {new Intl.NumberFormat("en-US", {
                                         style: "currency",
                                         currency: "EUR",
@@ -574,7 +618,10 @@ export function TransactionDetailPage() {
                                         }
                                       >
                                         <FileText className="h-3 w-3 mr-1" />
-                                        View {transaction.type === "expense" ? "income" : "expense"}
+                                        View{" "}
+                                        {transaction.type === "expense"
+                                          ? "income"
+                                          : "expense"}
                                       </Button>
                                     </div>
                                   )}

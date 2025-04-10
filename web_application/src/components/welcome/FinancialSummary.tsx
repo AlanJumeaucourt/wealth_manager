@@ -7,9 +7,10 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 interface FinancialSummaryProps {
   accounts: Account[]
   wealthData: Array<{ date: string; value: number }>
+  onAccountClick?: (accountId: number) => void
 }
 
-export function FinancialSummary({ accounts, wealthData }: FinancialSummaryProps) {
+export function FinancialSummary({ accounts, wealthData, onAccountClick }: FinancialSummaryProps) {
   // Calculate total balance and balances by account type
   const { totalBalance, checkingBalance, savingsBalance, investmentBalance, monthlyChange, percentChange } = useMemo(() => {
     const total = accounts.reduce((sum, account) => sum + account.balance, 0) || 0
@@ -70,6 +71,21 @@ export function FinancialSummary({ accounts, wealthData }: FinancialSummaryProps
     }).format(Math.abs(amount))
   }
 
+  // Get first account of each type for navigation
+  const getFirstAccountByType = (type: string) => {
+    const account = accounts.find(a => a.type === type)
+    return account ? account.id : null
+  }
+
+  const handleAccountTypeClick = (type: string) => {
+    if (!onAccountClick) return
+
+    const accountId = getFirstAccountByType(type)
+    if (accountId) {
+      onAccountClick(accountId)
+    }
+  }
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-muted/50 pb-4">
@@ -95,19 +111,34 @@ export function FinancialSummary({ accounts, wealthData }: FinancialSummaryProps
               {formatCurrency(totalBalance)}
             </h3>
             <div className="grid grid-cols-3 gap-4 mt-6">
-              <div className="space-y-1">
+              <div
+                className="space-y-1 transition-colors hover:bg-muted/50 p-2 rounded cursor-pointer"
+                onClick={() => handleAccountTypeClick("checking")}
+                role="button"
+                tabIndex={0}
+              >
                 <p className="text-xs text-muted-foreground flex items-center">
                   <CreditCard className="h-3 w-3 mr-1" /> Checking
                 </p>
                 <p className="text-sm font-medium">{formatCurrency(checkingBalance)}</p>
               </div>
-              <div className="space-y-1">
+              <div
+                className="space-y-1 transition-colors hover:bg-muted/50 p-2 rounded cursor-pointer"
+                onClick={() => handleAccountTypeClick("savings")}
+                role="button"
+                tabIndex={0}
+              >
                 <p className="text-xs text-muted-foreground flex items-center">
                   <PiggyBank className="h-3 w-3 mr-1" /> Savings
                 </p>
                 <p className="text-sm font-medium">{formatCurrency(savingsBalance)}</p>
               </div>
-              <div className="space-y-1">
+              <div
+                className="space-y-1 transition-colors hover:bg-muted/50 p-2 rounded cursor-pointer"
+                onClick={() => handleAccountTypeClick("investment")}
+                role="button"
+                tabIndex={0}
+              >
                 <p className="text-xs text-muted-foreground flex items-center">
                   <TrendingUp className="h-3 w-3 mr-1" /> Investments
                 </p>

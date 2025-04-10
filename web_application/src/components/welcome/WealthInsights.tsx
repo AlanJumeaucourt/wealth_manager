@@ -8,9 +8,10 @@ import { useTransactions } from "@/api/queries"
 interface WealthInsightsProps {
   wealthData: Array<{ date: string; value: number }>
   accounts: Account[]
+  onAccountClick?: (accountId: number) => void
 }
 
-export function WealthInsights({ wealthData, accounts }: WealthInsightsProps) {
+export function WealthInsights({ wealthData, accounts, onAccountClick }: WealthInsightsProps) {
   // todo: remove this once we have a way to treat loans in backend
   const accountsb = accounts.filter(account => !account.name.includes("Prêt"))
   // Fetch expense transactions from the last 3 months to calculate average monthly expenses
@@ -198,6 +199,36 @@ export function WealthInsights({ wealthData, accounts }: WealthInsightsProps) {
     }
   }
 
+  // Handler for button click with custom navigation
+  const handleActionClick = (actionLink: string, e: React.MouseEvent) => {
+    e.preventDefault();
+
+    // Check if it's an account-related link
+    if (actionLink.startsWith('/accounts/') && onAccountClick) {
+      // Find first account of appropriate type if the link is to a filtered account view
+      const getFirstAccountByType = (type: string) => {
+        const account = accounts.find(a => a.type === type);
+        return account ? account.id : null;
+      };
+
+      if (actionLink === '/accounts/all') {
+        // If we have any account, use the first one's ID
+        const firstAccount = accounts[0];
+        if (firstAccount) {
+          onAccountClick(firstAccount.id);
+        }
+      } else if (actionLink.includes('savings')) {
+        const savingsAccountId = getFirstAccountByType('savings');
+        if (savingsAccountId) {
+          onAccountClick(savingsAccountId);
+        }
+      }
+    } else {
+      // Standard navigation for other links
+      window.location.href = actionLink;
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -230,7 +261,7 @@ export function WealthInsights({ wealthData, accounts }: WealthInsightsProps) {
                     <Button
                       variant="link"
                       className="px-0 h-auto text-sm mt-2"
-                      onClick={() => window.location.href = insight.actionLink}
+                      onClick={(e) => handleActionClick(insight.actionLink, e)}
                     >
                       {insight.action}
                       <ArrowUpRight className="ml-1 h-3 w-3" />

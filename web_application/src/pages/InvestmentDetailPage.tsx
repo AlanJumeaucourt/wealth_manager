@@ -33,7 +33,7 @@ import {
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis
+  YAxis,
 } from "recharts"
 
 interface AssetTransaction {
@@ -126,7 +126,7 @@ const periodToDays: Record<TimePeriod, number> = {
   "1Y": 365,
   "3Y": 1095,
   "5Y": 1825,
-  "max": Infinity
+  max: Infinity,
 }
 
 export function InvestmentDetailPage() {
@@ -149,8 +149,12 @@ export function InvestmentDetailPage() {
       if (!response.ok) throw new Error("Failed to fetch transactions")
       const data = await response.json()
       // Remove duplicate transactions (each transaction appears twice in the data)
-      const uniqueTransactions = data.filter((transaction: AssetTransaction, index: number, self: AssetTransaction[]) =>
-        index === self.findIndex((t) => t.id === transaction.id)
+      const uniqueTransactions = data.filter(
+        (
+          transaction: AssetTransaction,
+          index: number,
+          self: AssetTransaction[]
+        ) => index === self.findIndex(t => t.id === transaction.id)
       )
       return uniqueTransactions
     },
@@ -253,7 +257,10 @@ export function InvestmentDetailPage() {
         </div>
 
         {/* Add the custom price dialog component */}
-        <CustomPriceDialog symbol={symbol} currency={assetInfo?.currency || "USD"} />
+        <CustomPriceDialog
+          symbol={symbol}
+          currency={assetInfo?.currency || "USD"}
+        />
 
         {/* Quick Stats */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -394,14 +401,18 @@ export function InvestmentDetailPage() {
                     domain={[
                       (dataMin: number) => {
                         // Calculate the minimum value with 5% padding below
-                        const min = Math.min(...filteredPriceHistory.map(d => d.close));
-                        return min * 0.95;
+                        const min = Math.min(
+                          ...filteredPriceHistory.map(d => d.close)
+                        )
+                        return min * 0.95
                       },
                       (dataMax: number) => {
                         // Calculate the maximum value with 5% padding above
-                        const max = Math.max(...filteredPriceHistory.map(d => d.close));
-                        return max * 1.05;
-                      }
+                        const max = Math.max(
+                          ...filteredPriceHistory.map(d => d.close)
+                        )
+                        return max * 1.05
+                      },
                     ]}
                   />
                   <Tooltip
@@ -467,41 +478,46 @@ export function InvestmentDetailPage() {
                     fill="url(#colorPrice)"
                   />
                   {/* Transaction markers - only show Buy/Sell transactions */}
-                  {transactions?.filter(t => t.activity_type === "Buy" || t.activity_type === "Sell").map(transaction => {
-                    // Find the closest price data point to the transaction date
-                    const transactionDate = new Date(transaction.date)
-                    const closestDataPoint = filteredPriceHistory?.length
-                      ? filteredPriceHistory.reduce((prev, curr) => {
-                          const prevDate = new Date(prev.date)
-                          const currDate = new Date(curr.date)
-                          const prevDiff = Math.abs(
-                            prevDate.getTime() - transactionDate.getTime()
-                          )
-                          const currDiff = Math.abs(
-                            currDate.getTime() - transactionDate.getTime()
-                          )
-                          return prevDiff < currDiff ? prev : curr
-                        })
-                      : null
-
-                    if (!closestDataPoint) return null
-
-                    return (
-                      <ReferenceDot
-                        key={`${transaction.id}-${transaction.activity_type}`}
-                        x={closestDataPoint.date}
-                        y={closestDataPoint.close}
-                        r={4}
-                        fill={
-                          transaction.activity_type === "Buy"
-                            ? "hsl(var(--success))"
-                            : "hsl(var(--destructive))"
-                        }
-                        stroke="white"
-                        strokeWidth={1}
-                      />
+                  {transactions
+                    ?.filter(
+                      t =>
+                        t.activity_type === "Buy" || t.activity_type === "Sell"
                     )
-                  })}
+                    .map(transaction => {
+                      // Find the closest price data point to the transaction date
+                      const transactionDate = new Date(transaction.date)
+                      const closestDataPoint = filteredPriceHistory?.length
+                        ? filteredPriceHistory.reduce((prev, curr) => {
+                            const prevDate = new Date(prev.date)
+                            const currDate = new Date(curr.date)
+                            const prevDiff = Math.abs(
+                              prevDate.getTime() - transactionDate.getTime()
+                            )
+                            const currDiff = Math.abs(
+                              currDate.getTime() - transactionDate.getTime()
+                            )
+                            return prevDiff < currDiff ? prev : curr
+                          })
+                        : null
+
+                      if (!closestDataPoint) return null
+
+                      return (
+                        <ReferenceDot
+                          key={`${transaction.id}-${transaction.activity_type}`}
+                          x={closestDataPoint.date}
+                          y={closestDataPoint.close}
+                          r={4}
+                          fill={
+                            transaction.activity_type === "Buy"
+                              ? "hsl(var(--success))"
+                              : "hsl(var(--destructive))"
+                          }
+                          stroke="white"
+                          strokeWidth={1}
+                        />
+                      )
+                    })}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -688,8 +704,8 @@ export function InvestmentDetailPage() {
                     transaction.activity_type === "Buy"
                       ? "bg-green-500/5 border border-green-500/20"
                       : transaction.activity_type === "Sell"
-                      ? "bg-red-500/5 border border-red-500/20"
-                      : "bg-primary/5 border border-primary/20"
+                        ? "bg-red-500/5 border border-red-500/20"
+                        : "bg-primary/5 border border-primary/20"
                   )}
                 >
                   <div
@@ -698,8 +714,8 @@ export function InvestmentDetailPage() {
                       transaction.activity_type === "Buy"
                         ? "bg-green-500/10"
                         : transaction.activity_type === "Sell"
-                        ? "bg-red-500/10"
-                        : "bg-primary/10"
+                          ? "bg-red-500/10"
+                          : "bg-primary/10"
                     )}
                   >
                     {transaction.activity_type === "Buy" ? (
@@ -713,19 +729,28 @@ export function InvestmentDetailPage() {
                   <div className="flex-1 grid grid-cols-2 md:grid-cols-6 gap-2">
                     <div className="md:col-span-3">
                       <div className="text-xs text-muted-foreground font-medium">
-                        {transaction.activity_type === "Dividend" ? "DIVIDEND" : transaction.activity_type.toUpperCase()} • {format(new Date(transaction.date), "MMM d, yyyy")}
+                        {transaction.activity_type === "Dividend"
+                          ? "DIVIDEND"
+                          : transaction.activity_type.toUpperCase()}{" "}
+                        • {format(new Date(transaction.date), "MMM d, yyyy")}
                       </div>
                       <div className="font-medium">
                         {transaction.activity_type === "Dividend"
                           ? `Dividend Payment`
-                          : `${transaction.activity_type === "Buy" ? "Bought" : "Sold"} ${transaction.quantity} shares`}
+                          : `${
+                              transaction.activity_type === "Buy"
+                                ? "Bought"
+                                : "Sold"
+                            } ${transaction.quantity} shares`}
                       </div>
                     </div>
                     <div className="col-span-1 md:col-span-3 flex items-end justify-end space-x-2">
                       {transaction.activity_type === "Dividend" ? (
                         <>
                           <div className="text-right">
-                            <div className="text-xs text-muted-foreground">Gross</div>
+                            <div className="text-xs text-muted-foreground">
+                              Gross
+                            </div>
                             <div className="font-medium">
                               {new Intl.NumberFormat(undefined, {
                                 style: "currency",
@@ -735,9 +760,12 @@ export function InvestmentDetailPage() {
                           </div>
                           {transaction.fee > 0 && (
                             <div className="text-right">
-                              <div className="text-xs text-muted-foreground">Fee</div>
+                              <div className="text-xs text-muted-foreground">
+                                Fee
+                              </div>
                               <div className="font-medium text-red-500">
-                                -{new Intl.NumberFormat(undefined, {
+                                -
+                                {new Intl.NumberFormat(undefined, {
                                   style: "currency",
                                   currency: assetInfo?.currency || "USD",
                                 }).format(transaction.fee)}
@@ -745,7 +773,9 @@ export function InvestmentDetailPage() {
                             </div>
                           )}
                           <div className="text-right">
-                            <div className="text-xs text-muted-foreground">Net</div>
+                            <div className="text-xs text-muted-foreground">
+                              Net
+                            </div>
                             <div className="font-medium font-bold">
                               {new Intl.NumberFormat(undefined, {
                                 style: "currency",
@@ -757,7 +787,9 @@ export function InvestmentDetailPage() {
                       ) : (
                         <>
                           <div className="text-right">
-                            <div className="text-xs text-muted-foreground">Price</div>
+                            <div className="text-xs text-muted-foreground">
+                              Price
+                            </div>
                             <div className="font-medium">
                               {new Intl.NumberFormat(undefined, {
                                 style: "currency",
@@ -766,7 +798,9 @@ export function InvestmentDetailPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-xs text-muted-foreground">Total</div>
+                            <div className="text-xs text-muted-foreground">
+                              Total
+                            </div>
                             <div className="font-medium font-bold">
                               {new Intl.NumberFormat(undefined, {
                                 style: "currency",

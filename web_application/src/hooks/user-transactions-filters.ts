@@ -24,7 +24,7 @@ export function useTransactionsFilters(defaultType = "all") {
   }
 
   const handleAccountChange = (value: string) => {
-    updateSearchParams({ account: value === "all" ? undefined : value })
+    updateSearchParams({ accountId: value === "all" ? undefined : value })
   }
 
   const handleDateRangeChange = (value: string) => {

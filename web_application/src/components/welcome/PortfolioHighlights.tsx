@@ -1,17 +1,41 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowDownRight, ArrowUpRight, BarChart3, DollarSign, PiggyBank, Leaf } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, BarChart3, DollarSign, PiggyBank, Leaf, LineChart as LineChartIcon, PlusCircle } from "lucide-react"
 import { PortfolioSummary } from "@/types"
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { PortfolioPerformance } from "@/api/queries"
+import { Button } from "@/components/ui/button"
 
 interface PortfolioHighlightsProps {
   portfolioSummary?: PortfolioSummary
   performanceData?: PortfolioPerformance
+  onAssetClick?: (assetId: number, assetName?: string) => void
 }
 
-export function PortfolioHighlights({ portfolioSummary, performanceData }: PortfolioHighlightsProps) {
-  if (!portfolioSummary) {
-    return null
+export function PortfolioHighlights({ portfolioSummary, performanceData, onAssetClick }: PortfolioHighlightsProps) {
+  // Show empty state when no portfolio data is available
+  if (!portfolioSummary || !portfolioSummary.assets || portfolioSummary.assets.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-semibold">Investment Portfolio</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="flex flex-col items-center justify-center text-center py-6">
+            <div className="bg-primary/10 p-4 rounded-full mb-4">
+              <LineChartIcon className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="text-lg font-medium mb-2">No investments yet</h3>
+            <p className="text-muted-foreground text-sm mb-4">
+              Start building your investment portfolio to track your performance and returns.
+            </p>
+            <Button onClick={() => window.location.href = "/investments/add"} className="gap-2">
+              <PlusCircle className="h-4 w-4" />
+              Add Investment
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   const formatCurrency = (amount: number) => {
@@ -50,12 +74,19 @@ export function PortfolioHighlights({ portfolioSummary, performanceData }: Portf
         <div className="bg-background border border-border shadow-sm rounded-lg p-2 text-xs">
           <p className="font-medium">{formatDate(payload[0].payload.date)}</p>
           <p className={`${payload[0].value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {formatPercent(payload[0].value)}
+            {payload[0].value >= 0 ? "+" : ""}
+            {payload[0].value} €
           </p>
         </div>
       )
     }
     return null
+  }
+
+  const handleAssetClick = (symbol: string, assetName?: string) => {
+    if (onAssetClick) {
+      onAssetClick(0, symbol);
+    }
   }
 
   return (
@@ -161,7 +192,13 @@ export function PortfolioHighlights({ portfolioSummary, performanceData }: Portf
                 .sort((a, b) => b.current_value - a.current_value)
                 .slice(0, 3)
                 .map((asset) => (
-                  <div key={asset.symbol} className="flex items-center justify-between text-sm">
+                  <div
+                    key={asset.symbol}
+                    className="flex items-center justify-between text-sm hover:bg-muted/50 p-2 rounded-lg cursor-pointer transition-colors"
+                    onClick={() => handleAssetClick(asset.symbol, asset.name)}
+                    role="button"
+                    tabIndex={0}
+                  >
                     <div className="flex items-center gap-2">
                       <div className="bg-primary/10 p-1 rounded-md">
                         <PiggyBank className="h-3 w-3 text-primary" />

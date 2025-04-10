@@ -1,7 +1,10 @@
 import { useAccounts, useAllCategories, useTransactions } from "@/api/queries"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { AddTransactionDialog } from "@/components/transactions/AddTransactionDialog"
-import { BatchDeleteResponse, BatchDeleteTransactionsButton } from "@/components/transactions/BatchDeleteTransactionsButton"
+import {
+  BatchDeleteResponse,
+  BatchDeleteTransactionsButton,
+} from "@/components/transactions/BatchDeleteTransactionsButton"
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog"
 import { EditTransactionDialog } from "@/components/transactions/EditTransactionDialog"
 import { Button } from "@/components/ui/button"
@@ -57,7 +60,7 @@ import {
   RotateCcw,
   Search,
   Trash,
-  X
+  X,
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 interface TransactionsPageProps {
@@ -258,12 +261,12 @@ const TransactionRow = memo(function TransactionRow({
                       : `Used in refund(s): ${new Intl.NumberFormat("en-US", {
                           style: "currency",
                           currency: "EUR",
-                        }).format(transaction.refunded_amount)}`
-                    }
+                        }).format(transaction.refunded_amount)}`}
                   </p>
                   {transaction.refund_items && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {transaction.refund_items.length} refund allocation{transaction.refund_items.length > 1 ? 's' : ''}
+                      {transaction.refund_items.length} refund allocation
+                      {transaction.refund_items.length > 1 ? "s" : ""}
                     </p>
                   )}
                 </TooltipContent>
@@ -274,7 +277,8 @@ const TransactionRow = memo(function TransactionRow({
         {transaction.refund_items && transaction.refund_items.length > 0 && (
           <div className="text-xs text-amber-600 font-normal flex items-center mt-0.5">
             <RotateCcw className="h-3 w-3 mr-1" />
-            {transaction.refund_items.length} refund allocation{transaction.refund_items.length > 1 ? 's' : ''}
+            {transaction.refund_items.length} refund allocation
+            {transaction.refund_items.length > 1 ? "s" : ""}
           </div>
         )}
         <div className="text-xs text-muted-foreground">
@@ -424,16 +428,19 @@ const TransactionRow = memo(function TransactionRow({
               {new Intl.NumberFormat("en-US", {
                 style: "currency",
                 currency: "EUR",
-              }).format(Math.abs(transaction.amount - transaction.refunded_amount))}
+              }).format(
+                Math.abs(transaction.amount - transaction.refunded_amount)
+              )}
             </span>
           </div>
         ) : (
-          `${
-            transaction.type === "expense" ? "-" : "+"
-          }${new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "EUR",
-          }).format(Math.abs(transaction.amount))}`
+          `${transaction.type === "expense" ? "-" : "+"}${new Intl.NumberFormat(
+            "en-US",
+            {
+              style: "currency",
+              currency: "EUR",
+            }
+          ).format(Math.abs(transaction.amount))}`
         )}
       </TableCell>
       <TableCell>
@@ -514,7 +521,7 @@ export function TransactionsPage({
   }
 
   const handleAccountChange = (value: string) => {
-    updateSearchParams({ account: value === "all" ? undefined : value })
+    updateSearchParams({ accountId: value === "all" ? undefined : value })
   }
 
   const handleDateRangeChange = (value: string) => {
@@ -574,7 +581,7 @@ export function TransactionsPage({
         updateSearchParams({ category: undefined })
         break
       case "account":
-        updateSearchParams({ account: undefined })
+        updateSearchParams({ accountId: undefined })
         break
       case "date":
         updateSearchParams({ date_range: undefined })
@@ -762,17 +769,24 @@ export function TransactionsPage({
   const handleBatchDeleteSuccess = (result: BatchDeleteResponse) => {
     // Clear selections after successful delete
     if (result.total_successful > 0) {
-      setSelectedTransactions([]);
+      setSelectedTransactions([])
       toast({
         title: "Transactions deleted",
-        description: `Successfully deleted ${result.total_successful} transactions.`
-      });
+        description: `Successfully deleted ${result.total_successful} transactions.`,
+      })
     }
-  };
+  }
 
   return (
-    <PageContainer title={defaultType === "all" ? "All Transactions" : `${defaultType.charAt(0).toUpperCase() + defaultType.slice(1)} Transactions`}>
-
+    <PageContainer
+      title={
+        defaultType === "all"
+          ? "All Transactions"
+          : `${
+              defaultType.charAt(0).toUpperCase() + defaultType.slice(1)
+            } Transactions`
+      }
+    >
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {shouldShowSkeleton ? (
@@ -788,7 +802,9 @@ export function TransactionsPage({
           ) : (
             <>
               <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">{statsText.count}</p>
+                <p className="text-sm text-muted-foreground">
+                  {statsText.count}
+                </p>
                 <p className="text-2xl font-semibold mt-2">{totalItems}</p>
               </div>
               <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
@@ -805,7 +821,9 @@ export function TransactionsPage({
                 </p>
               </div>
               <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">{statsText.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  {statsText.title}
+                </p>
                 <p
                   className={`text-2xl font-semibold mt-2 ${
                     defaultType === "expense"
@@ -873,15 +891,16 @@ export function TransactionsPage({
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   {allCategories &&
-                    Object.entries(allCategories).flatMap(([type, categories]) =>
-                      categories.map(category => (
-                        <SelectItem
-                          key={category.name.fr}
-                          value={category.name.fr}
-                        >
-                          {category.name.fr}
-                        </SelectItem>
-                      ))
+                    Object.entries(allCategories).flatMap(
+                      ([type, categories]) =>
+                        categories.map(category => (
+                          <SelectItem
+                            key={category.name.fr}
+                            value={category.name.fr}
+                          >
+                            {category.name.fr}
+                          </SelectItem>
+                        ))
                     )}
                 </SelectContent>
               </Select>
@@ -963,7 +982,9 @@ export function TransactionsPage({
             )}
             {selectedTransactions.length > 0 && (
               <BatchDeleteTransactionsButton
-                selectedTransactions={transactions.filter(t => selectedTransactions.includes(t.id))}
+                selectedTransactions={transactions.filter(t =>
+                  selectedTransactions.includes(t.id)
+                )}
                 onSuccess={handleBatchDeleteSuccess}
                 disabled={isLoading}
               />
@@ -1166,6 +1187,6 @@ export function TransactionsPage({
           </DialogContent>
         </Dialog>
       </div>
-  </PageContainer>
+    </PageContainer>
   )
 }

@@ -1,47 +1,49 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { DatePicker } from "@/components/ui/datePicker"
 import { Separator } from "@/components/ui/separator"
 import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
+    SidebarInset,
+    SidebarProvider,
+    SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { Toaster } from "@/components/ui/toaster"
 import { AccountDetailPage } from "@/pages/AccountDetailPage"
 import { AccountsPage } from "@/pages/AccountsPage"
 import Categories from "@/pages/Categories"
-import { Dashboard } from "@/pages/Dashboard"
-import { Welcome } from "@/pages/Welcome"
 import GoCardlessAccounts from "@/pages/GoCardlessAccounts"
 import { InvestmentDetailPage } from "@/pages/InvestmentDetailPage"
+import { Welcome } from "@/pages/Welcome"
 import { useDateRangeStore } from "@/store/dateRangeStore"
 import {
-  Outlet,
-  RootRoute,
-  Route,
-  Router,
-  redirect,
-  useRouter,
+    Outlet,
+    RootRoute,
+    Route,
+    Router,
+    redirect,
+    useRouter,
 } from "@tanstack/react-router"
 import { parse } from "date-fns"
+import { useEffect, useState } from "react"
 import { KeyboardShortcutsHelp } from "./components/keyboard-shortcuts-help"
 import ConnectBank from "./pages/ConnectBank"
+import { ExportImportPage } from "./pages/ExportImportPage"
 import GoCardlessCallback from "./pages/GoCardlessCallback"
+import { InvestmentsPage } from "./pages/investmentsPage"
 import { InvestmentsTransactionPage } from "./pages/InvestmentsTransactionPage"
 import { Landing } from "./pages/Landing"
 import { RefundsPage } from "./pages/RefundsPage"
+import { Signup } from "./pages/Signup"
 import { TransactionDetailPage } from "./pages/TransactionDetailPage"
 import { TransactionsPage } from "./pages/TransactionsPage"
 import { Wealth } from "./pages/Wealth"
-import { InvestmentsPage } from "./pages/investmentsPage"
-import { Signup } from "./pages/Signup"
 
 // Create a root route without search params validation
 const rootRoute = new RootRoute({
@@ -67,8 +69,13 @@ const dataMaxDate = parse("2025-12-31", "yyyy-MM-dd", new Date())
 
 function AuthenticatedLayout() {
   const router = useRouter()
-  const currentPath = router.state.location.pathname
   const { fromDate, toDate, setFromDate, setToDate } = useDateRangeStore()
+  const [currentPath, setCurrentPath] = useState(router.state.location.pathname)
+
+  // Move pathname updates to useEffect to avoid state updates during render
+  useEffect(() => {
+    setCurrentPath(router.state.location.pathname)
+  }, [router.state.location.pathname])
 
   // Helper function to get breadcrumb title
   const getBreadcrumbTitle = (path: string) => {
@@ -189,7 +196,12 @@ function AuthenticatedLayout() {
 }
 
 function Root() {
-  return <Outlet />
+  return (
+    <>
+      <Outlet />
+      <Toaster />
+    </>
+  )
 }
 
 // Create routes
@@ -209,13 +221,6 @@ const dashboardRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/dashboard",
   component: Welcome,
-})
-
-// Add a legacy dashboard route
-const legacyDashboardRoute = new Route({
-  getParentRoute: () => authenticatedLayout,
-  path: "/legacy-dashboard",
-  component: Dashboard,
 })
 
 // Accounts routes
@@ -265,7 +270,7 @@ export const transactionsAllRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/transactions/all",
   validateSearch: (search: Record<string, unknown>) => ({
-    account: search.account as string | undefined,
+    accountId: search.accountId as number | undefined,
     category: search.category as string | undefined,
     type: search.type as string | undefined,
     date_range: search.date_range as string | undefined,
@@ -281,7 +286,7 @@ const transactionsIncomeRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/transactions/income",
   validateSearch: (search: Record<string, unknown>) => ({
-    account: search.account as string | undefined,
+    accountId: search.accountId as number | undefined,
     category: search.category as string | undefined,
     type: search.type as string | undefined,
     date_range: search.date_range as string | undefined,
@@ -297,7 +302,7 @@ const transactionsExpenseRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/transactions/expense",
   validateSearch: (search: Record<string, unknown>) => ({
-    account: search.account as string | undefined,
+    accountId: search.account as string | undefined,
     category: search.category as string | undefined,
     type: search.type as string | undefined,
     date_range: search.date_range as string | undefined,
@@ -389,6 +394,11 @@ const investmentsRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/investmentTransactions",
   component: InvestmentsTransactionPage,
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      addNew: search.addNew === "true" ? "true" : undefined,
+    }
+  },
 })
 
 const investmentsPageRoute = new Route({
@@ -439,13 +449,19 @@ const gocardlessAccountsRoute = new Route({
   component: GoCardlessAccounts,
 })
 
+// Export/Import route
+const exportImportRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/export-import",
+  component: ExportImportPage,
+})
+
 // Define the route tree
 export const routeTree = rootRoute.addChildren([
   landingRoute,
   signupRoute,
   authenticatedLayout.addChildren([
     dashboardRoute,
-    legacyDashboardRoute,
     // Accounts routes
     accountsAllRoute,
     accountsRegularRoute,
@@ -474,6 +490,8 @@ export const routeTree = rootRoute.addChildren([
     // GoCardless routes
     connectBankRoute,
     goCardlessCallbackRoute,
+    // Export/Import route
+    exportImportRoute,
   ]),
 ])
 

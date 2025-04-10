@@ -7,9 +7,19 @@ interface RecentActivityProps {
   transactions: Transaction[]
   accounts: Account[]
   navigate: (to: string) => void
+  onAccountClick?: (accountId: number) => void
+  onTransactionClick?: (transactionId: number) => void
+  onTransactionSelect?: (transaction: Transaction) => void
 }
 
-export function RecentActivity({ transactions, accounts, navigate }: RecentActivityProps) {
+export function RecentActivity({
+  transactions,
+  accounts,
+  navigate,
+  onAccountClick,
+  onTransactionClick,
+  onTransactionSelect
+}: RecentActivityProps) {
   if (!transactions || transactions.length === 0) {
     return (
       <Card>
@@ -68,6 +78,30 @@ export function RecentActivity({ transactions, accounts, navigate }: RecentActiv
     }
   }
 
+  // Handle transaction click
+  const handleTransactionClick = (transaction: Transaction) => {
+    if (onTransactionSelect) {
+      onTransactionSelect(transaction);
+    }
+
+    if (onTransactionClick) {
+      onTransactionClick(transaction.id);
+    } else {
+      navigate(`/transactions/${transaction.id}`);
+    }
+  }
+
+  // Handle account click
+  const handleAccountClick = (accountId: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering transaction click
+
+    if (onAccountClick) {
+      onAccountClick(accountId);
+    } else {
+      navigate(`/accounts/${accountId}`);
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -82,7 +116,9 @@ export function RecentActivity({ transactions, accounts, navigate }: RecentActiv
               <div
                 key={transaction.id}
                 className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors"
-                onClick={() => navigate(`/transactions/${transaction.id}`)}
+                onClick={() => handleTransactionClick(transaction)}
+                role="button"
+                tabIndex={0}
               >
                 <div className="flex items-center space-x-3">
                   <div className={`w-8 h-8 flex items-center justify-center rounded-full ${color}`}>
@@ -94,21 +130,49 @@ export function RecentActivity({ transactions, accounts, navigate }: RecentActiv
                       <Clock className="h-3 w-3 mr-1" />
                       {formatDate(transaction.date)}
                       <span className="mx-1">•</span>
-                      {transaction.type === 'transfer'
-                        ? `${getAccountName(transaction.from_account_id)} → ${getAccountName(transaction.to_account_id)}`
-                        : transaction.type === 'expense'
-                          ? getAccountName(transaction.from_account_id)
-                          : getAccountName(transaction.to_account_id)
-                      }
+                      {transaction.type === 'transfer' ? (
+                        <>
+                          <span
+                            className="hover:underline cursor-pointer"
+                            onClick={(e) => handleAccountClick(transaction.from_account_id, e)}
+                          >
+                            {getAccountName(transaction.from_account_id)}
+                          </span>
+                          {" → "}
+                          <span
+                            className="hover:underline cursor-pointer"
+                            onClick={(e) => handleAccountClick(transaction.to_account_id, e)}
+                          >
+                            {getAccountName(transaction.to_account_id)}
+                          </span>
+                        </>
+                      ) : transaction.type === 'expense' ? (
+                        <span
+                          className="hover:underline cursor-pointer"
+                          onClick={(e) => handleAccountClick(transaction.from_account_id, e)}
+                        >
+                          {getAccountName(transaction.from_account_id)}
+                        </span>
+                      ) : (
+                        <span
+                          className="hover:underline cursor-pointer"
+                          onClick={(e) => handleAccountClick(transaction.to_account_id, e)}
+                        >
+                          {getAccountName(transaction.to_account_id)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-                <div className={`text-sm font-medium ${
-                  transaction.type === "expense" ? "text-red-500" :
-                  transaction.type === "income" ? "text-green-500" : ""
-                }`}>
-                  {transaction.type === "expense" ? "-" :
-                   transaction.type === "income" ? "+" : ""}
+                <div
+                  className={`text-sm font-medium ${
+                    transaction.type === "expense"
+                      ? "text-red-500"
+                      : transaction.type === "income"
+                        ? "text-green-500"
+                        : "text-blue-500"
+                  }`}
+                >
                   {formatCurrency(transaction.amount)}
                 </div>
               </div>

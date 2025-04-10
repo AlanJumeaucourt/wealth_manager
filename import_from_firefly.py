@@ -512,11 +512,11 @@ class WealthManagerApi:
                 return {"category": "Autres rentrées", "subCategory": None}
             return {"category": "Divers", "subCategory": "A catégoriser"}
         category_info = budget_to_category_mapping.get(budget)
+        if transaction_type == "income":
+            return {"category": "Autres rentrées", "subCategory": None}
         # print(f"{category_info=}")
         if category_info:
             return category_info
-        if transaction_type == "income":
-            return {"category": "Autres rentrées", "subCategory": None}
         return {"category": "Divers", "subCategory": "A catégoriser"}
 
     @staticmethod

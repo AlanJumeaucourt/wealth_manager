@@ -16,7 +16,7 @@ class TransactionData(TypedDict):
     per_page: int
 
 
-class TransactionService(BaseService):
+class TransactionService(BaseService[Transaction]):
     def __init__(self) -> None:
         super().__init__(table_name="transactions", model_class=Transaction)
         self.logger = get_logger(__name__)
@@ -113,6 +113,45 @@ class TransactionService(BaseService):
         # Validate transaction
         self.validate_transaction(data)
         return super().create(data)
+
+    def batch_create(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        """Create multiple transactions in a batch operation with validation.
+
+        Args:
+            items: List of dictionaries containing transaction data
+
+        Returns:
+            Dictionary containing successful and failed creations
+
+        """
+        if not items:
+            return {
+                "successful": [],
+                "failed": [],
+                "total_successful": 0,
+                "total_failed": 0,
+            }
+
+        # Pre-validate all transactions
+        valid_items: list[dict[str, Any]] = []
+        failed_items: list[dict[str, Any]] = []
+
+        for item in items:
+            try:
+                # Validate each transaction
+                self.validate_transaction(item)
+                valid_items.append(item)
+            except Exception as e:
+                failed_items.append({"data": item, "error": str(e)})
+
+        # Use parent's batch_create for valid items
+        result = super().batch_create(valid_items)
+
+        # Add pre-validation failures to the result
+        result["failed"].extend(failed_items)
+        result["total_failed"] += len(failed_items)
+
+        return result
 
     def get_all(self, user_id: int, query_params: ListQueryParams) -> TransactionData:
         # First get filtered transactions using parent method to maintain original filtering

@@ -1,34 +1,37 @@
 import { useAccounts, useAssets, useInvestments } from "@/api/queries"
 import { AddInvestmentDialog } from "@/components/investmentsTransaction/AddInvestmentTransactionDialog"
-import { BatchDeleteInvestmentsButton, BatchDeleteResponse } from "@/components/investmentsTransaction/BatchDeleteInvestmentsButton"
+import {
+    BatchDeleteInvestmentsButton,
+    BatchDeleteResponse,
+} from "@/components/investmentsTransaction/BatchDeleteInvestmentsButton"
 import { DeleteInvestmentDialog } from "@/components/investmentsTransaction/DeleteInvestmentTransactionDialog"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -36,23 +39,23 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { Investment } from "@/types"
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
-  ArrowDownIcon,
-  ArrowUpDown,
-  ArrowUpIcon,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Download,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Search,
-  Trash,
-  TrendingDown,
-  TrendingUp,
+    ArrowDownIcon,
+    ArrowUpDown,
+    ArrowUpIcon,
+    ChevronLeft,
+    ChevronRight,
+    ChevronsLeft,
+    ChevronsRight,
+    Download,
+    MoreHorizontal,
+    Pencil,
+    Plus,
+    Search,
+    Trash,
+    TrendingDown,
+    TrendingUp,
 } from "lucide-react"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 
@@ -65,7 +68,13 @@ type SortField =
   | "fee"
   | "tax"
 type SortDirection = "asc" | "desc"
-type InvestmentTypeFilter = "all" | "Buy" | "Sell" | "Deposit" | "Withdrawal" | "Dividend"
+type InvestmentTypeFilter =
+  | "all"
+  | "Buy"
+  | "Sell"
+  | "Deposit"
+  | "Withdrawal"
+  | "Dividend"
 
 const INVESTMENT_TYPE_ICONS = {
   Buy: <TrendingUp className="h-4 w-4 text-green-500" />,
@@ -122,37 +131,44 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
     const date = new Date(investment.date)
     return {
       date: date.toLocaleDateString(),
-      time: date.toLocaleTimeString()
+      time: date.toLocaleTimeString(),
     }
   }, [investment.date])
 
-  const formattedValues = useMemo(() => ({
-    quantity: investment.quantity.toLocaleString(),
-    unitPrice: new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: "EUR",
-    }).format(investment.unit_price),
-    fee: new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: "EUR",
-    }).format(investment.fee),
-    tax: new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: "EUR",
-    }).format(investment.tax),
-    total: new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: "EUR",
-    }).format(investment.total_paid || 0)
-  }), [investment.quantity, investment.unit_price, investment.fee, investment.tax, investment.total_paid])
+  const formattedValues = useMemo(
+    () => ({
+      quantity: investment.quantity.toLocaleString(),
+      unitPrice: new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "EUR",
+      }).format(investment.unit_price),
+      fee: new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "EUR",
+      }).format(investment.fee),
+      tax: new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "EUR",
+      }).format(investment.tax),
+      total: new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "EUR",
+      }).format(investment.total_paid || 0),
+    }),
+    [
+      investment.quantity,
+      investment.unit_price,
+      investment.fee,
+      investment.tax,
+      investment.total_paid,
+    ]
+  )
 
   const fromAccountName = getAccountName(investment.from_account_id)
   const toAccountName = getAccountName(investment.to_account_id)
 
   return (
-    <TableRow
-      className="group border-l-2 hover:bg-muted/50 transition-colors"
-    >
+    <TableRow className="group border-l-2 hover:bg-muted/50 transition-colors">
       <TableCell>
         <Checkbox
           checked={selectedInvestments.includes(investment.transaction_id)}
@@ -165,14 +181,18 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
       <TableCell>
         <div className="flex flex-col">
           <span>{formattedDate.date}</span>
-          <span className="text-xs text-muted-foreground">{formattedDate.time}</span>
+          <span className="text-xs text-muted-foreground">
+            {formattedDate.time}
+          </span>
         </div>
       </TableCell>
       <TableCell>
-        <div className={cn(
-          "flex items-center gap-2 rounded-md border px-2 py-1 w-fit",
-          "bg-background"
-        )}>
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-md border px-2 py-1 w-fit",
+            "bg-background"
+          )}
+        >
           {INVESTMENT_TYPE_ICONS[investment.investment_type]}
           <span className="text-sm font-medium">
             {INVESTMENT_TYPE_LABELS[investment.investment_type]}
@@ -249,10 +269,14 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
       </TableCell>
       <TableCell className="text-right">
         <div className="flex flex-col items-end">
-          <span className={cn(
-            "font-medium",
-            investment.fee > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
-          )}>
+          <span
+            className={cn(
+              "font-medium",
+              investment.fee > 0
+                ? "text-red-600 dark:text-red-400"
+                : "text-muted-foreground"
+            )}
+          >
             {formattedValues.fee}
           </span>
           <span className="text-xs text-muted-foreground">fee</span>
@@ -260,10 +284,14 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
       </TableCell>
       <TableCell className="text-right">
         <div className="flex flex-col items-end">
-          <span className={cn(
-            "font-medium",
-            investment.tax > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
-          )}>
+          <span
+            className={cn(
+              "font-medium",
+              investment.tax > 0
+                ? "text-red-600 dark:text-red-400"
+                : "text-muted-foreground"
+            )}
+          >
             {formattedValues.tax}
           </span>
           <span className="text-xs text-muted-foreground">tax</span>
@@ -271,14 +299,16 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
       </TableCell>
       <TableCell className="text-right">
         <div className="flex flex-col items-end">
-          <span className={cn(
-            "font-medium",
-            investment.investment_type === "Buy" ||
-            investment.investment_type === "Deposit" ||
-            investment.investment_type === "Dividend"
-              ? "text-green-600 dark:text-green-400"
-              : "text-red-600 dark:text-red-400"
-          )}>
+          <span
+            className={cn(
+              "font-medium",
+              investment.investment_type === "Buy" ||
+                investment.investment_type === "Deposit" ||
+                investment.investment_type === "Dividend"
+                ? "text-green-600 dark:text-green-400"
+                : "text-red-600 dark:text-red-400"
+            )}
+          >
             {formattedValues.total}
           </span>
           <span className="text-xs text-muted-foreground">total</span>
@@ -334,6 +364,22 @@ export function InvestmentsTransactionPage() {
   const [isEnteringPage, setIsEnteringPage] = useState(false)
   const [manualPageInput, setManualPageInput] = useState("")
   const navigate = useNavigate()
+  const search = useSearch()
+
+  // Check URL parameters for 'addNew' to open the investment dialog
+  useEffect(() => {
+    if (search.addNew === "true") {
+      setIsAddingInvestment(true)
+      // Clear the URL parameter after opening the dialog
+      navigate({
+        search: (prev) => {
+          const newSearch = { ...prev }
+          delete newSearch.addNew
+          return newSearch
+        },
+      })
+    }
+  }, [search, navigate])
 
   const { data: investmentsResponse, isLoading } = useInvestments({
     page: currentPage,
@@ -445,15 +491,16 @@ export function InvestmentsTransactionPage() {
     onNextPage: () => setCurrentPage(p => Math.min(totalPages, p + 1)),
   })
 
-  const totalInvested = investments.reduce(
-    (sum, inv) => {
-      if (inv.investment_type === "Buy" || inv.investment_type === "Deposit" || inv.investment_type === "Dividend") {
-        return sum + (inv.total_paid || 0)
-      }
-      return sum
-    },
-    0
-  )
+  const totalInvested = investments.reduce((sum, inv) => {
+    if (
+      inv.investment_type === "Buy" ||
+      inv.investment_type === "Deposit" ||
+      inv.investment_type === "Dividend"
+    ) {
+      return sum + (inv.total_paid || 0)
+    }
+    return sum
+  }, 0)
   const totalFees = investments.reduce((sum, inv) => sum + inv.fee, 0)
   const totalTax = investments.reduce((sum, inv) => sum + inv.tax, 0)
 
@@ -496,13 +543,13 @@ export function InvestmentsTransactionPage() {
   const handleBatchDeleteSuccess = (result: BatchDeleteResponse) => {
     // Clear selections after successful delete
     if (result.total_successful > 0) {
-      setSelectedInvestments([]);
+      setSelectedInvestments([])
       toast({
         title: "Investments deleted",
-        description: `Successfully deleted ${result.total_successful} investment transactions.`
-      });
+        description: `Successfully deleted ${result.total_successful} investment transactions.`,
+      })
     }
-  };
+  }
 
   return (
     <PageContainer title="Investment Transactions">
@@ -584,7 +631,9 @@ export function InvestmentsTransactionPage() {
             {selectedInvestments.length > 0 && (
               <>
                 <BatchDeleteInvestmentsButton
-                  selectedInvestments={investments.filter(i => selectedInvestments.includes(i.transaction_id))}
+                  selectedInvestments={investments.filter(i =>
+                    selectedInvestments.includes(i.transaction_id)
+                  )}
                   onSuccess={handleBatchDeleteSuccess}
                   disabled={isLoading}
                 />

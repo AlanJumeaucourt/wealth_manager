@@ -7,28 +7,84 @@ import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { TimePeriod } from "@/types"
-import { ArrowDown, ArrowUp, GiftIcon, PercentIcon, PieChart, Plus } from "lucide-react"
+import {
+    ArrowDown,
+    ArrowUp,
+    GiftIcon,
+    PercentIcon,
+    PieChart,
+    Plus,
+    TrendingUp,
+} from "lucide-react"
 import { useState } from "react"
+import { useNavigate } from "@tanstack/react-router"
 
 export function InvestmentsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("1Y")
   const { data: portfolioSummary } = usePortfolioSummary()
   const { data: performanceData } = usePortfolioPerformance(selectedPeriod)
+  const navigate = useNavigate()
 
   const lastUpdate = portfolioSummary?.last_update
     ? new Date(portfolioSummary.last_update).toLocaleString()
     : "Unknown"
 
+  // Check if there's no investment data
+  const hasNoInvestments = !portfolioSummary ||
+    !portfolioSummary.assets ||
+    portfolioSummary.assets.length === 0 ||
+    (portfolioSummary.total_value === 0 &&
+     portfolioSummary.initial_investment === 0 &&
+     portfolioSummary.net_investment === 0)
+
+  // Handle adding first investment
+  const handleAddFirstInvestment = () => {
+    navigate({
+      to: "/investmentTransactions",
+      search: {
+        addNew: "true"
+      }
+    })
+  }
+
+  // Empty state for no investments
+  if (hasNoInvestments) {
+    return (
+      <PageContainer title="Investment Portfolio">
+        <div className="flex flex-col items-center justify-center h-[70vh] text-center">
+          <div className="bg-muted/30 p-6 rounded-full mb-6">
+            <TrendingUp className="h-12 w-12 text-primary/60" />
+          </div>
+          <h2 className="text-2xl font-semibold mb-2">No investments yet</h2>
+          <p className="text-muted-foreground max-w-md mb-6">
+            Start tracking your investments by adding your first investment transaction.
+          </p>
+          <Button onClick={handleAddFirstInvestment}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add First Investment
+          </Button>
+        </div>
+      </PageContainer>
+    )
+  }
+
   return (
-    <PageContainer title="Investment Portfolio" action={<p className="text-sm text-muted-foreground">Last updated: {lastUpdate}</p>}>
+    <PageContainer
+      title="Investment Portfolio"
+      action={
+        <p className="text-sm text-muted-foreground">
+          Last updated: {lastUpdate}
+        </p>
+      }
+    >
       <div className="space-y-6">
         {/* Portfolio Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -89,20 +145,23 @@ export function InvestmentsPage() {
             </div>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground">
-              Dividend Yield
-            </p>
+            <p className="text-sm text-muted-foreground">Dividend Yield</p>
             <div className="flex items-center gap-2 mt-2">
               <GiftIcon className="h-5 w-5 text-blue-500" />
               <p className="text-2xl font-semibold text-blue-500">
-                {(portfolioSummary?.dividend_metrics?.portfolio_yield ?? 0) * 100}%
+                {(portfolioSummary?.dividend_metrics?.portfolio_yield ?? 0) *
+                  100}
+                %
               </p>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {new Intl.NumberFormat(undefined, {
                 style: "currency",
                 currency: portfolioSummary?.currency ?? "EUR",
-              }).format(portfolioSummary?.dividend_metrics?.monthly_income_estimate ?? 0)} monthly est.
+              }).format(
+                portfolioSummary?.dividend_metrics?.monthly_income_estimate ?? 0
+              )}{" "}
+              monthly est.
             </p>
           </Card>
         </div>
@@ -115,7 +174,9 @@ export function InvestmentsPage() {
             </div>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Initial Investment</span>
+                <span className="text-muted-foreground">
+                  Initial Investment
+                </span>
                 <span className="font-medium">
                   {new Intl.NumberFormat(undefined, {
                     style: "currency",
@@ -169,19 +230,29 @@ export function InvestmentsPage() {
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <PieChart className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Diversification Score</span>
+                  <span className="text-muted-foreground">
+                    Diversification Score
+                  </span>
                 </div>
                 <span className="font-medium">
-                  {portfolioSummary?.metrics?.diversification_score?.toFixed(1) ?? 0}/100
+                  {portfolioSummary?.metrics?.diversification_score?.toFixed(
+                    1
+                  ) ?? 0}
+                  /100
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <PercentIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Largest Position</span>
+                  <span className="text-muted-foreground">
+                    Largest Position
+                  </span>
                 </div>
                 <span className="font-medium">
-                  {portfolioSummary?.metrics?.largest_position_percentage?.toFixed(1) ?? 0}%
+                  {portfolioSummary?.metrics?.largest_position_percentage?.toFixed(
+                    1
+                  ) ?? 0}
+                  %
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -193,24 +264,36 @@ export function InvestmentsPage() {
                   {new Intl.NumberFormat(undefined, {
                     style: "currency",
                     currency: portfolioSummary?.currency ?? "EUR",
-                  }).format(portfolioSummary?.dividend_metrics?.total_dividends_received ?? 0)}
+                  }).format(
+                    portfolioSummary?.dividend_metrics
+                      ?.total_dividends_received ?? 0
+                  )}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <ArrowUp className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Dividend Growth (YoY)</span>
+                  <span className="text-muted-foreground">
+                    Dividend Growth (YoY)
+                  </span>
                 </div>
                 <span
                   className={cn(
                     "font-medium",
-                    (portfolioSummary?.dividend_metrics?.dividend_growth ?? 0) > 0
+                    (portfolioSummary?.dividend_metrics?.dividend_growth ?? 0) >
+                      0
                       ? "text-green-500"
                       : "text-red-500"
                   )}
                 >
-                  {(portfolioSummary?.dividend_metrics?.dividend_growth ?? 0) > 0 ? "+" : ""}
-                  {portfolioSummary?.dividend_metrics?.dividend_growth?.toFixed(2) ?? 0}%
+                  {(portfolioSummary?.dividend_metrics?.dividend_growth ?? 0) >
+                  0
+                    ? "+"
+                    : ""}
+                  {portfolioSummary?.dividend_metrics?.dividend_growth?.toFixed(
+                    2
+                  ) ?? 0}
+                  %
                 </span>
               </div>
             </div>
@@ -265,7 +348,7 @@ export function InvestmentsPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold">Asset Details</h2>
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleAddFirstInvestment}>
               <Plus className="w-4 h-4 mr-2" />
               Add Asset
             </Button>

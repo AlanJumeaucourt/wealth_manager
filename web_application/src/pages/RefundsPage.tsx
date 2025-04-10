@@ -27,7 +27,7 @@ export function RefundsPage() {
     console.log("Deletion state changed:", {
       deletingRefundGroup,
       deletingRefundItem,
-      deleteDialogOpen: !!deletingRefundGroup || !!deletingRefundItem
+      deleteDialogOpen: !!deletingRefundGroup || !!deletingRefundItem,
     })
   }, [deletingRefundGroup, deletingRefundItem])
 

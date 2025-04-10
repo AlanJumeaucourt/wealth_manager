@@ -10,13 +10,15 @@ interface GoalType {
   current: number
   icon: React.ReactNode
   color: string
+  accountType: string
 }
 
 interface FinancialGoalsProps {
   accounts: Account[]
+  onAccountClick?: (accountId: number) => void
 }
 
-export function FinancialGoals({ accounts }: FinancialGoalsProps) {
+export function FinancialGoals({ accounts, onAccountClick }: FinancialGoalsProps) {
   // Calculate savings amount
   const savingsTotal = useMemo(() => {
     return accounts
@@ -31,21 +33,24 @@ export function FinancialGoals({ accounts }: FinancialGoalsProps) {
       target: 10000,
       current: Math.min(savingsTotal * 0.5, 10000), // 50% of savings up to target
       icon: <Umbrella className="h-4 w-4" />,
-      color: "bg-blue-500"
+      color: "bg-blue-500",
+      accountType: "savings"
     },
     {
       name: "Vacation",
       target: 3000,
       current: Math.min(savingsTotal * 0.2, 3000), // 20% of savings up to target
       icon: <Plane className="h-4 w-4" />,
-      color: "bg-green-500"
+      color: "bg-green-500",
+      accountType: "savings"
     },
     {
       name: "Home Down Payment",
       target: 50000,
       current: Math.min(savingsTotal * 0.3, 50000), // 30% of savings up to target
       icon: <Home className="h-4 w-4" />,
-      color: "bg-purple-500"
+      color: "bg-purple-500",
+      accountType: "savings"
     }
   ]
 
@@ -55,6 +60,22 @@ export function FinancialGoals({ accounts }: FinancialGoalsProps) {
       style: "currency",
       currency: "EUR",
     }).format(amount)
+  }
+
+  // Get first account by type for navigation
+  const getFirstAccountByType = (type: string) => {
+    const account = accounts.find(a => a.type === type)
+    return account ? account.id : null
+  }
+
+  // Handler for goal click
+  const handleGoalClick = (accountType: string) => {
+    if (!onAccountClick) return
+
+    const accountId = getFirstAccountByType(accountType)
+    if (accountId) {
+      onAccountClick(accountId)
+    }
   }
 
   return (
@@ -71,7 +92,13 @@ export function FinancialGoals({ accounts }: FinancialGoalsProps) {
             const progressPercent = Math.min(Math.round((goal.current / goal.target) * 100), 100)
 
             return (
-              <div key={goal.name} className="space-y-2">
+              <div
+                key={goal.name}
+                className="space-y-2 hover:bg-muted/50 p-2 rounded-lg cursor-pointer transition-colors"
+                onClick={() => handleGoalClick(goal.accountType)}
+                role="button"
+                tabIndex={0}
+              >
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <div className={`p-1.5 rounded-full ${goal.color.replace('bg-', 'bg-opacity-20 ')}`}>

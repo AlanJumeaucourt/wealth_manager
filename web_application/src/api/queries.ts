@@ -1,4 +1,13 @@
-import { Account, ApiResponse, Bank, Investment, PortfolioSummary, RefundGroup, RefundItem, Transaction } from "@/types"
+import {
+  Account,
+  ApiResponse,
+  Bank,
+  Investment,
+  PortfolioSummary,
+  RefundGroup,
+  RefundItem,
+  Transaction,
+} from "@/types"
 import { handleTokenExpiration } from "@/utils/auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
@@ -84,6 +93,16 @@ interface FetchOptions {
   body?: any
 }
 
+interface BatchCreateResponse<T> {
+  successful: T[]
+  failed: Array<{
+    data: any
+    error: string
+  }>
+  total_successful: number
+  total_failed: number
+}
+
 // Common fetch configuration
 async function fetchWithAuth<T>(
   endpoint: string,
@@ -106,24 +125,35 @@ async function fetchWithAuth<T>(
       if (handleTokenExpiration(error)) {
         throw new Error("Token expired")
       }
-      throw new Error(`Failed to ${options.method || "fetch"} ${endpoint}: ${error.message || "Unknown error"}`)
+      throw new Error(
+        `Failed to ${options.method || "fetch"} ${endpoint}: ${
+          error.message || "Unknown error"
+        }`
+      )
     } catch (jsonError) {
       // If response is not JSON, just throw a generic error
-      throw new Error(`Failed to ${options.method || "fetch"} ${endpoint}: ${response.statusText}`)
+      throw new Error(
+        `Failed to ${options.method || "fetch"} ${endpoint}: ${
+          response.statusText
+        }`
+      )
     }
   }
 
   // For DELETE operations that return no content (204)
   // or if response body is empty
-  if (options.method === "DELETE" || response.headers.get("content-length") === "0") {
-    return {} as T;
+  if (
+    options.method === "DELETE" ||
+    response.headers.get("content-length") === "0"
+  ) {
+    return {} as T
   }
 
   try {
-    return await response.json();
+    return await response.json()
   } catch (jsonError) {
-    console.warn(`Empty or invalid JSON response from ${endpoint}`);
-    return {} as T;
+    console.warn(`Empty or invalid JSON response from ${endpoint}`)
+    return {} as T
   }
 }
 
@@ -154,28 +184,69 @@ function createBatchDeleteMutation<T extends { id?: number }>(
       try {
         // Ensure we have a valid array of IDs
         if (!Array.isArray(ids) || ids.length === 0) {
-          throw new Error("No items selected for deletion");
+          throw new Error("No items selected for deletion")
         }
 
         // The backend already returns the specific BatchDeleteResponse format
-        return await fetchWithAuth<BatchDeleteResponse>(`${endpoint}/batch/delete`, {
-          method: "POST",
-          body: { ids },
-        });
+        return await fetchWithAuth<BatchDeleteResponse>(
+          `${endpoint}/batch/delete`,
+          {
+            method: "POST",
+            body: { ids },
+          }
+        )
       } catch (error) {
-        console.error(`Batch delete error for ${endpoint}:`, error);
-        throw error;
+        console.error(`Batch delete error for ${endpoint}:`, error)
+        throw error
       }
     },
-    onSuccess: (result) => {
-      console.log(`Batch delete results for ${endpoint}:`, result);
+    onSuccess: result => {
+      console.log(`Batch delete results for ${endpoint}:`, result)
       // Invalidate relevant queries to refresh data
-      queryKeysToInvalidate.forEach(key => invalidateQueries(queryClient, key));
+      queryKeysToInvalidate.forEach(key => invalidateQueries(queryClient, key))
     },
-    onError: (error) => {
-      console.error(`Batch delete operation failed for ${endpoint}:`, error);
-    }
-  });
+    onError: error => {
+      console.error(`Batch delete operation failed for ${endpoint}:`, error)
+    },
+  })
+}
+
+// Factory function for batch create mutations
+function createBatchCreateMutation<T extends { id?: number }>(
+  endpoint: string,
+  queryKeysToInvalidate: (keyof typeof QueryKeys)[],
+  queryClient: ReturnType<typeof useQueryClient>
+) {
+  return useMutation({
+    mutationFn: async (items: Omit<T, "id">[]) => {
+      try {
+        // Ensure we have a valid array of items
+        if (!Array.isArray(items) || items.length === 0) {
+          throw new Error("No items provided for batch creation")
+        }
+
+        // Send the batch create request
+        return await fetchWithAuth<BatchCreateResponse<T>>(
+          `${endpoint}/batch/create`,
+          {
+            method: "POST",
+            body: { items },
+          }
+        )
+      } catch (error) {
+        console.error(`Batch create error for ${endpoint}:`, error)
+        throw error
+      }
+    },
+    onSuccess: result => {
+      console.log(`Batch create results for ${endpoint}:`, result)
+      // Invalidate relevant queries to refresh data
+      queryKeysToInvalidate.forEach(key => invalidateQueries(queryClient, key))
+    },
+    onError: error => {
+      console.error(`Batch create operation failed for ${endpoint}:`, error)
+    },
+  })
 }
 
 // Common query configuration
@@ -432,15 +503,17 @@ export const {
 } = refundItemOperations
 
 // Example usage for investments
-const investmentOperations = createCrudOperations<Investment & { id?: number }>({
-  endpoint: "investments",
-  queryKeysToInvalidate: [
-    "investments",
-    "accounts",
-    "portfolioSummary",
-    "portfolioPerformance",
-  ],
-})
+const investmentOperations = createCrudOperations<Investment & { id?: number }>(
+  {
+    endpoint: "investments",
+    queryKeysToInvalidate: [
+      "investments",
+      "accounts",
+      "portfolioSummary",
+      "portfolioPerformance",
+    ],
+  }
+)
 
 export const {
   useBatchDelete: useBatchDeleteInvestments,
@@ -452,7 +525,9 @@ export const {
 // Example of using the new fetch utility for queries
 export function useStockHistory(symbol: string | undefined) {
   return createQuery<StockPrice[]>({
-    queryKey: symbol ? QueryKeys.stockHistory(symbol) : ["stocks", "history", null],
+    queryKey: symbol
+      ? QueryKeys.stockHistory(symbol)
+      : ["stocks", "history", null],
     queryFn: async () => {
       if (!symbol) return []
       return fetchWithAuth(`stocks/${symbol}/history`)
@@ -463,50 +538,50 @@ export function useStockHistory(symbol: string | undefined) {
 
 export function useCustomPrices(symbol: string) {
   return useQuery({
-    queryKey: ['customPrices', symbol],
+    queryKey: ["customPrices", symbol],
     queryFn: async () => {
-      const response = await fetchWithAuth(`stocks/${symbol}/custom-prices`);
-      return (response as ApiResponse<any>).data;
+      const response = await fetchWithAuth(`stocks/${symbol}/custom-prices`)
+      return (response as ApiResponse<any>).data
     },
     enabled: !!symbol,
-  });
+  })
 }
 
 interface CustomPriceData {
-  close: number;
-  open?: number;
-  high?: number;
-  low?: number;
-  volume?: number;
+  close: number
+  open?: number
+  high?: number
+  low?: number
+  volume?: number
 }
 
 interface AddCustomPriceResponse {
-  message: string;
+  message: string
   price?: {
-    date: string;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
-  };
+    date: string
+    open: number
+    high: number
+    low: number
+    close: number
+    volume: number
+  }
 }
 
 interface BatchOperationResponse {
-  message: string;
+  message: string
   details: {
-    successful: any[];
+    successful: any[]
     failed: Array<{
-      data?: any;
-      error: string;
-    }>;
-    total_successful: number;
-    total_failed: number;
-  };
+      data?: any
+      error: string
+    }>
+    total_successful: number
+    total_failed: number
+  }
 }
 
 export function useAddCustomPrice() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation<
     AddCustomPriceResponse,
@@ -515,30 +590,32 @@ export function useAddCustomPrice() {
   >({
     mutationFn: async ({ symbol, date, price }) => {
       const response = await fetchWithAuth(`stocks/${symbol}/custom-prices`, {
-        method: 'POST',
+        method: "POST",
         body: {
           date,
-          ...price
-        }
-      });
-      return (response as ApiResponse<AddCustomPriceResponse>).data;
+          ...price,
+        },
+      })
+      return (response as ApiResponse<AddCustomPriceResponse>).data
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
+      queryClient.invalidateQueries({
+        queryKey: ["customPrices", variables.symbol],
+      })
     },
-  });
+  })
 }
 
 export function useBatchAddCustomPrices() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation<
     BatchOperationResponse,
     Error,
     {
-      symbol: string;
+      symbol: string
       prices: Array<{
-        date: string;
+        date: string
         price: CustomPriceData
       }>
     }
@@ -546,23 +623,25 @@ export function useBatchAddCustomPrices() {
     mutationFn: async ({ symbol, prices }) => {
       // No need to reformat prices since they're already in the right format
       const response = await fetchWithAuth(`stocks/${symbol}/custom-prices`, {
-        method: 'POST',
-        body: prices
-      });
-      return (response as ApiResponse<BatchOperationResponse>).data;
+        method: "POST",
+        body: prices,
+      })
+      return (response as ApiResponse<BatchOperationResponse>).data
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
+      queryClient.invalidateQueries({
+        queryKey: ["customPrices", variables.symbol],
+      })
     },
-  });
+  })
 }
 
 interface DeleteCustomPriceResponse {
-  message: string;
+  message: string
 }
 
 export function useDeleteCustomPrice() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation<
     DeleteCustomPriceResponse,
@@ -570,19 +649,24 @@ export function useDeleteCustomPrice() {
     { symbol: string; date: string }
   >({
     mutationFn: async ({ symbol, date }) => {
-      const response = await fetchWithAuth(`stocks/${symbol}/custom-prices/${date}`, {
-        method: 'DELETE'
-      });
-      return (response as ApiResponse<DeleteCustomPriceResponse>).data;
+      const response = await fetchWithAuth(
+        `stocks/${symbol}/custom-prices/${date}`,
+        {
+          method: "DELETE",
+        }
+      )
+      return (response as ApiResponse<DeleteCustomPriceResponse>).data
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
+      queryClient.invalidateQueries({
+        queryKey: ["customPrices", variables.symbol],
+      })
     },
-  });
+  })
 }
 
 export function useBatchDeleteCustomPrices() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation<
     BatchOperationResponse,
@@ -590,16 +674,21 @@ export function useBatchDeleteCustomPrices() {
     { symbol: string; dates: string[] }
   >({
     mutationFn: async ({ symbol, dates }) => {
-      const response = await fetchWithAuth(`stocks/${symbol}/custom-prices/batch`, {
-        method: 'DELETE',
-        body: dates
-      });
-      return (response as ApiResponse<BatchOperationResponse>).data;
+      const response = await fetchWithAuth(
+        `stocks/${symbol}/custom-prices/batch`,
+        {
+          method: "DELETE",
+          body: dates,
+        }
+      )
+      return (response as ApiResponse<BatchOperationResponse>).data
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['customPrices', variables.symbol] });
+      queryClient.invalidateQueries({
+        queryKey: ["customPrices", variables.symbol],
+      })
     },
-  });
+  })
 }
 
 export function usePortfolioRiskMetrics() {
@@ -881,22 +970,22 @@ interface CategorySummary {
 interface CategorySummaryResponse {
   income: {
     total: {
-      net_amount: number
-      original_amount: number
+      net: number
+      original: number
     }
     by_category: Record<string, CategorySummary>
   }
   expense: {
     total: {
-      net_amount: number
-      original_amount: number
+      net: number
+      original: number
     }
     by_category: Record<string, CategorySummary>
   }
   transfer: {
     total: {
-      net_amount: number
-      original_amount: number
+      net: number
+      original: number
     }
     by_category: Record<string, CategorySummary>
   }
@@ -1020,6 +1109,88 @@ export interface PortfolioPerformance {
 export function usePortfolioPerformance(period: string = "1Y") {
   return createQuery<PortfolioPerformance>({
     queryKey: QueryKeys.portfolioPerformance(period),
-    queryFn: () => fetchWithAuth(`investments/portfolio/performance?period=${period}`),
+    queryFn: () =>
+      fetchWithAuth(`investments/portfolio/performance?period=${period}`),
   })
+}
+
+// Export batch create operations for different entity types
+export function useBatchCreateTransactions() {
+  const queryClient = useQueryClient()
+  return createBatchCreateMutation<Transaction>(
+    "transactions",
+    [
+      "transactions",
+      "accounts",
+      "wealthOverTime",
+      "recentTransactions",
+      "budgetSummary",
+      "categories"
+    ],
+    queryClient
+  )
+}
+
+export function useBatchCreateAccounts() {
+  const queryClient = useQueryClient()
+  return createBatchCreateMutation<Account>(
+    "accounts",
+    ["accounts", "wealthOverTime"],
+    queryClient
+  )
+}
+
+export function useBatchCreateBanks() {
+  const queryClient = useQueryClient()
+  return createBatchCreateMutation<Bank>(
+    "banks",
+    ["banks", "accounts", "wealthOverTime"],
+    queryClient
+  )
+}
+
+export function useBatchCreateInvestments() {
+  const queryClient = useQueryClient()
+  return createBatchCreateMutation<Investment & { id?: number }>(
+    "investments",
+    ["investments", "accounts", "portfolioSummary", "portfolioPerformance"],
+    queryClient
+  )
+}
+
+export function useBatchCreateAssets() {
+  const queryClient = useQueryClient()
+  return createBatchCreateMutation<Asset>(
+    "assets",
+    ["assets"],
+    queryClient
+  )
+}
+
+export function useCreateAsset() {
+  const queryClient = useQueryClient()
+  return createMutation<Asset, { symbol: string; name: string }>({
+    mutationFn: (data) => fetchWithAuth("assets", { method: "POST", body: data }),
+    onSuccess: () => {
+      invalidateQueries(queryClient, "assets")
+    },
+  })
+}
+
+export function useBatchCreateRefundGroups() {
+  const queryClient = useQueryClient()
+  return createBatchCreateMutation<RefundGroup>(
+    "refund_groups",
+    ["refundGroups", "refundItems", "transactions"],
+    queryClient
+  )
+}
+
+export function useBatchCreateRefundItems() {
+  const queryClient = useQueryClient()
+  return createBatchCreateMutation<RefundItem>(
+    "refund_items",
+    ["refundItems", "transactions"],
+    queryClient
+  )
 }

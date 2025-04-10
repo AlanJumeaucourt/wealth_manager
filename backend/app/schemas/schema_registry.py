@@ -135,7 +135,9 @@ class InvestmentDetailsSchema(Schema):
     total_paid = fields.Float(dump_only=True)
     activity_type = fields.Str(
         required=True,
-        validate=validate.OneOf(["Buy", "Sell", "Dividend", "Interest", "Deposit", "Withdrawal"]),
+        validate=validate.OneOf(
+            ["Buy", "Sell", "Dividend", "Interest", "Deposit", "Withdrawal"]
+        ),
     )
     date = DateField(required=True)
     from_account_id = fields.Int(required=True)
@@ -157,7 +159,9 @@ class InvestmentTransactionSchema(Schema):
     asset_id = fields.Int(required=True)
     activity_type = fields.Str(
         required=True,
-        validate=validate.OneOf(["Buy", "Sell", "Dividend", "Interest", "Deposit", "Withdrawal"]),
+        validate=validate.OneOf(
+            ["Buy", "Sell", "Dividend", "Interest", "Deposit", "Withdrawal"]
+        ),
     )
     date = DateField(required=True)
     quantity = fields.Float(required=True)

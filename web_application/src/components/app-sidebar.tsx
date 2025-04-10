@@ -3,15 +3,13 @@ import {
   ArrowRightLeft,
   Briefcase,
   Command,
+  Layout,
   LineChart,
   LucideIcon,
   PieChart,
   Receipt,
   RefreshCw,
-  SquareTerminal,
-  Wallet,
-  Home,
-  Layout,
+  Wallet
 } from "lucide-react"
 import * as React from "react"
 import { useMemo } from "react"
@@ -66,13 +64,8 @@ const STATIC_DATA = {
   ],
   navMain: [
     {
-      title: "Welcome",
-      url: "/dashboard",
-      icon: Home,
-    },
-    {
       title: "Overview",
-      url: "/legacy-dashboard",
+      url: "/dashboard",
       icon: Layout,
     },
     {
@@ -151,6 +144,11 @@ const STATIC_DATA = {
     {
       title: "Refunds",
       url: "/refunds",
+      icon: RefreshCw,
+    },
+    {
+      title: "Export/Import",
+      url: "/export-import",
       icon: RefreshCw,
     },
   ] as NavItem[],

@@ -201,7 +201,6 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                     "t.description",
                     "t.from_account_id",
                     "t.to_account_id",
-                    "t.user_id",
                 ]
             else:
                 select_fields = []
@@ -351,9 +350,46 @@ class InvestmentService(BaseService[InvestmentTransaction]):
     def batch_update(self, user_id: int, items: list[dict[str, Any]]) -> dict[str, Any]:
         return NotImplementedError
 
+    def batch_create(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        """Create multiple investment transactions in a batch operation.
+
+        Args:
+            items: List of dictionaries containing investment transaction data
+
+        Returns:
+            Dictionary containing successful and failed creations
+
+        """
+        if not items:
+            return {
+                "successful": [],
+                "failed": [],
+                "total_successful": 0,
+                "total_failed": 0,
+            }
+
+        successful = []
+        failed = []
+
+        for item in items:
+            try:
+                # Create each investment transaction using the existing create method
+                result = self.create(item)
+                successful.append(result)
+            except Exception as e:
+                failed.append({"data": item, "error": str(e)})
+
+        return {
+            "successful": successful,
+            "failed": failed,
+            "total_successful": len(successful),
+            "total_failed": len(failed),
+        }
+
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
         """Create investment transaction and associated details."""
         # Validate data using schema
+
         validated_data = self.schema.load(data)
 
         connection = None
@@ -378,7 +414,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 else validated_data["from_account_id"]
             )
 
-# Initialize to avoid reference before assignment
+            # Initialize to avoid reference before assignment
 
             try:
                 pl_account_query = """
@@ -407,7 +443,9 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 )
 
                 if not bank_result:
-                    raise ValueError("No bank found for user. Please create a bank first.")
+                    raise ValueError(
+                        "No bank found for user. Please create a bank first."
+                    )
 
                 bank_id = bank_result[0]["id"]
 
@@ -419,7 +457,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 """
                 pl_account_expense_result = self.db_manager.execute_insert_returning(
                     create_pl_expense_account_query,
-                    [validated_data["user_id"], bank_id]
+                    [validated_data["user_id"], bank_id],
                 )
                 pl_account_expense_id = pl_account_expense_result["id"]
 
@@ -430,14 +468,17 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 RETURNING id
                 """
                 pl_account_income_result = self.db_manager.execute_insert_returning(
-                    create_pl_income_account_query,
-                    [validated_data["user_id"], bank_id]
+                    create_pl_income_account_query, [validated_data["user_id"], bank_id]
                 )
                 pl_account_income_id = pl_account_income_result["id"]
 
             if validated_data["activity_type"] == "Buy":
                 description = f"Buy {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
-                amount = validated_data["quantity"] * validated_data["unit_price"] + validated_data["fee"] + validated_data["tax"]
+                amount = (
+                    validated_data["quantity"] * validated_data["unit_price"]
+                    + validated_data["fee"]
+                    + validated_data["tax"]
+                )
             elif validated_data["activity_type"] == "Sell":
                 # Calculate the original cost basis for this sale
                 cost_basis_query = """
@@ -449,7 +490,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 """
                 cost_basis_result = self.db_manager.execute_select(
                     cost_basis_query,
-                    [validated_data["asset_id"], validated_data["user_id"]]
+                    [validated_data["asset_id"], validated_data["user_id"]],
                 )
 
                 if not cost_basis_result or cost_basis_result[0]["total_quantity"] == 0:
@@ -476,19 +517,16 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 amount = sale_proceeds  # This is the main transaction amount
 
                 # Create profit/loss transaction if there is a gain or loss
-                if abs(profit_loss) > 0.01:  # Use small threshold to avoid floating point issues
-
+                if (
+                    abs(profit_loss) > 0.01
+                ):  # Use small threshold to avoid floating point issues
                     if profit_loss > 0:
-                        pl_description = (
-                        f"Investment P/L for {asset_symbol} sale: gain"
-                        )
+                        pl_description = f"Investment P/L for {asset_symbol} sale: gain"
                         from_account_id = pl_account_income_id
                         to_account_id = investment_account_id
                         type = "income"
                     else:
-                        pl_description = (
-                        f"Investment P/L for {asset_symbol} sale: loss"
-                        )
+                        pl_description = f"Investment P/L for {asset_symbol} sale: loss"
                         from_account_id = investment_account_id
                         to_account_id = pl_account_expense_id
                         type = "expense"
@@ -512,7 +550,9 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                         pl_query, params=list(pl_transaction_data.values())
                     )
             elif validated_data["activity_type"] == "Dividend":
-                description = f"Dividend {asset_symbol} -> {validated_data['unit_price']}€"
+                description = (
+                    f"Dividend {asset_symbol} -> {validated_data['unit_price']}€"
+                )
                 amount = validated_data["unit_price"]
             else:
                 description = f"{validated_data['activity_type'].title()} {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
@@ -589,6 +629,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 connection.rollback()
             logger.error(f"Error creating investment transaction: {e}")
             raise
+
     def get_asset_transactions(self, user_id: int, symbol: str) -> list[dict[str, Any]]:
         """Get all transactions for a specific asset symbol."""
         query = """--sql
@@ -633,9 +674,12 @@ class InvestmentService(BaseService[InvestmentTransaction]):
         WHERE t.user_id = ?
         ORDER BY t.date ASC
         """
-        investment_transactions = self.db_manager.execute_select(
-            investment_query, [user_id]
-        )
+        try:
+            investment_transactions = self.db_manager.execute_select(
+                investment_query, [user_id]
+            )
+        except NoResultFoundError:
+            return "No investment transactions found, please add some investment transactions to show your portfolio summary"
 
         # Calculate initial and net investment
         initial_investment = 0

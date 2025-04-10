@@ -202,6 +202,67 @@ class BaseRoutes:
             },
         )
 
+        # Document batch create endpoint
+        spec.path(
+            path=f"{base_path}s/batch/create",
+            operations={
+                "post": {
+                    "tags": [self.bp.name.capitalize()],
+                    "summary": f"Batch create multiple {self.bp.name}s",
+                    "security": [{"bearerAuth": []}],
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": self.schema,
+                                        }
+                                    },
+                                    "required": ["items"],
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Batch creation results",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "successful": {
+                                                "type": "array",
+                                                "items": self.schema,
+                                            },
+                                            "failed": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "data": {"type": "object"},
+                                                        "error": {"type": "string"},
+                                                    },
+                                                },
+                                            },
+                                            "total_successful": {"type": "integer"},
+                                            "total_failed": {"type": "integer"},
+                                        },
+                                    }
+                                }
+                            },
+                        },
+                        "400": {"description": "Invalid input"},
+                        "401": {"description": "Unauthorized"},
+                        "422": {"description": "Validation error"},
+                    },
+                }
+            },
+        )
+
         # Document batch update endpoint
         spec.path(
             path=f"{base_path}s/batch/update",
@@ -338,6 +399,7 @@ class BaseRoutes:
         self.bp.route("/<int:id>", methods=["PUT"])(self.update)
         self.bp.route("/<int:id>", methods=["DELETE"])(self.delete)
         self.bp.route("/", methods=["GET"])(self.get_all)
+        self.bp.route("/batch/create", methods=["POST"])(self.batch_create)
         self.bp.route("/batch/update", methods=["POST"])(self.batch_update)
         self.bp.route("/batch/delete", methods=["POST"])(self.batch_delete)
 
@@ -372,6 +434,51 @@ class BaseRoutes:
             jsonify({"error": f"Failed to create {self.service.table_name}"}),
             500,
         )
+
+    @jwt_required()
+    def batch_create(self) -> tuple[Any, int]:
+        """Batch create multiple items."""
+        user_id = get_jwt_identity()
+        sentry_sdk.set_user({"id": str(user_id)})
+        data = request.json
+
+        if not isinstance(data, dict) or "items" not in data:
+            return jsonify({"error": "Request must include 'items' array"}), 400
+
+        items = data["items"]
+        if not isinstance(items, list):
+            return jsonify({"error": "'items' must be an array"}), 400
+
+        if not items:
+            return jsonify({"error": "No items provided"}), 400
+
+        # Validate each item
+        validated_items = []
+        validation_errors = []
+
+        for i, item in enumerate(items):
+            if not isinstance(item, dict):
+                validation_errors.append(
+                    {"index": i, "error": "Item must be an object", "data": item}
+                )
+                continue
+
+            try:
+                # Add user_id to each item
+                item["user_id"] = user_id
+                validated_data = self.schema.load(item)
+                validated_items.append(validated_data)
+            except ValidationError as err:
+                validation_errors.append(
+                    {"index": i, "error": err.messages, "data": item}
+                )
+
+        if validation_errors:
+            return jsonify({"validation_errors": validation_errors}), 422
+
+        # Call batch_create method on the service
+        result = self.service.batch_create(validated_items)
+        return jsonify(result), 200
 
     @jwt_required()
     def get(self, id: int):

@@ -129,7 +129,7 @@ export function AccountDetailPage() {
         event.preventDefault()
         navigate({
           to: "/transactions/$transactionId",
-          params: { transactionId: transaction.id.toString() },
+          params: { transactionId: transaction.id },
         })
       }
     }
@@ -244,12 +244,18 @@ export function AccountDetailPage() {
               </div>
               <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
                 <p className="text-sm text-muted-foreground">Profit/Loss</p>
-                <p className={`text-2xl font-semibold mt-2 ${
-                  account.market_value && account.market_value - account.balance > 0
-                    ? "text-success"
-                    : "text-destructive"
-                }`}>
-                  {account.market_value && account.market_value - account.balance > 0 ? "+" : ""}
+                <p
+                  className={`text-2xl font-semibold mt-2 ${
+                    account.market_value &&
+                    account.market_value - account.balance > 0
+                      ? "text-success"
+                      : "text-destructive"
+                  }`}
+                >
+                  {account.market_value &&
+                  account.market_value - account.balance > 0
+                    ? "+"
+                    : ""}
                   {new Intl.NumberFormat(undefined, {
                     style: "currency",
                     currency: "EUR",
@@ -300,7 +306,7 @@ export function AccountDetailPage() {
               onClick={() =>
                 navigate({
                   to: "/transactions/all",
-                  search: { account: accountId },
+                  search: { accountId: accountId },
                 })
               }
             >
