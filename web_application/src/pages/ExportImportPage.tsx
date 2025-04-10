@@ -62,7 +62,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
 import { AlertTriangle, Download, FileJson, FileType, Loader2, Trash2, Upload } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 // Define supported export/import formats
 type ExportFormat = "json" | "csv" | "xlsx"
@@ -103,14 +103,15 @@ export function ExportImportPage() {
   const [activeTab, setActiveTab] = useState("export")
   const [readableExport, setReadableExport] = useState(false)
 
-  // Load all data and count items
-  const { data: accounts } = useAccounts({ per_page: 1 })
-  const { data: banks } = useBanks({ per_page: 1 })
-  const { data: transactions } = useTransactions({ per_page: 1 })
-  const { data: investments } = useInvestments({ per_page: 1 })
-  const { data: assets } = useAssets({ per_page: 1 })
-  const { data: refundGroups } = useRefundGroups({ per_page: 1 })
-  const { data: refundItems } = useRefundItems({ per_page: 1 })
+  // Load all data and count items - we only need the total counts, not the actual data
+  // Using per_page=1 to minimize data transfer but still get the total counts
+  const { data: accounts } = useAccounts({ per_page: 1, page: 1 })
+  const { data: banks } = useBanks({ per_page: 1, page: 1 })
+  const { data: transactions } = useTransactions({ per_page: 1, page: 1 })
+  const { data: investments } = useInvestments({ per_page: 1, page: 1 })
+  const { data: assets } = useAssets({ per_page: 1, page: 1 })
+  const { data: refundGroups } = useRefundGroups({ per_page: 1, page: 1 })
+  const { data: refundItems } = useRefundItems({ per_page: 1, page: 1 })
   const { data: categories } = useAllCategories()
   const { data: wealthData } = useWealthOverTime()
 
@@ -142,67 +143,118 @@ export function ExportImportPage() {
     {
       dataType: "accounts",
       selected: false,
-      count: accounts?.total || 0,
+      count: 0, // Will be updated in useEffect
       displayName: "Accounts",
       description: "Bank and investment accounts"
     },
     {
       dataType: "banks",
       selected: false,
-      count: banks?.total || 0,
+      count: 0, // Will be updated in useEffect
       displayName: "Banks",
       description: "Financial institutions"
     },
     {
       dataType: "transactions",
       selected: false,
-      count: transactions?.total || 0,
+      count: 0, // Will be updated in useEffect
       displayName: "Transactions",
       description: "Income, expenses and transfers"
     },
     {
       dataType: "investments",
       selected: false,
-      count: investments?.total || 0,
+      count: 0, // Will be updated in useEffect
       displayName: "Investments",
       description: "Investment transactions"
     },
     {
       dataType: "assets",
       selected: false,
-      count: assets?.total || 0,
+      count: 0, // Will be updated in useEffect
       displayName: "Assets",
       description: "Investment assets and securities"
     },
     {
       dataType: "wealthOverTime",
       selected: false,
-      count: wealthData?.length || 0,
+      count: 0, // Will be updated in useEffect
       displayName: "Wealth History",
       description: "Historical wealth data over time"
     },
     {
       dataType: "refundGroups",
       selected: false,
-      count: refundGroups?.total || 0,
+      count: 0, // Will be updated in useEffect
       displayName: "Refund Groups",
       description: "Grouped refund items"
     },
     {
       dataType: "refundItems",
       selected: false,
-      count: refundItems?.total || 0,
+      count: 0, // Will be updated in useEffect
       displayName: "Refund Items",
       description: "Individual refund transactions"
     },
     {
       dataType: "categories",
       selected: false,
-      count: categories ? Object.keys(categories).length : 0,
+      count: 0, // Will be updated in useEffect
       displayName: "Categories",
       description: "Transaction categories and subcategories"
     },
   ])
+
+  // Update counts when data changes
+  useEffect(() => {
+    // Skip if any data is missing
+    if (!accounts || !banks || !transactions || !investments || !assets || !refundGroups || !refundItems) {
+      return;
+    }
+
+    // Create a completely new array to ensure React detects the state change
+    const newDataSelections = dataSelections.map(selection => {
+      // Create a new object for each selection
+      const newSelection = { ...selection };
+
+      // Set the count based on the data type
+      switch (newSelection.dataType) {
+        case "accounts":
+          newSelection.count = accounts.total || 0;
+          break;
+        case "banks":
+          newSelection.count = banks.total || 0;
+          break;
+        case "transactions":
+          newSelection.count = transactions.total || 0;
+          break;
+        case "investments":
+          newSelection.count = investments.total || 0;
+          break;
+        case "assets":
+          newSelection.count = assets.total || 0;
+          break;
+        case "wealthOverTime":
+          newSelection.count = wealthData?.length || 0;
+          break;
+        case "refundGroups":
+          newSelection.count = refundGroups.total || 0;
+          break;
+        case "refundItems":
+          newSelection.count = refundItems.total || 0;
+          break;
+        case "categories":
+          newSelection.count = categories ? Object.keys(categories).length : 0;
+          break;
+      }
+
+      return newSelection;
+    });
+
+    // Update the state with the completely new array
+    setDataSelections(newDataSelections);
+
+  }, [accounts, banks, transactions, investments, assets, wealthData, refundGroups, refundItems, categories]);
 
   // Toggle selection of a data type
   const toggleDataSelection = (dataType: DataType) => {
