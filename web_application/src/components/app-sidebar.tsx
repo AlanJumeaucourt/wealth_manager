@@ -3,6 +3,7 @@ import {
     ArrowRightLeft,
     Briefcase,
     Command,
+    FileJson,
     Layout,
     LineChart,
     LucideIcon,
@@ -147,9 +148,9 @@ const STATIC_DATA = {
       icon: RefreshCw,
     },
     {
-      title: "Data Manager",
+      title: "Import / Export",
       url: "/export-import",
-      icon: Command,
+      icon: FileJson,
     },
   ] as NavItem[],
 }

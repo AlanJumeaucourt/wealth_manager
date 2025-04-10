@@ -1710,7 +1710,7 @@ export function ExportImportPage() {
   }
 
   return (
-    <PageContainer title="Data Manager">
+    <PageContainer title="Import / Export">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="export">Export</TabsTrigger>
