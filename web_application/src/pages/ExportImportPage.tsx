@@ -61,11 +61,21 @@ import {
 } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
+import JSZip from "jszip"
 import { AlertTriangle, Download, FileJson, FileType, Loader2, Trash2, Upload } from "lucide-react"
+import { unparse as papaUnparse } from "papaparse"
 import { useEffect, useState } from "react"
+import * as XLSX from "xlsx"
 
 // Define supported export/import formats
 type ExportFormat = "json" | "csv" | "xlsx"
+
+// Define export format options
+const exportFormatOptions = [
+  { value: "json", label: "JSON" },
+  { value: "csv", label: "CSV" },
+  { value: "xlsx", label: "Excel" },
+]
 
 // Define data types that can be exported/imported
 type DataType =
@@ -602,30 +612,103 @@ export function ExportImportPage() {
       }
 
       // Generate export file based on format
-      let outputData: string
-      let mimeType: string
+      let blob: Blob
+      let filename: string
+      const downloadDate = new Date().toISOString().split('T')[0]
+      const exportModeText = readableExport ? 'readable' : 'raw'
 
       if (exportFormat === 'json') {
-        outputData = JSON.stringify(dataToExport, null, 2)
-        mimeType = 'application/json'
-      } else if (exportFormat === 'csv') {
-        // Simple CSV conversion - in real app would use a proper CSV library
-        // This is just a placeholder for demonstration
-        outputData = 'Data exported in JSON format as CSV conversion requires processing'
-        mimeType = 'text/csv'
-      } else {
-        // For xlsx would use a library like xlsx in a real implementation
-        outputData = 'Data exported in JSON format as XLSX conversion requires processing'
-        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        // JSON export
+        const outputData = JSON.stringify(dataToExport, null, 2)
+        blob = new Blob([outputData], { type: 'application/json' })
+        filename = `wealth_manager_export_${exportModeText}_${downloadDate}.json`
+      }
+      else if (exportFormat === 'csv') {
+        try {
+          // Create a zip file with multiple CSV files (one per data type)
+          const zip = new JSZip()
+
+          // Process each data type
+          Object.keys(dataToExport).forEach(key => {
+            // Skip metadata
+            if (key === '_meta') return
+
+            // If the data is an array, convert it to CSV
+            if (Array.isArray(dataToExport[key]) && dataToExport[key].length > 0) {
+              const csvContent = papaUnparse(dataToExport[key])
+              zip.file(`${key}.csv`, csvContent)
+            }
+            // For objects like categories, convert to array first
+            else if (typeof dataToExport[key] === 'object' && dataToExport[key] !== null) {
+              const arrayData = Object.entries(dataToExport[key]).map(([id, value]) => {
+                if (typeof value === 'object') {
+                  return { id, ...value }
+                }
+                return { id, value }
+              })
+
+              if (arrayData.length > 0) {
+                const csvContent = papaUnparse(arrayData)
+                zip.file(`${key}.csv`, csvContent)
+              }
+            }
+          })
+
+          // Generate the zip file
+          blob = await zip.generateAsync({ type: 'blob' })
+          filename = `wealth_manager_export_${exportModeText}_${downloadDate}.zip`
+        } catch (error) {
+          console.error('Error creating CSV export:', error)
+          throw new Error(`Failed to create CSV export: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+      else if (exportFormat === 'xlsx') {
+        try {
+          // Create a workbook with multiple sheets
+          const workbook = XLSX.utils.book_new()
+
+          // Process each data type
+          Object.keys(dataToExport).forEach(key => {
+            // Skip metadata
+            if (key === '_meta') return
+
+            // If the data is an array, add it as a sheet
+            if (Array.isArray(dataToExport[key]) && dataToExport[key].length > 0) {
+              const worksheet = XLSX.utils.json_to_sheet(dataToExport[key])
+              XLSX.utils.book_append_sheet(workbook, worksheet, key)
+            }
+            // For objects like categories, convert to array first
+            else if (typeof dataToExport[key] === 'object' && dataToExport[key] !== null) {
+              const arrayData = Object.entries(dataToExport[key]).map(([id, value]) => {
+                if (typeof value === 'object') {
+                  return { id, ...value }
+                }
+                return { id, value }
+              })
+
+              if (arrayData.length > 0) {
+                const worksheet = XLSX.utils.json_to_sheet(arrayData)
+                XLSX.utils.book_append_sheet(workbook, worksheet, key)
+              }
+            }
+          })
+
+          // Generate the Excel file
+          const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+          blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+          filename = `wealth_manager_export_${exportModeText}_${downloadDate}.xlsx`
+        } catch (error) {
+          console.error('Error creating Excel export:', error)
+          throw new Error(`Failed to create Excel export: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+      else {
+        throw new Error(`Unsupported export format: ${exportFormat}`)
       }
 
-      const blob = new Blob([outputData], { type: mimeType })
       const url = URL.createObjectURL(blob)
 
       // Create download link and trigger download
-      const downloadDate = new Date().toISOString().split('T')[0]
-      const exportModeText = readableExport ? 'readable' : 'raw'
-      const filename = `wealth_manager_export_${exportModeText}_${downloadDate}.${exportFormat}`
 
       const a = document.createElement("a")
       a.href = url
