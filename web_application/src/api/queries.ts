@@ -1,12 +1,12 @@
 import {
-  Account,
-  ApiResponse,
-  Bank,
-  Investment,
-  PortfolioSummary,
-  RefundGroup,
-  RefundItem,
-  Transaction,
+    Account,
+    ApiResponse,
+    Bank,
+    Investment,
+    PortfolioSummary,
+    RefundGroup,
+    RefundItem,
+    Transaction,
 } from "@/types"
 import { handleTokenExpiration } from "@/utils/auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -64,6 +64,11 @@ export const QueryKeys = {
   portfolioRiskMetrics: ["portfolio", "risk-metrics"] as QueryKeyArray,
   customPrices: (symbol: string) =>
     ["stocks", symbol, "custom-prices"] as QueryKeyArray,
+  budgets: ["budgets"] as QueryKeyArray,
+  budgetsByYearMonth: (year: number, month: number) =>
+    ["budgets", year, month] as QueryKeyArray,
+  budgetComparison: (year: number, month: number) =>
+    ["budgets", "comparison", year, month] as QueryKeyArray,
 } as const
 
 // Common interfaces
@@ -102,6 +107,25 @@ interface BatchCreateResponse<T> {
   }>
   total_successful: number
   total_failed: number
+}
+
+// Add Budget interfaces here
+export interface Budget {
+  id: number
+  category: string
+  year: number
+  month: number
+  amount: number
+  created_at: string
+  updated_at: string
+}
+
+export interface BudgetComparison {
+  category: string
+  budgeted: number
+  actual: number
+  difference: number
+  percentage: number
 }
 
 // Common fetch configuration
@@ -1209,4 +1233,123 @@ export function useBatchCreateRefundItems() {
     ["refundItems", "transactions"],
     queryClient
   )
+}
+
+// Budget queries
+export function useBudgets(year?: number, month?: number) {
+  const queryClient = useQueryClient()
+  const queryParams = year && month ? `?year=${year}&month=${month}` : ''
+
+  const fetchBudgets = useQuery({
+    queryKey: year && month ? QueryKeys.budgetsByYearMonth(year, month) : QueryKeys.budgets,
+    queryFn: () => fetchWithAuth<Budget[]>(`budgets/budgets${queryParams}`),
+  })
+
+  const crudOperations = createCrudOperations<Budget>({
+    endpoint: 'budgets/budgets',
+    queryKeysToInvalidate: ['budgets'],
+  })
+
+  return {
+    ...fetchBudgets,
+    ...crudOperations,
+  }
+}
+
+export function useBudgetComparison(year: number, month: number) {
+  return useQuery({
+    queryKey: QueryKeys.budgetComparison(year, month),
+    queryFn: () => fetchWithAuth<BudgetComparison[]>(`budgets/budgets/compare?year=${year}&month=${month}`),
+    enabled: !!year && !!month,
+  })
+}
+
+export interface Asset {
+  id: number
+  name: string
+  symbol: string
+  type: string
+  current_price?: number
+}
+
+export interface AssetQueryParams {
+  page?: number
+  per_page?: number
+  sort_by?: keyof Asset
+  sort_order?: "asc" | "desc"
+  search?: string
+  search_fields?: (keyof Asset)[]
+  type?: string | string[]
+  symbol?: string | string[]
+}
+
+interface PeriodSummaryData {
+  start_date: string
+  end_date: string
+  income: {
+    total: number
+    by_category: Record<string, CategorySummary>
+  }
+  expense: {
+    total: number
+    by_category: Record<string, CategorySummary>
+  }
+}
+
+interface PeriodSummaryResponse {
+  period: string
+  summaries: PeriodSummaryData[]
+}
+
+
+
+export interface PortfolioPerformance {
+  data_points: Array<{
+    absolute_gain: number
+    assets: {
+      [symbol: string]: {
+        price: number
+        shares: number
+        total_value: number
+        cost_basis_per_share?: number
+      }
+    }
+    cumulative_dividends: number
+    date: string
+    net_invested: number
+    performance: number
+    total_gains: number
+    total_value: number
+    tri: number
+  }>
+  summary: {
+    current_value: number
+    initial_investment: number
+    net_investment: number
+    total_return: number
+    total_withdrawals: number
+  }
+}
+
+
+
+
+
+
+export interface Budget {
+  id: number
+  category: string
+  year: number
+  month: number
+  amount: number
+  created_at: string
+  updated_at: string
+}
+
+export interface BudgetComparison {
+  category: string
+  budgeted: number
+  actual: number
+  difference: number
+  percentage: number
 }

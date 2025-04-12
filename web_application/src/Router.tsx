@@ -302,7 +302,7 @@ const transactionsExpenseRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/transactions/expense",
   validateSearch: (search: Record<string, unknown>) => ({
-    accountId: search.account as string | undefined,
+    accountId: search.accountId as number | undefined,
     category: search.category as string | undefined,
     type: search.type as string | undefined,
     date_range: search.date_range as string | undefined,
@@ -318,7 +318,7 @@ const transactionsTransferRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/transactions/transfer",
   validateSearch: (search: Record<string, unknown>) => ({
-    account: search.account as string | undefined,
+    accountId: search.accountId as number | undefined,
     category: search.category as string | undefined,
     type: search.type as string | undefined,
     date_range: search.date_range as string | undefined,

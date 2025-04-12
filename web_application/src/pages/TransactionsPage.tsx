@@ -9,6 +9,7 @@ import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransac
 import { EditTransactionDialog } from "@/components/transactions/EditTransactionDialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ComboboxInput, Option } from "@/components/ui/comboboxInput"
 import {
   Dialog,
   DialogContent,
@@ -472,7 +473,7 @@ export function TransactionsPage({
 }: TransactionsPageProps) {
   const search = useSearch()
   const navigate = useNavigate()
-  const accountFilter = search.account
+  const accountFilter = search.accountId
   const categoryFilter = search.category
   const typeFilter = search.type || defaultType
   const dateRangeFilter = search.date_range
@@ -720,13 +721,6 @@ export function TransactionsPage({
     )
   }
 
-  const pageTitle =
-    typeFilter === "all"
-      ? "All Transactions"
-      : `${
-          typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)
-        } Transactions`
-
   useKeyboardShortcuts({
     onNew: () => {
       if (!isAddingTransaction) {
@@ -776,6 +770,31 @@ export function TransactionsPage({
       })
     }
   }
+
+  // Add these computed options from accounts and categories
+  const accountOptions: Option[] = useMemo(() => {
+    return [
+      { label: "All Accounts", value: "all" },
+      ...accounts.map(account => ({
+        label: account.name,
+        value: account.id.toString(),
+      })),
+    ]
+  }, [accounts])
+
+  const categoryOptions: Option[] = useMemo(() => {
+    if (!allCategories) return [{ label: "All Categories", value: "all" }]
+
+    return [
+      { label: "All Categories", value: "all" },
+      ...Object.entries(allCategories).flatMap(([type, categories]) =>
+        categories.map(category => ({
+          label: category.name.fr,
+          value: category.name.fr,
+        }))
+      ),
+    ]
+  }, [allCategories])
 
   return (
     <PageContainer
@@ -881,50 +900,26 @@ export function TransactionsPage({
               <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Category
               </label>
-              <Select
-                value={categoryFilter || "all"}
-                onValueChange={handleCategoryChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {allCategories &&
-                    Object.entries(allCategories).flatMap(
-                      ([type, categories]) =>
-                        categories.map(category => (
-                          <SelectItem
-                            key={category.name.fr}
-                            value={category.name.fr}
-                          >
-                            {category.name.fr}
-                          </SelectItem>
-                        ))
-                    )}
-                </SelectContent>
-              </Select>
+              <ComboboxInput
+                options={categoryOptions}
+                value={categoryOptions.find(opt => opt.value === (categoryFilter || "all"))}
+                onValueChange={(option) => handleCategoryChange(option.value)}
+                placeholder="Search category..."
+                emptyMessage="No categories found"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Account
               </label>
-              <Select
-                value={accountFilter || "all"}
-                onValueChange={handleAccountChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Accounts</SelectItem>
-                  {accounts.map(account => (
-                    <SelectItem key={account.id} value={account.id.toString()}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ComboboxInput
+                options={accountOptions}
+                value={accountOptions.find(opt => opt.value === (accountFilter || "all"))}
+                onValueChange={(option) => handleAccountChange(option.value)}
+                placeholder="Search account..."
+                emptyMessage="No accounts found"
+                isLoading={isLoadingAccounts}
+              />
             </div>
           </div>
 

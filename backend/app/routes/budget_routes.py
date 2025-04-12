@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TypedDict
 
 from flask import Blueprint, jsonify, request
@@ -11,6 +11,8 @@ from ..category import (
     income_categories,
     transfer_categories,
 )
+from ..database import DatabaseManager
+from ..exceptions import NoResultFoundError
 from ..services.budget_service import (
     TransactionSummary,
     calculate_period_boundaries,
@@ -603,3 +605,430 @@ def budget_summary_by_period():
         current_start = get_next_period_start(current_start, period)
 
     return jsonify({"period": period, "summaries": period_summaries})
+
+
+@budget_bp.route("/budgets", methods=["POST"])
+@jwt_required()
+def create_budget():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+
+    # Validate required fields
+    required_fields = ["category", "year", "month", "amount"]
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"Missing required field: {field}"}), 400
+
+    # Validate year and month
+    try:
+        year = int(data["year"])
+        month = int(data["month"])
+        if year < 2000 or year > 3000 or month < 1 or month > 12:
+            return jsonify({"error": "Invalid year or month value"}), 400
+    except ValueError:
+        return jsonify({"error": "Year and month must be integers"}), 400
+
+    # Validate amount
+    try:
+        amount = float(data["amount"])
+        if amount <= 0:
+            return jsonify({"error": "Amount must be greater than zero"}), 400
+    except ValueError:
+        return jsonify({"error": "Amount must be a number"}), 400
+
+    # Check if budget already exists
+    db = DatabaseManager()
+    check_query = """--sql
+        SELECT id FROM budgets
+        WHERE user_id = ? AND category = ? AND year = ? AND month = ?
+    """
+    try:
+        existing = db.execute_select(
+            query=check_query, params=[user_id, data["category"], year, month]
+        )
+        if existing:
+            return jsonify(
+                {"error": "Budget for this category and period already exists"}
+            ), 409
+    except NoResultFoundError:
+        pass
+
+    # Insert the new budget
+    insert_query = """--sql
+        INSERT INTO budgets (user_id, category, year, month, amount)
+        VALUES (?, ?, ?, ?, ?)
+    """
+    db.execute_insert(
+        query=insert_query, params=[user_id, data["category"], year, month, amount]
+    )
+
+    return jsonify({"message": "Budget created successfully"}), 201
+
+
+@budget_bp.route("/budgets/<int:budget_id>", methods=["PUT"])
+@jwt_required()
+def update_budget(budget_id):
+    user_id = get_jwt_identity()
+    data = request.get_json()
+
+    # Check if budget exists and belongs to user
+    db = DatabaseManager()
+    check_query = """--sql
+        SELECT id FROM budgets
+        WHERE id = ? AND user_id = ?
+    """
+    try:
+        existing = db.execute_select(query=check_query, params=[budget_id, user_id])
+        if not existing:
+            return jsonify({"error": "Budget not found or not authorized"}), 404
+    except NoResultFoundError:
+        return jsonify({"error": "Budget not found or not authorized"}), 404
+
+    # Validate amount
+    if "amount" in data:
+        try:
+            amount = float(data["amount"])
+            if amount <= 0:
+                return jsonify({"error": "Amount must be greater than zero"}), 400
+        except ValueError:
+            return jsonify({"error": "Amount must be a number"}), 400
+    else:
+        return jsonify({"error": "Amount is required"}), 400
+
+    # Update the budget
+    update_query = """--sql
+        UPDATE budgets
+        SET amount = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND user_id = ?
+    """
+    db.execute_update(query=update_query, params=[amount, budget_id, user_id])
+
+    return jsonify({"message": "Budget updated successfully"}), 200
+
+
+@budget_bp.route("/budgets/<int:budget_id>", methods=["DELETE"])
+@jwt_required()
+def delete_budget(budget_id):
+    user_id = get_jwt_identity()
+
+    # Check if budget exists and belongs to user
+    db = DatabaseManager()
+    check_query = """--sql
+        SELECT id FROM budgets
+        WHERE id = ? AND user_id = ?
+    """
+    try:
+        existing = db.execute_select(query=check_query, params=[budget_id, user_id])
+        if not existing:
+            return jsonify({"error": "Budget not found or not authorized"}), 404
+    except NoResultFoundError:
+        return jsonify({"error": "Budget not found or not authorized"}), 404
+
+    # Delete the budget
+    delete_query = """--sql
+        DELETE FROM budgets
+        WHERE id = ? AND user_id = ?
+    """
+    db.execute_delete(query=delete_query, params=[budget_id, user_id])
+
+    return jsonify({"message": "Budget deleted successfully"}), 200
+
+
+@budget_bp.route("/budgets", methods=["GET"])
+@jwt_required()
+def get_budgets():
+    user_id = get_jwt_identity()
+
+    # Get query parameters
+    year = request.args.get("year")
+    month = request.args.get("month")
+
+    # Build query based on filters
+    query = """--sql
+        SELECT id, category, year, month, amount, created_at, updated_at
+        FROM budgets
+        WHERE user_id = ?
+    """
+    params = [user_id]
+
+    if year:
+        query += " AND year = ?"
+        params.append(int(year))
+
+    if month:
+        query += " AND month = ?"
+        params.append(int(month))
+
+    query += " ORDER BY year DESC, month DESC, category"
+
+    # Execute query
+    db = DatabaseManager()
+    try:
+        budgets = db.execute_select(query=query, params=params)
+    except NoResultFoundError:
+        return jsonify([]), 200
+
+    return jsonify(budgets), 200
+
+
+@budget_bp.route("/budgets/compare", methods=["GET"])
+@jwt_required()
+def compare_budget_with_actual():
+    user_id = get_jwt_identity()
+
+    # Get query parameters
+    year = request.args.get("year")
+    month = request.args.get("month")
+
+    if not year or not month:
+        return jsonify({"error": "Year and month are required"}), 400
+
+    try:
+        year = int(year)
+        month = int(month)
+    except ValueError:
+        return jsonify({"error": "Year and month must be integers"}), 400
+
+    # Create date range for the month
+    start_date = f"{year}-{month:02d}-01"
+    if month == 12:
+        end_date = f"{year + 1}-01-01"
+    else:
+        end_date = f"{year}-{month + 1:02d}-01"
+    end_date = (datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
+
+    # Get budgets for the month
+    db = DatabaseManager()
+    budget_query = """--sql
+        SELECT category, amount
+        FROM budgets
+        WHERE user_id = ? AND year = ? AND month = ?
+    """
+
+    try:
+        budgets = db.execute_select(budget_query, [user_id, year, month])
+    except NoResultFoundError:
+        budgets = []
+
+    # Get actual spending for the month
+    expense_query = """--sql
+        WITH transaction_refunds AS (
+            SELECT
+                t.id as transaction_id,
+                COALESCE(SUM(r.amount), 0) as refunded_amount
+            FROM transactions t
+            LEFT JOIN refund_items r ON t.id = r.expense_transaction_id
+            WHERE t.type = 'expense'
+            GROUP BY t.id
+        )
+        SELECT
+            t.category,
+            SUM(t.amount - COALESCE(tr.refunded_amount, 0)) as net_amount
+        FROM transactions t
+        LEFT JOIN transaction_refunds tr ON t.id = tr.transaction_id
+        WHERE
+            t.user_id = ?
+            AND t.type = 'expense'
+            AND t.date_accountability BETWEEN ? AND ?
+        GROUP BY t.category
+    """
+
+    try:
+        expenses = db.execute_select(expense_query, [user_id, start_date, end_date])
+    except NoResultFoundError:
+        expenses = []
+
+    # Create a map of expenses by category
+    expense_map = {expense["category"]: expense["net_amount"] for expense in expenses}
+
+    # Combine budget and actual data
+    result = []
+    for budget in budgets:
+        category = budget["category"]
+        actual_amount = round(expense_map.get(category, 0),2)
+        result.append(
+            {
+                "category": category,
+                "budgeted": budget["amount"],
+                "actual": round(actual_amount,2),
+                "difference": budget["amount"] - actual_amount,
+                "percentage": (actual_amount / budget["amount"] * 100)
+                if budget["amount"] > 0
+                else 0,
+            }
+        )
+
+    # Add categories with expenses but no budget
+    for category, amount in expense_map.items():
+        if not any(b["category"] == category for b in budgets):
+            result.append(
+                {
+                    "category": category,
+                    "budgeted": 0,
+                    "actual": round(amount,2),
+                    "difference": -round(amount,2),
+                    "percentage": 100,  # Over budget by 100%
+                }
+            )
+
+    return jsonify(result), 200
+
+
+# Update Swagger documentation
+def update_budget_swagger_docs():
+    # Document create budget endpoint
+    spec.path(
+        path="/budgets/budgets",
+        operations={
+            "post": {
+                "tags": ["Budget"],
+                "summary": "Create a new budget",
+                "security": [{"bearerAuth": []}],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["category", "year", "month", "amount"],
+                                "properties": {
+                                    "category": {"type": "string"},
+                                    "year": {"type": "integer"},
+                                    "month": {"type": "integer"},
+                                    "amount": {"type": "number"},
+                                },
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "201": {"description": "Budget created successfully"},
+                    "400": {"description": "Invalid input data"},
+                    "401": {"description": "Unauthorized"},
+                    "409": {"description": "Budget already exists"},
+                },
+            },
+            "get": {
+                "tags": ["Budget"],
+                "summary": "Get all budgets for the user",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "year",
+                        "in": "query",
+                        "schema": {"type": "integer"},
+                        "description": "Filter by year",
+                    },
+                    {
+                        "name": "month",
+                        "in": "query",
+                        "schema": {"type": "integer"},
+                        "description": "Filter by month",
+                    },
+                ],
+                "responses": {
+                    "200": {"description": "List of budgets"},
+                    "401": {"description": "Unauthorized"},
+                },
+            },
+        },
+    )
+
+    # Document update, delete budget endpoints
+    spec.path(
+        path="/budgets/budgets/{budget_id}",
+        operations={
+            "put": {
+                "tags": ["Budget"],
+                "summary": "Update an existing budget",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "budget_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "description": "Budget ID",
+                    }
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["amount"],
+                                "properties": {
+                                    "amount": {"type": "number"},
+                                },
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {"description": "Budget updated successfully"},
+                    "400": {"description": "Invalid input data"},
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Budget not found"},
+                },
+            },
+            "delete": {
+                "tags": ["Budget"],
+                "summary": "Delete a budget",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "budget_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "description": "Budget ID",
+                    }
+                ],
+                "responses": {
+                    "200": {"description": "Budget deleted successfully"},
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Budget not found"},
+                },
+            },
+        },
+    )
+
+    # Document budget comparison endpoint
+    spec.path(
+        path="/budgets/budgets/compare",
+        operations={
+            "get": {
+                "tags": ["Budget"],
+                "summary": "Compare budget with actual spending",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "year",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "description": "Year",
+                    },
+                    {
+                        "name": "month",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "integer"},
+                        "description": "Month",
+                    },
+                ],
+                "responses": {
+                    "200": {"description": "Budget comparison data"},
+                    "400": {"description": "Invalid input parameters"},
+                    "401": {"description": "Unauthorized"},
+                },
+            },
+        },
+    )
+
+
+# Register additional Swagger documentation
+update_budget_swagger_docs()

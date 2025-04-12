@@ -1,24 +1,27 @@
 "use client"
 
 import {
-  useAccounts,
-  useAllCategories,
-  useCategorySummary,
+    useAccounts,
+    useAllCategories,
+    useBudgetComparison, useBudgets,
+    useCategorySummary,
 } from "@/api/queries"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Progress } from "@/components/ui/progress"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDateRange } from "@/contexts/date-range-context"
@@ -27,8 +30,8 @@ import { formatCurrency } from "@/lib/utils"
 import { CategoryMetadata } from "@/types/categories"
 import { useNavigate } from "@tanstack/react-router"
 import { formatDate } from "date-fns"
-import { ArrowDownIcon, ArrowRightIcon, ArrowUpIcon } from "lucide-react"
-import { useMemo, useState } from "react"
+import { ArrowDownIcon, ArrowRightIcon, ArrowUpIcon, CheckIcon, PencilIcon, XIcon } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { IoBuildOutline, IoCalendarOutline } from "react-icons/io5"
 
 interface Transaction {
@@ -355,19 +358,77 @@ function TransactionDialog({
 }
 
 export function CategoryList() {
-  const { type } = useCategories()
+  const { type, stats, setBudgetSegments } = useCategories()
   const { dateRange } = useDateRange()
   const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd")
   const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd")
   const [selectedCategory, setSelectedCategory] =
     useState<TransformedCategory | null>(null)
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
 
   const { data: allCategories, isLoading: loadingCategories } =
     useAllCategories()
   const { data: categorySummary, isLoading: loadingSummary } =
     useCategorySummary(startDate, endDate)
 
-  const loading = loadingCategories || loadingSummary
+  // Fetch budget data
+  const {
+    data: budgets = [],
+    isLoading: budgetsLoading,
+    refetch: refetchBudgets
+  } = useBudgets(currentYear, currentMonth)
+
+  const {
+    data: comparisons = [],
+    isLoading: comparisonsLoading,
+    refetch: refetchComparisons
+  } = useBudgetComparison(currentYear, currentMonth)
+
+  const { useUpdate, useCreate } = useBudgets()
+  const updateBudgetMutation = useUpdate()
+  const createBudgetMutation = useCreate()
+
+  // Setup the current month/year based on the date range
+  useEffect(() => {
+    if (dateRange.startDate) {
+      const date = new Date(dateRange.startDate)
+      const year = date.getFullYear()
+      const month = date.getMonth() + 1 // 0-indexed to 1-indexed
+
+      setCurrentYear(year)
+      setCurrentMonth(month)
+    }
+  }, [dateRange])
+
+  const loading = loadingCategories || loadingSummary || budgetsLoading || comparisonsLoading
+
+  // Get budget data for categories
+  const budgetDataMap = useMemo(() => {
+    const map = new Map<string, { budgeted: number, percentage: number, isOver: boolean }>();
+
+    comparisons.forEach(item => {
+      const shouldInclude = type === "expense"
+        ? !item.category.startsWith('+')
+        : item.category.startsWith('+');
+
+      if (shouldInclude) {
+        const categoryName = type === "expense"
+          ? item.category
+          : item.category.replace(/^\+/, '');
+
+        map.set(categoryName, {
+          budgeted: item.budgeted || 0,
+          percentage: item.percentage || 0,
+          isOver: item.difference < 0
+        });
+      }
+    });
+
+    return map;
+  }, [comparisons, type]);
 
   const categoryData = useMemo(() => {
     if (!categorySummary || !allCategories) return []
@@ -400,40 +461,234 @@ export function CategoryList() {
       .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
   }, [categorySummary, allCategories, type])
 
-  const renderCategoryItem = (category: TransformedCategory) => (
-    <div
-      key={category.name}
-      className="flex items-center justify-between p-4 hover:bg-muted/50 rounded-lg cursor-pointer"
-      onClick={() => setSelectedCategory(category)}
-    >
-      <div className="flex items-center gap-2">
+  // Budget editing functions
+  const startEditing = (category: string, amount: number) => {
+    setEditingId(category);
+    setEditValue(amount.toString());
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditValue("");
+  };
+
+  const saveEditing = async (category: string) => {
+    const numAmount = parseFloat(editValue);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      alert("Please enter a valid amount greater than zero");
+      return;
+    }
+
+    try {
+      // Find if a budget already exists for this category
+      const categoryForBudget = type === "expense" ? category : `+${category}`;
+      const existingBudget = budgets.find(budget =>
+        budget.category === categoryForBudget &&
+        budget.year === currentYear &&
+        budget.month === currentMonth
+      );
+
+      if (existingBudget) {
+        // Update existing budget
+        await updateBudgetMutation.mutateAsync({
+          id: existingBudget.id,
+          data: { amount: numAmount }
+        });
+      } else {
+        // Create new budget
+        const nowIso = new Date().toISOString();
+        await createBudgetMutation.mutateAsync({
+          category: categoryForBudget,
+          amount: numAmount,
+          year: currentYear,
+          month: currentMonth,
+          created_at: nowIso,
+          updated_at: nowIso
+        });
+      }
+
+      // Refresh data
+      refetchBudgets();
+      refetchComparisons();
+      setEditingId(null);
+    } catch (error) {
+      console.error("Failed to update budget:", error);
+      alert("Failed to update budget");
+    }
+  };
+
+  // Calculate budget segments for the horizontal bar - MOVED OUTSIDE CONDITIONAL
+  useEffect(() => {
+    // Skip if loading or no data
+    if (loading || !categoryData.length) return;
+
+    const totalBudget = type === "expense" ?
+      stats.totalBudgeted : stats.totalBudgeted;
+
+    // Skip if no budget data or total is zero
+    if (totalBudget === 0) return;
+
+    // Create segments for each category that has both budget and spending
+    const segments: Array<{
+      name: string;
+      amount: number;
+      percentage: number;
+      color: string;
+    }> = [];
+
+    // Loop through category data and create segments
+    categoryData.forEach(category => {
+      const budgetData = budgetDataMap.get(category.name);
+
+      // Only include categories with budget and actual spending
+      if (budgetData && budgetData.budgeted > 0 && Math.abs(category.amount) > 0) {
+        // Calculate what percentage of the total budget this category represents
+        const percentage = (Math.abs(category.amount) / totalBudget) * 100;
+
+        segments.push({
+          name: category.name,
+          amount: Math.abs(category.amount),
+          percentage: percentage,
+          color: category.color || "#888888" // Use category color or default
+        });
+      }
+    });
+
+    // Sort segments by percentage (largest first)
+    segments.sort((a, b) => b.percentage - a.percentage);
+
+    // Update the store with the segments
+    setBudgetSegments(type, segments);
+  }, [loading, categoryData, budgetDataMap, type, stats.totalBudgeted, setBudgetSegments]);
+
+  const renderCategoryItem = (category: TransformedCategory) => {
+    const budgetData = budgetDataMap.get(category.name);
+    const hasBudget = budgetData && budgetData.budgeted > 0;
+    const isEditing = editingId === category.name;
+
+    // Find if there's an existing budget
+    const categoryForBudget = type === "expense" ? category.name : `+${category.name}`;
+    const budgetItem = budgets.find(budget =>
+      budget.category === categoryForBudget &&
+      budget.year === currentYear &&
+      budget.month === currentMonth
+    );
+
+    return (
+      <div
+        key={category.name}
+        className="flex flex-col p-3 hover:bg-muted/50 rounded-lg cursor-pointer"
+      >
         <div
-          className="w-3 h-3 rounded-full"
-          style={{ backgroundColor: category.color }}
-        />
-        <span className="text-sm font-medium">{category.name}</span>
-        <span className="text-sm text-muted-foreground">
-          ({category.count})
-        </span>
-      </div>
-      <div className="flex flex-col items-end">
-        {category.originalAmount !== category.amount ? (
-          <>
-            <span className="text-sm line-through text-muted-foreground">
-              {formatCurrency(category.originalAmount)}
+          className="flex items-center justify-between"
+          onClick={() => setSelectedCategory(category)}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: category.color }}
+            />
+            <span className="text-sm font-medium">{category.name}</span>
+            <span className="text-xs text-muted-foreground">
+              ({category.count})
             </span>
-            <span className="text-sm font-medium">
-              {formatCurrency(category.amount)}
-            </span>
-          </>
-        ) : (
-          <span className="text-sm font-medium">
-            {formatCurrency(category.amount)}
-          </span>
-        )}
+          </div>
+          <div className="flex flex-col items-end">
+            {category.originalAmount !== category.amount ? (
+              <>
+                <span className="text-sm line-through text-muted-foreground">
+                  {formatCurrency(category.originalAmount)}
+                </span>
+                <span className="text-sm font-medium">
+                  {formatCurrency(category.amount)}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm font-medium">
+                {formatCurrency(category.amount)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Budget section */}
+        <div className="mt-2 flex items-center justify-between" onClick={e => e.stopPropagation()}>
+          {isEditing ? (
+            <div className="flex items-center space-x-2 w-full">
+              <span className="text-xs text-muted-foreground">Budget:</span>
+              <div className="relative flex-1 max-w-[120px]">
+                <span className="absolute inset-y-0 left-2 flex items-center text-gray-500 text-xs">
+                  $
+                </span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="pl-5 h-7 text-right text-xs"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="flex space-x-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={() => saveEditing(category.name)}
+                >
+                  <CheckIcon className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={cancelEditing}
+                >
+                  <XIcon className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Budget:</span>
+                <span className="text-xs font-medium">
+                  {hasBudget
+                    ? formatCurrency(budgetData.budgeted)
+                    : "–"}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={() => startEditing(
+                    category.name,
+                    hasBudget ? budgetData.budgeted : Math.abs(category.amount)
+                  )}
+                >
+                  <PencilIcon className="h-3 w-3" />
+                </Button>
+              </div>
+
+              {hasBudget && (
+                <div className="flex items-center gap-1 ml-2">
+                  <Progress
+                    value={Math.min(100, budgetData.percentage)}
+                    className="h-1.5 w-16"
+                    indicatorClassName={budgetData.isOver ? "bg-red-500" : ""}
+                  />
+                  <span className={`text-xs ${budgetData.isOver ? "text-red-500" : "text-muted-foreground"}`}>
+                    {Math.round(budgetData.percentage)}%
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    );
+  }
 
   if (loading) {
     return (
@@ -454,7 +709,7 @@ export function CategoryList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-1">
       {categoryData.map(renderCategoryItem)}
       {selectedCategory && (
         <TransactionDialog

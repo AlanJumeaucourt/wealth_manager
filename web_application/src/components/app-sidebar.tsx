@@ -1,16 +1,16 @@
 import { useRouter } from "@tanstack/react-router"
 import {
-    ArrowRightLeft,
-    Briefcase,
-    Command,
-    FileJson,
-    Layout,
-    LineChart,
-    LucideIcon,
-    PieChart,
-    Receipt,
-    RefreshCw,
-    Wallet
+  ArrowRightLeft,
+  Briefcase,
+  Command,
+  FileJson,
+  Layout,
+  LineChart,
+  LucideIcon,
+  PieChart,
+  Receipt,
+  RefreshCw,
+  Wallet
 } from "lucide-react"
 import * as React from "react"
 import { useMemo } from "react"
@@ -18,13 +18,13 @@ import { useMemo } from "react"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarHeader,
-    SidebarRail,
-    SidebarSeparator,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarHeader,
+  SidebarRail,
+  SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useUser } from "@/hooks/use-user.ts"
 import { userStorage } from "@/utils/user-storage"
