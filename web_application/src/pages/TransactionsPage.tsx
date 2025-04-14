@@ -9,7 +9,6 @@ import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransac
 import { EditTransactionDialog } from "@/components/transactions/EditTransactionDialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ComboboxInput, Option } from "@/components/ui/comboboxInput"
 import {
   Dialog,
   DialogContent,
@@ -158,7 +157,7 @@ const TransactionRow = memo(function TransactionRow({
   getAccountName: (id?: number) => string
   getCategoryColor: (category: string) => string
   navigate: any
-  search: any
+  search: Record<string, any>
 }) {
   const [isHovered, setIsHovered] = useState(false)
 
@@ -468,31 +467,333 @@ const TransactionRow = memo(function TransactionRow({
   )
 })
 
+// Memoized Stats Component
+const StatsSection = memo(function StatsSection({
+  defaultType,
+  totalItems,
+  transactionsResponse,
+  shouldShowSkeleton,
+}: {
+  defaultType: string;
+  totalItems: number;
+  transactionsResponse: any;
+  shouldShowSkeleton: boolean;
+}) {
+  const statsText = getStatsText(defaultType);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {shouldShowSkeleton ? (
+        Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="bg-card rounded-xl p-6 shadow-sm border border-border/50"
+          >
+            <Skeleton className="h-4 w-24 mb-2" />
+            <Skeleton className="h-8 w-32" />
+          </div>
+        ))
+      ) : (
+        <>
+          <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
+            <p className="text-sm text-muted-foreground">
+              {statsText.count}
+            </p>
+            <p className="text-2xl font-semibold mt-2">{totalItems}</p>
+          </div>
+          <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
+            <p className="text-sm text-muted-foreground">
+              {statsText.average}
+            </p>
+            <p className="text-2xl font-semibold mt-2">
+              {new Intl.NumberFormat(undefined, {
+                style: "currency",
+                currency: "EUR",
+              }).format(
+                Math.abs((transactionsResponse?.total_amount || 0) / 12)
+              )}
+            </p>
+          </div>
+          <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
+            <p className="text-sm text-muted-foreground">
+              {statsText.title}
+            </p>
+            <p
+              className={`text-2xl font-semibold mt-2 ${
+                defaultType === "expense"
+                  ? "text-destructive"
+                  : defaultType === "income"
+                    ? "text-green-600"
+                    : ""
+              }`}
+            >
+              {new Intl.NumberFormat(undefined, {
+                style: "currency",
+                currency: "EUR",
+              }).format(Math.abs(transactionsResponse?.total_amount || 0))}
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+});
+
+// Memoized Filters Component
+const FiltersSection = memo(function FiltersSection({
+  allCategories,
+  accounts,
+  typeFilters,
+  categoryFilters,
+  accountFilters,
+  dateRangeFilter,
+  activeFilters,
+  handleTypeChange,
+  handleCategoryChange,
+  handleAccountChange,
+  handleDateRangeChange,
+  removeFilter,
+  clearAllFilters,
+  getCategoryColor,
+}: {
+  allCategories: any;
+  accounts: Account[];
+  typeFilters: string[];
+  categoryFilters: string[];
+  accountFilters: string[];
+  dateRangeFilter: string | undefined;
+  activeFilters: ActiveFilter[];
+  handleTypeChange: (value: string) => void;
+  handleCategoryChange: (value: string) => void;
+  handleAccountChange: (value: string) => void;
+  handleDateRangeChange: (value: string) => void;
+  removeFilter: (filter: ActiveFilter) => void;
+  clearAllFilters: () => void;
+  getCategoryColor: (category: string) => string;
+}) {
+  return (
+    <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
+            Type
+          </label>
+          <Select onValueChange={handleTypeChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="income">Income</SelectItem>
+              <SelectItem value="expense">Expense</SelectItem>
+              <SelectItem value="transfer">Transfer</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
+            Date Range
+          </label>
+          <Select defaultValue="all" onValueChange={handleDateRangeChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select date range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+              <SelectItem value="all">All time</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
+            Category
+          </label>
+          <Select onValueChange={handleCategoryChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {allCategories &&
+                Object.entries(allCategories).flatMap(
+                  ([type, categories]) =>
+                    categories.map(category => (
+                      <SelectItem
+                        key={category.name.fr}
+                        value={category.name.fr}
+                      >
+                        {category.name.fr}
+                      </SelectItem>
+                    ))
+                )}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
+            Account
+          </label>
+          <Select onValueChange={handleAccountChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select account" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts.map(account => (
+                <SelectItem key={account.id} value={account.id.toString()}>
+                  {account.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {activeFilters.length > 0 && (
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
+          <div className="flex items-center gap-2 flex-wrap">
+            {activeFilters.map(filter => (
+              <span
+                key={filter.type + filter.value}
+                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary"
+                style={filter.type === "category" ? {
+                  backgroundColor: `${getCategoryColor(filter.value)}25`,
+                  color: getCategoryColor(filter.value),
+                } : undefined}
+              >
+                {filter.label}
+                <button
+                  className="ml-1 text-primary hover:text-primary/80"
+                  onClick={() => removeFilter(filter)}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </span>
+            ))}
+          </div>
+          <button
+            className="text-sm text-muted-foreground hover:text-foreground"
+            onClick={clearAllFilters}
+          >
+            Clear all filters
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// Memoized Search Component
+const SearchSection = memo(function SearchSection({
+  searchTerm,
+  setSearchTerm,
+  isLoadingAccounts,
+  setIsAddingTransaction,
+  selectedTransactions,
+  transactions,
+  handleBatchDeleteSuccess,
+  isLoading,
+}: {
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+  isLoadingAccounts: boolean;
+  setIsAddingTransaction: (value: boolean) => void;
+  selectedTransactions: number[];
+  transactions: Transaction[];
+  handleBatchDeleteSuccess: (result: BatchDeleteResponse) => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+      <div className="relative w-full sm:w-96">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search transactions..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="pl-10 bg-background border-border/50"
+        />
+      </div>
+      <div className="flex gap-2 w-full sm:w-auto">
+        {isLoadingAccounts ? (
+          <Skeleton className="h-10 w-[140px]" />
+        ) : (
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => setIsAddingTransaction(true)}
+            disabled={isLoadingAccounts}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Transaction
+          </Button>
+        )}
+        {selectedTransactions.length > 0 && (
+          <BatchDeleteTransactionsButton
+            selectedTransactions={transactions.filter(t =>
+              selectedTransactions.includes(t.id)
+            )}
+            onSuccess={handleBatchDeleteSuccess}
+            disabled={isLoading}
+          />
+        )}
+      </div>
+    </div>
+  );
+});
+
 export function TransactionsPage({
   defaultType = "all",
 }: TransactionsPageProps) {
   const search = useSearch()
   const navigate = useNavigate()
-  const accountFilter = search.accountId
-  const categoryFilter = search.category
-  const typeFilter = search.type || defaultType
-  const dateRangeFilter = search.date_range
-  const sortFieldFilter = (search.sort_field as TransactionField) || "date"
-  const sortDirectionFilter = (search.sort_direction as SortDirection) || "desc"
-  const pageFilter = search.page ? parseInt(search.page as string) : 1
-  const [searchTerm, setSearchTerm] = useState("")
-  const debouncedSearchTerm = useDebounce(searchTerm, 300)
-  const [selectedTransactions, setSelectedTransactions] = useState<number[]>([])
-  const [selectedRowId, setSelectedRowId] = useState<number | null>(null)
-  const [isAddingTransaction, setIsAddingTransaction] = useState(false)
-  const [isEnteringPage, setIsEnteringPage] = useState(false)
-  const [manualPageInput, setManualPageInput] = useState("")
-  const tableRef = useRef<HTMLTableElement>(null)
-  const { setDeleteTransaction, setEditTransaction } = useDialogStore()
-  const { toast } = useToast()
-  const { fromDate, toDate, setDateRange } = useDateRangeStore()
-  const { data: allCategories } = useAllCategories()
-  const itemsPerPage = 25
+
+  // Handle search params safely with a type assertion approach
+  const safeSearch = search as Record<string, any>
+
+  // Safely convert search parameters to arrays with proper type checks
+  const accountFilters: string[] = useMemo(() => {
+    if (!safeSearch.accountId) return [];
+    if (Array.isArray(safeSearch.accountId)) {
+      return safeSearch.accountId.map((id: any) => String(id));
+    }
+    return [String(safeSearch.accountId)];
+  }, [safeSearch.accountId]);
+
+  const categoryFilters: string[] = useMemo(() => {
+    if (!safeSearch.category) return [];
+    if (Array.isArray(safeSearch.category)) {
+      return safeSearch.category.map((c: any) => String(c));
+    }
+    return [String(safeSearch.category)];
+  }, [safeSearch.category]);
+
+  const typeFilters: string[] = useMemo(() => {
+    if (!safeSearch.type && defaultType === "all") return [];
+    if (!safeSearch.type) return [defaultType];
+    if (Array.isArray(safeSearch.type)) {
+      return safeSearch.type.map((t: any) => String(t));
+    }
+    return [String(safeSearch.type)];
+  }, [safeSearch.type, defaultType]);
+
+  const dateRangeFilter = safeSearch.date_range ? String(safeSearch.date_range) : undefined;
+  const sortFieldFilter = (safeSearch.sort_field ? String(safeSearch.sort_field) as TransactionField : "date");
+  const sortDirectionFilter = (safeSearch.sort_direction ? String(safeSearch.sort_direction) as SortDirection : "desc");
+  const pageFilter = safeSearch.page ? parseInt(String(safeSearch.page)) : 1;
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [selectedTransactions, setSelectedTransactions] = useState<number[]>([]);
+  const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
+  const [isAddingTransaction, setIsAddingTransaction] = useState(false);
+  const [isEnteringPage, setIsEnteringPage] = useState(false);
+  const [manualPageInput, setManualPageInput] = useState("");
+  const tableRef = useRef<HTMLTableElement>(null);
+  const { setDeleteTransaction, setEditTransaction } = useDialogStore();
+  const { toast } = useToast();
+  const { fromDate, toDate, setDateRange } = useDateRangeStore();
+  const { data: allCategories } = useAllCategories();
+  const itemsPerPage = 25;
 
   const { data: accountsResponse, isLoading: isLoadingAccounts } = useAccounts({
     type: "checking,savings,investment,income,expense",
@@ -503,27 +804,116 @@ export function TransactionsPage({
 
   const accounts: Account[] = accountsResponse?.items || []
 
-  // Update search params when filters change
-  const updateSearchParams = (updates: Partial<typeof search>) => {
-    navigate({
-      search: {
-        ...search,
-        ...updates,
-      },
-    })
-  }
+  // Update account options format for MultiSelect
+  const accountOptions = useMemo(() => {
+    return accounts.map(account => ({
+      label: account.name,
+      value: account.id.toString(),
+    }));
+  }, [accounts]);
 
+  // Update category options format for MultiSelect
+  const categoryOptions = useMemo(() => {
+    if (!allCategories) return [];
+
+    return Object.entries(allCategories).flatMap(([type, categories]) =>
+      categories.map(category => ({
+        label: category.name.fr,
+        value: category.name.fr,
+      }))
+    );
+  }, [allCategories]);
+
+  // Define type options explicitly for MultiSelect
+  const typeOptions = [
+    { label: "Income", value: "income" },
+    { label: "Expense", value: "expense" },
+    { label: "Transfer", value: "transfer" },
+  ];
+
+  // Update search params when filters change
+  const updateSearchParams = (updates: Record<string, any>) => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        ...updates,
+      }),
+    });
+  };
+
+  // Update filter handler methods to toggle selections
   const handleTypeChange = (value: string) => {
-    updateSearchParams({ type: value === "all" ? undefined : value })
-  }
+    let newTypes: string[] = [];
+
+    // If already selected, remove it, otherwise add it
+    if (typeFilters.includes(value)) {
+      newTypes = typeFilters.filter(t => t !== value);
+    } else {
+      newTypes = [...typeFilters, value];
+    }
+
+    updateSearchParams({
+      type: newTypes.length === 0 ? undefined : newTypes,
+      page: "1"
+    });
+  };
 
   const handleCategoryChange = (value: string) => {
-    updateSearchParams({ category: value === "all" ? undefined : value })
-  }
+    let newCategories: string[] = [];
+
+    // If already selected, remove it, otherwise add it
+    if (categoryFilters.includes(value)) {
+      newCategories = categoryFilters.filter(c => c !== value);
+    } else {
+      newCategories = [...categoryFilters, value];
+    }
+
+    updateSearchParams({
+      category: newCategories.length === 0 ? undefined : newCategories,
+      page: "1"
+    });
+  };
 
   const handleAccountChange = (value: string) => {
-    updateSearchParams({ accountId: value === "all" ? undefined : value })
-  }
+    let newAccounts: string[] = [];
+
+    // If already selected, remove it, otherwise add it
+    if (accountFilters.includes(value)) {
+      newAccounts = accountFilters.filter(a => a !== value);
+    } else {
+      newAccounts = [...accountFilters, value];
+    }
+
+    updateSearchParams({
+      accountId: newAccounts.length === 0 ? undefined : newAccounts,
+      page: "1"
+    });
+  };
+
+  // Remove single item from filters
+  const removeTypeFilter = (value: string) => {
+    const newTypes = typeFilters.filter(t => t !== value);
+    updateSearchParams({
+      type: newTypes.length === 0 ? undefined : newTypes,
+      page: "1"
+    });
+  };
+
+  const removeCategoryFilter = (value: string) => {
+    const newCategories = categoryFilters.filter(c => c !== value);
+    updateSearchParams({
+      category: newCategories.length === 0 ? undefined : newCategories,
+      page: "1"
+    });
+  };
+
+  const removeAccountFilter = (value: string) => {
+    const newAccounts = accountFilters.filter(a => a !== value);
+    updateSearchParams({
+      accountId: newAccounts.length === 0 ? undefined : newAccounts,
+      page: "1"
+    });
+  };
 
   const handleDateRangeChange = (value: string) => {
     const now = new Date()
@@ -573,87 +963,78 @@ export function TransactionsPage({
     setSearchTerm("")
   }
 
-  const removeFilter = (filter: ActiveFilter) => {
-    switch (filter.type) {
-      case "type":
-        updateSearchParams({ type: undefined })
-        break
-      case "category":
-        updateSearchParams({ category: undefined })
-        break
-      case "account":
-        updateSearchParams({ accountId: undefined })
-        break
-      case "date":
-        updateSearchParams({ date_range: undefined })
-        setDateRange(new Date(0), new Date())
-        break
-    }
-  }
-
   // Compute active filters based on URL params
   const activeFilters = useMemo(() => {
-    const filters: ActiveFilter[] = []
+    const filters: ActiveFilter[] = [];
 
-    if (typeFilter && typeFilter !== "all") {
-      filters.push({
-        type: "type",
-        value: typeFilter,
-        label: typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1),
-      })
-    }
+    // Add type filters
+    typeFilters.forEach((typeFilter: string) => {
+      if (typeFilter !== "all") {
+        filters.push({
+          type: "type",
+          value: typeFilter,
+          label: typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1),
+        });
+      }
+    });
 
-    if (categoryFilter) {
+    // Add category filters
+    categoryFilters.forEach((categoryFilter: string) => {
       filters.push({
         type: "category",
         value: categoryFilter,
         label: categoryFilter,
-      })
-    }
+      });
+    });
 
-    if (accountFilter) {
-      const account = accounts.find(a => a.id === parseInt(accountFilter))
+    // Add account filters
+    accountFilters.forEach((accountFilter: string) => {
+      const account = accounts.find(a => a.id === parseInt(accountFilter));
       filters.push({
         type: "account",
         value: accountFilter,
         label: account?.name || accountFilter,
-      })
-    }
+      });
+    });
 
+    // Add date range filter
     if (dateRangeFilter) {
       const dateLabels: Record<string, string> = {
         "7d": "Last 7 days",
         "30d": "Last 30 days",
         "90d": "Last 90 days",
-      }
+      };
       filters.push({
         type: "date",
         value: dateRangeFilter,
         label: dateLabels[dateRangeFilter] || dateRangeFilter,
-      })
+      });
     }
 
-    return filters
-  }, [typeFilter, categoryFilter, accountFilter, dateRangeFilter, accounts])
+    return filters;
+  }, [typeFilters, categoryFilters, accountFilters, dateRangeFilter, accounts]);
 
+  // Use isFetching instead of isPreviousData/isPlaceholderData
   const {
     data: transactionsResponse,
     isLoading,
-    isPreviousData,
+    isFetching,
   } = useTransactions({
-    type: typeFilter === "all" ? undefined : (typeFilter as TransactionType),
+    type: typeFilters.length === 0 ? undefined :
+      (typeFilters.length === 1 ? typeFilters[0] as TransactionType : undefined),
     page: pageFilter,
     per_page: itemsPerPage,
     sort_by: sortFieldFilter,
     sort_order: sortDirectionFilter,
     search: debouncedSearchTerm || undefined,
-    account_id: accountFilter ? parseInt(accountFilter) : undefined,
-    category: categoryFilter,
+    account_id: accountFilters.length > 0 ?
+      parseInt(accountFilters[0]) : undefined, // API limitation: can only filter by one account for now
+    category: categoryFilters.length > 0 ?
+      categoryFilters[0] : undefined, // API limitation: can only filter by one category for now
     from_date: fromDate.toISOString().split("T")[0],
     to_date: toDate.toISOString().split("T")[0],
-  })
+  });
 
-  // Reset to first page when search changes
   useEffect(() => {
     if (pageFilter !== 1) {
       handlePageChange(1)
@@ -665,13 +1046,13 @@ export function TransactionsPage({
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   const statsText = getStatsText(defaultType)
 
-  // Keep the previous data while loading new data
-  const displayTransactions = isPreviousData
+  // Use isFetching instead of isPreviousData/isPlaceholderData
+  const displayTransactions = isFetching
     ? transactions
     : isLoading
       ? []
       : transactions
-  const shouldShowSkeleton = isLoading && !isPreviousData
+  const shouldShowSkeleton = isLoading && !isFetching
 
   const getAccountName = (accountId?: number): string => {
     if (!accountId) return ""
@@ -704,7 +1085,7 @@ export function TransactionsPage({
       const category = allCategories[type]?.find(
         cat => cat.name.fr === categoryName
       )
-      if (category) {
+      if (category && category.color) {
         return category.color
       }
     }
@@ -759,9 +1140,7 @@ export function TransactionsPage({
     onNextPage: () => handlePageChange(Math.min(totalPages, pageFilter + 1)),
   })
 
-  // Fix the type for the batch delete handler
   const handleBatchDeleteSuccess = (result: BatchDeleteResponse) => {
-    // Clear selections after successful delete
     if (result.total_successful > 0) {
       setSelectedTransactions([])
       toast({
@@ -771,30 +1150,24 @@ export function TransactionsPage({
     }
   }
 
-  // Add these computed options from accounts and categories
-  const accountOptions: Option[] = useMemo(() => {
-    return [
-      { label: "All Accounts", value: "all" },
-      ...accounts.map(account => ({
-        label: account.name,
-        value: account.id.toString(),
-      })),
-    ]
-  }, [accounts])
-
-  const categoryOptions: Option[] = useMemo(() => {
-    if (!allCategories) return [{ label: "All Categories", value: "all" }]
-
-    return [
-      { label: "All Categories", value: "all" },
-      ...Object.entries(allCategories).flatMap(([type, categories]) =>
-        categories.map(category => ({
-          label: category.name.fr,
-          value: category.name.fr,
-        }))
-      ),
-    ]
-  }, [allCategories])
+  // Restore removeFilter function to work with activeFilters
+  const removeFilter = (filter: ActiveFilter) => {
+    switch (filter.type) {
+      case "type":
+        removeTypeFilter(filter.value);
+        break;
+      case "category":
+        removeCategoryFilter(filter.value);
+        break;
+      case "account":
+        removeAccountFilter(filter.value);
+        break;
+      case "date":
+        updateSearchParams({ date_range: undefined });
+        setDateRange(new Date(0), new Date());
+        break;
+    }
+  };
 
   return (
     <PageContainer
@@ -807,185 +1180,40 @@ export function TransactionsPage({
       }
     >
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {shouldShowSkeleton ? (
-            Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                className="bg-card rounded-xl p-6 shadow-sm border border-border/50"
-              >
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-8 w-32" />
-              </div>
-            ))
-          ) : (
-            <>
-              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">
-                  {statsText.count}
-                </p>
-                <p className="text-2xl font-semibold mt-2">{totalItems}</p>
-              </div>
-              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">
-                  {statsText.average}
-                </p>
-                <p className="text-2xl font-semibold mt-2">
-                  {new Intl.NumberFormat(undefined, {
-                    style: "currency",
-                    currency: "EUR",
-                  }).format(
-                    Math.abs((transactionsResponse?.total_amount || 0) / 12)
-                  )}
-                </p>
-              </div>
-              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">
-                  {statsText.title}
-                </p>
-                <p
-                  className={`text-2xl font-semibold mt-2 ${
-                    defaultType === "expense"
-                      ? "text-destructive"
-                      : defaultType === "income"
-                        ? "text-green-600"
-                        : ""
-                  }`}
-                >
-                  {new Intl.NumberFormat(undefined, {
-                    style: "currency",
-                    currency: "EUR",
-                  }).format(Math.abs(transactionsResponse?.total_amount || 0))}
-                </p>
-              </div>
-            </>
-          )}
-        </div>
+        <StatsSection
+          defaultType={defaultType}
+          totalItems={totalItems}
+          transactionsResponse={transactionsResponse}
+          shouldShowSkeleton={shouldShowSkeleton}
+        />
 
-        <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Type
-              </label>
-              <Select value={typeFilter} onValueChange={handleTypeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="income">Income</SelectItem>
-                  <SelectItem value="expense">Expense</SelectItem>
-                  <SelectItem value="transfer">Transfer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Date Range
-              </label>
-              <Select defaultValue="all" onValueChange={handleDateRangeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select date range" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7d">Last 7 days</SelectItem>
-                  <SelectItem value="30d">Last 30 days</SelectItem>
-                  <SelectItem value="90d">Last 90 days</SelectItem>
-                  <SelectItem value="all">All time</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Category
-              </label>
-              <ComboboxInput
-                options={categoryOptions}
-                value={categoryOptions.find(opt => opt.value === (categoryFilter || "all"))}
-                onValueChange={(option) => handleCategoryChange(option.value)}
-                placeholder="Search category..."
-                emptyMessage="No categories found"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Account
-              </label>
-              <ComboboxInput
-                options={accountOptions}
-                value={accountOptions.find(opt => opt.value === (accountFilter || "all"))}
-                onValueChange={(option) => handleAccountChange(option.value)}
-                placeholder="Search account..."
-                emptyMessage="No accounts found"
-                isLoading={isLoadingAccounts}
-              />
-            </div>
-          </div>
+        <FiltersSection
+          allCategories={allCategories}
+          accounts={accounts}
+          typeFilters={typeFilters}
+          categoryFilters={categoryFilters}
+          accountFilters={accountFilters}
+          dateRangeFilter={dateRangeFilter}
+          activeFilters={activeFilters}
+          handleTypeChange={handleTypeChange}
+          handleCategoryChange={handleCategoryChange}
+          handleAccountChange={handleAccountChange}
+          handleDateRangeChange={handleDateRangeChange}
+          removeFilter={removeFilter}
+          clearAllFilters={clearAllFilters}
+          getCategoryColor={getCategoryColor}
+        />
 
-          {activeFilters.length > 0 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
-              <div className="flex items-center gap-2 flex-wrap">
-                {activeFilters.map(filter => (
-                  <span
-                    key={filter.type}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary"
-                  >
-                    {filter.label}
-                    <button
-                      className="ml-1 text-primary hover:text-primary/80"
-                      onClick={() => removeFilter(filter)}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <button
-                className="text-sm text-muted-foreground hover:text-foreground"
-                onClick={clearAllFilters}
-              >
-                Clear all filters
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search transactions..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10 bg-background border-border/50"
-            />
-          </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            {isLoadingAccounts ? (
-              <Skeleton className="h-10 w-[140px]" />
-            ) : (
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => setIsAddingTransaction(true)}
-                disabled={isLoadingAccounts}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Transaction
-              </Button>
-            )}
-            {selectedTransactions.length > 0 && (
-              <BatchDeleteTransactionsButton
-                selectedTransactions={transactions.filter(t =>
-                  selectedTransactions.includes(t.id)
-                )}
-                onSuccess={handleBatchDeleteSuccess}
-                disabled={isLoading}
-              />
-            )}
-          </div>
-        </div>
+        <SearchSection
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          isLoadingAccounts={isLoadingAccounts}
+          setIsAddingTransaction={setIsAddingTransaction}
+          selectedTransactions={selectedTransactions}
+          transactions={transactions}
+          handleBatchDeleteSuccess={handleBatchDeleteSuccess}
+          isLoading={isLoading}
+        />
 
         <div className="bg-card rounded-xl shadow-sm border border-border/50 overflow-hidden">
           <Table ref={tableRef}>
@@ -1061,7 +1289,7 @@ export function TransactionsPage({
                     getAccountName={getAccountName}
                     getCategoryColor={getCategoryColor}
                     navigate={navigate}
-                    search={search}
+                    search={safeSearch}
                   />
                 ))
               )}
