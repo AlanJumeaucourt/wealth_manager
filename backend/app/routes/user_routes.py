@@ -279,6 +279,49 @@ def register_user_swagger_docs():
         },
     )
 
+    # Document get current user endpoint
+    spec.path(
+        path="/users/",
+        operations={
+            "get": {
+                "tags": ["Users"],
+                "summary": "Get current user information",
+                "security": [{"bearerAuth": []}],
+                "responses": {
+                    "200": {
+                        "description": "User information",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "integer"},
+                                        "name": {"type": "string"},
+                                        "email": {"type": "string", "format": "email"},
+                                        "created_at": {"type": "string", "format": "date-time"},
+                                        "last_login": {"type": "string", "format": "date-time"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "User not found"},
+                },
+            },
+            "delete": {
+                "tags": ["Users"],
+                "summary": "Delete current user account",
+                "security": [{"bearerAuth": []}],
+                "responses": {
+                    "204": {"description": "User deleted successfully"},
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Failed to delete user"},
+                },
+            }
+        },
+    )
+
 
 # Register Swagger documentation
 register_user_swagger_docs()

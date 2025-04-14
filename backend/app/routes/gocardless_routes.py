@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from app.services.gocardless_service import GoCardlessService
+from app.swagger import spec
 
 gocardless_bp = Blueprint("gocardless", __name__)
 gocardless_service = GoCardlessService()
@@ -269,3 +270,641 @@ def get_user_accounts() -> dict[str, Any] | tuple:
         return jsonify(accounts)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+def register_gocardless_swagger_docs():
+    """Register Swagger documentation for GoCardless endpoints"""
+
+    # Document institutions endpoint
+    spec.path(
+        path="/gocardless/institutions",
+        operations={
+            "get": {
+                "tags": ["GoCardless"],
+                "summary": "Get list of available banks",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "country",
+                        "in": "query",
+                        "schema": {"type": "string", "default": "GB"},
+                        "description": "Country code (ISO 3166-1 alpha-2)",
+                        "example": "GB",
+                        "required": False,
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of available banks",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {"type": "string"},
+                                            "name": {"type": "string"},
+                                            "logo": {"type": "string"},
+                                            "countries": {
+                                                "type": "array",
+                                                "items": {"type": "string"}
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document institution details endpoint
+    spec.path(
+        path="/gocardless/institutions/{institution_id}",
+        operations={
+            "get": {
+                "tags": ["GoCardless"],
+                "summary": "Get details of a specific bank",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "institution_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Institution ID",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Institution details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "name": {"type": "string"},
+                                        "logo": {"type": "string"},
+                                        "countries": {
+                                            "type": "array",
+                                            "items": {"type": "string"}
+                                        },
+                                        "transaction_total_days": {"type": "integer"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Institution not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document end user agreement endpoint
+    spec.path(
+        path="/gocardless/agreements/enduser",
+        operations={
+            "post": {
+                "tags": ["GoCardless"],
+                "summary": "Create an end user agreement",
+                "security": [{"bearerAuth": []}],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["institution_id"],
+                                "properties": {
+                                    "institution_id": {"type": "string"},
+                                    "max_historical_days": {"type": "integer", "default": 90},
+                                    "access_valid_for_days": {"type": "integer", "default": 90},
+                                },
+                            },
+                        },
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "End user agreement created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "link": {"type": "string"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "400": {"description": "Invalid input"},
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document accounts endpoint
+    spec.path(
+        path="/gocardless/accounts",
+        operations={
+            "get": {
+                "tags": ["GoCardless"],
+                "summary": "Get all GoCardless accounts for the current user",
+                "security": [{"bearerAuth": []}],
+                "responses": {
+                    "200": {
+                        "description": "List of user's GoCardless accounts",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {"type": "string"},
+                                            "institution_id": {"type": "string"},
+                                            "status": {"type": "string"},
+                                            "created_at": {"type": "string", "format": "date-time"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document accounts by requisition endpoint
+    spec.path(
+        path="/gocardless/accounts/{requisition_id}",
+        operations={
+            "get": {
+                "tags": ["GoCardless"],
+                "summary": "Get accounts for a specific requisition",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "requisition_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Requisition ID",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of accounts for the requisition",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {"type": "string"},
+                                            "iban": {"type": "string"},
+                                            "name": {"type": "string"},
+                                            "currency": {"type": "string"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Requisition not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document account details endpoint
+    spec.path(
+        path="/gocardless/accounts/{account_id}/details",
+        operations={
+            "get": {
+                "tags": ["GoCardless"],
+                "summary": "Get details for a specific account",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "account_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Account ID",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Account details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "iban": {"type": "string"},
+                                        "name": {"type": "string"},
+                                        "currency": {"type": "string"},
+                                        "owner_name": {"type": "string"},
+                                        "product": {"type": "string"},
+                                        "status": {"type": "string"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Account not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document account balances endpoint
+    spec.path(
+        path="/gocardless/accounts/{account_id}/balances",
+        operations={
+            "get": {
+                "tags": ["GoCardless"],
+                "summary": "Get balances for a specific account",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "account_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Account ID",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Account balances",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "balances": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "balanceAmount": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "amount": {"type": "string"},
+                                                            "currency": {"type": "string"},
+                                                        },
+                                                    },
+                                                    "balanceType": {"type": "string"},
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Account not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document account transactions endpoint
+    spec.path(
+        path="/gocardless/accounts/{account_id}/transactions",
+        operations={
+            "get": {
+                "tags": ["GoCardless"],
+                "summary": "Get transactions for a specific account",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "account_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Account ID",
+                    },
+                    {
+                        "name": "date_from",
+                        "in": "query",
+                        "schema": {"type": "string", "format": "date"},
+                        "description": "Start date for transactions (YYYY-MM-DD)",
+                        "required": False,
+                    },
+                    {
+                        "name": "date_to",
+                        "in": "query",
+                        "schema": {"type": "string", "format": "date"},
+                        "description": "End date for transactions (YYYY-MM-DD)",
+                        "required": False,
+                    },
+                    {
+                        "name": "update_cache",
+                        "in": "query",
+                        "schema": {"type": "boolean", "default": False},
+                        "description": "Whether to update the cached transactions",
+                        "required": False,
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Account transactions",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "transactionId": {"type": "string"},
+                                            "bookingDate": {"type": "string", "format": "date"},
+                                            "valueDate": {"type": "string", "format": "date"},
+                                            "transactionAmount": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "amount": {"type": "string"},
+                                                    "currency": {"type": "string"},
+                                                },
+                                            },
+                                            "remittanceInformationUnstructured": {"type": "string"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Account not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document create requisition endpoint
+    spec.path(
+        path="/gocardless/requisitions",
+        operations={
+            "post": {
+                "tags": ["GoCardless"],
+                "summary": "Create a new requisition",
+                "security": [{"bearerAuth": []}],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["institution_id", "redirect_uri"],
+                                "properties": {
+                                    "institution_id": {"type": "string"},
+                                    "redirect_uri": {"type": "string", "format": "uri"},
+                                    "reference": {"type": "string"},
+                                },
+                            },
+                        },
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Requisition created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "link": {"type": "string", "format": "uri"},
+                                        "status": {"type": "string"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "400": {"description": "Invalid input"},
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document get requisition status endpoint
+    spec.path(
+        path="/gocardless/requisitions/{requisition_id}",
+        operations={
+            "get": {
+                "tags": ["GoCardless"],
+                "summary": "Get status of a requisition",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "requisition_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Requisition ID",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Requisition status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "status": {"type": "string"},
+                                        "accounts": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Requisition not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document get requisition by reference endpoint
+    spec.path(
+        path="/gocardless/requisitions/by-reference/{reference}",
+        operations={
+            "get": {
+                "tags": ["GoCardless"],
+                "summary": "Get requisition by reference",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "reference",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Reference ID",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Requisition details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "status": {"type": "string"},
+                                        "accounts": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Requisition not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document token endpoint
+    spec.path(
+        path="/gocardless/token/new",
+        operations={
+            "post": {
+                "tags": ["GoCardless"],
+                "summary": "Get a new access token",
+                "security": [{"bearerAuth": []}],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["secret_id", "secret_key"],
+                                "properties": {
+                                    "secret_id": {"type": "string"},
+                                    "secret_key": {"type": "string"},
+                                },
+                            },
+                        },
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Access token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "access": {"type": "string"},
+                                        "access_expires": {"type": "integer"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "400": {"description": "Invalid input"},
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document link accounts endpoint
+    spec.path(
+        path="/gocardless/link-accounts",
+        operations={
+            "post": {
+                "tags": ["GoCardless"],
+                "summary": "Link GoCardless accounts to local accounts",
+                "security": [{"bearerAuth": []}],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["accounts"],
+                                "properties": {
+                                    "accounts": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": ["gocardless_id", "local_account_id"],
+                                            "properties": {
+                                                "gocardless_id": {"type": "string"},
+                                                "local_account_id": {"type": "integer"},
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Accounts linked successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "message": {"type": "string"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "400": {"description": "Invalid input"},
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+
+# Register Swagger documentation
+register_gocardless_swagger_docs()

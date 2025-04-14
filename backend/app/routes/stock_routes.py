@@ -5,6 +5,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from app.services.custom_price_service import CustomPriceService
 from app.services.stock_service import StockService
+from app.swagger import spec
 
 stock_bp = Blueprint("stock", __name__)
 stock_service = StockService()
@@ -49,6 +50,419 @@ def get_stock_history(symbol: str):
     period = request.args.get("period", "max")
     history = stock_service.get_historical_prices(symbol, period)
     return jsonify(history)
+
+
+def register_stock_swagger_docs():
+    """Register Swagger documentation for Stock endpoints"""
+
+    # Document stock search endpoint
+    spec.path(
+        path="/stocks/search",
+        operations={
+            "get": {
+                "tags": ["Stock"],
+                "summary": "Search for stocks and ETFs",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": True,
+                        "schema": {"type": "string", "minLength": 2},
+                        "description": "Search query (minimum 2 characters)",
+                        "example": "AAPL",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "symbol": {"type": "string"},
+                                            "name": {"type": "string"},
+                                            "exchange": {"type": "string"},
+                                            "type": {"type": "string"},
+                                            "currency": {"type": "string"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "400": {"description": "Query too short"},
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document stock info endpoint
+    spec.path(
+        path="/stocks/{symbol}",
+        operations={
+            "get": {
+                "tags": ["Stock"],
+                "summary": "Get detailed information about a specific stock",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "symbol",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Stock symbol (e.g., AAPL, MSFT)",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Stock information",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "symbol": {"type": "string"},
+                                        "name": {"type": "string"},
+                                        "exchange": {"type": "string"},
+                                        "currency": {"type": "string"},
+                                        "price": {"type": "number"},
+                                        "change": {"type": "number"},
+                                        "change_percent": {"type": "number"},
+                                        "market_cap": {"type": "number"},
+                                        "volume": {"type": "integer"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Stock not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document stock history endpoint
+    spec.path(
+        path="/stocks/{symbol}/history",
+        operations={
+            "get": {
+                "tags": ["Stock"],
+                "summary": "Get historical price data for a stock",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "symbol",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Stock symbol (e.g., AAPL, MSFT)",
+                    },
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "schema": {"type": "string", "default": "max", "enum": ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"]},
+                        "description": "Time period for historical data",
+                        "example": "1y",
+                        "required": False,
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Historical price data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "date": {"type": "string", "format": "date"},
+                                            "open": {"type": "number"},
+                                            "high": {"type": "number"},
+                                            "low": {"type": "number"},
+                                            "close": {"type": "number"},
+                                            "volume": {"type": "integer"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Stock not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document stock details endpoint
+    spec.path(
+        path="/stocks/{symbol}/details",
+        operations={
+            "get": {
+                "tags": ["Stock"],
+                "summary": "Get comprehensive details about a stock or ETF",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "symbol",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Stock symbol (e.g., AAPL, MSFT)",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Comprehensive stock details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "symbol": {"type": "string"},
+                                        "name": {"type": "string"},
+                                        "sector": {"type": "string"},
+                                        "industry": {"type": "string"},
+                                        "market_cap": {"type": "number"},
+                                        "pe_ratio": {"type": "number"},
+                                        "dividend_yield": {"type": "number"},
+                                        "52_week_high": {"type": "number"},
+                                        "52_week_low": {"type": "number"},
+                                        "analyst_rating": {"type": "string"},
+                                        "price_target": {"type": "number"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Stock not found"},
+                    "500": {"description": "Server error"},
+                },
+            }
+        },
+    )
+
+    # Document custom prices GET endpoint
+    spec.path(
+        path="/stocks/{symbol}/custom-prices",
+        operations={
+            "get": {
+                "tags": ["Stock"],
+                "summary": "Get custom prices for a stock",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "symbol",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Stock symbol (e.g., AAPL, MSFT)",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Custom price data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "date": {"type": "string", "format": "date"},
+                                            "open": {"type": "number"},
+                                            "high": {"type": "number"},
+                                            "low": {"type": "number"},
+                                            "close": {"type": "number"},
+                                            "volume": {"type": "integer"},
+                                            "value": {"type": "number"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            },
+            "post": {
+                "tags": ["Stock"],
+                "summary": "Add a custom price for a stock",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "symbol",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Stock symbol (e.g., AAPL, MSFT)",
+                    },
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["date", "close"],
+                                "properties": {
+                                    "date": {"type": "string", "format": "date"},
+                                    "open": {"type": "number"},
+                                    "high": {"type": "number"},
+                                    "low": {"type": "number"},
+                                    "close": {"type": "number"},
+                                    "volume": {"type": "integer"},
+                                },
+                            },
+                        },
+                    },
+                },
+                "responses": {
+                    "201": {
+                        "description": "Custom price added successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "integer"},
+                                        "date": {"type": "string", "format": "date"},
+                                        "open": {"type": "number"},
+                                        "high": {"type": "number"},
+                                        "low": {"type": "number"},
+                                        "close": {"type": "number"},
+                                        "volume": {"type": "integer"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "400": {"description": "Invalid input"},
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            },
+        },
+    )
+
+    # Document custom prices batch delete endpoint
+    spec.path(
+        path="/stocks/{symbol}/custom-prices/batch",
+        operations={
+            "delete": {
+                "tags": ["Stock"],
+                "summary": "Delete multiple custom prices for a stock",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "symbol",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Stock symbol (e.g., AAPL, MSFT)",
+                    },
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["dates"],
+                                "properties": {
+                                    "dates": {
+                                        "type": "array",
+                                        "items": {"type": "string", "format": "date"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Custom prices deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "deleted": {"type": "integer"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "400": {"description": "Invalid input"},
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"},
+                },
+            },
+        },
+    )
+
+    # Document custom price delete endpoint
+    spec.path(
+        path="/stocks/{symbol}/custom-prices/{date}",
+        operations={
+            "delete": {
+                "tags": ["Stock"],
+                "summary": "Delete a custom price for a stock by date",
+                "security": [{"bearerAuth": []}],
+                "parameters": [
+                    {
+                        "name": "symbol",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                        "description": "Stock symbol (e.g., AAPL, MSFT)",
+                    },
+                    {
+                        "name": "date",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string", "format": "date"},
+                        "description": "Date of the custom price (YYYY-MM-DD)",
+                    },
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Custom price deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "message": {"type": "string"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "404": {"description": "Custom price not found"},
+                    "500": {"description": "Server error"},
+                },
+            },
+        },
+    )
+
+
+# Register Swagger documentation
+register_stock_swagger_docs()
 
 
 @stock_bp.route("/<symbol>/details", methods=["GET"])
