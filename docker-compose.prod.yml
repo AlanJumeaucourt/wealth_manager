@@ -9,7 +9,7 @@ services:
       - FLASK_ENV=production
       - FLASK_APP=run.py
       - SQLITE_DB_PATH=/app/data/wealth.db
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-here}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     ports:
       - "5001:5000"
     networks:
@@ -22,7 +22,7 @@ services:
       context: ./web_application
       dockerfile: Dockerfile.prod
       args:
-        - VITE_API_URL=${API_URL:-http://localhost:5000}
+        - VITE_API_URL=${API_URL}
     ports:
       - "80:80"
     depends_on:
