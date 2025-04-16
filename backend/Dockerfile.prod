@@ -15,5 +15,14 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Copy application code
 COPY . .
 
-# Production stage command with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "run:app"]
+# Make the demo cron setup script executable
+RUN chmod +x setup_demo_cron.sh
+
+# Create an entrypoint script to run both the setup script and gunicorn
+RUN echo '#!/bin/bash\n\
+    ./setup_demo_cron.sh\n\
+    gunicorn --bind 0.0.0.0:5000 --workers 4 run:app\n\
+    ' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+# Use the entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
