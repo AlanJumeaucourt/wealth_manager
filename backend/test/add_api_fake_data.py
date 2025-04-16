@@ -30,11 +30,11 @@ class TransactionType(Enum):
 class TransactionPattern:
     description: str
     category: str
-    subcategory: str | None
     base_amount: float
     variance: float  # Percentage of variance allowed (0.1 = 10%)
     day_of_month: int | None  # Fixed day or None for random
     frequency: str  # 'monthly', 'weekly', 'biweekly', 'variable'
+    subcategory: str | None = None
     probability: float = 1.0  # Probability of occurrence when frequency is 'variable'
 
 class WealthManagerAPI:
@@ -301,595 +301,361 @@ class TestDataCreator:
             TransactionPattern(
                 description="Salary - Main Employment",
                 category="Salaires",
-                subcategory="Salaire principal",
-                base_amount=5000.00,
+                base_amount=2200.00,  # Main monthly salary
                 variance=0.05,  # Small variance for overtime or bonus
                 day_of_month=25,  # Paid on 25th of each month
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Annual Bonus",
+                description="Christmas Bonus",
                 category="Salaires",
-                subcategory="Primes & bonus",
-                base_amount=7500.00,
-                variance=0.2,  # Significant variance based on performance
-                day_of_month=15,  # Mid-month in December
+                base_amount=1500.00,  # Christmas bonus
+                variance=0.1,
+                day_of_month=15,  # Mid-December
                 frequency="variable",
-                probability=0.083  # Once per year (1/12)
+                probability=0.083 if datetime.now().month == 12 else 0  # Only in December
+            ),
+            TransactionPattern(
+                description="Vacation Allowance",
+                category="Salaires",
+                base_amount=800.00,  # Summer vacation allowance
+                variance=0.1,
+                day_of_month=20,  # Before summer vacation
+                frequency="variable",
+                probability=0.083 if datetime.now().month == 6 else 0  # Only in June
             ),
             TransactionPattern(
                 description="Freelance Web Development",
                 category="Services",
-                subcategory="Revenus professionnels",
-                base_amount=800.00,
+                base_amount=150.00,  # Occasional freelance work
                 variance=0.6,  # High variance based on workload
                 day_of_month=None,
                 frequency="variable",
-                probability=0.3  # Approximately 3-4 times per month
-            ),
-            TransactionPattern(
-                description="Freelance Consulting",
-                category="Services",
-                subcategory="Revenus professionnels",
-                base_amount=350.00,
-                variance=0.4,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.2  # 1-2 times per month
-            ),
-            TransactionPattern(
-                description="Quarterly Dividend Payment",
-                category="Investissements",
-                subcategory="Dividendes",
-                base_amount=320.00,
-                variance=0.15,
-                day_of_month=15,  # Mid-month quarterly
-                frequency="variable",
-                probability=0.083  # Once per quarter (approx)
-            ),
-            TransactionPattern(
-                description="Rental Income - Apartment",
-                category="Immobilier",
-                subcategory="Revenus locatifs",
-                base_amount=950.00,
-                variance=0.0,  # Fixed amount
-                day_of_month=3,  # Beginning of month
-                frequency="monthly"
+                probability=0.15  # Approximately once or twice per month
             ),
             TransactionPattern(
                 description="Tax Refund",
-                category="Impôts",
-                subcategory="Remboursement d'impôts",
-                base_amount=1200.00,
-                variance=0.4,
+                category="Remboursements",
+                base_amount=350.00,  # Annual tax refund
+                variance=0.3,
                 day_of_month=None,
                 frequency="variable",
-                probability=0.08  # Once per year
+                probability=0.083 if datetime.now().month == 4 else 0  # Only in April
             ),
             TransactionPattern(
-                description="Online Survey Rewards",
-                category="Autres revenus",
-                subcategory=None,
-                base_amount=25.00,
-                variance=0.7,
-                day_of_month=None,
+                description="Quarterly Dividend Payment",
+                category="Investments",
+                base_amount=75.00,  # Small dividend income
+                variance=0.15,
+                day_of_month=15,  # Mid-month quarterly
                 frequency="variable",
-                probability=0.15  # 1-2 times per month
+                probability=0.083 if datetime.now().month in [3, 6, 9, 12] else 0  # Quarterly
             )
         ]
 
         self.expense_patterns = [
             # Housing
             TransactionPattern(
-                description="Rent - Apartment 24 Rue de Rivoli",
+                description="Rent",
                 category="Logement",
                 subcategory="Loyer",
-                base_amount=1350.00,
+                base_amount=750.00,  # Monthly rent
                 variance=0.0,  # Fixed amount
                 day_of_month=2,  # Beginning of month
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Electricity Bill - EDF",
+                description="Electricity & Gas - EDF",
                 category="Logement",
-                subcategory="Electricité",
-                base_amount=65.00,
-                variance=0.4,  # Significant seasonal variation
+                subcategory="Electricité & Gaz",
+                base_amount=65.00,  # Higher in winter, lower in summer
+                variance=0.3,
                 day_of_month=12,
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Water Bill - Veolia",
+                description="Water Bill",
                 category="Logement",
                 subcategory="Eau",
-                base_amount=32.50,
-                variance=0.25,
+                base_amount=25.00,
+                variance=0.1,
                 day_of_month=15,
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Home Insurance - AXA",
+                description="Home Insurance",
                 category="Logement",
                 subcategory="Assurance habitation",
-                base_amount=18.75,
+                base_amount=15.00,
                 variance=0.0,
                 day_of_month=5,
                 frequency="monthly"
             ),
-            TransactionPattern(
-                description="Property Tax",
-                category="Logement",
-                subcategory="Taxe d'habitation",
-                base_amount=450.00,
-                variance=0.0,
-                day_of_month=15,  # Mid October
-                frequency="variable",
-                probability=0.082  # Once per year
-            ),
 
             # Subscriptions
             TransactionPattern(
-                description="Internet & TV - Orange",
+                description="Internet & TV",
                 category="Abonnements",
                 subcategory="Internet",
-                base_amount=49.99,
+                base_amount=35.00,
                 variance=0.0,
                 day_of_month=8,
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Mobile Phone - SFR",
+                description="Mobile Phone",
                 category="Abonnements",
                 subcategory="Téléphonie mobile",
-                base_amount=19.99,
-                variance=0.1,  # Small variation for occasional intl calls
+                base_amount=15.00,
+                variance=0.0,
                 day_of_month=14,
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Netflix Premium",
+                description="Netflix",
                 category="Abonnements",
                 subcategory="Streaming vidéo",
-                base_amount=17.99,
+                base_amount=12.99,
                 variance=0.0,
                 day_of_month=3,
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Spotify Family",
+                description="Spotify",
                 category="Abonnements",
                 subcategory="Streaming audio",
-                base_amount=15.99,
+                base_amount=9.99,
                 variance=0.0,
                 day_of_month=21,
                 frequency="monthly"
             ),
-            TransactionPattern(
-                description="Amazon Prime",
-                category="Abonnements",
-                subcategory="Abonnements - Autres",
-                base_amount=69.90,
-                variance=0.0,
-                day_of_month=4,
-                frequency="variable",
-                probability=0.082  # Once per year
-            ),
-            TransactionPattern(
-                description="iCloud Storage",
-                category="Abonnements",
-                subcategory="Cloud Storage",
-                base_amount=2.99,
-                variance=0.0,
-                day_of_month=15,
-                frequency="monthly"
-            ),
 
-            # Regular expenses - Groceries with specific stores
+            # Regular expenses - Groceries
             TransactionPattern(
-                description="Grocery Shopping - Carrefour",
+                description="Grocery Shopping",
                 category="Alimentation & Restauration",
                 subcategory="Supermarché / Epicerie",
-                base_amount=85.00,
-                variance=0.4,
+                base_amount=70.00,  # Weekly groceries
+                variance=0.2,
                 day_of_month=None,
                 frequency="weekly"
             ),
             TransactionPattern(
-                description="Grocery Shopping - Monoprix",
-                category="Alimentation & Restauration",
-                subcategory="Supermarché / Epicerie",
-                base_amount=45.00,
-                variance=0.5,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.4  # 1-2 times per week
-            ),
-            TransactionPattern(
-                description="Organic Market - Grand Frais",
-                category="Alimentation & Restauration",
-                subcategory="Marchés",
-                base_amount=38.00,
-                variance=0.6,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.25  # 1-2 times per month
-            ),
-            TransactionPattern(
-                description="Bakery - Boulangerie Martin",
+                description="Bakery",
                 category="Alimentation & Restauration",
                 subcategory="Boulangerie",
-                base_amount=8.50,
+                base_amount=5.50,
                 variance=0.3,
                 day_of_month=None,
                 frequency="variable",
-                probability=0.5  # 3-4 times per week
+                probability=0.3  # Few times per week
             ),
 
             # Dining
             TransactionPattern(
-                description="Lunch - Company Cafeteria",
+                description="Lunch",
                 category="Alimentation & Restauration",
                 subcategory="Restaurants",
                 base_amount=9.80,
-                variance=0.3,
+                variance=0.2,
                 day_of_month=None,
                 frequency="variable",
-                probability=0.6  # Workdays
+                probability=0.3  # Few times per week
             ),
             TransactionPattern(
-                description="Lunch - Sandwich Shop",
-                category="Alimentation & Restauration",
-                subcategory="Fast Food",
-                base_amount=8.50,
-                variance=0.25,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.3  # 1-2 times per week
-            ),
-            TransactionPattern(
-                description="Coffee Shop - Starbucks",
-                category="Alimentation & Restauration",
-                subcategory="Cafés",
-                base_amount=4.75,
-                variance=0.3,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.4  # 2-3 times per week
-            ),
-            TransactionPattern(
-                description="Restaurant - La Trattoria",
+                description="Restaurant",
                 category="Alimentation & Restauration",
                 subcategory="Restaurants",
-                base_amount=62.00,
-                variance=0.5,
+                base_amount=35.00,
+                variance=0.3,
+                day_of_month=None,
+                frequency="variable",
+                probability=0.15  # Once per week or two
+            ),
+            TransactionPattern(
+                description="Café",
+                category="Alimentation & Restauration",
+                subcategory="Cafés",
+                base_amount=3.50,
+                variance=0.2,
                 day_of_month=None,
                 frequency="variable",
                 probability=0.2  # Once per week
             ),
-            TransactionPattern(
-                description="Restaurant - Le Comptoir",
-                category="Alimentation & Restauration",
-                subcategory="Restaurants",
-                base_amount=85.00,
-                variance=0.4,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.15  # Bi-weekly
-            ),
-            TransactionPattern(
-                description="Food Delivery - Uber Eats",
-                category="Alimentation & Restauration",
-                subcategory="Livraison repas",
-                base_amount=24.50,
-                variance=0.4,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.25  # 1-2 times per week
-            ),
 
             # Transportation
             TransactionPattern(
-                description="Public Transport Pass - Navigo",
+                description="Public Transport Pass",
                 category="Auto & Transports",
                 subcategory="Transports en commun",
-                base_amount=75.20,
+                base_amount=45.00,
                 variance=0.0,
                 day_of_month=1,
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Fuel - Total Station",
+                description="Fuel",
                 category="Auto & Transports",
                 subcategory="Carburant",
-                base_amount=65.00,
-                variance=0.35,
+                base_amount=40.00,
+                variance=0.2,
                 day_of_month=None,
                 frequency="biweekly"
             ),
+
+            # Health
             TransactionPattern(
-                description="Car Insurance - MAIF",
-                category="Auto & Transports",
-                subcategory="Assurance auto",
-                base_amount=54.00,
+                description="Health Insurance",
+                category="Santé",
+                subcategory="Assurance santé",
+                base_amount=30.00,
                 variance=0.0,
                 day_of_month=10,
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Parking Fee",
-                category="Auto & Transports",
-                subcategory="Parking",
-                base_amount=8.00,
+                description="Pharmacy",
+                category="Santé",
+                subcategory="Pharmacie",
+                base_amount=15.00,
                 variance=0.5,
                 day_of_month=None,
                 frequency="variable",
-                probability=0.3  # 2-3 times per week
-            ),
-            TransactionPattern(
-                description="Ride Sharing - Uber",
-                category="Auto & Transports",
-                subcategory="Taxi / VTC",
-                base_amount=18.50,
-                variance=0.6,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.2  # 1-2 times per week, mostly weekends
-            ),
-            TransactionPattern(
-                description="Car Maintenance - Speedy",
-                category="Auto & Transports",
-                subcategory="Entretien véhicule",
-                base_amount=145.00,
-                variance=0.7,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.08  # Few times per year
+                probability=0.2  # Once per month approximately
             ),
 
-            # Entertainment
+            # Entertainment & Leisure
             TransactionPattern(
-                description="Cinema - UGC",
+                description="Cinema",
                 category="Loisirs & Sorties",
                 subcategory="Cinéma",
-                base_amount=11.90,
-                variance=0.2,
+                base_amount=12.00,
+                variance=0.1,
                 day_of_month=None,
                 frequency="variable",
-                probability=0.25  # 1-2 times per month
+                probability=0.15  # Once per month approximately
             ),
             TransactionPattern(
-                description="Bar - Le Comptoir",
+                description="Books",
                 category="Loisirs & Sorties",
-                subcategory="Bars / Clubs",
-                base_amount=35.00,
-                variance=0.6,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.35  # Weekends
-            ),
-            TransactionPattern(
-                description="Concert Tickets - FNAC",
-                category="Loisirs & Sorties",
-                subcategory="Spectacles / Concerts",
-                base_amount=75.00,
-                variance=0.5,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.15  # Occasional
-            ),
-            TransactionPattern(
-                description="Museum Visit",
-                category="Loisirs & Sorties",
-                subcategory="Musées",
-                base_amount=15.00,
-                variance=0.3,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.15  # Monthly
-            ),
-
-            # Shopping
-            TransactionPattern(
-                description="Clothing - Zara",
-                category="Achats & Shopping",
-                subcategory="Vêtements",
-                base_amount=87.50,
-                variance=0.6,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.2  # Monthly
-            ),
-            TransactionPattern(
-                description="Clothing - H&M",
-                category="Achats & Shopping",
-                subcategory="Vêtements",
-                base_amount=54.99,
-                variance=0.7,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.15
-            ),
-            TransactionPattern(
-                description="Shoes - Footlocker",
-                category="Achats & Shopping",
-                subcategory="Chaussures",
-                base_amount=99.95,
+                subcategory="Livres",
+                base_amount=18.00,
                 variance=0.4,
                 day_of_month=None,
                 frequency="variable",
-                probability=0.08  # Occasional
-            ),
-            TransactionPattern(
-                description="Electronics - Darty",
-                category="Achats & Shopping",
-                subcategory="Electronique / Informatique",
-                base_amount=149.99,
-                variance=0.8,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.08  # Occasional
-            ),
-            TransactionPattern(
-                description="Household Items - IKEA",
-                category="Achats & Shopping",
-                subcategory="Maison",
-                base_amount=85.00,
-                variance=0.9,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.1  # Occasional
-            ),
-            TransactionPattern(
-                description="Online Shopping - Amazon",
-                category="Achats & Shopping",
-                subcategory="Shopping en ligne",
-                base_amount=45.99,
-                variance=0.8,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.4  # Regular
+                probability=0.15  # Once per month approximately
             ),
 
-            # Health
+            # Seasonal expenses
             TransactionPattern(
-                description="Doctor Visit - Dr. Martin",
-                category="Santé",
-                subcategory="Médecin",
-                base_amount=25.00,
-                variance=0.2,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.1  # Monthly
-            ),
-            TransactionPattern(
-                description="Pharmacy - Pharmacie Centrale",
-                category="Santé",
-                subcategory="Pharmacie",
-                base_amount=32.80,
-                variance=0.7,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.25  # 1-2 times per month
-            ),
-            TransactionPattern(
-                description="Dental Checkup - Dr. Blanc",
-                category="Santé",
-                subcategory="Dentiste",
-                base_amount=80.00,
+                description="Christmas Shopping",
+                category="Cadeaux",
+                subcategory="Cadeaux de Noël",
+                base_amount=250.00,  # Christmas presents
                 variance=0.3,
                 day_of_month=None,
                 frequency="variable",
-                probability=0.04  # 1-2 times per year
+                probability=0.25 if datetime.now().month == 12 else 0  # Only in December
             ),
             TransactionPattern(
-                description="Gym Membership - Basic Fit",
+                description="Vacation Booking",
+                category="Voyages",
+                subcategory="Réservation vacances",
+                base_amount=450.00,  # Summer vacation booking
+                variance=0.4,
+                day_of_month=None,
+                frequency="variable",
+                probability=0.2 if datetime.now().month in [5, 6] else 0  # May-June for summer booking
+            ),
+            TransactionPattern(
+                description="Vacation Expenses",
+                category="Voyages",
+                subcategory="Dépenses vacances",
+                base_amount=300.00,  # Expenses during vacation
+                variance=0.5,
+                day_of_month=None,
+                frequency="variable",
+                probability=0.3 if datetime.now().month in [7, 8] else 0  # July-August vacation expenses
+            ),
+
+            # Other regular expenses
+            TransactionPattern(
+                description="Gym Membership",
                 category="Sport",
                 subcategory="Sport",
-                base_amount=29.99,
+                base_amount=25.00,
                 variance=0.0,
                 day_of_month=5,
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Health Insurance - MGEN",
-                category="Santé",
-                subcategory="Assurance santé",
-                base_amount=42.50,
-                variance=0.0,
-                day_of_month=10,
-                frequency="monthly"
-            ),
-
-            # Personal care
-            TransactionPattern(
-                description="Haircut - Le Salon",
-                category="Soins & Beauté",
-                subcategory="Coiffeur",
-                base_amount=45.00,
-                variance=0.3,
+                description="Clothing",
+                category="Achats & Shopping",
+                subcategory="Vêtements",
+                base_amount=60.00,
+                variance=0.5,
                 day_of_month=None,
                 frequency="variable",
-                probability=0.08  # Every 6 weeks approximately
+                probability=0.15  # Once per month approximately
             ),
             TransactionPattern(
-                description="Cosmetics - Sephora",
-                category="Soins & Beauté",
-                subcategory="Cosmétiques",
-                base_amount=38.50,
-                variance=0.6,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.15  # Monthly
-            ),
-
-            # Other regular expenses
-            TransactionPattern(
-                description="Charity Donation - Médecins Sans Frontières",
+                description="Charity Donation",
                 category="Dons",
                 subcategory="Associations",
-                base_amount=20.00,
+                base_amount=10.00,
                 variance=0.0,
                 day_of_month=15,
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Bank Fees - Chase",
+                description="Bank Fees",
                 category="Banque",
                 subcategory="Frais bancaires",
-                base_amount=4.50,
-                variance=0.2,
+                base_amount=2.90,
+                variance=0.0,
                 day_of_month=3,
+                frequency="monthly"
+            )
+        ]
+
+        # Define transfer patterns
+        self.transfer_patterns = [
+            TransactionPattern(
+                description="Monthly Savings Transfer",
+                category="Virements",
+                subcategory="Épargne",
+                base_amount=500.00,
+                variance=0.2,
+                day_of_month=28,  # End of month
                 frequency="monthly"
             ),
             TransactionPattern(
-                description="Gift Purchase",
-                category="Cadeaux",
-                subcategory="Cadeaux",
-                base_amount=65.00,
-                variance=0.8,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.15  # Birthdays, special occasions
+                description="Emergency Fund Contribution",
+                category="Virements",
+                subcategory="Épargne",
+                base_amount=200.00,
+                variance=0.3,
+                day_of_month=15,  # Mid-month
+                frequency="monthly"
             ),
             TransactionPattern(
-                description="Books - FNAC",
-                category="Loisirs & Sorties",
-                subcategory="Livres",
-                base_amount=24.90,
+                description="Investment Contribution",
+                category="Virements",
+                subcategory="Investissement",
+                base_amount=300.00,
+                variance=0.4,
+                day_of_month=5,  # Beginning of month
+                frequency="monthly"
+            ),
+            TransactionPattern(
+                description="Bonus Savings",
+                category="Virements",
+                subcategory="Épargne",
+                base_amount=1000.00,
                 variance=0.5,
                 day_of_month=None,
                 frequency="variable",
-                probability=0.2  # Monthly
-            ),
-            TransactionPattern(
-                description="Hobby Supplies - Creative Store",
-                category="Loisirs & Sorties",
-                subcategory="Hobbies",
-                base_amount=35.50,
-                variance=0.7,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.12  # Occasional
-            ),
-            TransactionPattern(
-                description="Vacation Expense",
-                category="Voyages",
-                subcategory="Hébergement",
-                base_amount=650.00,
-                variance=0.9,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.04  # Few times per year
-            ),
-            TransactionPattern(
-                description="Flight Tickets - Air France",
-                category="Voyages",
-                subcategory="Transport",
-                base_amount=320.00,
-                variance=0.8,
-                day_of_month=None,
-                frequency="variable",
-                probability=0.04  # Few times per year
+                probability=0.08  # Occasional (when receiving bonuses/extra income)
             )
         ]
 
@@ -968,11 +734,30 @@ class TestDataCreator:
         current_date = datetime.now()
         start_date = current_date - timedelta(days=self.number_of_months * 30)
 
+        # Initialize account balances
+        account_balances = {
+            "Checking Account": 2000.0,  # Starting with some initial balance
+            "Savings Account": 5000.0,
+            "Investment Account": 10000.0,
+            "Salary Account": 0.0,
+            "Expenses Account": 0.0,
+            "Dividend Account": 0.0
+        }
+
+        # Track monthly expenses for emergency fund calculation
+        monthly_expenses = {}
+        emergency_fund_target_months = 4  # Target 6 months of expenses in emergency fund
+
         # Iterate through each day in the date range
         current = start_date
         while current <= current_date:
-            # Process all transaction patterns
-            for pattern in (self.income_patterns + self.expense_patterns + self.transfer_patterns):
+            # Track current month's expenses
+            month_key = f"{current.year}-{current.month}"
+            if month_key not in monthly_expenses:
+                monthly_expenses[month_key] = 0.0
+
+            # Process income and expense patterns first
+            for pattern in (self.income_patterns + self.expense_patterns):
                 if self._should_generate_transaction(pattern, current):
                     amount = self._generate_transaction_amount(pattern, current)
 
@@ -981,14 +766,45 @@ class TestDataCreator:
                         from_account = "Salary Account"
                         to_account = "Checking Account"
                         trans_type = TransactionType.INCOME.value
+                        # Update account balances
+                        account_balances[from_account] -= amount
+                        account_balances[to_account] += amount
                     elif pattern in self.expense_patterns:
                         from_account = "Checking Account"
                         to_account = "Expenses Account"
                         trans_type = TransactionType.EXPENSE.value
-                    else:  # Transfer patterns
-                        from_account = "Checking Account"
-                        to_account = "Savings Account" if "Savings" in pattern.description else "Investment Account"
-                        trans_type = TransactionType.TRANSFER.value
+
+                        # Track monthly expenses for emergency fund calculation
+                        monthly_expenses[month_key] += amount
+
+                        # Check if there's enough money in checking account
+                        if account_balances[from_account] < amount:
+                            # Need to transfer from savings to cover expenses
+                            shortfall = amount - account_balances[from_account]
+                            # Only transfer if there's enough in savings
+                            if account_balances["Savings Account"] >= shortfall:
+                                # Create a transfer transaction from savings to checking
+                                transfer_transaction = {
+                                    "amount": shortfall,
+                                    "from_account": "Savings Account",
+                                    "to_account": "Checking Account",
+                                    "transaction_type": TransactionType.TRANSFER.value,
+                                    "description": "Emergency Transfer to Cover Expenses",
+                                    "category": "Virements",
+                                    "subcategory": "Transfert d'urgence",
+                                    "date": current.isoformat()
+                                }
+                                self.transactions.append(transfer_transaction)
+
+                                # Update balances
+                                account_balances["Savings Account"] -= shortfall
+                                account_balances["Checking Account"] += shortfall
+
+                                logger.info(f"Created emergency transfer of {shortfall} on {current.isoformat()}")
+
+                        # Update account balances (may go negative if not enough in savings)
+                        account_balances[from_account] -= amount
+                        account_balances[to_account] += amount
 
                     # Store transaction locally
                     transaction = {
@@ -1003,9 +819,103 @@ class TestDataCreator:
                     }
                     self.transactions.append(transaction)
 
+            # Process transfer patterns based on account balances
+            if current.day == 28:  # End of month financial planning
+                # Calculate average monthly expenses over the last few months
+                avg_monthly_expense = 0.0
+                if monthly_expenses:
+                    avg_monthly_expense = sum(monthly_expenses.values()) / len(monthly_expenses)
+
+                # Calculate emergency fund target
+                emergency_fund_target = avg_monthly_expense * emergency_fund_target_months
+
+                # Calculate how much to keep in checking (current month's expenses + 20% buffer)
+                checking_buffer = avg_monthly_expense * 1.2 if avg_monthly_expense > 0 else 2000.0
+
+                # Check if emergency fund needs topping up
+                if account_balances["Savings Account"] < emergency_fund_target:
+                    # Calculate how much to transfer while maintaining checking buffer
+                    available_for_transfer = max(0, account_balances["Checking Account"] - checking_buffer)
+                    transfer_amount = min(available_for_transfer, emergency_fund_target - account_balances["Savings Account"])
+
+                    if transfer_amount > 50:  # Only transfer meaningful amounts
+                        # Create emergency fund top-up transaction
+                        transfer_transaction = {
+                            "amount": transfer_amount,
+                            "from_account": "Checking Account",
+                            "to_account": "Savings Account",
+                            "transaction_type": TransactionType.TRANSFER.value,
+                            "description": "Emergency Fund Top-Up",
+                            "category": "Virements",
+                            "subcategory": "Épargne d'urgence",
+                            "date": current.isoformat()
+                        }
+                        self.transactions.append(transfer_transaction)
+
+                        # Update balances
+                        account_balances["Checking Account"] -= transfer_amount
+                        account_balances["Savings Account"] += transfer_amount
+
+                        logger.info(f"Created emergency fund top-up of {transfer_amount} on {current.isoformat()}")
+
+                # If checking still has excess funds, transfer some to investments
+                excess_funds = max(0, account_balances["Checking Account"] - checking_buffer)
+                if excess_funds > 100:  # Only transfer meaningful amounts
+                    investment_transfer = min(excess_funds * 0.7, 1000)  # Transfer up to 70% of excess, max 1000
+
+                    if investment_transfer > 50:
+                        # Create investment contribution transaction
+                        transfer_transaction = {
+                            "amount": investment_transfer,
+                            "from_account": "Checking Account",
+                            "to_account": "Investment Account",
+                            "transaction_type": TransactionType.TRANSFER.value,
+                            "description": "Monthly Investment Contribution",
+                            "category": "Virements",
+                            "subcategory": "Investissement",
+                            "date": current.isoformat()
+                        }
+                        self.transactions.append(transfer_transaction)
+
+                        # Update balances
+                        account_balances["Checking Account"] -= investment_transfer
+                        account_balances["Investment Account"] += investment_transfer
+
+                        logger.info(f"Created investment contribution of {investment_transfer} on {current.isoformat()}")
+
+            # Process regular transfer patterns if account balances permit
+            for pattern in self.transfer_patterns:
+                if self._should_generate_transaction(pattern, current):
+                    amount = self._generate_transaction_amount(pattern, current)
+
+                    # Determine accounts based on pattern
+                    from_account = "Checking Account"
+                    to_account = "Savings Account" if "Savings" in pattern.description else "Investment Account"
+
+                    # Only proceed if there's enough balance (no negative balances)
+                    if account_balances[from_account] >= amount:
+                        # Store transaction locally
+                        transaction = {
+                            "amount": amount,
+                            "from_account": from_account,
+                            "to_account": to_account,
+                            "transaction_type": TransactionType.TRANSFER.value,
+                            "description": pattern.description,
+                            "category": pattern.category,
+                            "subcategory": pattern.subcategory,
+                            "date": current.isoformat()
+                        }
+                        self.transactions.append(transaction)
+
+                        # Update account balances
+                        account_balances[from_account] -= amount
+                        account_balances[to_account] += amount
+
+            # Move to next day
             current += timedelta(days=1)
 
         logger.info(f"Generated {len(self.transactions)} transactions")
+        logger.info(f"Final account balances: {account_balances}")
 
     def _generate_investment_transactions(self) -> None:
         """Generate all investment transactions locally."""
