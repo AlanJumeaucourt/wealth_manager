@@ -25,7 +25,7 @@ if [ "$DEMO_MODE" = true ]; then
     (
         # Wait for the API to be fully up and running (30 seconds delay)
         echo "Waiting for API to start..."
-        sleep 30
+        sleep 10
 
         # Check if API is responding before generating data
         echo "Checking if API is available..."
