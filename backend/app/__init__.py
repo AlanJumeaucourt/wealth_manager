@@ -26,18 +26,7 @@ def create_app():
     # Configure CORS based on environment
     flask_env = os.environ.get("FLASK_ENV", "development")
     logger.info(f"FLASK_ENV: {flask_env}")
-    if flask_env == "development":
-        # In development, allow all origins
-        CORS(app, resources={r"/*": {"origins": "*"}})
-    else:
-        # In production, restrict to specific domains
-        allowed_origins = os.environ.get("ALLOWED_ORIGINS", None)
-        if not allowed_origins:
-            raise ValueError("ALLOWED_ORIGINS must be set in production environment")
-        origins = [origin.strip() for origin in allowed_origins.split(",")] if allowed_origins else []
-        CORS(app, resources={r"/*": {"origins": origins}})
-    logger.info(f"ALLOWED_ORIGINS: {allowed_origins}")
-    logger.info(f"Origins found: {origins}")
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     # Register Swagger UI blueprint
     app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
