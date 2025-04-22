@@ -10,7 +10,7 @@ services:
       - FLASK_ENV=development
       - FLASK_APP=run.py
       - SQLITE_DB_PATH=/app/data/wealth.db
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-here}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     ports:
       - "5000:5000"
     networks:

@@ -21,8 +21,23 @@ def create_app():
     db.create_tables()
 
     app = Flask(__name__)
-    app.url_map.strict_slashes = False  # Add this line
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    app.url_map.strict_slashes = False
+
+    # Configure CORS based on environment
+    flask_env = os.environ.get("FLASK_ENV", "development")
+    logger.info(f"FLASK_ENV: {flask_env}")
+    if flask_env == "development":
+        # In development, allow all origins
+        CORS(app, resources={r"/*": {"origins": "*"}})
+    else:
+        # In production, restrict to specific domains
+        allowed_origins = os.environ.get("ALLOWED_ORIGINS", None)
+        if not allowed_origins:
+            raise ValueError("ALLOWED_ORIGINS must be set in production environment")
+        origins = [origin.strip() for origin in allowed_origins.split(",")] if allowed_origins else []
+        CORS(app, resources={r"/*": {"origins": origins}})
+    logger.info(f"ALLOWED_ORIGINS: {allowed_origins}")
+    logger.info(f"Origins found: {origins}")
 
     # Register Swagger UI blueprint
     app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
@@ -45,12 +60,17 @@ def create_app():
     app.config["JWT_SECRET_KEY"] = os.environ.get(
         "JWT_SECRET_KEY", "fallback-secret-key-for-development"
     )
+    if flask_env != "development" and app.config["JWT_SECRET_KEY"] == "fallback-secret-key-for-development":
+        raise ValueError("JWT_SECRET_KEY must be set in production environment")
+    logger.info(f"JWT_SECRET_KEY: {app.config['JWT_SECRET_KEY']}")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
         seconds=int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 3600))
     )
+    logger.info(f"JWT_ACCESS_TOKEN_EXPIRES: {app.config['JWT_ACCESS_TOKEN_EXPIRES']}")
     app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(
         seconds=int(os.environ.get("JWT_REFRESH_TOKEN_EXPIRES", 2592000))
     )
+    logger.info(f"JWT_ACCESS_TOKEN_EXPIRES: {app.config['JWT_ACCESS_TOKEN_EXPIRES']}")
     app.config["JWT_TOKEN_LOCATION"] = ["headers"]
     app.config["JWT_HEADER_NAME"] = "Authorization"
     app.config["JWT_HEADER_TYPE"] = "Bearer"
