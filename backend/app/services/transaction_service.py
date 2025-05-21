@@ -34,6 +34,10 @@ class TransactionService(BaseService[Transaction]):
         validate_date_format(date_str=data["date"])
         validate_date_format(date_str=data["date_accountability"])
 
+        if data["from_account_id"] == data["to_account_id"]:
+            raise TransactionValidationError(
+                "From and to account IDs cannot be the same"
+            )
         try:
             # Get account types
             query = """--sql
@@ -76,7 +80,15 @@ class TransactionService(BaseService[Transaction]):
 
             elif transaction_type == "expense":
                 # Expense should come from a regular account
-                if from_account["type"] not in ["checking", "savings", "investment"]:
+                if (
+                    from_account["type"]
+                    not in [
+                        "checking",
+                        "savings",
+                        "investment",
+                        "loan",  # TODO(Alan Jumeaucourt): remove this once we have a proper loan account implementation
+                    ]
+                ):
                     raise TransactionValidationError(
                         f"Expenses cannot be paid from a {from_account['type']} account"
                     )
@@ -88,7 +100,7 @@ class TransactionService(BaseService[Transaction]):
 
             elif transaction_type == "transfer":
                 # Transfers should be between regular accounts
-                valid_account_types = ["checking", "savings", "investment"]
+                valid_account_types = ["checking", "savings", "investment", "loan"]
                 if from_account["type"] not in valid_account_types:
                     raise TransactionValidationError(
                         f"Cannot transfer from a {from_account['type']} account"

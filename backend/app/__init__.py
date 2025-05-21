@@ -49,7 +49,10 @@ def create_app():
     app.config["JWT_SECRET_KEY"] = os.environ.get(
         "JWT_SECRET_KEY", "fallback-secret-key-for-development"
     )
-    if flask_env != "development" and app.config["JWT_SECRET_KEY"] == "fallback-secret-key-for-development":
+    if (
+        flask_env != "development"
+        and app.config["JWT_SECRET_KEY"] == "fallback-secret-key-for-development"
+    ):
         raise ValueError("JWT_SECRET_KEY must be set in production environment")
     logger.info(f"JWT_SECRET_KEY: {app.config['JWT_SECRET_KEY']}")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
@@ -75,13 +78,14 @@ def create_app():
         return {"error": str(e)}, 500
 
     # import and register blueprints
-    from app.routes.account_routes import account_bp
     from app.routes.account_asset_routes import account_asset_bp
+    from app.routes.account_routes import account_bp
     from app.routes.asset_routes import asset_bp
     from app.routes.bank_routes import bank_bp
     from app.routes.budget_routes import budget_bp
     from app.routes.gocardless_routes import gocardless_bp
     from app.routes.investment_routes import investment_bp
+    from app.routes.liability_routes import liability_bp, liability_payment_bp
     from app.routes.refund_group_routes import refund_group_bp
     from app.routes.refund_item_routes import refund_item_bp
     from app.routes.stock_routes import stock_bp
@@ -104,6 +108,13 @@ def create_app():
     app.register_blueprint(refund_item_bp, url_prefix="/refund_items")
     app.register_blueprint(refund_group_bp, url_prefix="/refund_groups")
     app.register_blueprint(gocardless_bp, url_prefix="/gocardless")
+    app.register_blueprint(liability_bp, url_prefix="/liabilities")
+    app.register_blueprint(liability_payment_bp, url_prefix="/liability_payments")
+
+    # Register swagger documentation for liability routes
+    from app.routes.liability_routes import register_liability_swagger_docs
+
+    register_liability_swagger_docs()
 
     @app.route("/health")
     def health():

@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, date
 
 from marshmallow import (
     Schema,
@@ -63,8 +63,8 @@ class DateField(fields.Str):
         # If it's already a string, just return it
         if isinstance(value, str):
             return value
-        # If it's a datetime object, convert to ISO format
-        if isinstance(value, datetime):
+        # If it's a datetime or date object, convert to ISO format
+        if isinstance(value, (datetime, date)):
             return value.isoformat()
         return str(value)
 
@@ -98,6 +98,7 @@ class AccountSchema(Schema):
                 "expense",
                 "checking",
                 "savings",
+                "loan",
             ]
         ),
     )
@@ -241,6 +242,91 @@ class BudgetSummarySchema(Schema):
     subcategories = fields.List(fields.Nested(BudgetSubcategorySchema), required=True)
 
 
+class LiabilitySchema(Schema):
+    id = fields.Int(dump_only=True)
+    user_id = fields.Int(required=True)
+    name = fields.Str(required=True, validate=validate.Length(min=1))
+    description = fields.Str(allow_none=True, required=False)
+    liability_type = fields.Str(required=True)
+    principal_amount = fields.Float(
+        required=True, validate=validate.Range(min=0, min_inclusive=True)
+    )
+    interest_rate = fields.Float(
+        required=True, validate=validate.Range(min=0, min_inclusive=True)
+    )
+    start_date = DateField(required=True)
+    end_date = DateField(allow_none=True, required=False)
+    compounding_period = fields.Str(
+        required=True,
+        validate=validate.OneOf(["daily", "monthly", "quarterly", "annually"]),
+    )
+    payment_frequency = fields.Str(
+        required=True,
+        validate=validate.OneOf(
+            ["weekly", "bi-weekly", "monthly", "quarterly", "annually"]
+        ),
+    )
+    payment_amount = fields.Float(allow_none=True, required=False)
+    deferral_period_months = fields.Int(required=False, default=0)
+    deferral_type = fields.Str(
+        required=False,
+        default="none",
+        validate=validate.OneOf(["none", "partial", "total"]),
+    )
+    direction = fields.Str(
+        required=True,
+        validate=validate.OneOf(["i_owe", "they_owe"]),
+    )
+    account_id = fields.Int(allow_none=True, required=False)
+    lender_name = fields.Str(allow_none=True, required=False)
+    created_at = DateField(dump_only=True)
+    updated_at = DateField(dump_only=True)
+
+    # Calculated fields from the view
+    principal_paid = fields.Float(dump_only=True)
+    interest_paid = fields.Float(dump_only=True)
+    remaining_balance = fields.Float(dump_only=True)
+    missed_payments_count = fields.Int(dump_only=True)
+    next_payment_date = DateField(dump_only=True)
+    liability_type_name = fields.Str(dump_only=True)
+
+
+class LiabilityPaymentDetailSchema(Schema):
+    transaction_id = fields.Int(required=True)
+    user_id = fields.Int(required=True)
+    liability_id = fields.Int(required=True)
+    payment_date = DateField(required=True)
+    amount = fields.Float(
+        required=True, validate=validate.Range(min=0, min_inclusive=True)
+    )
+    principal_amount = fields.Float(
+        required=True, validate=validate.Range(min=0, min_inclusive=True)
+    )
+    interest_amount = fields.Float(
+        required=True, validate=validate.Range(min=0, min_inclusive=True)
+    )
+    extra_payment = fields.Float(
+        required=False, default=0.0, validate=validate.Range(min=0, min_inclusive=True)
+    )
+    created_at = DateField(dump_only=True)
+    updated_at = DateField(dump_only=True)
+
+    @validates_schema
+    def validate_payment_amounts(self, data, **kwargs):
+        """Validate that principal + interest = amount."""
+        principal = data.get("principal_amount", 0)
+        interest = data.get("interest_amount", 0)
+        amount = data.get("amount", 0)
+        extra = data.get("extra_payment", 0)
+
+        if (
+            abs((principal + interest + extra) - amount) > 0.01
+        ):  # Allow for small floating point differences
+            raise ValidationError(
+                "Amount must equal principal + interest + extra payment"
+            )
+
+
 # Register schemas with Swagger
 def register_schemas(spec):
     spec.components.schema("Transaction", schema=TransactionSchema)
@@ -255,3 +341,5 @@ def register_schemas(spec):
     spec.components.schema("RefundItem", schema=RefundItemSchema)
     spec.components.schema("RefundGroup", schema=RefundGroupSchema)
     spec.components.schema("User", schema=UserSchema)
+    spec.components.schema("Liability", schema=LiabilitySchema)
+    spec.components.schema("LiabilityPayment", schema=LiabilityPaymentDetailSchema)

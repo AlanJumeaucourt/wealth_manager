@@ -1,9 +1,9 @@
-import { Account, Transaction } from "@/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { BarChart, LightbulbIcon, TrendingUp, BellOff, AlertTriangle, Check, ArrowUpRight } from "lucide-react"
-import { useMemo } from "react"
 import { useTransactions } from "@/api/queries"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Account } from "@/types"
+import { AlertTriangle, ArrowUpRight, BarChart, BellOff, Check, LightbulbIcon, TrendingUp } from "lucide-react"
+import { useMemo } from "react"
 
 interface WealthInsightsProps {
   wealthData: Array<{ date: string; value: number }>
@@ -113,7 +113,7 @@ export function WealthInsights({ wealthData, accounts, onAccountClick }: WealthI
         title: "Declining Net Worth",
         description: "Your net worth has declined over the past month. Review your spending.",
         action: "Review Expenses",
-        actionLink: "/transactions/all"
+        actionLink: "/transactions/expense"
       })
     }
 
@@ -179,7 +179,7 @@ export function WealthInsights({ wealthData, accounts, onAccountClick }: WealthI
         title: "Investment Opportunity",
         description: "Regular investing in index funds can help build long-term wealth.",
         action: "Explore Investments",
-        actionLink: "/investments"
+        actionLink: "/investmentTransactions"
       })
     }
 

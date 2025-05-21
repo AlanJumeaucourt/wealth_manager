@@ -1,4 +1,5 @@
 import { useRefundGroups, useRefundItems } from "@/api/queries"
+import { PageContainer } from "@/components/layout/PageContainer"
 import { CreateRefundModal } from "@/components/refunds/CreateRefundModal"
 import { DeleteRefundDialog } from "@/components/refunds/DeleteRefundDialog"
 import { RefundsList } from "@/components/refunds/RefundsList"
@@ -56,15 +57,12 @@ export function RefundsPage() {
   })
 
   return (
-    <div className="container py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Refunds</h1>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          New Refund (N)
-        </Button>
-      </div>
-
+    <PageContainer title="Refunds" action={
+      <Button onClick={() => setIsCreateModalOpen(true)}>
+      <Plus className="w-4 h-4 mr-2" />
+      New Refund (N)
+    </Button>
+    }>
       {isLoading ? (
         <div className="flex justify-center items-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
@@ -108,6 +106,6 @@ export function RefundsPage() {
         refundGroup={deletingRefundGroup || undefined}
         refundItem={deletingRefundItem || undefined}
       />
-    </div>
+    </PageContainer>
   )
 }

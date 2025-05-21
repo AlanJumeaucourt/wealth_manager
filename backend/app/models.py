@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 
 @dataclass
@@ -144,3 +144,73 @@ class CustomPrice:
     created_at: str | None = None
     updated_at: str | None = None
     user_id: int | None = None
+
+
+@dataclass
+class Liability:
+    """Represents a liability (loan, debt, etc.)."""
+
+    user_id: int
+    name: str
+    liability_type: str
+    principal_amount: float
+    interest_rate: float
+    start_date: date
+    compounding_period: str
+    payment_frequency: str
+    direction: str
+    description: str | None = field(default=None)
+    end_date: date | None = field(default=None)
+    payment_amount: float | None = field(default=None)
+    deferral_period_months: int = field(default=0)
+    deferral_type: str = field(default="none")
+    account_id: int | None = field(default=None)
+    lender_name: str | None = field(default=None)
+    created_at: datetime | None = field(default=None)
+    updated_at: datetime | None = field(default=None)
+    id: int | None = field(default=None)
+
+    def __post_init__(self) -> None:
+        valid_liability_types = [
+            "standard_loan",
+            "partial_deferred_loan",
+            "total_deferred_loan",
+            "mortgage",
+            "credit_card",
+            "line_of_credit",
+            "other",
+        ]
+        if self.liability_type not in valid_liability_types:
+            raise ValueError(
+                f"Invalid liability type. Must be one of: {', '.join(valid_liability_types)}"
+            )
+        if self.compounding_period not in ["daily", "monthly", "quarterly", "annually"]:
+            raise ValueError("Invalid compounding period.")
+        if self.payment_frequency not in [
+            "weekly",
+            "bi-weekly",
+            "monthly",
+            "quarterly",
+            "annually",
+        ]:
+            raise ValueError("Invalid payment frequency.")
+        if self.deferral_type not in ["none", "partial", "total"]:
+            raise ValueError("Invalid deferral type.")
+        if self.direction not in ["i_owe", "they_owe"]:
+            raise ValueError("Invalid direction.")
+
+
+@dataclass
+class LiabilityPaymentDetail:
+    """Represents a payment for a liability."""
+
+    transaction_id: int
+    user_id: int
+    liability_id: int
+    payment_date: date
+    amount: float
+    principal_amount: float
+    interest_amount: float
+    extra_payment: float = field(default=0.0)
+    created_at: datetime | None = field(default=None)
+    updated_at: datetime | None = field(default=None)

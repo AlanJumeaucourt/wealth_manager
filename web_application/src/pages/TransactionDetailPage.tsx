@@ -1,12 +1,12 @@
 import {
-  useAccounts,
-  useRefundGroups,
-  useRefundItems,
-  useTransactions,
+    useAccounts,
+    useRefundGroups,
+    useRefundItems,
+    useTransactions,
 } from "@/api/queries"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog"
-import { EditTransactionDialog } from "@/components/transactions/EditTransactionDialog"
+import { TransactionForm } from "@/components/transactions/TransactionForm"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
@@ -15,16 +15,16 @@ import { useDialogStore } from "@/store/dialogStore"
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "framer-motion"
 import {
-  ArrowLeft,
-  Calendar,
-  ChevronDown,
-  CreditCard,
-  FileText,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Tag,
-  Trash,
+    ArrowLeft,
+    Calendar,
+    ChevronDown,
+    CreditCard,
+    FileText,
+    Pencil,
+    Plus,
+    RefreshCw,
+    Tag,
+    Trash,
 } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
 
@@ -43,7 +43,7 @@ export function TransactionDetailPage() {
     })
 
   const { data: accountsResponse, isLoading: isLoadingAccounts } = useAccounts({
-    type: "checking,savings,investment,income,expense",
+    type: "checking,savings,investment,loan,income,expense",
     per_page: 1000,
   })
 
@@ -567,7 +567,7 @@ export function TransactionDetailPage() {
                                       <time className="text-xs text-muted-foreground flex items-center">
                                         <Calendar className="h-3 w-3 mr-1" />
                                         {new Date(
-                                          linkedTransaction?.date || item.date
+                                          linkedTransaction?.date || item.created_at
                                         ).toLocaleDateString("en-US", {
                                           year: "numeric",
                                           month: "short",
@@ -652,7 +652,16 @@ export function TransactionDetailPage() {
           )}
         </div>
 
-        <EditTransactionDialog redirectTo={`/transactions/${transactionId}`} />
+        <TransactionForm
+          open={!!useDialogStore.getState().editTransaction}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              useDialogStore.getState().setEditTransaction(null)
+            }
+          }}
+          transaction={useDialogStore.getState().editTransaction || undefined}
+          redirectTo={`/transactions/${transactionId}`}
+        />
         <DeleteTransactionDialog redirectTo="/transactions/all" />
       </motion.div>
     </PageContainer>

@@ -10,7 +10,8 @@ import {
   PieChart,
   Receipt,
   RefreshCw,
-  Wallet
+  Wallet,
+  CreditCard
 } from "lucide-react"
 import * as React from "react"
 import { useMemo } from "react"
@@ -141,6 +142,11 @@ const STATIC_DATA = {
       title: "Categories",
       url: "/categories",
       icon: PieChart,
+    },
+    {
+      title: "Liabilities",
+      url: "/liabilities",
+      icon: CreditCard,
     },
     {
       title: "Refunds",

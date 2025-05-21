@@ -259,7 +259,7 @@ export function Welcome() {
       ) : (
         <div className="flex flex-col gap-8">
           {/* Welcome Header */}
-          <div className="items-center px-6">
+          <div className="items-center pv-6">
             <WelcomeHeader
               greeting={greeting}
               currentTime={currentTime}
@@ -268,7 +268,7 @@ export function Welcome() {
           </div>
 
           {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pv-6">
             {/* Left Column - Financial Summary & Portfolio */}
             <div className="lg:col-span-2 space-y-6">
               <FinancialSummary
@@ -276,7 +276,8 @@ export function Welcome() {
                   account =>
                     account.type == "checking" ||
                     account.type == "savings" ||
-                    account.type == "investment"
+                    account.type == "investment" ||
+                    account.type == "loan"
                 )}
                 wealthData={wealthData || []}
                 onAccountClick={handleAccountSelection}
@@ -303,7 +304,8 @@ export function Welcome() {
                     account =>
                       account.type == "checking" ||
                       account.type == "savings" ||
-                      account.type == "investment"
+                      account.type == "investment" ||
+                      account.type == "loan"
                   )}
                   onAccountClick={handleAccountSelection}
                 />
@@ -341,7 +343,7 @@ export function Welcome() {
 
 function WelcomeSkeleton() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col">
       {/* Header Skeleton */}
       <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 rounded-t-xl">
         <Skeleton className="h-8 w-[250px] mb-2" />
@@ -349,7 +351,7 @@ function WelcomeSkeleton() {
       </div>
 
       {/* Content Skeleton */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pv-6">
         <div className="lg:col-span-2 space-y-6">
           <Skeleton className="h-[200px] w-full rounded-xl" />
           <Skeleton className="h-[250px] w-full rounded-xl" />

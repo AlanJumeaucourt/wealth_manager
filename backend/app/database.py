@@ -232,7 +232,7 @@ class DatabaseManager:
                     user_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
                     type TEXT NOT NULL CHECK (type IN (
-                        'investment', 'income', 'expense', 'checking', 'savings'
+                        'investment', 'income', 'expense', 'checking', 'savings', 'loan'
                     )),
                     bank_id INTEGER NOT NULL,
                     UNIQUE(user_id, bank_id, name, type),
@@ -400,6 +400,59 @@ class DatabaseManager:
                     UNIQUE(user_id, category, year, month)
                 )
             """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS liabilities (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    liability_type TEXT NOT NULL CHECK (liability_type IN (
+                        'standard_loan', 'partial_deferred_loan', 'total_deferred_loan',
+                        'mortgage', 'credit_card', 'line_of_credit', 'other'
+                    )),
+                    principal_amount DECIMAL(10,2) NOT NULL,
+                    interest_rate DECIMAL(5,3) NOT NULL,
+                    start_date TIMESTAMP NOT NULL,
+                    end_date TIMESTAMP,
+                    compounding_period TEXT NOT NULL CHECK (compounding_period IN (
+                        'daily', 'monthly', 'quarterly', 'annually'
+                    )),
+                    payment_frequency TEXT NOT NULL CHECK (payment_frequency IN (
+                        'weekly', 'bi-weekly', 'monthly', 'quarterly', 'annually'
+                    )),
+                    payment_amount DECIMAL(10,2),
+                    deferral_period_months INTEGER DEFAULT 0,
+                    deferral_type TEXT CHECK (deferral_type IN (
+                        'none', 'partial', 'total'
+                    )),
+                    direction TEXT NOT NULL CHECK (direction IN (
+                        'i_owe', 'they_owe'
+                    )),
+                    account_id INTEGER,
+                    lender_name TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                    FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE SET NULL
+                )
+            """,
+            """--sql
+                CREATE TABLE IF NOT EXISTS liability_payment_details (
+                    transaction_id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    liability_id INTEGER NOT NULL,
+                    payment_date TIMESTAMP NOT NULL,
+                    amount DECIMAL(10,2) NOT NULL,
+                    principal_amount DECIMAL(10,2) NOT NULL,
+                    interest_amount DECIMAL(10,2) NOT NULL,
+                    extra_payment DECIMAL(10,2) DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                    FOREIGN KEY (liability_id) REFERENCES liabilities (id) ON DELETE CASCADE,
+                    FOREIGN KEY (transaction_id) REFERENCES transactions (id) ON DELETE CASCADE
+                )
+            """,
         ]
 
         views = [
@@ -444,6 +497,41 @@ class DatabaseManager:
                 JOIN assets a ON i.asset_id = a.id
                 GROUP BY t.user_id, i.asset_id, a.symbol, a.name
                 HAVING quantity > 0;
+            """,
+            """--sql
+                CREATE VIEW IF NOT EXISTS liability_balances AS
+                SELECT
+                    l.id as liability_id,
+                    l.user_id,
+                    l.name as liability_name,
+                    l.liability_type,
+                    l.principal_amount,
+                    l.interest_rate,
+                    l.direction,
+                    l.start_date,
+                    l.end_date,
+                    COALESCE(
+                        (SELECT SUM(principal_amount)
+                        FROM liability_payment_details
+                        WHERE liability_id = l.id
+                        ), 0
+                    ) as principal_paid,
+                    COALESCE(
+                        (SELECT SUM(interest_amount)
+                        FROM liability_payment_details
+                        WHERE liability_id = l.id
+                        ), 0
+                    ) as interest_paid,
+                    l.principal_amount - COALESCE(
+                        (SELECT SUM(principal_amount)
+                        FROM liability_payment_details
+                        WHERE liability_id = l.id
+                        ), 0
+                    ) as remaining_balance,
+                    0 as missed_payments_count,
+                    NULL as next_payment_date
+                FROM liabilities l
+                GROUP BY l.id, l.user_id, l.name, l.liability_type, l.principal_amount, l.interest_rate, l.direction, l.start_date, l.end_date;
             """,
             """--sql
                 CREATE VIEW IF NOT EXISTS asset_balances_by_account AS
@@ -507,7 +595,7 @@ class DatabaseManager:
                         -- Validate income transactions
                         WHEN NEW.type = 'income' AND (
                             (SELECT to_type FROM account_types) NOT IN (
-                                'checking', 'savings', 'investment'
+                                'checking', 'savings', 'investment', 'loan'
                             )
                         ) THEN
                             RAISE(ABORT, 'Income cannot be received in this type of account')
@@ -519,7 +607,7 @@ class DatabaseManager:
                         -- Validate expense transactions
                         WHEN NEW.type = 'expense' AND (
                             (SELECT from_type FROM account_types) NOT IN (
-                                'checking', 'savings', 'investment'
+                                'checking', 'savings', 'investment', 'loan'
                             )
                         ) THEN
                             RAISE(ABORT, 'Expenses cannot be paid from this type of account')
@@ -531,13 +619,13 @@ class DatabaseManager:
                         -- Validate transfer transactions
                         WHEN NEW.type = 'transfer' AND (
                             (SELECT from_type FROM account_types) NOT IN (
-                                'checking', 'savings', 'investment'
+                                'checking', 'savings', 'investment', 'loan'
                             )
                         ) THEN
                             RAISE(ABORT, 'Cannot transfer from this type of account')
                         WHEN NEW.type = 'transfer' AND (
                             (SELECT to_type FROM account_types) NOT IN (
-                                'checking', 'savings', 'investment'
+                                'checking', 'savings', 'investment', 'loan'
                             )
                         ) THEN
                             RAISE(ABORT, 'Cannot transfer to this type of account')
@@ -627,6 +715,11 @@ class DatabaseManager:
             "CREATE INDEX IF NOT EXISTS idx_gocardless_accounts_institution ON gocardless_accounts(institution_id);",
             "CREATE INDEX IF NOT EXISTS idx_gocardless_agreements_user ON gocardless_agreements(user_id);",
             "CREATE INDEX IF NOT EXISTS idx_gocardless_agreements_institution ON gocardless_agreements(institution_id);",
+            "CREATE INDEX IF NOT EXISTS idx_liabilities_user ON liabilities(user_id);",
+            "CREATE INDEX IF NOT EXISTS idx_liabilities_type ON liabilities(liability_type);",
+            "CREATE INDEX IF NOT EXISTS idx_liability_payment_details_liability ON liability_payment_details(liability_id);",
+            "CREATE INDEX IF NOT EXISTS idx_liability_payment_details_user ON liability_payment_details(user_id);",
+            "CREATE INDEX IF NOT EXISTS idx_liability_payment_details_date ON liability_payment_details(payment_date);",
         ]
 
         with self.connect_to_database() as connection:

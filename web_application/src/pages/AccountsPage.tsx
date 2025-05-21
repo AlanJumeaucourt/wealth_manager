@@ -1,11 +1,9 @@
-import { useAccounts, useBanks, useDeleteAccount } from "@/api/queries"
-import { AddAccountDialog } from "@/components/accounts/AddAccountDialog"
+import { useAccounts, useDeleteAccount } from "@/api/queries"
+import { AccountForm } from "@/components/accounts/AccountForm"
 import { AddBankDialog } from "@/components/accounts/AddBankDialog"
 import { DeleteAccountDialog } from "@/components/accounts/DeleteAccountDialog"
-import { EditAccountDialog } from "@/components/accounts/EditAccountDialog"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -14,62 +12,169 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { ACCOUNT_TYPE_ICONS, ACCOUNT_TYPE_LABELS } from "@/constants"
 import { useDebounce } from "@/hooks/use-debounce"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
 import { Account } from "@/types"
-import { useNavigate } from "@tanstack/react-router"
-import {
-  ArrowDown as ArrowDownIcon,
-  ArrowUpDown,
-  ArrowUp as ArrowUpIcon,
-  ExternalLink,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Search,
-  Trash,
-} from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useNavigate, useSearch } from "@tanstack/react-router"
+import { Plus, Search, Trash } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+
+// Account type system
+type AccountType = "checking" | "savings" | "investment" | "expense" | "income" | "loan"
+type AccountTypeGroup = "all" | "owned" | "expense" | "income" | "checking" | "savings" | "investment" | "loan"
 
 interface AccountsPageProps {
-  defaultType?: string
+  defaultType?: AccountTypeGroup | "new" | "link"
 }
 
 type SortField = "name" | "type" | "bank"
 type SortDirection = "asc" | "desc"
 
+// Type helper functions
+const isRegularAccount = (type: AccountType): boolean =>
+  ["checking", "savings", "investment", "loan"].includes(type)
+
+const isAccountTypeInGroup = (accountType: AccountType, group: AccountTypeGroup): boolean => {
+  if (group === "all") return true
+  if (group === "owned") return isRegularAccount(accountType)
+  if (group === "expense") return accountType === "expense"
+  if (group === "income") return accountType === "income"
+  return accountType === group
+}
+
+const shouldShowAccountType = (type: AccountType, selectedType: AccountTypeGroup): boolean => {
+  if (selectedType === "all") return true
+  if (selectedType === "owned") return isRegularAccount(type)
+  return type === selectedType
+}
+
+const getPageTitle = (type: AccountTypeGroup | "new" | "link"): string => {
+  switch (type) {
+    case "new": return "Add Account"
+    case "link": return "Link Bank Account"
+    default: return "All Accounts"
+  }
+}
+
+const getStatsTitle = (type: AccountTypeGroup): string => {
+  switch (type) {
+    case "expense": return "Total Expenses"
+    case "income": return "Total Income"
+    default: return "Total Net Worth"
+  }
+}
+
+// Add this interface near other type definitions
+interface AccountTypeColumnProps {
+  type: AccountType
+  selectedType: AccountTypeGroup
+  title: string
+  icon: string
+  color: string
+  accounts: Account[]
+  hoveredAccount: number | null
+  setHoveredAccount: (id: number | null) => void
+  navigate: any
+}
+
+// Add this component near other components
+const AccountTypeColumn: React.FC<AccountTypeColumnProps> = ({
+  type,
+  selectedType,
+  title,
+  icon,
+  color,
+  accounts,
+  hoveredAccount,
+  setHoveredAccount,
+  navigate
+}) => {
+  if (!shouldShowAccountType(type, selectedType)) return null;
+
+  return (
+    <div className="flex flex-col h-full">
+      <h3 className={`text-lg font-semibold ${color} mb-3 px-1`}>
+        {icon} {title}
+      </h3>
+      <div className="overflow-y-auto flex-grow space-y-3 pr-1">
+        {accounts
+          .filter(a => a.type === type)
+          .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
+          .map(account => (
+            <div
+              key={account.id}
+              className={`rounded-lg border border-${color.split('-')[0]}-200 p-4 cursor-pointer transition-all duration-200
+                bg-${color.split('-')[0]}-50/95 backdrop-blur-sm
+                ${hoveredAccount === account.id
+                  ? `ring-2 ring-${color.split('-')[0]}-400 shadow-md transform scale-[1.02]`
+                  : "shadow-sm hover:shadow-md hover:scale-[1.01]"
+                }`}
+              onMouseEnter={() => setHoveredAccount(account.id)}
+              onMouseLeave={() => setHoveredAccount(null)}
+              onClick={() => navigate({
+                to: "/accounts/$accountId",
+                params: { accountId: account.id.toString() },
+              })}
+            >
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <div className={`text-xl ${color.split('-')[0]}-600`}>
+                    {icon}
+                  </div>
+                  <div className="font-medium text-sm truncate max-w-[150px]">
+                    {account.name}
+                  </div>
+                </div>
+                <div className={`text-base font-bold ${color} mt-2`}>
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format(account.balance)}
+                </div>
+                {account.market_value !== null && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <div
+                      className={`text-xs font-medium px-2 py-1 rounded-full ${
+                        account.market_value > account.balance
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {account.market_value > account.balance ? "↑" : "↓"}{" "}
+                      {(((account.market_value - account.balance) / account.balance) * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Intl.NumberFormat(undefined, {
+                        style: "currency",
+                        currency: "EUR",
+                      }).format(account.market_value - account.balance)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
+};
+
 export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
-  const [selectedType] = useState<string>(defaultType)
+  const [selectedType] = useState<AccountTypeGroup>(defaultType as AccountTypeGroup)
   const [currentPage, setCurrentPage] = useState(1)
-  const [sortField, setSortField] = useState<SortField>("name")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
-  const [balanceSortDirection, setBalanceSortDirection] = useState<
-    "asc" | "desc" | null
-  >(null)
-  const itemsPerPage = 25
+  const [sortField] = useState<SortField>("name")
+  const [sortDirection] = useState<SortDirection>("asc")
+  const [balanceSortDirection] = useState<"asc" | "desc" | null>(null)
+  const itemsPerPage = 9999
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null)
   const { toast } = useToast()
-  const [selectedRowId, setSelectedRowId] = useState<number | null>(null)
+  const [selectedRowId] = useState<number | null>(null)
   const tableRef = useRef<HTMLTableElement>(null)
   const [isAddingAccount, setIsAddingAccount] = useState(false)
   const [isAddingBank, setIsAddingBank] = useState(false)
@@ -78,54 +183,28 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
   const [selectedAccounts, setSelectedAccounts] = useState<number[]>([])
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const navigate = useNavigate()
-  const [isEnteringPage, setIsEnteringPage] = useState(false)
-  const [manualPageInput, setManualPageInput] = useState("")
+  const searchParams = useSearch()
+
+  const [hoveredAccount, setHoveredAccount] = useState<number | null>(null)
   const deleteMutation = useDeleteAccount()
 
   const { data: accountsResponse, isLoading } = useAccounts({
     type:
       selectedType === "owned"
-        ? "checking,savings,investment"
+        ? ["checking", "savings", "investment", "loan"]
         : selectedType === "all"
           ? undefined
           : selectedType,
     page: currentPage,
     per_page: itemsPerPage,
-    sort_by: sortField,
+    sort_by: sortField as keyof Account,
     sort_order: sortDirection,
     search: debouncedSearch,
   })
 
-  const { data: banksResponse } = useBanks()
-
   const accounts = accountsResponse?.items || []
-  const totalItems = accountsResponse?.total || 0
-  const totalPages = Math.ceil(totalItems / itemsPerPage)
-  const banks = banksResponse?.items || []
 
-  const handleSort = (field: SortField) => {
-    setBalanceSortDirection(null)
-    if (sortField === field) {
-      const newDirection = sortDirection === "asc" ? "desc" : "asc"
-      setSortDirection(newDirection)
-    } else {
-      setSortField(field)
-      setSortDirection("asc")
-    }
-    setCurrentPage(1)
-  }
-
-  const handleBalanceSort = () => {
-    setSortField("name")
-    setSortDirection("asc")
-    setBalanceSortDirection(prev => {
-      if (prev === null) return "asc"
-      if (prev === "asc") return "desc"
-      return null
-    })
-    setCurrentPage(1)
-  }
-
+  // Sort accounts by balance if balanceSortDirection is set
   const sortedAccounts = [...(accounts || [])].sort((a, b) => {
     if (balanceSortDirection === "asc") {
       return a.balance - b.balance
@@ -135,56 +214,27 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
     return 0
   })
 
-  const totalBalance = sortedAccounts.reduce(
-    (sum: number, account: Account) => sum + account.balance,
-    0
-  )
+  const pageTitle = getPageTitle(selectedType)
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />
-    return sortDirection === "asc" ? (
-      <ArrowUpIcon className="ml-2 h-4 w-4" />
-    ) : (
-      <ArrowDownIcon className="ml-2 h-4 w-4" />
-    )
-  }
-
-  const BalanceSortIcon = () => {
-    if (balanceSortDirection === null)
-      return <ArrowUpDown className="ml-2 h-4 w-4" />
-    return balanceSortDirection === "asc" ? (
-      <ArrowUpIcon className="ml-2 h-4 w-4" />
-    ) : (
-      <ArrowDownIcon className="ml-2 h-4 w-4" />
-    )
-  }
-
-  const pageTitle =
-    defaultType === "new"
-      ? "Add Account"
-      : defaultType === "link"
-        ? "Link Bank Account"
-        : "All Accounts"
+  useEffect(() => {
+    // Check for openAddDialog in searchParams
+    if ((searchParams as Record<string, any>).openAddDialog === "true" || (searchParams as Record<string, any>).openAddDialog === true) {
+      setIsAddingAccount(true)
+      // Optional: remove the query param to prevent re-opening on refresh
+      // navigate({ search: (prev: Record<string, any>) => ({ ...prev, openAddDialog: undefined }), replace: true });
+    }
+  }, [searchParams, navigate])
 
   useEffect(() => {
     setCurrentPage(1)
   }, [debouncedSearch])
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedAccounts(sortedAccounts.map(account => account.id))
-    } else {
-      setSelectedAccounts([])
-    }
-  }
-
-  const handleSelectAccount = (accountId: number, checked: boolean) => {
-    if (checked) {
-      setSelectedAccounts(prev => [...prev, accountId])
-    } else {
-      setSelectedAccounts(prev => prev.filter(id => id !== accountId))
-    }
-  }
+  // Filter accounts based on selected type
+  const filteredAccounts = useMemo(() => {
+    return sortedAccounts.filter(account =>
+      isAccountTypeInGroup(account.type as AccountType, selectedType)
+    )
+  }, [sortedAccounts, selectedType])
 
   const handleBulkDelete = async () => {
     try {
@@ -206,32 +256,59 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
     }
   }
 
+  // Calculate totals for different account types
+  const totals = useMemo(() => {
+    const regularAccounts = filteredAccounts.filter(a => isRegularAccount(a.type as AccountType))
+    const expenseAccounts = filteredAccounts.filter(a => a.type === "expense")
+    const incomeAccounts = filteredAccounts.filter(a => a.type === "income")
+
+    return {
+      regular: regularAccounts.reduce((sum, a) => sum + a.balance, 0),
+      expense: expenseAccounts.reduce((sum, a) => sum + a.balance, 0),
+      income: incomeAccounts.reduce((sum, a) => sum + a.balance, 0),
+    }
+  }, [filteredAccounts])
+
+  // Calculate balances for each account type
+  const checkingBalance = filteredAccounts
+    .filter(a => a.type === "checking")
+    .reduce((sum, a) => sum + a.balance, 0)
+
+  const savingsBalance = filteredAccounts
+    .filter(a => a.type === "savings")
+    .reduce((sum, a) => sum + a.balance, 0)
+
+  const investmentBalance = filteredAccounts
+    .filter(a => a.type === "investment")
+    .reduce((sum, a) => sum + a.balance, 0)
+
+  const loansBalance = filteredAccounts
+    .filter(a => a.type === "loan")
+    .reduce((sum, a) => sum + a.balance, 0)
+
+  // Get stats text based on account types
   const getStatsText = () => {
-    switch (defaultType) {
-      case "expense":
         return {
-          title: "Total Expense Accounts",
-          balance: "Total Expenses Available",
-          banks: "Connected Payment Methods",
-        }
-      case "income":
-        return {
-          title: "Total Income Accounts",
-          balance: "Expected Income",
-          banks: "Income Sources",
-        }
-      case "regular":
-        return {
-          title: "Regular Accounts",
-          balance: "Total Balance",
-          banks: "Connected Banks",
-        }
-      default:
-        return {
-          title: "Total Accounts",
-          balance: "Net Worth",
-          banks: "Connected Banks",
-        }
+      checking: {
+        title: "Checking Accounts",
+        balance: checkingBalance,
+        color: "text-blue-800",
+      },
+      savings: {
+        title: "Savings Accounts",
+        balance: savingsBalance,
+        color: "text-green-800",
+      },
+      investment: {
+        title: "Investment Accounts",
+        balance: investmentBalance,
+        color: "text-purple-800",
+      },
+      loans: {
+        title: "Loans",
+        balance: loansBalance,
+        color: "text-rose-800",
+      },
     }
   }
 
@@ -262,72 +339,192 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
     onHome: () => {
       if (tableRef.current) {
         tableRef.current.scrollTop = 0
-        setCurrentPage(1)
       }
     },
     onEnd: () => {
       if (tableRef.current) {
         tableRef.current.scrollTop = tableRef.current.scrollHeight
-        setCurrentPage(totalPages)
       }
     },
-    onPrevPage: () => setCurrentPage(p => Math.max(1, p - 1)),
-    onNextPage: () => setCurrentPage(p => Math.min(totalPages, p + 1)),
   })
 
   return (
     <PageContainer title={pageTitle}>
       <div className="space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Top Stats Cards */}
+        {!isLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {selectedType === "all" ? (
+              <>
+                {/* Income Card */}
+                <div className="bg-green-50/80 rounded-xl p-6 shadow-sm border border-green-200 transition-colors hover:bg-green-50">
+                  <p className="text-sm text-green-700 text-center">Total Income</p>
+                  <p className="text-3xl font-bold mt-2 text-center text-green-800">
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(totals.income)}
+                  </p>
+                </div>
+
+                {/* Net Worth Card */}
+                <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
+                  <p className="text-sm text-muted-foreground text-center">Total Net Worth</p>
+                  <p className="text-3xl font-bold mt-2 text-center">
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(totals.regular)}
+                  </p>
+                </div>
+
+                {/* Expense Card */}
+                <div className="bg-red-50/80 rounded-xl p-6 shadow-sm border border-red-200 transition-colors hover:bg-red-50">
+                  <p className="text-sm text-red-700 text-center">Total Expenses</p>
+                  <p className="text-3xl font-bold mt-2 text-center text-red-800">
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(totals.expense)}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
+                <p className="text-sm text-muted-foreground text-center">
+                  {getStatsTitle(selectedType)}
+                </p>
+                <p className="text-3xl font-bold mt-2 text-center">
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format(
+                    selectedType === "expense"
+                      ? totals.expense
+                      : selectedType === "income"
+                        ? totals.income
+                        : totals.regular
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Account Type Stats Cards */}
+        <div className={`grid grid-cols-1 ${
+          selectedType === "expense" || selectedType === "income"
+            ? "md:grid-cols-1"
+            : "md:grid-cols-2 lg:grid-cols-4"
+        } gap-6`}>
           {isLoading ? (
             <>
               <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
                 <Skeleton className="h-4 w-24 mb-2" />
                 <Skeleton className="h-8 w-32" />
               </div>
-              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-8 w-32" />
-              </div>
-              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-8 w-32" />
-              </div>
+              {(selectedType === "all" || selectedType === "owned") && (
+                <>
+                  <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-8 w-32" />
+                  </div>
+                  <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-8 w-32" />
+                  </div>
+                  <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-8 w-32" />
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <>
-              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">
-                  {statsText.title}
-                </p>
-                <p className="text-2xl font-semibold mt-2">{totalItems}</p>
-              </div>
-              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">
-                  {statsText.banks}
-                </p>
-                <p className="text-2xl font-semibold mt-2">{banks.length}</p>
-              </div>
-              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 transition-colors hover:bg-card/80">
-                <p className="text-sm text-muted-foreground">
-                  {statsText.balance}
-                </p>
-                <p
-                  className={`text-2xl font-semibold mt-2 ${
-                    defaultType === "expense"
-                      ? "text-destructive"
-                      : defaultType === "income"
-                        ? "text-success"
-                        : ""
-                  }`}
-                >
-                  {new Intl.NumberFormat(undefined, {
-                    style: "currency",
-                    currency: "EUR",
-                  }).format(Math.abs(totalBalance))}
-                </p>
-              </div>
+              {/* Checking Stats */}
+              {shouldShowAccountType("checking", selectedType) && (
+                <div className="bg-blue-50/80 rounded-xl p-6 shadow-sm border border-blue-200 transition-colors hover:bg-blue-50">
+                  <p className="text-sm text-blue-700">
+                    {statsText.checking.title}
+                  </p>
+                  <p className={`text-2xl font-semibold mt-2 ${statsText.checking.color}`}>
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(statsText.checking.balance)}
+                  </p>
+                </div>
+              )}
+
+              {/* Savings Stats */}
+              {shouldShowAccountType("savings", selectedType) && (
+                <div className="bg-green-50/80 rounded-xl p-6 shadow-sm border border-green-200 transition-colors hover:bg-green-50">
+                  <p className="text-sm text-green-700">
+                    {statsText.savings.title}
+                  </p>
+                  <p className={`text-2xl font-semibold mt-2 ${statsText.savings.color}`}>
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(statsText.savings.balance)}
+                  </p>
+                </div>
+              )}
+
+              {/* Investment Stats */}
+              {shouldShowAccountType("investment", selectedType) && (
+                <div className="bg-purple-50/80 rounded-xl p-6 shadow-sm border border-purple-200 transition-colors hover:bg-purple-50">
+                  <p className="text-sm text-purple-700">
+                    {statsText.investment.title}
+                  </p>
+                  <p className={`text-2xl font-semibold mt-2 ${statsText.investment.color}`}>
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(statsText.investment.balance)}
+                  </p>
+                </div>
+              )}
+
+              {/* Loans Stats */}
+              {shouldShowAccountType("loan", selectedType) && (
+                <div className="bg-rose-50/80 rounded-xl p-6 shadow-sm border border-rose-200 transition-colors hover:bg-rose-50">
+                  <p className="text-sm text-rose-700">{statsText.loans.title}</p>
+                  <p className={`text-2xl font-semibold mt-2 ${statsText.loans.color}`}>
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(statsText.loans.balance)}
+                  </p>
+                </div>
+              )}
+
+              {/* Expense Stats */}
+              {selectedType === "expense" && (
+                <div className="bg-red-50/80 rounded-xl p-6 shadow-sm border border-red-200 transition-colors hover:bg-red-50">
+                  <p className="text-sm text-red-700">Expense</p>
+                  <p className="text-2xl font-semibold mt-2 text-red-800">
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(totals.expense)}
+                  </p>
+                </div>
+              )}
+
+              {/* Income Stats */}
+              {selectedType === "income" && (
+                <div className="bg-amber-50/80 rounded-xl p-6 shadow-sm border border-amber-200 transition-colors hover:bg-amber-50">
+                  <p className="text-sm text-amber-700">Income</p>
+                  <p className="text-2xl font-semibold mt-2 text-amber-800">
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(totals.income)}
+                  </p>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -343,6 +540,7 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
               className="pl-10 bg-background border-border/50"
             />
           </div>
+          <div className="flex items-center gap-4">
           <div className="flex gap-2 w-full sm:w-auto">
             <Button
               variant="outline"
@@ -377,78 +575,20 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
                   : ""}
               </Button>
             )}
+            </div>
           </div>
         </div>
 
-        {/* Accounts Table */}
-        <div className="bg-card rounded-xl shadow-sm border border-border/50 overflow-hidden">
-          <Table ref={tableRef}>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[50px]">
-                  <Checkbox
-                    checked={
-                      selectedAccounts.length === sortedAccounts.length &&
-                      sortedAccounts.length > 0
-                    }
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                  />
-                </TableHead>
-                <TableHead
-                  className="w-[300px] cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => handleSort("name")}
-                >
-                  Name <SortIcon field="name" />
-                </TableHead>
-                <TableHead
-                  className="w-[150px] cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => handleSort("type")}
-                >
-                  Type <SortIcon field="type" />
-                </TableHead>
-                <TableHead
-                  className="w-[200px] cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => handleSort("bank")}
-                >
-                  Bank <SortIcon field="bank" />
-                </TableHead>
-                <TableHead
-                  className="text-right w-[200px] cursor-pointer hover:text-primary transition-colors"
-                  onClick={handleBalanceSort}
-                >
-                  Balance <BalanceSortIcon />
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        {/* Accounts View */}
+        <Tabs value="bubble">
+          <TabsContent value="bubble">
+            <div className="bg-card rounded-xl shadow-sm border border-border/50 p-6 overflow-hidden">
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
-                      <Skeleton className="h-4 w-4" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-32" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-20" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-16" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-8" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : accounts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
+                <div className="flex items-center justify-center h-[400px]">
+                  <Skeleton className="h-[300px] w-[300px] rounded-full" />
+                </div>
+              ) : filteredAccounts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
                       <p>No accounts found</p>
                       <div className="flex gap-2 mt-2">
                         <Button
@@ -466,173 +606,94 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
                         </Button>
                       </div>
                     </div>
-                  </TableCell>
-                </TableRow>
               ) : (
-                sortedAccounts.map(account => {
-                  const bank = banks.find(b => b.id === account.bank_id)
-                  return (
-                    <TableRow
-                      key={account.id}
-                      className={cn(`
-                        hover:bg-muted/50
-                        transition-colors
-                        ${selectedRowId === account.id ? "bg-muted" : ""}
-                        ${
-                          selectedAccounts.includes(account.id)
-                            ? "bg-muted/70"
-                            : ""
-                        }
-                      `)}
-                      onMouseEnter={() => setSelectedRowId(account.id)}
-                      onMouseLeave={() => setSelectedRowId(null)}
-                      onClick={() =>
-                        navigate({
-                          to: "/accounts/$accountId",
-                          params: { accountId: account.id.toString() },
-                        })
-                      }
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedAccounts.includes(account.id)}
-                          onCheckedChange={checked =>
-                            handleSelectAccount(account.id, checked as boolean)
-                          }
-                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">
-                            {ACCOUNT_TYPE_ICONS[account.type]}
-                          </span>
-                          {account.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                          {ACCOUNT_TYPE_LABELS[account.type]}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {bank ? (
-                          bank.website ? (
-                            <a
-                              href={bank.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-primary hover:underline"
-                            >
-                              {bank.name}
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          ) : (
-                            bank.name
-                          )
-                        ) : (
-                          "Other"
-                        )}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right ${
-                          account.balance < 0
-                            ? "text-red-500"
-                            : "text-green-500"
-                        }`}
-                      >
-                        {new Intl.NumberFormat(undefined, {
-                          style: "currency",
-                          currency: "EUR",
-                        }).format(Math.abs(account.balance))}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => setEditingAccount(account)}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setDeletingAccount(account)}
-                              className="text-red-600"
-                            >
-                              <Trash className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
+                <div>
+                  {/* 4-Column Account Layout */}
+                  <div className="w-full h-full p-4">
+                    <div className={`grid grid-cols-1 ${
+                      selectedType === "expense" || selectedType === "income"
+                        ? "md:grid-cols-1"
+                        : selectedType === "all"
+                          ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+                          : "md:grid-cols-2 lg:grid-cols-4"
+                    } gap-6 h-full`}>
+                      <AccountTypeColumn
+                        type="checking"
+                        selectedType={selectedType}
+                        title="Checking"
+                        icon={ACCOUNT_TYPE_ICONS.checking}
+                        color="text-blue-800"
+                        accounts={filteredAccounts}
+                        hoveredAccount={hoveredAccount}
+                        setHoveredAccount={setHoveredAccount}
+                        navigate={navigate}
+                      />
+                      <AccountTypeColumn
+                        type="savings"
+                        selectedType={selectedType}
+                        title="Savings"
+                        icon={ACCOUNT_TYPE_ICONS.savings}
+                        color="text-green-800"
+                        accounts={filteredAccounts}
+                        hoveredAccount={hoveredAccount}
+                        setHoveredAccount={setHoveredAccount}
+                        navigate={navigate}
+                      />
+                      <AccountTypeColumn
+                        type="investment"
+                        selectedType={selectedType}
+                        title="Investments"
+                        icon={ACCOUNT_TYPE_ICONS.investment}
+                        color="text-purple-800"
+                        accounts={filteredAccounts}
+                        hoveredAccount={hoveredAccount}
+                        setHoveredAccount={setHoveredAccount}
+                        navigate={navigate}
+                      />
+                      <AccountTypeColumn
+                        type="loan"
+                        selectedType={selectedType}
+                        title="Loans"
+                        icon={ACCOUNT_TYPE_ICONS.loan}
+                        color="text-rose-800"
+                        accounts={filteredAccounts}
+                        hoveredAccount={hoveredAccount}
+                        setHoveredAccount={setHoveredAccount}
+                        navigate={navigate}
+                      />
+                      <AccountTypeColumn
+                        type="expense"
+                        selectedType={selectedType}
+                        title="Expenses"
+                        icon={ACCOUNT_TYPE_ICONS.expense}
+                        color="text-red-800"
+                        accounts={filteredAccounts}
+                        hoveredAccount={hoveredAccount}
+                        setHoveredAccount={setHoveredAccount}
+                        navigate={navigate}
+                      />
+                      <AccountTypeColumn
+                        type="income"
+                        selectedType={selectedType}
+                        title="Income"
+                        icon={ACCOUNT_TYPE_ICONS.income}
+                        color="text-amber-800"
+                        accounts={filteredAccounts}
+                        hoveredAccount={hoveredAccount}
+                        setHoveredAccount={setHoveredAccount}
+                        navigate={navigate}
+                      />
+                    </div>
+                  </div>
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-              {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}{" "}
-              accounts
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-              >
-                First
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsEnteringPage(true)}
-              >
-                Page {currentPage} of {totalPages}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-              >
-                Last
-              </Button>
             </div>
-          </div>
-        )}
+          </TabsContent>
+        </Tabs>
 
         {/* Dialogs */}
         {editingAccount && (
-          <EditAccountDialog
+          <AccountForm
             account={editingAccount}
             open={true}
             onOpenChange={open => !open && setEditingAccount(null)}
@@ -647,7 +708,7 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
         />
 
         {isAddingAccount && (
-          <AddAccountDialog
+          <AccountForm
             open={isAddingAccount}
             onOpenChange={open => !open && setIsAddingAccount(false)}
           />
@@ -706,54 +767,6 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
           </Dialog>
         )}
 
-        <Dialog open={isEnteringPage} onOpenChange={setIsEnteringPage}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Go to Page</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Input
-                  type="number"
-                  min={1}
-                  max={totalPages}
-                  value={manualPageInput}
-                  onChange={e => setManualPageInput(e.target.value)}
-                  placeholder={`Enter page (1-${totalPages})`}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsEnteringPage(false)
-                  setManualPageInput("")
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  const pageNum = parseInt(manualPageInput)
-                  if (pageNum >= 1 && pageNum <= totalPages) {
-                    setCurrentPage(pageNum)
-                    setIsEnteringPage(false)
-                    setManualPageInput("")
-                  } else {
-                    toast({
-                      title: "Invalid page number",
-                      description: `Please enter a number between 1 and ${totalPages}`,
-                      variant: "destructive",
-                    })
-                  }
-                }}
-              >
-                Go to Page
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </PageContainer>
   )

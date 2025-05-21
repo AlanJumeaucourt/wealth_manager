@@ -28,7 +28,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
 
     def _get_latest_transaction_price(self, asset_id: int) -> float | None:
         """Get the latest transaction price for an asset from our database."""
-        query = """
+        query = """--sql
         SELECT i.unit_price
         FROM investment_details i
         JOIN transactions t ON i.transaction_id = t.id
@@ -211,7 +211,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                         select_fields.append(f"i.{field}")
 
             # Build count query
-            count_query = """
+            count_query = """--sql
                 SELECT COUNT(*) as total
                 FROM investment_details i
                 JOIN transactions t ON i.transaction_id = t.id
@@ -417,7 +417,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
             # Initialize to avoid reference before assignment
 
             try:
-                pl_account_query = """
+                pl_account_query = """--sql
                 SELECT id FROM accounts
                 WHERE user_id = ? AND name = 'Investment P/L' AND type = 'expense'
                 """
@@ -426,7 +426,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 )
                 pl_account_expense_id = pl_account_expense_result[0]["id"]
 
-                pl_account_query = """
+                pl_account_query = """--sql
                 SELECT id FROM accounts
                 WHERE user_id = ? AND name = 'Investment P/L' AND type = 'income'
                 """
@@ -450,7 +450,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 bank_id = bank_result[0]["id"]
 
                 # Now create the Investment P/L account
-                create_pl_expense_account_query = """
+                create_pl_expense_account_query = """--sql
                 INSERT INTO accounts (user_id, name, type, bank_id)
                 VALUES (?, 'Investment P/L', 'expense', ?)
                 RETURNING id
@@ -462,7 +462,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 pl_account_expense_id = pl_account_expense_result["id"]
 
                 # Create Investment P/L income account
-                create_pl_income_account_query = """
+                create_pl_income_account_query = """--sql
                 INSERT INTO accounts (user_id, name, type, bank_id)
                 VALUES (?, 'Investment P/L', 'income', ?)
                 RETURNING id
@@ -481,7 +481,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
                 )
             elif validated_data["activity_type"] == "Sell":
                 # Calculate the original cost basis for this sale
-                cost_basis_query = """
+                cost_basis_query = """--sql
                 SELECT SUM(i.quantity * i.unit_price + i.fee + i.tax) as total_cost,
                        SUM(i.quantity) as total_quantity
                 FROM investment_details i
@@ -1213,7 +1213,7 @@ class InvestmentService(BaseService[InvestmentTransaction]):
 
     def _get_latest_transaction_price_symbol(self, symbol: str) -> float | None:
         """Helper to get latest transaction price just by symbol"""
-        query = """
+        query = """--sql
         SELECT i.unit_price
         FROM investment_details i
         JOIN transactions t ON i.transaction_id = t.id
@@ -1234,14 +1234,8 @@ class InvestmentService(BaseService[InvestmentTransaction]):
             return None
 
     def delete(self, item_id: int, user_id: int) -> bool:
-        try:
-            # Delete the investment details (transaction will be cascade deleted by database)
-            query = "DELETE FROM investment_details WHERE transaction_id = ? and user_id = ?"
-            self.db_manager.execute_delete(query, [item_id, user_id])
-            return True
-        except Exception as e:
-            print(f"Error deleting {self.table_name}: {e}")
-            return False
+        # Use cascade delete from TransactionService
+        return TransactionService().delete(item_id, user_id)
 
     def get_risk_metrics(self, user_id: int) -> dict[str, Any]:
         """Calculate portfolio risk metrics."""

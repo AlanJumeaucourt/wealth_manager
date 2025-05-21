@@ -25,6 +25,7 @@ type ComboboxInputProps = {
   emptyMessage: string
   value?: Option
   onValueChange?: (value: Option) => void
+  onInputChange?: (value: string) => void
   isLoading?: boolean
   disabled?: boolean
   placeholder?: string
@@ -36,6 +37,7 @@ export const ComboboxInput = ({
   emptyMessage,
   value,
   onValueChange,
+  onInputChange,
   disabled,
   isLoading = false,
 }: ComboboxInputProps) => {
@@ -130,7 +132,15 @@ export const ComboboxInput = ({
         <CommandInput
           ref={inputRef}
           value={inputValue}
-          onValueChange={isLoading ? undefined : setInputValue}
+          onValueChange={(value) => {
+            if (!isLoading) {
+              setInputValue(value)
+              // Call the onInputChange prop if provided
+              if (onInputChange) {
+                onInputChange(value)
+              }
+            }
+          }}
           onBlur={handleBlur}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
@@ -162,7 +172,6 @@ export const ComboboxInput = ({
                         .toLowerCase()
                         .includes(inputValue?.toLowerCase() || "")
                   )
-                  .slice(0, 5)
                   .map(option => {
                     const isSelected = selected?.value === option.value
                     return (

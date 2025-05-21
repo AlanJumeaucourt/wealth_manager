@@ -23,7 +23,7 @@ export function DeleteInvestmentDialog({
   investment,
   open,
   onOpenChange,
-  redirectTo = "/investments",
+  redirectTo = "/investmentTransactions",
 }: DeleteInvestmentDialogProps) {
   const { toast } = useToast()
   const navigate = useNavigate()

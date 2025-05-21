@@ -75,6 +75,17 @@ def get_next_period_start(
 
 
 def get_budget_summary(start_date: str, end_date: str, user_id: int):
+    """Get a summary of budget data grouped by category and subcategory.
+
+    Args:
+        start_date: Start date for filtering transactions
+        end_date: End date for filtering transactions
+        user_id: User ID to filter transactions
+
+    Returns:
+        List of categories with their subcategories and transaction summaries
+
+    """
     query = """--sql
     WITH transaction_refunds AS (
         SELECT
@@ -100,8 +111,11 @@ def get_budget_summary(start_date: str, end_date: str, user_id: int):
     FROM
         transactions t
     LEFT JOIN transaction_refunds tr ON t.id = tr.transaction_id
+    LEFT JOIN accounts a ON t.from_account_id = a.id
     WHERE
-        date_accountability BETWEEN ? AND ? and user_id = ?
+        date_accountability BETWEEN ? AND ?
+        AND t.user_id = ?
+        AND NOT (t.type = 'expense' AND a.type = 'loan')
     GROUP BY
         category, subcategory
     """
@@ -179,6 +193,18 @@ def get_transactions_by_categories(
     user_id: int,
     transaction_type: Literal["income", "expense", "transfer"],
 ) -> dict[str, TransactionSummary]:
+    """Get transactions grouped by categories for a specific transaction type.
+
+    Args:
+        start_date: Start date for filtering transactions
+        end_date: End date for filtering transactions
+        user_id: User ID to filter transactions
+        transaction_type: Type of transactions to include
+
+    Returns:
+        Dictionary with categories as keys and transaction summaries as values
+
+    """
     db = DatabaseManager()
 
     # Base query with refund adjustments
@@ -224,10 +250,12 @@ def get_transactions_by_categories(
         )) as transactions_json
     FROM transactions t
     LEFT JOIN transaction_refunds tr ON t.id = tr.transaction_id
+    LEFT JOIN accounts a ON t.from_account_id = a.id
     WHERE
         t.user_id = ?
         AND t.type = ?
         AND t.date_accountability BETWEEN ? AND ?
+        AND NOT (t.type = 'expense' AND a.type = 'loan')
     GROUP BY t.category, t.subcategory
     ORDER BY t.category, t.subcategory
     """

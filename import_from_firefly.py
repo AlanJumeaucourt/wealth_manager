@@ -3,6 +3,7 @@ import logging
 import time  # Added for cache expiration
 from io import StringIO
 from typing import Any, TypedDict
+from datetime import datetime
 
 import pandas as pd
 import requests
@@ -12,11 +13,12 @@ from urllib3.util.retry import Retry  # Corrected import
 
 fake = Faker()
 
+logger = logging.getLogger(__name__)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
-logger = logging.getLogger(__name__)
 
 # Add a cache for accounts
 _accounts_cache: dict[str, Any] | None = None
@@ -83,6 +85,7 @@ account_type_mapping = {
 # Account name to type mapping
 account_name_type_mapping = {
     "Boursorama Courant": "checking",
+    "Caisse Épargne Courant": "checking",
     "Crédit Agricole LDDS": "savings",
     "Crédit Agricole Courant": "checking",
     "Lendermarket P2P": "investment",
@@ -99,7 +102,8 @@ account_name_type_mapping = {
     "Lydia Courant": "checking",
     "Yuzu Crypto": "investment",
     "Wiseed P2P": "investment",
-    "Prêt Etudiant CA": "savings",
+    "Prêt Etudiant CA": "loan",
+    "Prêt Etudiant CE": "loan",
     "Crédit Agricole LEP": "savings",
     "Natixis PEG": "investment",
     "Boursorama CTO": "investment",
@@ -107,18 +111,22 @@ account_name_type_mapping = {
     "Natixis PERCO": "investment",
     "LouveInvest SCPI": "investment",
     'Balance initiale pour "Prêt Etudiant CA"': "expense",
+    'Balance initiale pour "Prêt Etudiant CE"': "expense",
     "Initial balance account of Prêt Etudiant CA": "expense",
+    "Initial balance account of Prêt Etudiant CE": "expense",
     "Robocash P2P": "investment",
     "Miimosa P2P": "investment",
     "Cardif PER": "investment",
     "Revolut": "checking",
     "Solde initial du compte Prêt Etudiant CA": "expense",
+    "Solde initial du compte Prêt Etudiant CE": "expense",
     "Paypal Alan": "checking",
 }
 
 bank_website_mapping = {
     "Boursorama": "https://clients.boursobank.com/",
     "Crédit Agricole": "https://www.credit-agricole.fr/ca-normandie-seine/particulier/acceder-a-mes-comptes.html",
+    "Caisse d'Epargne": "https://www.caisse-epargne.fr/",
 }
 
 # Initialize an empty account dictionary
@@ -188,7 +196,7 @@ class WealthManagerApi:
     def _login_user(self):
         """Internal method to login and set JWT token"""
         login_user_r = self.login_user()
-        if login_user_r.status_code == 200:
+        if login_user_r.status_code == 200 or login_user_r.status_code == 201:
             self.jwt_token = login_user_r.json()["access_token"]
             logging.info(f"Successfully logged in user: {self.email}")
         else:
@@ -227,7 +235,7 @@ class WealthManagerApi:
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
         response = requests.get(url, headers=headers)
 
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
             assets = response.json()
             if len(assets["items"]) > 0:
                 return assets["items"][0]["id"]
@@ -240,7 +248,7 @@ class WealthManagerApi:
         }
         response = requests.post(url, headers=headers, json=data)
 
-        if response.status_code == 201:
+        if 200 <= response.status_code < 300:
             return response.json()["id"]
         raise Exception(f"Failed to create asset: {response.text}")
 
@@ -288,6 +296,20 @@ class WealthManagerApi:
             return self.bank_id_from_bank_name("Crédit Agricole")
         if account_name.startswith("Fortuneo"):
             return self.bank_id_from_bank_name("Fortuneo")
+        if (
+            account_name.startswith("Prêt Etudiant CA")
+            or "Prêt Etudiant CA" in account_name
+        ):
+            return self.bank_id_from_bank_name("Crédit Agricole")
+        if (
+            account_name.startswith("Prêt Etudiant CE")
+            or "Prêt Etudiant CE" in account_name
+        ):
+            return self.bank_id_from_bank_name("Caisse d'Epargne")
+        if account_name.startswith("Solde initial du compte Prêt"):
+            return self.bank_id_from_bank_name("Crédit Agricole")
+        if account_name.startswith('Balance initiale pour "Prêt'):
+            return self.bank_id_from_bank_name("Crédit Agricole")
         if "P2P" in account_name:
             return self.bank_id_from_bank_name("P2P")
         return self.bank_id_from_bank_name("Other")
@@ -308,7 +330,7 @@ class WealthManagerApi:
             "Content-Type": "application/json",
         }
         response = requests.get(url, headers=headers)
-        if response.status_code == 200 or response.status_code == 201:
+        if 200 <= response.status_code < 300:
             return response.json()["items"]  # Assuming the response is a list of banks
         logging.error(
             f"Failed to retrieve banks: {response.status_code}, {response.text}"
@@ -349,7 +371,7 @@ class WealthManagerApi:
             logging.info("Fetching accounts from API")
             response = requests.get(url, headers=headers)
 
-            if response.status_code == 200 or response.status_code == 201:
+            if 200 <= response.status_code < 300:
                 # Update cache
                 _accounts_cache = response.json()["items"]
                 _accounts_cache_timestamp = current_time
@@ -360,7 +382,7 @@ class WealthManagerApi:
             )
             return []
 
-    def create_bank_in_api(self, bank_name: str, website: str = None):
+    def create_bank_in_api(self, bank_name: str, website: str | None = None):
         url = f"{self.base_url}/banks"  # Adjust the URL if necessary
         headers = {
             "Authorization": f"Bearer {self.jwt_token}",
@@ -466,21 +488,330 @@ class WealthManagerApi:
             "Authorization": f"Bearer {self.jwt_token}",
             "Content-Type": "application/json",
         }
-        logging.info(
-            f"Creating transaction: {transaction_data['date'][:10]} - {transaction_data['from_account_id']} - {transaction_data['to_account_id']} - {transaction_data['amount']} - {transaction_data['type']} - {transaction_data['category']} - {transaction_data['subcategory']} - {transaction_data['description']}"
-        )
+        # logging.info(
+        #     f"Creating transaction: {transaction_data['date'][:10]} - {transaction_data['from_account_id']} - {transaction_data['to_account_id']} - {transaction_data['amount']} - {transaction_data['type']} - {transaction_data['category']} - {transaction_data['subcategory']} - {transaction_data['description']}"
+        # )
         response = requests.post(url, json=transaction_data, headers=headers)
-        if response.status_code == 201:
+        if 200 <= response.status_code < 300:
             logging.info(
                 f"Transaction created: {transaction_data['date'][:10]} - {transaction_data['from_account_id']} - {transaction_data['to_account_id']} - {transaction_data['amount']} - {transaction_data['type']} - {transaction_data['category']} - {transaction_data['subcategory']} - {transaction_data['description']}"
             )
             return response
-        logging.error(
-            f"Failed to create transaction: {response.text}, {transaction_data}"
+        logger.error(
+            f"Failed to create transaction: {response.status_code} {response.text} , {transaction_data}"
         )
         raise Exception(
             f"Failed to create transaction: {response.text}, {transaction_data}"
         )
+
+    def create_liability_in_api(
+        self,
+        liability_data: dict[str, Any],
+    ) -> requests.Response:
+        url = f"{self.base_url}/liabilities"
+        headers = {
+            "Authorization": f"Bearer {self.jwt_token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(url, json=liability_data, headers=headers)
+        return response
+
+    def get_liabilities_from_api(self) -> list[dict[str, Any]]:
+        """Fetch all liabilities from the API."""
+        url = f"{self.base_url}/liabilities?per_page=1000"
+        headers = {
+            "Authorization": f"Bearer {self.jwt_token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()["items"]
+        logger.error(f"Failed to retrieve liabilities: {response.status_code}, {response.text}")
+        return []
+
+    def record_liability_payment(self, payment_data: dict[str, Any]) -> requests.Response:
+        """Record a liability payment.
+
+        Args:
+            payment_data: Dictionary with payment details
+                liability_id: int
+                payment_date: str (YYYY-MM-DD)
+                amount: float
+                principal_amount: float
+                interest_amount: float
+                extra_payment: float
+                transaction_id: int (optional)
+
+        Returns:
+            requests.Response: API response
+        """
+        url = f"{self.base_url}/liability_payments"
+        headers = {
+            "Authorization": f"Bearer {self.jwt_token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(url, json=payment_data, headers=headers)
+        return response
+
+    def create_specific_liabilities(self) -> dict[str, int]:
+        """Create specific predefined liabilities if they don't exist.
+
+        Returns:
+            dict: Mapping of liability names to their IDs
+        """
+        existing_liabilities = self.get_liabilities_from_api()
+        liability_ids = {}
+
+        # Check if Prêt Etudiant CA exists
+        ca_loan_exists = any(liability["name"] == "Prêt Etudiant CA" for liability in existing_liabilities)
+        ce_loan_exists = any(liability["name"] == "Prêt Etudiant CE" for liability in existing_liabilities)
+
+        # Get account IDs for both loans
+        ca_account_id = self.get_account_id_from_name("Prêt Etudiant CA", "loan")
+        ce_account_id = self.get_account_id_from_name("Prêt Etudiant CE", "loan")
+
+        if not ca_loan_exists and ca_account_id:
+            # Create CA loan
+            ca_loan_data = {
+                "name": "Prêt Etudiant CA",
+                "description": "",
+                "liability_type": "standard_loan",
+                "principal_amount": 15000,
+                "interest_rate": 0.9,
+                "start_date": "2023-03-04",
+                "compounding_period": "monthly",
+                "payment_frequency": "monthly",
+                "deferral_period_months": 0,
+                "deferral_type": "none",
+                "direction": "i_owe",
+                "account_id": ca_account_id,
+                "end_date": "2028-03-04"
+            }
+
+            ca_response = self.create_liability_in_api(ca_loan_data)
+            if 200 <= ca_response.status_code < 300:
+                liability_ids["Prêt Etudiant CA"] = ca_response.json()["id"]
+                logger.info(f"Created liability: Prêt Etudiant CA with ID {liability_ids['Prêt Etudiant CA']}")
+            else:
+                logger.error(f"Failed to create CA liability: {ca_response.status_code}, {ca_response.text}")
+        else:
+            # Get existing liability ID
+            for liability in existing_liabilities:
+                if liability["name"] == "Prêt Etudiant CA":
+                    liability_ids["Prêt Etudiant CA"] = liability["id"]
+                    break
+
+        if not ce_loan_exists and ce_account_id:
+            # Create CE loan
+            ce_loan_data = {
+                "name": "Prêt Etudiant CE",
+                "description": "",
+                "liability_type": "total_deferred_loan",
+                "deferral_period_months": 60,
+                "deferral_type": "total",
+                "principal_amount": 20000,
+                "interest_rate": 2.3,
+                "start_date": "2025-05-05",
+                "compounding_period": "monthly",
+                "payment_frequency": "monthly",
+                "direction": "i_owe",
+                "account_id": ce_account_id,
+                "end_date": "2035-05-05"
+            }
+
+            ce_response = self.create_liability_in_api(ce_loan_data)
+            if 200 <= ce_response.status_code < 300:
+                liability_ids["Prêt Etudiant CE"] = ce_response.json()["id"]
+                logger.info(f"Created liability: Prêt Etudiant CE with ID {liability_ids['Prêt Etudiant CE']}")
+            else:
+                logger.error(f"Failed to create CE liability: {ce_response.status_code}, {ce_response.text}")
+        else:
+            # Get existing liability ID
+            for liability in existing_liabilities:
+                if liability["name"] == "Prêt Etudiant CE":
+                    liability_ids["Prêt Etudiant CE"] = liability["id"]
+                    break
+
+        return liability_ids
+
+    def link_transactions_to_liabilities(self, file_path: str):
+        """Find relevant transactions and link them to the corresponding liabilities as payments.
+
+        Args:
+            file_path: Path to the CSV file with transactions
+        """
+        # Create liabilities if they don't exist
+        liability_ids = self.create_specific_liabilities()
+        if not liability_ids:
+            logger.error("No liabilities found or created. Cannot link transactions.")
+            return
+
+        # Load transactions from CSV
+        df = pd.read_csv(file_path)
+
+        # Get existing transactions from API
+        existing_transactions = self.get_transactions_from_api(999999).json().get("items", [])
+
+        # Get existing liability payments to avoid duplicates
+        all_liability_payments = self.get_liability_payments_from_api()
+
+        # Find CA loan transactions
+        ca_loan_transactions = df[
+            (df["destination_name"] == "Prêt Etudiant CA") |
+            ((df["source_name"] == "Prêt Etudiant CA") & (df["description"].str.contains("REALISATION DE PRET", na=False)))
+        ]
+
+        # Find CE loan transactions
+        ce_loan_transactions = df[
+            (df["destination_name"] == "Prêt Etudiant CE") |
+            ((df["source_name"] == "Prêt Etudiant CE") & (df["description"].str.contains("BPCE FINANCEMENT", na=False)))
+        ]
+
+        # Process CA loan transactions
+        ca_loan_id = liability_ids.get("Prêt Etudiant CA")
+        if ca_loan_id:
+            # Get amortization schedule for CA loan
+            ca_amortization = self.get_liability_by_id(ca_loan_id).get("amortization_schedule", [])
+            ca_schedule_map = {item["payment_date"]: item for item in ca_amortization}
+
+            for _, row in ca_loan_transactions.iterrows():
+                # Find the transaction ID in the existing transactions
+                transaction_id = None
+                transaction_amount = abs(float(row["amount"]))
+                transaction_date = row["date"][:10]
+
+                for existing_tx in existing_transactions:
+                    if (existing_tx["date"] == transaction_date and
+                        abs(abs(existing_tx["amount"]) - transaction_amount) < 0.01):
+                        transaction_id = existing_tx["id"]
+                        break
+
+                if transaction_id:
+                    # Check if this payment already exists
+                    if not any(
+                        payment["liability_id"] == ca_loan_id and
+                        payment["transaction_id"] == transaction_id
+                        for payment in all_liability_payments
+                    ):
+                        # Find matching schedule entry
+                        schedule_entry = ca_schedule_map.get(transaction_date)
+
+                        # If no exact match, look for entries within a 5-day window
+                        if not schedule_entry:
+                            transaction_date_obj = datetime.strptime(transaction_date, "%Y-%m-%d").date()
+                            for schedule_date, entry in ca_schedule_map.items():
+                                schedule_date_obj = datetime.strptime(schedule_date, "%Y-%m-%d").date()
+                                if abs((schedule_date_obj - transaction_date_obj).days) <= 5:
+                                    schedule_entry = entry
+                                    break
+
+                        # Use schedule amounts if available, otherwise use defaults
+                        if schedule_entry:
+                            principal_amount = schedule_entry["principal_amount"]
+                            interest_amount = schedule_entry["interest_amount"]
+                            extra_payment = schedule_entry.get("extra_payment", 0.0)
+                        else:
+                            # Fallback to simple split if no schedule entry found
+                            principal_amount = transaction_amount
+                            interest_amount = 0
+                            extra_payment = 0
+
+                        # Create payment
+                        payment_data = {
+                            "liability_id": ca_loan_id,
+                            "payment_date": transaction_date,
+                            "amount": transaction_amount,
+                            "principal_amount": principal_amount,
+                            "interest_amount": interest_amount,
+                            "extra_payment": extra_payment,
+                            "transaction_id": transaction_id
+                        }
+                        print(f"{payment_data=}")
+
+                        payment_response = self.record_liability_payment(payment_data)
+                        if 200 <= payment_response.status_code < 300:
+                            logger.info(f"Recorded payment for CA loan: {transaction_amount} on {transaction_date} (Principal: {principal_amount}, Interest: {interest_amount})")
+                        else:
+                            logger.error(f"Failed to record CA payment: {payment_response.status_code}, {payment_response.text}")
+
+        # Process CE loan transactions
+        ce_loan_id = liability_ids.get("Prêt Etudiant CE")
+        if ce_loan_id:
+            # Get amortization schedule for CE loan
+            ce_amortization = self.get_liability_by_id(ce_loan_id).get("amortization_schedule", [])
+            ce_schedule_map = {item["payment_date"]: item for item in ce_amortization}
+
+            for _, row in ce_loan_transactions.iterrows():
+                # Find the transaction ID in the existing transactions
+                transaction_id = None
+                transaction_amount = abs(float(row["amount"]))
+                transaction_date = row["date"][:10]
+
+                for existing_tx in existing_transactions:
+                    if (existing_tx["date"] == transaction_date and
+                        abs(abs(existing_tx["amount"]) - transaction_amount) < 0.01):
+                        transaction_id = existing_tx["id"]
+                        break
+
+                if transaction_id:
+                    # Check if this payment already exists
+                    if not any(
+                        payment["liability_id"] == ce_loan_id and
+                        payment["transaction_id"] == transaction_id
+                        for payment in all_liability_payments
+                    ):
+                        # Find matching schedule entry
+                        schedule_entry = ce_schedule_map.get(transaction_date)
+
+                        # If no exact match, look for entries within a 5-day window
+                        if not schedule_entry:
+                            transaction_date_obj = datetime.strptime(transaction_date, "%Y-%m-%d").date()
+                            for schedule_date, entry in ce_schedule_map.items():
+                                schedule_date_obj = datetime.strptime(schedule_date, "%Y-%m-%d").date()
+                                if abs((schedule_date_obj - transaction_date_obj).days) <= 5:
+                                    schedule_entry = entry
+                                    break
+
+                        # Use schedule amounts if available, otherwise use defaults
+                        if schedule_entry:
+                            principal_amount = schedule_entry["principal_amount"]
+                            interest_amount = schedule_entry["interest_amount"]
+                            extra_payment = schedule_entry.get("extra_payment", 0.0)
+                        else:
+                            # Fallback to simple split if no schedule entry found
+                            principal_amount = transaction_amount
+                            interest_amount = 0
+                            extra_payment = 0
+
+                        # Create payment
+                        payment_data = {
+                            "liability_id": ce_loan_id,
+                            "payment_date": transaction_date,
+                            "amount": transaction_amount,
+                            "principal_amount": principal_amount,
+                            "interest_amount": interest_amount,
+                            "extra_payment": extra_payment,
+                            "transaction_id": transaction_id
+                        }
+
+                        payment_response = self.record_liability_payment(payment_data)
+                        if 200 <= payment_response.status_code < 300:
+                            logger.info(f"Recorded payment for CE loan: {transaction_amount} on {transaction_date} (Principal: {principal_amount}, Interest: {interest_amount})")
+                        else:
+                            logger.error(f"Failed to record CE payment: {payment_response.status_code}, {payment_response.text}")
+
+    def get_liability_payments_from_api(self) -> list[dict[str, Any]]:
+        """Fetch all liability payments from the API."""
+        url = f"{self.base_url}/liability_payments?per_page=1000"
+        headers = {
+            "Authorization": f"Bearer {self.jwt_token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()["items"]
+        logger.error(f"Failed to retrieve liability payments: {response.status_code}, {response.text}")
+        return []
 
     @staticmethod
     def handle_transaction_type(transaction_type: str) -> str:
@@ -565,12 +896,43 @@ class WealthManagerApi:
             "Content-Type": "application/json",
         }
         response = requests.get(url, headers=headers)
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
             return response.json().get("items", [])
-        logging.error(
+        logger.error(
             f"Failed to retrieve dividend transactions: {response.status_code}, {response.text}"
         )
         return []
+
+    def get_liability_by_id(self, liability_id: int) -> dict[str, Any]:
+        """Get a liability by ID with its amortization schedule.
+
+        Args:
+            liability_id (int): The ID of the liability to fetch
+
+        Returns:
+            dict[str, Any]: The liability data with amortization schedule
+        """
+        url = f"{self.base_url}/liabilities/{liability_id}"
+        headers = {
+            "Authorization": f"Bearer {self.jwt_token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            liability_data = response.json()
+
+            # Get amortization schedule
+            schedule_url = f"{self.base_url}/liabilities/{liability_id}/amortization"
+            schedule_response = requests.get(schedule_url, headers=headers)
+            if schedule_response.status_code == 200:
+                liability_data["amortization_schedule"] = schedule_response.json()
+            else:
+                logger.error(f"Failed to get amortization schedule: {schedule_response.status_code}, {schedule_response.text}")
+                liability_data["amortization_schedule"] = []
+
+            return liability_data
+        logger.error(f"Failed to get liability: {response.status_code}, {response.text}")
+        return {}
 
 
 def process_investment_csv(
@@ -606,21 +968,19 @@ def process_investment_csv(
         }
         response = requests.get(url, headers=headers)
         existing_investments = deduplicate_investments(response.json().get("items", []))
-        logging.info(
+        logger.info(
             f"Existing investment transactions: length {len(existing_investments)}"
         )
         if existing_investments:
-            logging.info(
+            logger.info(
                 f"Sample existing investment structure: {existing_investments[0]}"
             )
 
         # Get existing dividends
         existing_dividends = wealthmanager_api.get_dividend_transactions()
-        logging.info(
-            f"Existing dividend transactions: length {len(existing_dividends)}"
-        )
+        logger.info(f"Existing dividend transactions: length {len(existing_dividends)}")
         if existing_dividends:
-            logging.info(f"Sample existing dividend structure: {existing_dividends[0]}")
+            logger.info(f"Sample existing dividend structure: {existing_dividends[0]}")
 
     # Account details
     if "cto" in account_name.lower():
@@ -630,7 +990,7 @@ def process_investment_csv(
         account_type = account_name_type_mapping.get(account_name, "investment")
         cash_account_name = "Boursorama Espèce PEA"
     else:
-        logging.error(f"Unknown account type: {account_name}")
+        logger.error(f"Unknown account type: {account_name}")
         return
 
     # Get account IDs if we have an API connection (needed for checking what would be missing)
@@ -726,17 +1086,17 @@ def process_investment_csv(
                                 investment_data
                             )
                         )
-                        if response.status_code == 201:
-                            logging.info(
+                        if 200 <= response.status_code < 300:
+                            logger.info(
                                 f"Created investment transaction: {investment_data['activity_type']} "
                                 f"{investment_data['quantity']} {row['symbol']} @ {investment_data['unit_price']}"
                             )
                         else:
-                            logging.error(
+                            logger.error(
                                 f"Failed to create investment transaction: {response.text} {investment_data}"
                             )
                     except Exception as e:
-                        logging.exception(f"Error creating investment transaction: {e}")
+                        logger.exception(f"Error creating investment transaction: {e}")
 
             else:
                 already_exists += 1
@@ -786,8 +1146,8 @@ def fetch_and_filter_transactions(
             )
             existing_transactions = existing_transactions_response.get("items", [])
             existing_accounts = wealthmanager_api.get_accounts_from_api()
-            logging.info(f"Existing transactions: length {len(existing_transactions)}")
-            logging.info(f"Existing accounts: length {len(existing_accounts)}")
+            logger.info(f"Existing transactions: length {len(existing_transactions)}")
+            logger.info(f"Existing accounts: length {len(existing_accounts)}")
 
         print(f"First 10 transactions: {df.head(10)}")
 
@@ -895,10 +1255,10 @@ def fetch_and_filter_transactions(
                         ]
                         for future in concurrent.futures.as_completed(futures):
                             response = future.result()
-                            if response.status_code == 201:
-                                logging.info(f"Created transaction: {response.json()}")
+                            if 200 <= response.status_code < 300:
+                                logger.info(f"Created transaction: {response.json()}")
                             else:
-                                logging.error(
+                                logger.error(
                                     f"Failed to create transaction: {response.text}"
                                 )
                     print(
@@ -915,9 +1275,9 @@ def fetch_and_filter_transactions(
                 )
 
     except FileNotFoundError:
-        logging.exception(f"Error: The file '{file_path}' was not found.")
+        logger.exception(f"Error: The file '{file_path}' was not found.")
     except Exception as e:
-        logging.exception(f"An error occurred: {e}")
+        logger.exception(f"An error occurred: {e}")
         raise
 
 
@@ -983,7 +1343,7 @@ def process_batch(
             if account_id:
                 account_ids[f"{name}|{acc_type}"] = account_id
         except Exception as e:
-            logging.exception(f"Error getting account ID for {name}|{acc_type}: {e}")
+            logger.exception(f"Error getting account ID for {name}|{acc_type}: {e}")
 
     # Process each transaction in the batch
     for _, row in batch.iterrows():
@@ -1014,25 +1374,43 @@ def process_batch(
             f"{row['destination_name']}|{destination_account_type}"
         )
 
-        if not source_account_id or not destination_account_id:
-            logging.warning(
-                f"Skipping transaction due to missing account IDs: {row['source_name']}|{source_account_type} -> {row['destination_name']}|{destination_account_type}"
-            )
-            continue
-
         # Handle special cases for transaction types
         if row["destination_name"] == "Prêt Etudiant CA":
+            print(f"{transaction_type=} {destination_account_id=}")
             transaction_type = "transfer"
-            destination_account_id = account_ids.get("Prêt Etudiant CA|savings")
+            destination_account_id = account_ids.get("Prêt Etudiant CA|loan")
+            print(f"{transaction_type=} {destination_account_id=}")
         elif row["destination_name"] == "Solde initial du compte Prêt Etudiant CA":
-            transaction_type = "expense"
-            destination_account_id = account_ids.get(
-                "Solde initial du compte Prêt Etudiant CA|expense"
-            )
-            print(f"{row['description']=}")
+            # transaction_type = "expense"
+            # destination_account_id = account_ids.get(
+            #     "Solde initial du compte Prêt Etudiant CA|expense"
+            # )
+            # print(f"{row['description']=}")
+            continue
+        elif row["destination_name"] == "Prêt Etudiant CE":
+            transaction_type = "transfer"
+            destination_account_id = account_ids.get("Prêt Etudiant CE|loan")
+        elif row["destination_name"] == 'Balance initiale pour "Prêt Etudiant CE"':
+            # transaction_type = "expense"
+            # destination_account_id = account_ids.get(
+            #     'Balance initiale pour "Prêt Etudiant CE"|expense'
+            # )
+            continue
+        elif "REALISATION DE PRET" in row["description"]:
+            transaction_type = "transfer"
+            source_account_id = account_ids.get("Prêt Etudiant CA|loan")
+        elif "BPCE FINANCEMENT" in row["description"]:
+            transaction_type = "transfer"
+            source_account_id = account_ids.get("Prêt Etudiant CE|loan")
         else:
             transaction_type = wealthmanager_api.handle_transaction_type(row["type"])
 
+        if not source_account_id or not destination_account_id:
+            logger.warning(
+                f"Skipping transaction due to missing account IDs: {row['source_name']}|{source_account_type} : {source_account_id} -> {row['destination_name']}|{destination_account_type} : {destination_account_id}"
+            )
+            exit(1)
+            continue
         # Check if transaction already exists
         # print(existing_transactions)
         is_missing = not any(
@@ -1148,6 +1526,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--user-name", default="Alan J", help="User name for WealthManager API"
     )
+    parser.add_argument(
+        "--create-liabilities", action="store_true",
+        help="Create predefined liabilities (Prêt Etudiant CA and CE)"
+    )
+    parser.add_argument(
+        "--link-liability-payments", action="store_true",
+        help="Link transactions to liabilities as payments"
+    )
 
     args = parser.parse_args()
 
@@ -1173,9 +1559,25 @@ if __name__ == "__main__":
         account_name = f"Boursorama {args.investment_account}"
         process_investment_csv(csv_data, account_name, api)
         print(f"Processed investment transactions for {account_name}")
-    else:
-        fetch_and_filter_transactions(args.csv_file, api, args.sync)
-        print(f"Processed transactions from {args.csv_file}")
+
+    # Only run this if no other operation was specified
+    # fetch_and_filter_transactions(args.csv_file, api, args.sync)
+    print(f"Processed transactions from {args.csv_file}")
+
+    # if args.create_liabilities:
+    #     if api.sync_enabled:
+    #         print("Creating predefined liabilities...")
+    #         liability_ids = api.create_specific_liabilities()
+    #         print(f"Liability IDs: {liability_ids}")
+    #     else:
+    #         print("DRY RUN - Would create predefined liabilities (use --sync to create)")
+
+    if args.link_liability_payments:
+        if api.sync_enabled:
+            print(f"Linking transactions from {args.csv_file} to liabilities as payments...")
+            api.link_transactions_to_liabilities(args.csv_file)
+        else:
+            print("DRY RUN - Would link transactions to liabilities (use --sync to create)")
 
     if args.sync:
         print("Data has been synced to the WealthManager API.")

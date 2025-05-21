@@ -6,11 +6,11 @@ import {
   useTransactions,
 } from "@/api/queries"
 import { AccountBalanceChart } from "@/components/accounts/AccountBalanceChart"
+import { AccountForm } from "@/components/accounts/AccountForm"
 import { DeleteAccountDialog } from "@/components/accounts/DeleteAccountDialog"
-import { EditAccountDialog } from "@/components/accounts/EditAccountDialog"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog"
-import { EditTransactionDialog } from "@/components/transactions/EditTransactionDialog"
+import { TransactionForm } from "@/components/transactions/TransactionForm"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils"
 import { accountDetailRoute } from "@/Router"
 import { Account, Bank, Transaction } from "@/types"
 import { useNavigate, useRouter } from "@tanstack/react-router"
-import { ArrowLeft, ExternalLink, Pencil, Trash } from "lucide-react"
+import { ArrowLeft, ExternalLink, Pencil, Plus, Trash } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export function AccountDetailPage() {
@@ -58,16 +58,18 @@ export function AccountDetailPage() {
     per_page: 6,
     id: [
       ...new Set(
-        recentTransactions
-          .map(transaction => transaction.from_account_id)
-          .concat(
-            recentTransactions.map(transaction => transaction.to_account_id)
-          )
+        [accountId].concat(
+          recentTransactions
+            .map(transaction => transaction.from_account_id)
+            .concat(
+              recentTransactions.map(transaction => transaction.to_account_id)
+            )
+        )
       ),
-    ],
+    ].filter(id => id != null),
   })
 
-  const { data: balanceHistory } = useAccountBalanceHistory(accountId)
+  const { data: balanceHistory, isLoading: isLoadingBalanceHistory } = useAccountBalanceHistory(accountId)
 
   const getAccountName = (accountId: number) => {
     const account = accountsResponse?.items?.find(
@@ -140,7 +142,7 @@ export function AccountDetailPage() {
     }
   }, [selectedTransactionId, recentTransactions, navigate])
 
-  if (isLoadingAccounts) {
+  if (isLoadingAccounts || isLoadingBalanceHistory) {
     return (
       <PageContainer>
         <div className="space-y-6">
@@ -165,6 +167,81 @@ export function AccountDetailPage() {
             Back
           </Button>
         </div>
+      </PageContainer>
+    )
+  }
+
+  // Handle new account with no transactions or balance history
+  if (recentTransactions.length === 0 && balanceHistory && balanceHistory.length === 0) {
+    return (
+      <PageContainer key={accountId}>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={() => router.history.back()}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-2xl font-semibold flex items-center gap-3">
+                <span className="text-3xl">
+                  {
+                    ACCOUNT_TYPE_ICONS[
+                      account.type as keyof typeof ACCOUNT_TYPE_ICONS
+                    ]
+                  }
+                </span>
+                {account.name}
+              </h1>
+              <p className="text-muted-foreground">
+                {
+                  ACCOUNT_TYPE_LABELS[
+                    account.type as keyof typeof ACCOUNT_TYPE_LABELS
+                  ]
+                }
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <Button onClick={() => setIsEditingAccount(true)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit Account
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="group hover:bg-destructive/90 transition-colors"
+              onClick={() => account && setDeletingAccount(account)}
+            >
+              <Trash className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+              Delete Account
+            </Button>
+          </div>
+        </div>
+        <div className="text-center py-12 border rounded-lg bg-card">
+          <h2 className="text-xl font-semibold mb-3">Welcome to your new account!</h2>
+          <p className="text-muted-foreground mb-6">
+            It looks like there's no transaction or balance history yet.
+          </p>
+          <Button onClick={() => navigate({ to: "/transactions/all", search: { accountId: account.id.toString(), openAddDialog: true }})}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add your first transaction
+          </Button>
+        </div>
+
+        {isEditingAccount && (
+          <AccountForm
+            account={account}
+            open={isEditingAccount}
+            onOpenChange={open => !open && setIsEditingAccount(false)}
+          />
+        )}
+
+        <DeleteAccountDialog
+          account={deletingAccount}
+          open={!!deletingAccount}
+          onOpenChange={open => !open && setDeletingAccount(null)}
+          redirectTo="/accounts"
+        />
       </PageContainer>
     )
   }
@@ -324,7 +401,7 @@ export function AccountDetailPage() {
                   {account.type === "income" && (
                     <TableHead>To Account</TableHead>
                   )}
-                  {["checking", "savings", "investment"].includes(
+                  {["checking", "savings", "investment", "loan"].includes(
                     account.type
                   ) && <TableHead>Related Account</TableHead>}
                   <TableHead>Description</TableHead>
@@ -399,7 +476,7 @@ export function AccountDetailPage() {
                           </Button>
                         </TableCell>
                       )}
-                      {["checking", "savings", "investment"].includes(
+                      {["checking", "savings", "investment", "loan"].includes(
                         account.type
                       ) && (
                         <TableCell>
@@ -495,30 +572,31 @@ export function AccountDetailPage() {
           </div>
         </div>
 
-        {editingTransaction && (
-          <EditTransactionDialog
-            transaction={editingTransaction}
-            open={!!editingTransaction}
-            onOpenChange={open => !open && setEditingTransaction(null)}
-          />
-        )}
+        <TransactionForm
+          open={!!editingTransaction}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setEditingTransaction(null)
+            }
+          }}
+          transaction={editingTransaction || undefined}
+          redirectTo={`/accounts/${accountId}`}
+        />
 
-        {deletingTransaction && (
-          <DeleteTransactionDialog
-            transaction={deletingTransaction}
-            open={!!deletingTransaction}
-            onOpenChange={open => !open && setDeletingTransaction(null)}
-            onConfirmDelete={transaction => {
-              // Handle delete mutation here
-              setDeletingTransaction(null)
-            }}
-            isDeleting={false}
-          />
-        )}
+        <DeleteTransactionDialog
+          transaction={deletingTransaction}
+          open={!!deletingTransaction}
+          onOpenChange={open => !open && setDeletingTransaction(null)}
+          onConfirmDelete={transaction => {
+            // Handle delete mutation here
+            setDeletingTransaction(null)
+          }}
+          isDeleting={false}
+        />
 
         {/* Edit Account Dialog */}
         {isEditingAccount && (
-          <EditAccountDialog
+          <AccountForm
             account={account}
             open={isEditingAccount}
             onOpenChange={open => !open && setIsEditingAccount(false)}

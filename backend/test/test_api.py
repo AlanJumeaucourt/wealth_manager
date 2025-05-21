@@ -50,7 +50,7 @@ class AccountData(TypedDict):
 
 
 # Add new type alias for account types
-AccountType = Literal["checking", "savings", "investment", "expense", "income"]
+AccountType = Literal["checking", "savings", "investment", "expense", "income", "loan"]
 
 
 class TestBase(unittest.TestCase):
@@ -1062,7 +1062,7 @@ class TestAccountAPI(TestBase):
 
     def test_create_account_types(self):
         """Test creating different types of accounts"""
-        account_types = ["checking", "savings", "investment", "expense", "income"]
+        account_types = ["checking", "savings", "investment", "expense", "income", "loan"]
         for acc_type in account_types:
             account_id = self.create_account(acc_type, self.bank_id)
             self.accounts.append(account_id)

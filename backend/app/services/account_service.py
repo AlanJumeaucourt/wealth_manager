@@ -1,11 +1,12 @@
+import logging
 from typing import Any
 
 from app.exceptions import NoResultFoundError
 from app.models import Account
 from app.services.base_service import BaseService, ListQueryParams
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 class AccountService(BaseService):
     def __init__(self) -> None:
@@ -30,7 +31,9 @@ class AccountService(BaseService):
 
             # Add market value for investment accounts
             if account["type"] == "investment":
-                account["market_value"] = self.calculate_market_value(account_id=account["id"])
+                account["market_value"] = self.calculate_market_value(
+                    account_id=account["id"]
+                )
             else:
                 account["market_value"] = None
 
@@ -54,7 +57,7 @@ class AccountService(BaseService):
         """Calculate the market value of all assets in an investment account."""
         try:
             # Get all assets owned in this account using the new view
-            query = """
+            query = """ --sql
             SELECT
                 aba.asset_id,
                 aba.symbol,
@@ -70,6 +73,7 @@ class AccountService(BaseService):
 
             # Import here to avoid circular imports
             from app.services.stock_service import StockService
+
             stock_service = StockService()
 
             total_market_value = 0.0
@@ -89,7 +93,9 @@ class AccountService(BaseService):
             return round(total_market_value, 2)
 
         except Exception as e:
-            logger.warning(f"Error calculating market value for account {account_id}: {e}")
+            logger.warning(
+                f"Error calculating market value for account {account_id}: {e}"
+            )
             return None
 
     def sum_accounts_balances_over_days(
@@ -116,15 +122,15 @@ class AccountService(BaseService):
                 SELECT
                     dr.date,
                     COALESCE(SUM(CASE
-                        WHEN t.type = 'income' AND t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN t.amount
-                        WHEN t.type = 'expense' AND t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment')) THEN -t.amount
+                        WHEN t.type = 'income' AND t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment', 'loan')) THEN t.amount
+                        WHEN t.type = 'expense' AND t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment', 'loan')) THEN -t.amount
                         WHEN t.type = 'transfer' THEN (
                             CASE
-                                WHEN t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment'))
-                                AND t.from_account_id NOT IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment'))
+                                WHEN t.to_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment', 'loan'))
+                                AND t.from_account_id NOT IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment', 'loan'))
                                 THEN t.amount
-                                WHEN t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment'))
-                                AND t.to_account_id NOT IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment'))
+                                WHEN t.from_account_id IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment', 'loan'))
+                                AND t.to_account_id NOT IN (SELECT id FROM accounts WHERE user_id = ? AND type IN ('checking', 'savings', 'investment', 'loan'))
                                 THEN -t.amount
                                 ELSE 0
                             END
@@ -214,7 +220,7 @@ class AccountService(BaseService):
     def get_wealth(self, user_id: int) -> dict[str, Any]:
         query = """--sql
         SELECT
-            SUM(CASE WHEN type IN ('checking', 'savings', 'investment') THEN
+            SUM(CASE WHEN type IN ('checking', 'savings', 'investment', 'loan') THEN
                 (SELECT COALESCE(SUM(CASE
                     WHEN t.type = 'income' AND t.to_account_id = a.id THEN t.amount
                     WHEN t.type = 'expense' AND t.from_account_id = a.id THEN -t.amount
@@ -249,7 +255,16 @@ class AccountService(BaseService):
                     WHEN t.type = 'transfer' AND t.from_account_id = a.id THEN -t.amount
                     ELSE 0
                 END), 0) FROM transactions t WHERE t.from_account_id = a.id OR t.to_account_id = a.id)
-            ELSE 0 END) as investment_balance
+            ELSE 0 END) as investment_balance,
+            SUM(CASE WHEN type = 'loan' THEN
+                (SELECT COALESCE(SUM(CASE
+                    WHEN t.type = 'income' AND t.to_account_id = a.id THEN t.amount
+                    WHEN t.type = 'expense' AND t.from_account_id = a.id THEN -t.amount
+                    WHEN t.type = 'transfer' AND t.to_account_id = a.id THEN t.amount
+                    WHEN t.type = 'transfer' AND t.from_account_id = a.id THEN -t.amount
+                    ELSE 0
+                END), 0) FROM transactions t WHERE t.from_account_id = a.id OR t.to_account_id = a.id)
+            ELSE 0 END) as loan_balance
         FROM accounts a
         WHERE a.user_id = ?
         """

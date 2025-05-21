@@ -1,18 +1,18 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { DatePicker } from "@/components/ui/datePicker"
 import { Separator } from "@/components/ui/separator"
 import {
-    SidebarInset,
-    SidebarProvider,
-    SidebarTrigger,
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Toaster } from "@/components/ui/toaster"
 import { AccountDetailPage } from "@/pages/AccountDetailPage"
@@ -20,15 +20,17 @@ import { AccountsPage } from "@/pages/AccountsPage"
 import Categories from "@/pages/Categories"
 import GoCardlessAccounts from "@/pages/GoCardlessAccounts"
 import { InvestmentDetailPage } from "@/pages/InvestmentDetailPage"
+import Liabilities from "@/pages/Liabilities"
+import LiabilityDetail from "@/pages/LiabilityDetail"
 import { Welcome } from "@/pages/Welcome"
 import { useDateRangeStore } from "@/store/dateRangeStore"
 import {
-    Outlet,
-    RootRoute,
-    Route,
-    Router,
-    redirect,
-    useRouter,
+  Outlet,
+  RootRoute,
+  Route,
+  Router,
+  redirect,
+  useRouter,
 } from "@tanstack/react-router"
 import { parse } from "date-fns"
 import { useEffect, useState } from "react"
@@ -233,7 +235,7 @@ const accountsAllRoute = new Route({
 const accountsRegularRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/accounts/regular",
-  component: () => <AccountsPage defaultType="checking,savings,investment" />,
+  component: () => <AccountsPage defaultType="owned" />,
 })
 
 const accountsExpenseRoute = new Route({
@@ -456,6 +458,24 @@ const exportImportRoute = new Route({
   component: ExportImportPage,
 })
 
+// Liabilities routes
+const liabilitiesRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/liabilities",
+  component: Liabilities,
+})
+
+const liabilityDetailRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/liabilities/$liabilityId",
+  component: LiabilityDetail,
+  load: async ({ params: { liabilityId } }: { params: { liabilityId: number } }) => {
+    return {
+      liabilityId: liabilityId,
+    }
+  },
+})
+
 // Define the route tree
 export const routeTree = rootRoute.addChildren([
   landingRoute,
@@ -463,6 +483,7 @@ export const routeTree = rootRoute.addChildren([
   authenticatedLayout.addChildren([
     dashboardRoute,
     // Accounts routes
+    accountsIndexRoute,
     accountsAllRoute,
     accountsRegularRoute,
     accountsExpenseRoute,
@@ -470,6 +491,7 @@ export const routeTree = rootRoute.addChildren([
     gocardlessAccountsRoute,
     accountDetailRoute,
     // Transactions routes
+    transactionsIndexRoute,
     transactionsAllRoute,
     transactionsIncomeRoute,
     transactionsExpenseRoute,
@@ -492,6 +514,9 @@ export const routeTree = rootRoute.addChildren([
     goCardlessCallbackRoute,
     // Export/Import route
     exportImportRoute,
+    // Liabilities routes
+    liabilitiesRoute,
+    liabilityDetailRoute,
   ]),
 ])
 

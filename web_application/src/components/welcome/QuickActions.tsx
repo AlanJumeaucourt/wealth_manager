@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, CreditCard, Receipt, BarChart4, ArrowRightLeft, CreditCard as CreditCardIcon } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArrowRightLeft, BarChart4, PlusCircle, Receipt } from "lucide-react"
 
 interface QuickActionsProps {
   navigate: (to: string) => void
@@ -11,7 +11,7 @@ export function QuickActions({ navigate }: QuickActionsProps) {
     {
       name: "Add Account",
       icon: <PlusCircle className="h-5 w-5 mr-2" />,
-      onClick: () => navigate("/accounts/all"),
+      onClick: () => navigate("/accounts/all?openAddDialog=true"),
       variant: "default" as const
     },
     {
@@ -23,7 +23,7 @@ export function QuickActions({ navigate }: QuickActionsProps) {
     {
       name: "Add Transaction",
       icon: <Receipt className="h-5 w-5 mr-2" />,
-      onClick: () => navigate("/transactions/all"),
+      onClick: () => navigate("/transactions/all?openAddDialog=true"),
       variant: "outline" as const
     },
     {

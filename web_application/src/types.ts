@@ -1,39 +1,14 @@
-export interface Bank {
-  id: number
-  name: string
-  website?: string
-}
-
-export interface Account {
-  id: number
-  name: string
-  type: "checking" | "expense" | "income" | "investment" | "savings"
-  balance: number
-  bank_id: number
-  market_value: number
-}
-
-export interface Transaction {
-  id: number
-  date: string
-  date_accountability: string
-  description: string
-  amount: number
-  from_account_id: number
-  to_account_id: number
-  type: "expense" | "income" | "transfer"
-  category: string
-  subcategory?: string
-  refunded_amount: number
-  is_investment: boolean
-  refund_items?: Array<{
-    amount: number;
-    date: string;
-    description: string
-    id: number
-    refund_group_id?: number | null
-  }>
-}
+export * from './types/account';
+export * from './types/asset';
+export * from './types/bank';
+export * from './types/category';
+export * from './types/investment';
+export * from './types/liability';
+export * from './types/portfolio';
+export * from './types/refundGroup';
+export * from './types/refundItem';
+export * from './types/stock';
+export * from './types/transaction';
 
 export interface ApiResponse<T> {
   data: T
@@ -47,70 +22,6 @@ export interface PaginatedResponse<T> {
   per_page: number
 }
 
-export interface CategoryMetadata {
-  color: string
-  iconName: string
-  iconSet: string
-  name: {
-    en: string
-    fr: string
-  }
-  subCategories: Array<{
-    iconName: string
-    iconSet: string
-    name: {
-      en: string
-      fr: string
-    }
-  }> | null
-}
-
-export interface CategorySummary {
-  count: number
-  net_amount: number
-  original_amount: number
-  transactions: Transaction[]
-}
-
-export interface CategoryTotal {
-  net: number
-  original: number
-}
-
-export interface CategorySummarySection {
-  by_category: Record<string, CategorySummary>
-  total: CategoryTotal
-}
-
-export interface CategorySummaryResponse {
-  income: CategorySummarySection
-  expense: CategorySummarySection
-  transfer: CategorySummarySection
-}
-
-export interface SubcategoryData {
-  amount: number
-  subcategory: string | null
-  transactions_related: string[]
-}
-
-export interface CategoryData {
-  amount: number
-  category: string
-  subcategories: SubcategoryData[]
-}
-
-export interface PeriodData {
-  data: CategoryData[]
-  start_date: string
-  end_date: string
-}
-
-export interface PeriodSummaryResponse {
-  period: string
-  summaries: PeriodData[]
-}
-
 export interface PeriodSummary {
   period: string
   income: number
@@ -118,92 +29,7 @@ export interface PeriodSummary {
   net: number
 }
 
-// Refund types
-export interface RefundGroup {
-  id?: number
-  name: string
-  description?: string | null
-}
-
-export interface RefundItem {
-  id?: number
-  amount: number
-  description?: string | null
-  expense_transaction_id: number
-  income_transaction_id: number
-  refund_group_id?: number | null
-}
-
-export interface Investment
-  extends Omit<
-    Transaction,
-    | "id"
-    | "type"
-    | "category"
-    | "subcategory"
-    | "refunded_amount"
-    | "is_investment"
-    | "amount"
-  > {
-  transaction_id: number
-  investment_type: "Buy" | "Sell" | "Deposit" | "Withdrawal" | "Dividend"
-  asset_id: number
-  fee: number
-  quantity: number
-  tax: number
-  total_paid?: number
-  unit_price: number
-  user_id: number
-}
-
-export type TransactionField = "date" | "description" | "category" | "amount"
-
-export type TransactionType = "expense" | "income" | "transfer"
-
 export type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "max"
-
-export interface AssetSummary {
-  avg_buy_price: number
-  cost_basis: number
-  current_price: number
-  current_value: number
-  gain_loss: number
-  gain_loss_percentage: number
-  name: string
-  portfolio_percentage: number
-  shares: number
-  symbol: string
-}
-
-export interface DividendMetrics {
-  current_year_dividends: number
-  dividend_growth: number
-  monthly_income_estimate: number
-  portfolio_yield: number
-  previous_year_dividends: number
-  total_dividends_received: number
-}
-
-export interface PortfolioMetrics {
-  diversification_score: number
-  largest_position_percentage: number
-  number_of_positions: number
-}
-
-export interface PortfolioSummary {
-  assets: AssetSummary[]
-  currency: string
-  dividend_metrics: DividendMetrics
-  initial_investment: number
-  last_update: string
-  metrics: PortfolioMetrics
-  net_investment: number
-  returns_include_dividends: boolean
-  total_gain_loss: number
-  total_gain_loss_percentage: number
-  total_value: number
-  total_withdrawals: number
-}
 
 // User types
 export interface User {
@@ -358,13 +184,62 @@ export interface GoCardlessCredentials {
   secret_key: string
 }
 
-// Add StockPrice interface that was referenced in queries.ts but not defined
-export interface StockPrice {
-  close: number
-  date: string
-  high: number
-  low: number
-  open: number
-  value: number
-  volume: number
+// Liability types
+
+export interface Liability {
+  id: number;
+  user_id: number;
+  name: string;
+  description?: string;
+  liability_type: 'standard_loan' | 'partial_deferred_loan' | 'total_deferred_loan' |
+                  'mortgage' | 'credit_card' | 'line_of_credit' | 'other';
+  principal_amount: number;
+  interest_rate: number;
+  start_date: string;
+  end_date?: string;
+  compounding_period: 'daily' | 'monthly' | 'quarterly' | 'annually';
+  payment_frequency: 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'annually';
+  payment_amount?: number;
+  deferral_period_months: number;
+  deferral_type: 'none' | 'partial' | 'total';
+  direction: 'i_owe' | 'they_owe';
+  account_id?: number;
+  lender_name?: string;
+  created_at?: string;
+  updated_at?: string;
+
+  // Calculated fields from the view
+  principal_paid?: number;
+  interest_paid?: number;
+  remaining_balance?: number;
+  missed_payments_count?: number;
+  next_payment_date?: string;
+}
+
+export interface LiabilityPayment {
+  id: number;
+  user_id: number;
+  liability_id: number;
+  payment_date: string;
+  amount: number;
+  principal_amount: number;
+  interest_amount: number;
+  extra_payment?: number;
+  transaction_id?: number;
+  created_at?: string;
+  updated_at?: string;
+
+  // Enhanced fields returned by the backend
+  transaction?: Transaction & {
+    from_account_name?: string;
+    to_account_name?: string;
+  };
+  liability?: {
+    id: number;
+    name: string;
+    liability_type: string;
+    principal_amount: number;
+    interest_rate: number;
+    payment_frequency: string;
+  };
 }

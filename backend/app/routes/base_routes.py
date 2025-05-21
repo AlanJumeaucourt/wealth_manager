@@ -429,6 +429,8 @@ class BaseRoutes:
 
         item = self.service.create(validated_data)
         if item:
+            return jsonify(item)
+            # TODO(Alan): verify if we really need to schema dump from marshmallow
             return jsonify(self.schema.dump(item)), 201
         return (
             jsonify({"error": f"Failed to create {self.service.table_name}"}),
@@ -488,7 +490,7 @@ class BaseRoutes:
         if item:
             if hasattr(item, "date"):
                 item.date = datetime.fromisoformat(item.date.rstrip("Z"))
-            return jsonify(self.schema.dump(item))
+            return jsonify(item)
         return ("", 404)
 
     @jwt_required()

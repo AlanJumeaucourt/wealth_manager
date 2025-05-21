@@ -6,6 +6,7 @@ export const ACCOUNT_TYPE_ICONS: Record<Account["type"], string> = {
   income: "📥",
   investment: "📈",
   savings: "🏦",
+  loan: "💰",
 }
 
 export const ACCOUNT_TYPE_LABELS: Record<Account["type"], string> = {
@@ -14,4 +15,5 @@ export const ACCOUNT_TYPE_LABELS: Record<Account["type"], string> = {
   income: "Income",
   investment: "Investments",
   savings: "Savings",
+  loan: "Loan",
 }

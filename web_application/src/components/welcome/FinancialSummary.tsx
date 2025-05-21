@@ -12,7 +12,7 @@ interface FinancialSummaryProps {
 
 export function FinancialSummary({ accounts, wealthData, onAccountClick }: FinancialSummaryProps) {
   // Calculate total balance and balances by account type
-  const { totalBalance, checkingBalance, savingsBalance, investmentBalance, monthlyChange, percentChange } = useMemo(() => {
+  const { totalBalance, checkingBalance, savingsBalance, investmentBalance, loanBalance, monthlyChange, percentChange } = useMemo(() => {
     const total = accounts.reduce((sum, account) => sum + account.balance, 0) || 0
     console.log("accounts", accounts)
 
@@ -26,6 +26,10 @@ export function FinancialSummary({ accounts, wealthData, onAccountClick }: Finan
 
     const investment = accounts
       .filter(account => account.type === "investment")
+      .reduce((sum, account) => sum + account.balance, 0) || 0
+
+    const loan = accounts
+      .filter(account => account.type === "loan")
       .reduce((sum, account) => sum + account.balance, 0) || 0
 
     // Calculate monthly change if we have wealth data
@@ -46,6 +50,7 @@ export function FinancialSummary({ accounts, wealthData, onAccountClick }: Finan
       checkingBalance: checking,
       savingsBalance: savings,
       investmentBalance: investment,
+      loanBalance: loan,
       monthlyChange,
       percentChange
     }
@@ -143,6 +148,17 @@ export function FinancialSummary({ accounts, wealthData, onAccountClick }: Finan
                   <TrendingUp className="h-3 w-3 mr-1" /> Investments
                 </p>
                 <p className="text-sm font-medium">{formatCurrency(investmentBalance)}</p>
+              </div>
+              <div
+                className="space-y-1 transition-colors hover:bg-muted/50 p-2 rounded cursor-pointer"
+                onClick={() => handleAccountTypeClick("loan")}
+                role="button"
+                tabIndex={0}
+              >
+                <p className="text-xs text-muted-foreground flex items-center">
+                  <CreditCard className="h-3 w-3 mr-1" /> Loans
+                </p>
+                <p className="text-sm font-medium">{formatCurrency(loanBalance)}</p>
               </div>
             </div>
           </div>

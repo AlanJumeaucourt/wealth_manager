@@ -1,12 +1,11 @@
 import { useAccounts, useAllCategories, useTransactions } from "@/api/queries"
 import { PageContainer } from "@/components/layout/PageContainer"
-import { AddTransactionDialog } from "@/components/transactions/AddTransactionDialog"
 import {
   BatchDeleteResponse,
   BatchDeleteTransactionsButton,
 } from "@/components/transactions/BatchDeleteTransactionsButton"
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog"
-import { EditTransactionDialog } from "@/components/transactions/EditTransactionDialog"
+import { TransactionForm } from "@/components/transactions/TransactionForm"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -744,11 +743,17 @@ const SearchSection = memo(function SearchSection({
 export function TransactionsPage({
   defaultType = "all",
 }: TransactionsPageProps) {
-  const search = useSearch()
+  const { toast } = useToast()
   const navigate = useNavigate()
+  const routerSearch = useSearch()
+
+  // State for AddTransactionDialog
+  const [addTransactionDialogOpen, setAddTransactionDialogOpen] =
+    useState(false)
+  const { editTransaction, setEditTransaction, deleteTransaction, setDeleteTransaction } = useDialogStore();
 
   // Handle search params safely with a type assertion approach
-  const safeSearch = search as Record<string, any>
+  const safeSearch = routerSearch as Record<string, any>
 
   // Safely convert search parameters to arrays with proper type checks
   const accountFilters: string[] = useMemo(() => {
@@ -785,18 +790,23 @@ export function TransactionsPage({
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [selectedTransactions, setSelectedTransactions] = useState<number[]>([]);
   const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
-  const [isAddingTransaction, setIsAddingTransaction] = useState(false);
   const [isEnteringPage, setIsEnteringPage] = useState(false);
   const [manualPageInput, setManualPageInput] = useState("");
   const tableRef = useRef<HTMLTableElement>(null);
-  const { setDeleteTransaction, setEditTransaction } = useDialogStore();
-  const { toast } = useToast();
   const { fromDate, toDate, setDateRange } = useDateRangeStore();
   const { data: allCategories } = useAllCategories();
   const itemsPerPage = 25;
 
+  useEffect(() => {
+    if (safeSearch.openAddDialog === "true" || safeSearch.openAddDialog === true) {
+      setAddTransactionDialogOpen(true);
+      // Optional: remove the query param to prevent re-opening on refresh if not desired
+      // navigate({ search: (prev) => ({ ...prev, openAddDialog: undefined }), replace: true });
+    }
+  }, [safeSearch, navigate]);
+
   const { data: accountsResponse, isLoading: isLoadingAccounts } = useAccounts({
-    type: "checking,savings,investment,income,expense",
+    type: "checking,savings,investment,loan,income,expense",
     per_page: 1000,
     sort_by: "name",
     sort_order: "asc",
@@ -1031,7 +1041,7 @@ export function TransactionsPage({
       parseInt(accountFilters[0]) : undefined, // API limitation: can only filter by one account for now
     category: categoryFilters.length > 0 ?
       categoryFilters[0] : undefined, // API limitation: can only filter by one category for now
-    from_date: fromDate.toISOString().split("T")[0],
+    from_date: "1970-01-01",
     to_date: toDate.toISOString().split("T")[0],
   });
 
@@ -1104,8 +1114,8 @@ export function TransactionsPage({
 
   useKeyboardShortcuts({
     onNew: () => {
-      if (!isAddingTransaction) {
-        setIsAddingTransaction(true)
+      if (!addTransactionDialogOpen) {
+        setAddTransactionDialogOpen(true)
       }
     },
     onEdit: () => {
@@ -1208,7 +1218,7 @@ export function TransactionsPage({
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           isLoadingAccounts={isLoadingAccounts}
-          setIsAddingTransaction={setIsAddingTransaction}
+          setIsAddingTransaction={setAddTransactionDialogOpen}
           selectedTransactions={selectedTransactions}
           transactions={transactions}
           handleBatchDeleteSuccess={handleBatchDeleteSuccess}
@@ -1269,7 +1279,7 @@ export function TransactionsPage({
                       <p>No transactions found</p>
                       <Button
                         variant="link"
-                        onClick={() => setIsAddingTransaction(true)}
+                        onClick={() => setAddTransactionDialogOpen(true)}
                         className="mt-2"
                       >
                         Add your first transaction
@@ -1350,16 +1360,21 @@ export function TransactionsPage({
           </div>
         )}
 
-        <EditTransactionDialog redirectTo="/transactions/all" />
-        <DeleteTransactionDialog redirectTo="/transactions/all" />
+        <TransactionForm
+          open={addTransactionDialogOpen}
+          onOpenChange={setAddTransactionDialogOpen}
+          defaultType={defaultType === "all" ? "expense" : (defaultType as "expense" | "income" | "transfer")}
+        />
 
-        {isAddingTransaction && (
-          <AddTransactionDialog
-            open={isAddingTransaction}
-            onOpenChange={open => !open && setIsAddingTransaction(false)}
-            defaultType={defaultType === "all" ? undefined : defaultType}
-          />
-        )}
+        <TransactionForm
+          open={!!editTransaction}
+          onOpenChange={(isOpen) => {
+            if(!isOpen) setEditTransaction(null);
+          }}
+          transaction={editTransaction || undefined}
+        />
+
+        <DeleteTransactionDialog redirectTo="/transactions/all" />
 
         <Dialog open={isEnteringPage} onOpenChange={setIsEnteringPage}>
           <DialogContent className="sm:max-w-[425px]">

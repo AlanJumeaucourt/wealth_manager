@@ -23,14 +23,16 @@ export function PageContainer({
       )}
     >
       {(title || action) && (
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-6 flex items-center justify-between gap-4">
           {title && (
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           )}
           {action}
         </div>
       )}
-      {children}
+      <div className="p-3">
+        {children}
+      </div>
     </div>
   )
 }

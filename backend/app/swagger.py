@@ -2,7 +2,7 @@ from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
 from flask_swagger_ui import get_swaggerui_blueprint
 
-from .schemas.schema_registry import register_schemas
+from app.schemas.schema_registry import register_schemas
 
 # Create an APISpec
 spec = APISpec(

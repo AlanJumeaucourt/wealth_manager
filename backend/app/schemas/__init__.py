@@ -1,17 +1,21 @@
 from .schema_registry import (
-    TransactionSchema,
+    AccountAssetSchema,
     AccountSchema,
     AssetSchema,
-    AccountAssetSchema,
     BudgetSchema,
     InvestmentSchema,
+    LiabilityPaymentDetailSchema,
+    LiabilitySchema,
+    TransactionSchema,
 )
 
 __all__ = [
-    "TransactionSchema",
+    "AccountAssetSchema",
     "AccountSchema",
     "AssetSchema",
-    "AccountAssetSchema",
     "BudgetSchema",
     "InvestmentSchema",
+    "LiabilityPaymentDetailSchema",
+    "LiabilitySchema",
+    "TransactionSchema",
 ]

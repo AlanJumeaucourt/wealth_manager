@@ -527,11 +527,10 @@ export function Wealth() {
 
   return (
     <PageContainer title="Wealth Overview" action={dateSelector}>
-      <div className="p-3 sm:p-6 space-y-6 w-full">
         {isLoading ? (
           <WealthSkeleton />
         ) : (
-          <>
+          <div className="flex flex-col gap-6">
             {/* Wealth Evolution Chart */}
             <WealthSummary startDate={startDate} endDate={endDate} />
 
@@ -579,9 +578,8 @@ export function Wealth() {
                 )}
               </CardContent>
             </Card>
-          </>
+          </div>
         )}
-      </div>
     </PageContainer>
   )
 }
