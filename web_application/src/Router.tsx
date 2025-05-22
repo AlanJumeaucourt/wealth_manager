@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar"
+import { CommandPalette } from "@/components/CommandPalette"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -201,6 +202,7 @@ function Root() {
   return (
     <>
       <Outlet />
+      <CommandPalette />
       <Toaster />
     </>
   )

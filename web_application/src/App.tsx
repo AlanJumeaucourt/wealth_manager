@@ -1,7 +1,9 @@
 import { KeyboardShortcutsProvider } from "@/contexts/keyboard-shortcuts-context"
+import { CommandPaletteProvider } from "@/hooks/useCommandPalette"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { RouterProvider } from "@tanstack/react-router"
+
 // Create a client
 const queryClient = new QueryClient()
 
@@ -11,7 +13,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <KeyboardShortcutsProvider>
-        <RouterProvider router={router} />
+        <CommandPaletteProvider>
+          <RouterProvider router={router} />
+        </CommandPaletteProvider>
       </KeyboardShortcutsProvider>
       <ReactQueryDevtools initialIsOpen />
     </QueryClientProvider>
