@@ -1,9 +1,9 @@
 import concurrent.futures
 import logging
 import time  # Added for cache expiration
+from datetime import datetime
 from io import StringIO
 from typing import Any, TypedDict
-from datetime import datetime
 
 import pandas as pd
 import requests
@@ -526,10 +526,14 @@ class WealthManagerApi:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json()["items"]
-        logger.error(f"Failed to retrieve liabilities: {response.status_code}, {response.text}")
+        logger.error(
+            f"Failed to retrieve liabilities: {response.status_code}, {response.text}"
+        )
         return []
 
-    def record_liability_payment(self, payment_data: dict[str, Any]) -> requests.Response:
+    def record_liability_payment(
+        self, payment_data: dict[str, Any]
+    ) -> requests.Response:
         """Record a liability payment.
 
         Args:
@@ -544,6 +548,7 @@ class WealthManagerApi:
 
         Returns:
             requests.Response: API response
+
         """
         url = f"{self.base_url}/liability_payments"
         headers = {
@@ -558,13 +563,20 @@ class WealthManagerApi:
 
         Returns:
             dict: Mapping of liability names to their IDs
+
         """
         existing_liabilities = self.get_liabilities_from_api()
         liability_ids = {}
 
         # Check if Prêt Etudiant CA exists
-        ca_loan_exists = any(liability["name"] == "Prêt Etudiant CA" for liability in existing_liabilities)
-        ce_loan_exists = any(liability["name"] == "Prêt Etudiant CE" for liability in existing_liabilities)
+        ca_loan_exists = any(
+            liability["name"] == "Prêt Etudiant CA"
+            for liability in existing_liabilities
+        )
+        ce_loan_exists = any(
+            liability["name"] == "Prêt Etudiant CE"
+            for liability in existing_liabilities
+        )
 
         # Get account IDs for both loans
         ca_account_id = self.get_account_id_from_name("Prêt Etudiant CA", "loan")
@@ -585,15 +597,19 @@ class WealthManagerApi:
                 "deferral_type": "none",
                 "direction": "i_owe",
                 "account_id": ca_account_id,
-                "end_date": "2028-03-04"
+                "end_date": "2028-03-04",
             }
 
             ca_response = self.create_liability_in_api(ca_loan_data)
             if 200 <= ca_response.status_code < 300:
                 liability_ids["Prêt Etudiant CA"] = ca_response.json()["id"]
-                logger.info(f"Created liability: Prêt Etudiant CA with ID {liability_ids['Prêt Etudiant CA']}")
+                logger.info(
+                    f"Created liability: Prêt Etudiant CA with ID {liability_ids['Prêt Etudiant CA']}"
+                )
             else:
-                logger.error(f"Failed to create CA liability: {ca_response.status_code}, {ca_response.text}")
+                logger.error(
+                    f"Failed to create CA liability: {ca_response.status_code}, {ca_response.text}"
+                )
         else:
             # Get existing liability ID
             for liability in existing_liabilities:
@@ -616,15 +632,19 @@ class WealthManagerApi:
                 "payment_frequency": "monthly",
                 "direction": "i_owe",
                 "account_id": ce_account_id,
-                "end_date": "2035-05-05"
+                "end_date": "2035-05-05",
             }
 
             ce_response = self.create_liability_in_api(ce_loan_data)
             if 200 <= ce_response.status_code < 300:
                 liability_ids["Prêt Etudiant CE"] = ce_response.json()["id"]
-                logger.info(f"Created liability: Prêt Etudiant CE with ID {liability_ids['Prêt Etudiant CE']}")
+                logger.info(
+                    f"Created liability: Prêt Etudiant CE with ID {liability_ids['Prêt Etudiant CE']}"
+                )
             else:
-                logger.error(f"Failed to create CE liability: {ce_response.status_code}, {ce_response.text}")
+                logger.error(
+                    f"Failed to create CE liability: {ce_response.status_code}, {ce_response.text}"
+                )
         else:
             # Get existing liability ID
             for liability in existing_liabilities:
@@ -639,6 +659,7 @@ class WealthManagerApi:
 
         Args:
             file_path: Path to the CSV file with transactions
+
         """
         # Create liabilities if they don't exist
         liability_ids = self.create_specific_liabilities()
@@ -650,28 +671,38 @@ class WealthManagerApi:
         df = pd.read_csv(file_path)
 
         # Get existing transactions from API
-        existing_transactions = self.get_transactions_from_api(999999).json().get("items", [])
+        existing_transactions = (
+            self.get_transactions_from_api(999999).json().get("items", [])
+        )
 
         # Get existing liability payments to avoid duplicates
         all_liability_payments = self.get_liability_payments_from_api()
 
         # Find CA loan transactions
         ca_loan_transactions = df[
-            (df["destination_name"] == "Prêt Etudiant CA") |
-            ((df["source_name"] == "Prêt Etudiant CA") & (df["description"].str.contains("REALISATION DE PRET", na=False)))
+            (df["destination_name"] == "Prêt Etudiant CA")
+            | (
+                (df["source_name"] == "Prêt Etudiant CA")
+                & (df["description"].str.contains("REALISATION DE PRET", na=False))
+            )
         ]
 
         # Find CE loan transactions
         ce_loan_transactions = df[
-            (df["destination_name"] == "Prêt Etudiant CE") |
-            ((df["source_name"] == "Prêt Etudiant CE") & (df["description"].str.contains("BPCE FINANCEMENT", na=False)))
+            (df["destination_name"] == "Prêt Etudiant CE")
+            | (
+                (df["source_name"] == "Prêt Etudiant CE")
+                & (df["description"].str.contains("BPCE FINANCEMENT", na=False))
+            )
         ]
 
         # Process CA loan transactions
         ca_loan_id = liability_ids.get("Prêt Etudiant CA")
         if ca_loan_id:
             # Get amortization schedule for CA loan
-            ca_amortization = self.get_liability_by_id(ca_loan_id).get("amortization_schedule", [])
+            ca_amortization = self.get_liability_by_id(ca_loan_id).get(
+                "amortization_schedule", []
+            )
             ca_schedule_map = {item["payment_date"]: item for item in ca_amortization}
 
             for _, row in ca_loan_transactions.iterrows():
@@ -681,16 +712,18 @@ class WealthManagerApi:
                 transaction_date = row["date"][:10]
 
                 for existing_tx in existing_transactions:
-                    if (existing_tx["date"] == transaction_date and
-                        abs(abs(existing_tx["amount"]) - transaction_amount) < 0.01):
+                    if (
+                        existing_tx["date"] == transaction_date
+                        and abs(abs(existing_tx["amount"]) - transaction_amount) < 0.01
+                    ):
                         transaction_id = existing_tx["id"]
                         break
 
                 if transaction_id:
                     # Check if this payment already exists
                     if not any(
-                        payment["liability_id"] == ca_loan_id and
-                        payment["transaction_id"] == transaction_id
+                        payment["liability_id"] == ca_loan_id
+                        and payment["transaction_id"] == transaction_id
                         for payment in all_liability_payments
                     ):
                         # Find matching schedule entry
@@ -698,10 +731,17 @@ class WealthManagerApi:
 
                         # If no exact match, look for entries within a 5-day window
                         if not schedule_entry:
-                            transaction_date_obj = datetime.strptime(transaction_date, "%Y-%m-%d").date()
+                            transaction_date_obj = datetime.strptime(
+                                transaction_date, "%Y-%m-%d"
+                            ).date()
                             for schedule_date, entry in ca_schedule_map.items():
-                                schedule_date_obj = datetime.strptime(schedule_date, "%Y-%m-%d").date()
-                                if abs((schedule_date_obj - transaction_date_obj).days) <= 5:
+                                schedule_date_obj = datetime.strptime(
+                                    schedule_date, "%Y-%m-%d"
+                                ).date()
+                                if (
+                                    abs((schedule_date_obj - transaction_date_obj).days)
+                                    <= 5
+                                ):
                                     schedule_entry = entry
                                     break
 
@@ -724,21 +764,27 @@ class WealthManagerApi:
                             "principal_amount": principal_amount,
                             "interest_amount": interest_amount,
                             "extra_payment": extra_payment,
-                            "transaction_id": transaction_id
+                            "transaction_id": transaction_id,
                         }
                         print(f"{payment_data=}")
 
                         payment_response = self.record_liability_payment(payment_data)
                         if 200 <= payment_response.status_code < 300:
-                            logger.info(f"Recorded payment for CA loan: {transaction_amount} on {transaction_date} (Principal: {principal_amount}, Interest: {interest_amount})")
+                            logger.info(
+                                f"Recorded payment for CA loan: {transaction_amount} on {transaction_date} (Principal: {principal_amount}, Interest: {interest_amount})"
+                            )
                         else:
-                            logger.error(f"Failed to record CA payment: {payment_response.status_code}, {payment_response.text}")
+                            logger.error(
+                                f"Failed to record CA payment: {payment_response.status_code}, {payment_response.text}"
+                            )
 
         # Process CE loan transactions
         ce_loan_id = liability_ids.get("Prêt Etudiant CE")
         if ce_loan_id:
             # Get amortization schedule for CE loan
-            ce_amortization = self.get_liability_by_id(ce_loan_id).get("amortization_schedule", [])
+            ce_amortization = self.get_liability_by_id(ce_loan_id).get(
+                "amortization_schedule", []
+            )
             ce_schedule_map = {item["payment_date"]: item for item in ce_amortization}
 
             for _, row in ce_loan_transactions.iterrows():
@@ -748,16 +794,18 @@ class WealthManagerApi:
                 transaction_date = row["date"][:10]
 
                 for existing_tx in existing_transactions:
-                    if (existing_tx["date"] == transaction_date and
-                        abs(abs(existing_tx["amount"]) - transaction_amount) < 0.01):
+                    if (
+                        existing_tx["date"] == transaction_date
+                        and abs(abs(existing_tx["amount"]) - transaction_amount) < 0.01
+                    ):
                         transaction_id = existing_tx["id"]
                         break
 
                 if transaction_id:
                     # Check if this payment already exists
                     if not any(
-                        payment["liability_id"] == ce_loan_id and
-                        payment["transaction_id"] == transaction_id
+                        payment["liability_id"] == ce_loan_id
+                        and payment["transaction_id"] == transaction_id
                         for payment in all_liability_payments
                     ):
                         # Find matching schedule entry
@@ -765,10 +813,17 @@ class WealthManagerApi:
 
                         # If no exact match, look for entries within a 5-day window
                         if not schedule_entry:
-                            transaction_date_obj = datetime.strptime(transaction_date, "%Y-%m-%d").date()
+                            transaction_date_obj = datetime.strptime(
+                                transaction_date, "%Y-%m-%d"
+                            ).date()
                             for schedule_date, entry in ce_schedule_map.items():
-                                schedule_date_obj = datetime.strptime(schedule_date, "%Y-%m-%d").date()
-                                if abs((schedule_date_obj - transaction_date_obj).days) <= 5:
+                                schedule_date_obj = datetime.strptime(
+                                    schedule_date, "%Y-%m-%d"
+                                ).date()
+                                if (
+                                    abs((schedule_date_obj - transaction_date_obj).days)
+                                    <= 5
+                                ):
                                     schedule_entry = entry
                                     break
 
@@ -791,14 +846,18 @@ class WealthManagerApi:
                             "principal_amount": principal_amount,
                             "interest_amount": interest_amount,
                             "extra_payment": extra_payment,
-                            "transaction_id": transaction_id
+                            "transaction_id": transaction_id,
                         }
 
                         payment_response = self.record_liability_payment(payment_data)
                         if 200 <= payment_response.status_code < 300:
-                            logger.info(f"Recorded payment for CE loan: {transaction_amount} on {transaction_date} (Principal: {principal_amount}, Interest: {interest_amount})")
+                            logger.info(
+                                f"Recorded payment for CE loan: {transaction_amount} on {transaction_date} (Principal: {principal_amount}, Interest: {interest_amount})"
+                            )
                         else:
-                            logger.error(f"Failed to record CE payment: {payment_response.status_code}, {payment_response.text}")
+                            logger.error(
+                                f"Failed to record CE payment: {payment_response.status_code}, {payment_response.text}"
+                            )
 
     def get_liability_payments_from_api(self) -> list[dict[str, Any]]:
         """Fetch all liability payments from the API."""
@@ -810,7 +869,9 @@ class WealthManagerApi:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json()["items"]
-        logger.error(f"Failed to retrieve liability payments: {response.status_code}, {response.text}")
+        logger.error(
+            f"Failed to retrieve liability payments: {response.status_code}, {response.text}"
+        )
         return []
 
     @staticmethod
@@ -911,6 +972,7 @@ class WealthManagerApi:
 
         Returns:
             dict[str, Any]: The liability data with amortization schedule
+
         """
         url = f"{self.base_url}/liabilities/{liability_id}"
         headers = {
@@ -927,11 +989,15 @@ class WealthManagerApi:
             if schedule_response.status_code == 200:
                 liability_data["amortization_schedule"] = schedule_response.json()
             else:
-                logger.error(f"Failed to get amortization schedule: {schedule_response.status_code}, {schedule_response.text}")
+                logger.error(
+                    f"Failed to get amortization schedule: {schedule_response.status_code}, {schedule_response.text}"
+                )
                 liability_data["amortization_schedule"] = []
 
             return liability_data
-        logger.error(f"Failed to get liability: {response.status_code}, {response.text}")
+        logger.error(
+            f"Failed to get liability: {response.status_code}, {response.text}"
+        )
         return {}
 
 
@@ -1376,7 +1442,6 @@ def process_batch(
 
         # Handle special cases for transaction types
         if row["destination_name"] == "Prêt Etudiant CA":
-            print(f"{transaction_type=} {destination_account_id=}")
             transaction_type = "transfer"
             destination_account_id = account_ids.get("Prêt Etudiant CA|loan")
             print(f"{transaction_type=} {destination_account_id=}")
@@ -1527,12 +1592,14 @@ if __name__ == "__main__":
         "--user-name", default="Alan J", help="User name for WealthManager API"
     )
     parser.add_argument(
-        "--create-liabilities", action="store_true",
-        help="Create predefined liabilities (Prêt Etudiant CA and CE)"
+        "--create-liabilities",
+        action="store_true",
+        help="Create predefined liabilities (Prêt Etudiant CA and CE)",
     )
     parser.add_argument(
-        "--link-liability-payments", action="store_true",
-        help="Link transactions to liabilities as payments"
+        "--link-liability-payments",
+        action="store_true",
+        help="Link transactions to liabilities as payments",
     )
 
     args = parser.parse_args()
@@ -1560,8 +1627,8 @@ if __name__ == "__main__":
         process_investment_csv(csv_data, account_name, api)
         print(f"Processed investment transactions for {account_name}")
 
-    # Only run this if no other operation was specified
-    # fetch_and_filter_transactions(args.csv_file, api, args.sync)
+    if not args.investment:
+        fetch_and_filter_transactions(args.csv_file, api, args.sync)
     print(f"Processed transactions from {args.csv_file}")
 
     # if args.create_liabilities:
@@ -1574,10 +1641,14 @@ if __name__ == "__main__":
 
     if args.link_liability_payments:
         if api.sync_enabled:
-            print(f"Linking transactions from {args.csv_file} to liabilities as payments...")
+            print(
+                f"Linking transactions from {args.csv_file} to liabilities as payments..."
+            )
             api.link_transactions_to_liabilities(args.csv_file)
         else:
-            print("DRY RUN - Would link transactions to liabilities (use --sync to create)")
+            print(
+                "DRY RUN - Would link transactions to liabilities (use --sync to create)"
+            )
 
     if args.sync:
         print("Data has been synced to the WealthManager API.")

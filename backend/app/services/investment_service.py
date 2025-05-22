@@ -416,27 +416,23 @@ class InvestmentService(BaseService[InvestmentTransaction]):
 
             # Initialize to avoid reference before assignment
 
-            try:
-                pl_account_query = """--sql
-                SELECT id FROM accounts
-                WHERE user_id = ? AND name = 'Investment P/L' AND type = 'expense'
-                """
-                pl_account_expense_result = self.db_manager.execute_select(
-                    pl_account_query, [validated_data["user_id"]]
-                )
-                pl_account_expense_id = pl_account_expense_result[0]["id"]
+            def get_or_create_pl_account(account_type: str) -> int:
+                """Get or create a P/L account of the specified type."""
+                try:
+                    query = """--sql
+                    SELECT id FROM accounts
+                    WHERE user_id = ? AND name = 'Investment P/L' AND type = ?
+                    """
+                    result = self.db_manager.execute_select(
+                        query, [validated_data["user_id"], account_type]
+                    )
 
-                pl_account_query = """--sql
-                SELECT id FROM accounts
-                WHERE user_id = ? AND name = 'Investment P/L' AND type = 'income'
-                """
-                pl_account_income_result = self.db_manager.execute_select(
-                    pl_account_query, [validated_data["user_id"]]
-                )
-                pl_account_income_id = pl_account_income_result[0]["id"]
-            except NoResultFoundError:
-                # Create Investment P/L account if it doesn't exist
-                # First, get a bank ID for the user
+                    if result and result[0] and result[0]["id"]:
+                        return result[0]["id"]
+                except NoResultFoundError:
+                    pass  # Account doesn't exist, we'll create it
+
+                # Get bank ID if account doesn't exist
                 bank_query = "SELECT id FROM banks WHERE user_id = ? LIMIT 1"
                 bank_result = self.db_manager.execute_select(
                     bank_query, [validated_data["user_id"]]
@@ -449,28 +445,21 @@ class InvestmentService(BaseService[InvestmentTransaction]):
 
                 bank_id = bank_result[0]["id"]
 
-                # Now create the Investment P/L account
-                create_pl_expense_account_query = """--sql
+                # Create new account
+                create_query = """--sql
                 INSERT INTO accounts (user_id, name, type, bank_id)
-                VALUES (?, 'Investment P/L', 'expense', ?)
+                VALUES (?, 'Investment P/L', ?, ?)
                 RETURNING id
                 """
-                pl_account_expense_result = self.db_manager.execute_insert_returning(
-                    create_pl_expense_account_query,
-                    [validated_data["user_id"], bank_id],
+                insert_result = self.db_manager.execute_insert_returning(
+                    create_query,
+                    [validated_data["user_id"], account_type, bank_id],
                 )
-                pl_account_expense_id = pl_account_expense_result["id"]
+                return insert_result["id"]
 
-                # Create Investment P/L income account
-                create_pl_income_account_query = """--sql
-                INSERT INTO accounts (user_id, name, type, bank_id)
-                VALUES (?, 'Investment P/L', 'income', ?)
-                RETURNING id
-                """
-                pl_account_income_result = self.db_manager.execute_insert_returning(
-                    create_pl_income_account_query, [validated_data["user_id"], bank_id]
-                )
-                pl_account_income_id = pl_account_income_result["id"]
+            # Get or create both P/L accounts
+            pl_account_expense_id = get_or_create_pl_account("expense")
+            pl_account_income_id = get_or_create_pl_account("income")
 
             if validated_data["activity_type"] == "Buy":
                 description = f"Buy {validated_data['quantity']} {asset_symbol} at {validated_data['unit_price']}€"
