@@ -4,6 +4,12 @@ import { useCommandPalette } from "@/hooks/useCommandPalette"
 import { useRouter } from "@tanstack/react-router"
 import { Bell, CalendarDays, Search, Settings } from "lucide-react"
 import { useState } from "react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface WelcomeHeaderProps {
   greeting: string
@@ -45,15 +51,24 @@ export function WelcomeHeader({ greeting, currentTime, userName }: WelcomeHeader
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full"
-            onClick={open}
-          >
-            <Search className="h-5 w-5" />
-            <span className="sr-only">Search</span>
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={open}
+                >
+                  <Search className="h-5 w-5" />
+                  <span className="sr-only">Search</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Search (Ctrl+K)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <Button variant="ghost" size="icon" className="rounded-full">
             <CalendarDays className="h-5 w-5" />
