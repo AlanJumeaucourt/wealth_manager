@@ -4,11 +4,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PeriodChart } from "@/components/wealth/PeriodChart"
@@ -17,12 +17,12 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Download,
-  Share2,
+    ChevronLeft,
+    ChevronRight,
+    ChevronsLeft,
+    ChevronsRight,
+    Download,
+    Share2,
 } from "lucide-react"
 import { Dispatch, SetStateAction, useState } from "react"
 
@@ -32,6 +32,7 @@ type RangeType = 3 | 6 | 12 | 24 | 36
 interface WealthSummaryProps {
   startDate: Date
   endDate: Date
+  periodType: PeriodType
 }
 
 interface DateSelectorProps {
@@ -195,7 +196,7 @@ const copyToClipboard = async (text: string, toast: any): Promise<boolean> => {
   return false;
 }
 
-function WealthSummary({ startDate, endDate }: WealthSummaryProps) {
+function WealthSummary({ startDate, endDate, periodType }: WealthSummaryProps) {
   const { data: wealthData, isLoading, error } = useWealthOverTime()
   const { toast } = useToast()
 
@@ -330,7 +331,7 @@ function WealthSummary({ startDate, endDate }: WealthSummaryProps) {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <WealthChart startDate={startDate} endDate={endDate} />
+        <WealthChart startDate={startDate} endDate={endDate} periodType={periodType} />
       </CardContent>
     </Card>
   )
@@ -532,7 +533,7 @@ export function Wealth() {
         ) : (
           <div className="flex flex-col gap-6">
             {/* Wealth Evolution Chart */}
-            <WealthSummary startDate={startDate} endDate={endDate} />
+            <WealthSummary startDate={startDate} endDate={endDate} periodType={selectedPeriod} />
 
             {/* Period Analysis */}
             <Card className="shadow-sm">

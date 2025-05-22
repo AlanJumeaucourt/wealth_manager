@@ -22,6 +22,7 @@ import {
 interface WealthChartProps {
   startDate: Date
   endDate: Date
+  periodType?: "week" | "month" | "quarter" | "year"
 }
 
 function CustomTooltip({ active, payload, label }: any) {
@@ -46,7 +47,7 @@ function CustomTooltip({ active, payload, label }: any) {
   )
 }
 
-export function WealthChart({ startDate, endDate }: WealthChartProps) {
+export function WealthChart({ startDate, endDate, periodType = "month" }: WealthChartProps) {
   const { data: wealthData, isLoading } = useWealthOverTime()
 
   const chartConfig = React.useMemo(
@@ -98,6 +99,43 @@ export function WealthChart({ startDate, endDate }: WealthChartProps) {
 
   const currentValue = filteredData[filteredData.length - 1]?.value || 0
   const valueChange = currentValue - (filteredData[0]?.value || 0)
+
+  // Dynamic date formatting based on period type
+  const formatDate = (date: string) => {
+    const dateObj = new Date(date)
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+    }
+
+    switch (periodType) {
+      case "week":
+        options.month = "short"
+        options.day = "numeric"
+        break
+      case "month":
+        options.month = "short"
+        break
+      case "quarter":
+        const quarter = Math.floor(dateObj.getMonth() / 3) + 1
+        return `Q${quarter} ${dateObj.getFullYear()}`
+      case "year":
+        return dateObj.getFullYear().toString()
+      default:
+        options.month = "short"
+        options.day = "numeric"
+    }
+
+    return dateObj.toLocaleDateString("fr-FR", options)
+  }
+
+  // Calculate appropriate tick spacing based on data length and period type
+  const getTickSpacing = () => {
+    const dataLength = filteredData.length
+    if (dataLength <= 12) return 1
+    if (dataLength <= 24) return 2
+    if (dataLength <= 36) return 3
+    return Math.ceil(dataLength / 12)
+  }
 
   return (
     <Card>
@@ -164,12 +202,8 @@ export function WealthChart({ startDate, endDate }: WealthChartProps) {
                 axisLine={false}
                 tickMargin={8}
                 minTickGap={32}
-                tickFormatter={date =>
-                  new Date(date).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                  })
-                }
+                interval={getTickSpacing() - 1}
+                tickFormatter={formatDate}
                 stroke="#9CA3AF"
               />
               <YAxis
