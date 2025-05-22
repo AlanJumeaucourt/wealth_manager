@@ -1,17 +1,69 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowDownRight, ArrowUpRight, BarChart3, DollarSign, PiggyBank, Leaf, LineChart as LineChartIcon, PlusCircle } from "lucide-react"
-import { PortfolioSummary } from "@/types"
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { PortfolioPerformance } from "@/api/queries"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PortfolioSummary } from "@/types"
+import { ArrowDownRight, ArrowUpRight, BarChart3, DollarSign, Leaf, LineChart as LineChartIcon, PiggyBank, PlusCircle } from "lucide-react"
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 interface PortfolioHighlightsProps {
   portfolioSummary?: PortfolioSummary
   performanceData?: PortfolioPerformance
   onAssetClick?: (assetId: number, assetName?: string) => void
+  isLoading?: boolean
 }
 
-export function PortfolioHighlights({ portfolioSummary, performanceData, onAssetClick }: PortfolioHighlightsProps) {
+export function PortfolioHighlights({ portfolioSummary, performanceData, onAssetClick, isLoading }: PortfolioHighlightsProps) {
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-semibold">
+            <Skeleton className="h-6 w-48" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-3 bg-muted/40 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4" />
+                </div>
+                <Skeleton className="h-6 w-32 mt-1" />
+                <Skeleton className="h-4 w-24 mt-1" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-6">
+            <Skeleton className="h-[200px] w-full" />
+          </div>
+          <div className="mt-4">
+            <Skeleton className="h-5 w-32 mb-3" />
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between p-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <div>
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-16 mt-1" />
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16 mt-1" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   // Show empty state when no portfolio data is available
   if (!portfolioSummary || !portfolioSummary.assets || portfolioSummary.assets.length === 0) {
     return (

@@ -5,12 +5,12 @@ import { DeleteAccountDialog } from "@/components/accounts/DeleteAccountDialog"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -352,7 +352,16 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
     <PageContainer title={pageTitle}>
       <div className="space-y-6">
         {/* Top Stats Cards */}
-        {!isLoading && (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-8 w-32" />
+              </div>
+            ))}
+          </div>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {selectedType === "all" ? (
               <>
@@ -419,26 +428,16 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
         } gap-6`}>
           {isLoading ? (
             <>
-              <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-8 w-32" />
-              </div>
-              {(selectedType === "all" || selectedType === "owned") && (
-                <>
-                  <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
-                    <Skeleton className="h-4 w-24 mb-2" />
-                    <Skeleton className="h-8 w-32" />
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-4" />
                   </div>
-                  <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
-                    <Skeleton className="h-4 w-24 mb-2" />
-                    <Skeleton className="h-8 w-32" />
-                  </div>
-                  <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
-                    <Skeleton className="h-4 w-24 mb-2" />
-                    <Skeleton className="h-8 w-32" />
-                  </div>
-                </>
-              )}
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-4 w-24 mt-1" />
+                </div>
+              ))}
             </>
           ) : (
             <>
@@ -541,40 +540,40 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
             />
           </div>
           <div className="flex items-center gap-4">
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={() => setIsAddingAccount(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Account
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={() => setIsAddingBank(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Link Bank
-            </Button>
-            {selectedAccounts.length > 0 && (
+            <div className="flex gap-2 w-full sm:w-auto">
               <Button
-                variant="destructive"
+                variant="outline"
                 className="w-full sm:w-auto"
-                onClick={() =>
-                  setDeletingAccount(
-                    accounts.find(a => a.id === selectedAccounts[0]) || null
-                  )
-                }
+                onClick={() => setIsAddingAccount(true)}
               >
-                <Trash className="h-4 w-4 mr-2" />
-                Delete{" "}
-                {selectedAccounts.length > 1
-                  ? `(${selectedAccounts.length})`
-                  : ""}
+                <Plus className="h-4 w-4 mr-2" />
+                Add Account
               </Button>
-            )}
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setIsAddingBank(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Link Bank
+              </Button>
+              {selectedAccounts.length > 0 && (
+                <Button
+                  variant="destructive"
+                  className="w-full sm:w-auto"
+                  onClick={() =>
+                    setDeletingAccount(
+                      accounts.find(a => a.id === selectedAccounts[0]) || null
+                    )
+                  }
+                >
+                  <Trash className="h-4 w-4 mr-2" />
+                  Delete{" "}
+                  {selectedAccounts.length > 1
+                    ? `(${selectedAccounts.length})`
+                    : ""}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -584,8 +583,30 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
           <TabsContent value="bubble">
             <div className="bg-card rounded-xl shadow-sm border border-border/50 p-6 overflow-hidden">
               {isLoading ? (
-                <div className="flex items-center justify-center h-[400px]">
-                  <Skeleton className="h-[300px] w-[300px] rounded-full" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-5 w-5" />
+                        <Skeleton className="h-5 w-24" />
+                      </div>
+                      <div className="space-y-3">
+                        {[1, 2, 3].map((j) => (
+                          <div key={j} className="rounded-lg border p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Skeleton className="h-6 w-6" />
+                              <Skeleton className="h-4 w-32" />
+                            </div>
+                            <Skeleton className="h-5 w-24" />
+                            <div className="flex items-center gap-2 mt-2">
+                              <Skeleton className="h-3 w-16" />
+                              <Skeleton className="h-3 w-20" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : filteredAccounts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">

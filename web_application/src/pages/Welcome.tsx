@@ -1,5 +1,3 @@
-import { Suspense, useEffect, useState } from "react"
-import { useRouter } from "@tanstack/react-router"
 import {
   useAccounts,
   useBanks,
@@ -9,37 +7,22 @@ import {
   useWealthOverTime,
 } from "@/api/queries"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { FinancialGoals } from "@/components/welcome/FinancialGoals"
 import { FinancialSummary } from "@/components/welcome/FinancialSummary"
-import { WelcomeHeader } from "@/components/welcome/WelcomeHeader"
 import { PortfolioHighlights } from "@/components/welcome/PortfolioHighlights"
 import { QuickActions } from "@/components/welcome/QuickActions"
 import { RecentActivity } from "@/components/welcome/RecentActivity"
-import { FinancialGoals } from "@/components/welcome/FinancialGoals"
 import { WealthInsights } from "@/components/welcome/WealthInsights"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { WelcomeHeader } from "@/components/welcome/WelcomeHeader"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
-import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help"
 import { useToast } from "@/hooks/use-toast"
 import { Transaction } from "@/types"
 import { userStorage } from "@/utils/user-storage"
-// Extend the props interfaces for components we're adding click handlers to
-interface EnhancedFinancialSummaryProps {
-  onAccountClick: (accountId: number) => void;
-}
+import { useRouter } from "@tanstack/react-router"
+import { useEffect, useState } from "react"
 
-interface EnhancedPortfolioHighlightsProps {
-  onAssetClick: (assetId: number, assetName?: string) => void;
-}
-
-interface EnhancedWealthInsightsProps {
-  onAccountClick: (accountId: number) => void;
-}
-
-interface EnhancedFinancialGoalsProps {
-  onAccountClick: (accountId: number) => void;
-}
 
 export function Welcome() {
   const router = useRouter()
@@ -254,115 +237,80 @@ export function Welcome() {
   }
   return (
     <PageContainer className="p-0 overflow-hidden">
-      {isLoading ? (
-        <WelcomeSkeleton />
-      ) : (
-        <div className="flex flex-col gap-8">
-          {/* Welcome Header */}
-          <div className="items-center pv-6">
-            <WelcomeHeader
-              greeting={greeting}
-              currentTime={currentTime}
-              userName={userStorage.getUser()?.name}
+      <div className="flex flex-col gap-8">
+        {/* Welcome Header */}
+        <div className="items-center pv-6">
+          <WelcomeHeader
+            greeting={greeting}
+            currentTime={currentTime}
+            userName={userStorage.getUser()?.name}
+          />
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pv-6">
+          {/* Left Column - Financial Summary & Portfolio */}
+          <div className="lg:col-span-2 space-y-6">
+            <FinancialSummary
+              accounts={accounts.filter(
+                account =>
+                  account.type == "checking" ||
+                  account.type == "savings" ||
+                  account.type == "investment" ||
+                  account.type == "loan"
+              )}
+              wealthData={wealthData || []}
+              onAccountClick={handleAccountSelection}
+              isLoading={isLoading}
+            />
+
+            <PortfolioHighlights
+              portfolioSummary={portfolioSummary}
+              performanceData={performanceData}
+              onAssetClick={handleAssetSelection}
+              isLoading={isLoadingPortfolio || isLoadingPerformance}
+            />
+
+            <WealthInsights
+              wealthData={wealthData || []}
+              accounts={accounts.filter(
+                account =>
+                  account.type == "checking" ||
+                  account.type == "savings" ||
+                  account.type == "investment" ||
+                  account.type == "loan"
+              )}
+              onAccountClick={handleAccountSelection}
+              isLoading={isLoadingWealth}
             />
           </div>
 
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pv-6">
-            {/* Left Column - Financial Summary & Portfolio */}
-            <div className="lg:col-span-2 space-y-6">
-              <FinancialSummary
-                accounts={accounts.filter(
-                  account =>
-                    account.type == "checking" ||
-                    account.type == "savings" ||
-                    account.type == "investment" ||
-                    account.type == "loan"
-                )}
-                wealthData={wealthData || []}
-                onAccountClick={handleAccountSelection}
-              />
+          {/* Right Column - Quick Actions & Recent Activity */}
+          <div className="space-y-6">
+            <QuickActions navigate={handleNavigate} />
 
-              {portfolioSummary && performanceData && (
-                <Suspense
-                  fallback={<Skeleton className="h-[200px] w-full rounded-xl" />}
-                >
-                  <PortfolioHighlights
-                  portfolioSummary={portfolioSummary}
-                  performanceData={performanceData}
-                    onAssetClick={handleAssetSelection}
-                  />
-                </Suspense>
-              )}
+            <RecentActivity
+              transactions={transactions}
+              accounts={accounts}
+              navigate={handleNavigate}
+              onAccountClick={handleAccountSelection}
+              onTransactionClick={handleTransactionSelection}
+              onTransactionSelect={(transaction: Transaction) => setSelectedItem({
+                type: 'transaction',
+                id: transaction.id,
+                name: transaction.description
+              })}
+              isLoading={isLoadingTransactions}
+            />
 
-              <Suspense
-                fallback={<Skeleton className="h-[300px] w-full rounded-xl" />}
-              >
-                <WealthInsights
-                  wealthData={wealthData || []}
-                  accounts={accounts.filter(
-                    account =>
-                      account.type == "checking" ||
-                      account.type == "savings" ||
-                      account.type == "investment" ||
-                      account.type == "loan"
-                  )}
-                  onAccountClick={handleAccountSelection}
-                />
-              </Suspense>
-            </div>
-
-            {/* Right Column - Quick Actions & Recent Activity */}
-            <div className="space-y-6">
-              <QuickActions navigate={handleNavigate} />
-
-              <RecentActivity
-                transactions={transactions}
-                accounts={accounts}
-                navigate={handleNavigate}
-                onAccountClick={handleAccountSelection}
-                onTransactionClick={handleTransactionSelection}
-                onTransactionSelect={(transaction: Transaction) => setSelectedItem({
-                  type: 'transaction',
-                  id: transaction.id,
-                  name: transaction.description
-                })}
-              />
-
-              <FinancialGoals
-                accounts={accounts}
-                onAccountClick={handleAccountSelection}
-              />
-            </div>
+            <FinancialGoals
+              accounts={accounts}
+              onAccountClick={handleAccountSelection}
+              isLoading={isLoadingAccounts}
+            />
           </div>
         </div>
-      )}
+      </div>
     </PageContainer>
-  )
-}
-
-function WelcomeSkeleton() {
-  return (
-    <div className="flex flex-col">
-      {/* Header Skeleton */}
-      <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 rounded-t-xl">
-        <Skeleton className="h-8 w-[250px] mb-2" />
-        <Skeleton className="h-5 w-[200px]" />
-      </div>
-
-      {/* Content Skeleton */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pv-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Skeleton className="h-[200px] w-full rounded-xl" />
-          <Skeleton className="h-[250px] w-full rounded-xl" />
-          <Skeleton className="h-[300px] w-full rounded-xl" />
-        </div>
-        <div className="space-y-6">
-          <Skeleton className="h-[150px] w-full rounded-xl" />
-          <Skeleton className="h-[300px] w-full rounded-xl" />
-          <Skeleton className="h-[200px] w-full rounded-xl" />
-        </div>
-      </div>
-    </div>
   )
 }

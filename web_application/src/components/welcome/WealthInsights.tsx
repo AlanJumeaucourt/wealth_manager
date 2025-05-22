@@ -1,6 +1,7 @@
 import { useTransactions } from "@/api/queries"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Account } from "@/types"
 import { AlertTriangle, ArrowUpRight, BarChart, BellOff, Check, LightbulbIcon, TrendingUp } from "lucide-react"
 import { useMemo } from "react"
@@ -9,9 +10,10 @@ interface WealthInsightsProps {
   wealthData: Array<{ date: string; value: number }>
   accounts: Account[]
   onAccountClick?: (accountId: number) => void
+  isLoading?: boolean
 }
 
-export function WealthInsights({ wealthData, accounts, onAccountClick }: WealthInsightsProps) {
+export function WealthInsights({ wealthData, accounts, onAccountClick, isLoading }: WealthInsightsProps) {
   // todo: remove this once we have a way to treat loans in backend
   const accountsb = accounts.filter(account => !account.name.includes("Prêt"))
   // Fetch expense transactions from the last 3 months to calculate average monthly expenses
@@ -228,6 +230,35 @@ export function WealthInsights({ wealthData, accounts, onAccountClick }: WealthI
       window.location.href = actionLink;
     }
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-6 w-48" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-4 rounded-lg border">
+                <div className="flex items-start gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex-1">
+                    <Skeleton className="h-5 w-32 mb-2" />
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>

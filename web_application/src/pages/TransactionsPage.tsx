@@ -1,42 +1,42 @@
 import { useAccounts, useAllCategories, useTransactions } from "@/api/queries"
 import { PageContainer } from "@/components/layout/PageContainer"
 import {
-  BatchDeleteResponse,
-  BatchDeleteTransactionsButton,
+    BatchDeleteResponse,
+    BatchDeleteTransactionsButton,
 } from "@/components/transactions/BatchDeleteTransactionsButton"
 import { DeleteTransactionDialog } from "@/components/transactions/DeleteTransactionDialog"
 import { TransactionForm } from "@/components/transactions/TransactionForm"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useToast } from "@/hooks/use-toast"
@@ -44,22 +44,22 @@ import { useDebounce } from "@/hooks/useDebounce"
 import { useDateRangeStore } from "@/store/dateRangeStore"
 import { useDialogStore } from "@/store/dialogStore"
 import {
-  Account,
-  Transaction,
-  TransactionField,
-  TransactionType,
+    Account,
+    Transaction,
+    TransactionField,
+    TransactionType,
 } from "@/types"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
-  ArrowDownIcon,
-  ArrowUpDown,
-  ArrowUpIcon,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Search,
-  Trash,
-  X,
+    ArrowDownIcon,
+    ArrowUpDown,
+    ArrowUpIcon,
+    Pencil,
+    Plus,
+    RotateCcw,
+    Search,
+    Trash,
+    X,
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 interface TransactionsPageProps {
@@ -86,19 +86,26 @@ const skeletonCells = () => {
         <Skeleton className="h-4 w-4" />
       </TableCell>
       <TableCell>
-        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-24" />
       </TableCell>
       <TableCell>
-        <Skeleton className="h-4 w-48" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-6 w-24 rounded-md" />
       </TableCell>
       <TableCell>
         <Skeleton className="h-4 w-24" />
       </TableCell>
       <TableCell>
-        <Skeleton className="h-4 w-24" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-8" />
+        <div className="flex items-center justify-end gap-1">
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <Skeleton className="h-8 w-8 rounded-md" />
+        </div>
       </TableCell>
     </TableRow>
   )
@@ -490,6 +497,7 @@ const StatsSection = memo(function StatsSection({
           >
             <Skeleton className="h-4 w-24 mb-2" />
             <Skeleton className="h-8 w-32" />
+            {index === 0 && <Skeleton className="h-4 w-16 mt-2" />}
           </div>
         ))
       ) : (
@@ -554,6 +562,7 @@ const FiltersSection = memo(function FiltersSection({
   removeFilter,
   clearAllFilters,
   getCategoryColor,
+  isLoading,
 }: {
   allCategories: any;
   accounts: Account[];
@@ -569,7 +578,23 @@ const FiltersSection = memo(function FiltersSection({
   removeFilter: (filter: ActiveFilter) => void;
   clearAllFilters: () => void;
   getCategoryColor: (category: string) => string;
+  isLoading?: boolean;
 }) {
+  if (isLoading) {
+    return (
+      <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -713,27 +738,34 @@ const SearchSection = memo(function SearchSection({
         />
       </div>
       <div className="flex gap-2 w-full sm:w-auto">
-        {isLoadingAccounts ? (
-          <Skeleton className="h-10 w-[140px]" />
-        ) : (
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => setIsAddingTransaction(true)}
-            disabled={isLoadingAccounts}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Transaction
-          </Button>
-        )}
-        {selectedTransactions.length > 0 && (
-          <BatchDeleteTransactionsButton
-            selectedTransactions={transactions.filter(t =>
-              selectedTransactions.includes(t.id)
+        {isLoading ? (
+          <>
+            <Skeleton className="h-10 w-[140px]" />
+            {selectedTransactions.length > 0 && (
+              <Skeleton className="h-10 w-[140px]" />
             )}
-            onSuccess={handleBatchDeleteSuccess}
-            disabled={isLoading}
-          />
+          </>
+        ) : (
+          <>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setIsAddingTransaction(true)}
+              disabled={isLoadingAccounts}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Transaction
+            </Button>
+            {selectedTransactions.length > 0 && (
+              <BatchDeleteTransactionsButton
+                selectedTransactions={transactions.filter(t =>
+                  selectedTransactions.includes(t.id)
+                )}
+                onSuccess={handleBatchDeleteSuccess}
+                disabled={isLoading}
+              />
+            )}
+          </>
         )}
       </div>
     </div>
@@ -1212,6 +1244,7 @@ export function TransactionsPage({
           removeFilter={removeFilter}
           clearAllFilters={clearAllFilters}
           getCategoryColor={getCategoryColor}
+          isLoading={isLoading}
         />
 
         <SearchSection

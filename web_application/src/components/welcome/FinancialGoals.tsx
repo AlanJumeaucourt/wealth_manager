@@ -1,7 +1,8 @@
-import { Account } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Target, Umbrella, Plane, Home } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Account } from "@/types"
+import { Home, Plane, Target, Umbrella } from "lucide-react"
 import { useMemo } from "react"
 
 interface GoalType {
@@ -16,9 +17,10 @@ interface GoalType {
 interface FinancialGoalsProps {
   accounts: Account[]
   onAccountClick?: (accountId: number) => void
+  isLoading?: boolean
 }
 
-export function FinancialGoals({ accounts, onAccountClick }: FinancialGoalsProps) {
+export function FinancialGoals({ accounts, onAccountClick, isLoading }: FinancialGoalsProps) {
   // Calculate savings amount
   const savingsTotal = useMemo(() => {
     return accounts
@@ -76,6 +78,38 @@ export function FinancialGoals({ accounts, onAccountClick }: FinancialGoalsProps
     if (accountId) {
       onAccountClick(accountId)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-6 w-32" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2 p-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-2 flex-1" />
+                  <Skeleton className="h-4 w-10" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
