@@ -1,8 +1,8 @@
 import { useAccounts, useAssets, useInvestments } from "@/api/queries"
 import { AddInvestmentDialog } from "@/components/investmentsTransaction/AddInvestmentTransactionDialog"
 import {
-    BatchDeleteInvestmentsButton,
-    BatchDeleteResponse,
+  BatchDeleteInvestmentsButton,
+  BatchDeleteResponse,
 } from "@/components/investmentsTransaction/BatchDeleteInvestmentsButton"
 import { DeleteInvestmentDialog } from "@/components/investmentsTransaction/DeleteInvestmentTransactionDialog"
 import { PageContainer } from "@/components/layout/PageContainer"
@@ -10,28 +10,35 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -41,21 +48,21 @@ import { cn } from "@/lib/utils"
 import { Investment } from "@/types"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
-    ArrowDownIcon,
-    ArrowUpDown,
-    ArrowUpIcon,
-    ChevronLeft,
-    ChevronRight,
-    ChevronsLeft,
-    ChevronsRight,
-    Download,
-    MoreHorizontal,
-    Pencil,
-    Plus,
-    Search,
-    Trash,
-    TrendingDown,
-    TrendingUp,
+  ArrowDownIcon,
+  ArrowUpDown,
+  ArrowUpIcon,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Download,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 
@@ -349,6 +356,7 @@ export function InvestmentsTransactionPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [investmentTypeFilter, setActivityTypeFilter] =
     useState<InvestmentTypeFilter>("all")
+  const [assetFilter, setAssetFilter] = useState<number | "all">("all")
   const itemsPerPage = 25
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(
     null
@@ -364,7 +372,7 @@ export function InvestmentsTransactionPage() {
   const [isEnteringPage, setIsEnteringPage] = useState(false)
   const [manualPageInput, setManualPageInput] = useState("")
   const navigate = useNavigate()
-  const search = useSearch()
+  const search = useSearch({})
 
   // Check URL parameters for 'addNew' to open the investment dialog
   useEffect(() => {
@@ -387,15 +395,50 @@ export function InvestmentsTransactionPage() {
     sort_by: sortField,
     sort_order: sortDirection,
     search: debouncedSearch,
+    asset_id: assetFilter !== "all" ? assetFilter : undefined,
   })
 
-  const { data: accountsResponse } = useAccounts({
+  // Fetch only the specific accounts needed for current investments
+  const { data: accountsResponse } = useAccounts(
+    investmentsResponse && investmentsResponse.items && investmentsResponse.items.length > 0
+      ? {
+          id: Array.from(
+            new Set(
+              investmentsResponse.items
+                .flatMap(inv => [inv.from_account_id, inv.to_account_id])
+                .filter(Boolean) as number[]
+            )
+          ),
+        }
+      : undefined
+  )
+
+  // Fetch all available assets for the filter dropdown (small list, ok to fetch all)
+  const { data: allAssetsResponse } = useAssets({
     per_page: 1000,
+    sort_by: "symbol",
+    sort_order: "asc",
   })
 
-  const { data: assetsResponse } = useAssets({
-    per_page: 1000,
-  })
+  // Fetch only the specific assets needed for current investments
+  const { data: assetsResponse } = useAssets(
+    investmentsResponse && investmentsResponse.items && investmentsResponse.items.length > 0
+      ? {
+          symbol: Array.from(
+            new Set(
+              investmentsResponse.items
+                .map(inv => inv.asset_id)
+                .filter(Boolean)
+                .map(assetId => {
+                  const asset = allAssetsResponse?.items?.find(a => a.id === assetId);
+                  return asset?.symbol;
+                })
+                .filter(Boolean) as string[]
+            )
+          ),
+        }
+      : undefined
+  )
 
   const investments = (investmentsResponse?.items || []) as Investment[]
   const totalItems = investmentsResponse?.total || 0
@@ -429,7 +472,7 @@ export function InvestmentsTransactionPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearch, investmentTypeFilter])
+  }, [debouncedSearch, investmentTypeFilter, assetFilter])
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -505,8 +548,18 @@ export function InvestmentsTransactionPage() {
   const totalTax = investments.reduce((sum, inv) => sum + inv.tax, 0)
 
   const filteredInvestments = investments.filter(investment => {
-    if (investmentTypeFilter === "all") return true
-    return investment.investment_type === investmentTypeFilter
+    if (investmentTypeFilter === "all" && assetFilter === "all") return true;
+    if (investmentTypeFilter !== "all" && assetFilter !== "all") {
+      return investment.investment_type === investmentTypeFilter &&
+             investment.asset_id === assetFilter;
+    }
+    if (investmentTypeFilter !== "all") {
+      return investment.investment_type === investmentTypeFilter;
+    }
+    if (assetFilter !== "all") {
+      return investment.asset_id === assetFilter;
+    }
+    return true;
   })
 
   const stats = [
@@ -599,6 +652,25 @@ export function InvestmentsTransactionPage() {
                 className="pl-8 w-[300px]"
               />
             </div>
+
+            {/* Asset Filter */}
+            <Select
+              value={assetFilter.toString()}
+              onValueChange={(value) => setAssetFilter(value === "all" ? "all" : Number(value))}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by asset" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Assets</SelectItem>
+                {allAssetsResponse?.items?.map((asset) => (
+                  <SelectItem key={asset.id} value={asset.id.toString()}>
+                    {asset.symbol} - {asset.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Tabs
               value={investmentTypeFilter}
               onValueChange={value =>

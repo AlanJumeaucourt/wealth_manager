@@ -48,13 +48,13 @@ def get_stock_info(symbol: str):
 def get_stock_history(symbol: str):
     """Get historical price data for a stock."""
     period = request.args.get("period", "max")
-    history = stock_service.get_historical_prices(symbol, period)
+    user_id = get_jwt_identity()
+    history = stock_service.get_historical_prices(user_id, symbol, period)
     return jsonify(history)
 
 
 def register_stock_swagger_docs():
     """Register Swagger documentation for Stock endpoints"""
-
     # Document stock search endpoint
     spec.path(
         path="/stocks/search",
@@ -168,7 +168,23 @@ def register_stock_swagger_docs():
                     {
                         "name": "period",
                         "in": "query",
-                        "schema": {"type": "string", "default": "max", "enum": ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"]},
+                        "schema": {
+                            "type": "string",
+                            "default": "max",
+                            "enum": [
+                                "1d",
+                                "5d",
+                                "1mo",
+                                "3mo",
+                                "6mo",
+                                "1y",
+                                "2y",
+                                "5y",
+                                "10y",
+                                "ytd",
+                                "max",
+                            ],
+                        },
                         "description": "Time period for historical data",
                         "example": "1y",
                         "required": False,
@@ -184,7 +200,10 @@ def register_stock_swagger_docs():
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "date": {"type": "string", "format": "date"},
+                                            "date": {
+                                                "type": "string",
+                                                "format": "date",
+                                            },
                                             "open": {"type": "number"},
                                             "high": {"type": "number"},
                                             "low": {"type": "number"},
@@ -280,7 +299,10 @@ def register_stock_swagger_docs():
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "date": {"type": "string", "format": "date"},
+                                            "date": {
+                                                "type": "string",
+                                                "format": "date",
+                                            },
                                             "open": {"type": "number"},
                                             "high": {"type": "number"},
                                             "low": {"type": "number"},

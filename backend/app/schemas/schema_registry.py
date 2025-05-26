@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, date
+from datetime import date, datetime
 
 from marshmallow import (
     Schema,
@@ -123,7 +123,9 @@ class TransactionSchema(Schema):
         required=True,
         validate=validate.OneOf(["expense", "income", "transfer"]),
     )
-    is_investment = fields.Boolean(required=False, default=False)
+    is_investment = fields.Boolean(
+        required=False, dump_default=False, load_default=False
+    )
 
 
 class InvestmentDetailsSchema(Schema):
@@ -267,10 +269,11 @@ class LiabilitySchema(Schema):
         ),
     )
     payment_amount = fields.Float(allow_none=True, required=False)
-    deferral_period_months = fields.Int(required=False, default=0)
+    deferral_period_months = fields.Int(required=False, dump_default=0, load_default=0)
     deferral_type = fields.Str(
         required=False,
-        default="none",
+        dump_default="none",
+        load_default="none",
         validate=validate.OneOf(["none", "partial", "total"]),
     )
     direction = fields.Str(
@@ -306,7 +309,10 @@ class LiabilityPaymentDetailSchema(Schema):
         required=True, validate=validate.Range(min=0, min_inclusive=True)
     )
     extra_payment = fields.Float(
-        required=False, default=0.0, validate=validate.Range(min=0, min_inclusive=True)
+        required=False,
+        dump_default=0.0,
+        load_default=0.0,
+        validate=validate.Range(min=0, min_inclusive=True),
     )
     created_at = DateField(dump_only=True)
     updated_at = DateField(dump_only=True)

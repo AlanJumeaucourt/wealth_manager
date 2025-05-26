@@ -195,7 +195,7 @@ class StockService:
             return result
 
     def get_historical_prices(
-        self, symbol: str, period: str | None = "max"
+        self, user_id: int, symbol: str, period: str | None = "max"
     ) -> list[HistoricalPrice]:
         """Get historical price data for an asset."""
         logger.info(f"Getting historical prices for {symbol} (period: {period})")
@@ -262,10 +262,48 @@ class StockService:
                     f"Returning cached data for {symbol} historical after API failure"
                 )
                 return cached_data
-            return []
+            return self.historical_prices_from_transactions(user_id, symbol)
 
         else:
             return result
+
+    def historical_prices_from_transactions(
+        self, user_id: int, symbol: str
+    ) -> list[HistoricalPrice]:
+        """Get historical prices from transactions."""
+        from app.services.investment_service import InvestmentService
+
+        investment_service = InvestmentService()
+        transactions = investment_service.get_asset_transactions(user_id, symbol)
+        # transactions = [
+        #     {
+        #         "activity_type": "Buy",
+        #         "amount": 3997.89,
+        #         "date": "2025-05-20",
+        #         "fee": 19.89,
+        #         "id": 8101,
+        #         "quantity": 150,
+        #         "tax": 0,
+        #         "total_paid": 3997.89,
+        #         "unit_price": 26.52,
+        #     },
+        # ]
+
+        historical_prices: list[HistoricalPrice] = []
+        for transaction in transactions:
+            historical_prices.append(
+                {
+                    "date": transaction["date"],
+                    "value": transaction["unit_price"],
+                    "volume": 0,
+                    "open": transaction["unit_price"],
+                    "high": transaction["unit_price"],
+                    "low": transaction["unit_price"],
+                    "close": transaction["unit_price"],
+                }
+            )
+        print(historical_prices)
+        return historical_prices
 
     def search_assets(self, query: str) -> list[AssetSearchResult]:
         """Search for stocks and ETFs."""

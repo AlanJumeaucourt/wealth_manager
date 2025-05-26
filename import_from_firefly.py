@@ -1055,6 +1055,9 @@ def process_investment_csv(
     elif "pea" in account_name.lower():
         account_type = account_name_type_mapping.get(account_name, "investment")
         cash_account_name = "Boursorama Espèce PEA"
+    elif "natixis" in account_name.lower():
+        account_type = account_name_type_mapping.get(account_name, "investment")
+        cash_account_name = "Natixis PERCO"
     else:
         logger.error(f"Unknown account type: {account_name}")
         return
