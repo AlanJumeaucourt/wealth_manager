@@ -3,8 +3,8 @@ FROM oven/bun:1
 
 WORKDIR /app
 
-# Install dependencies (layer cached unless package files change). Lockfile keeps versions stable.
-COPY package.json bun.lockb ./
+# Install deps (cached unless package.json changes). Context is `backend/` only, so no root bun.lockb here.
+COPY package.json ./
 RUN bun install && test -d node_modules/@elysiajs/cors
 
 # Source is mounted at runtime; copy only for standalone build
@@ -14,5 +14,5 @@ ENV NODE_ENV=development
 EXPOSE 5000
 
 # Bind-mount hides image `node_modules`; named volume at /app/node_modules starts empty.
-# Re-install on every start so the volume matches mounted package.json + bun.lockb.
+# Re-install on every start so the volume matches mounted package.json.
 CMD ["sh", "-c", "cd /app && bun install && test -d node_modules/@elysiajs/cors && exec bun run dev:watch"]
