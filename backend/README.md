@@ -1,168 +1,111 @@
-# WealthManager Backend
+# Wealth Manager Backend (TypeScript)
 
-The backend service for WealthManager, built with Flask, providing a robust API for both the web and mobile applications.
+API server for WealthManager: **Bun**, **Elysia**, **Kysely**, and **Bun’s native SQLite** via `kysely-bun-sqlite`. Request validation uses **Elysia TypeBox**; table and API shapes can be generated from `src/db/manifest.ts`.
 
-## 🏗 Architecture
+## Stack
 
-The backend is structured as a modular Flask application with the following components:
+| Layer    | Choice                                                          |
+| -------- | --------------------------------------------------------------- |
+| Runtime  | [Bun](https://bun.sh/)                                          |
+| HTTP     | [Elysia](https://elysiajs.com/) + CORS + OpenAPI plugin         |
+| Database | SQLite (`bun:sqlite`) + [Kysely](https://kysely.dev/)           |
+| Auth     | JWT ([jose](https://github.com/panva/jose)), Argon2id passwords |
+| Docs     | `GET /openapi` (OpenAPI spec)                                   |
 
-```
-backend/
-├── app/
-│   ├── routes/                 # API endpoints and route handlers
-│   │   ├── account_routes.py   # Account management endpoints
-│   │   ├── asset_routes.py     # Asset tracking endpoints
-│   │   ├── bank_routes.py      # Banking integration endpoints
-│   │   ├── budget_routes.py    # Budget management endpoints
-│   │   ├── gocardless_routes.py# GoCardless integration
-│   │   ├── investment_routes.py# Investment tracking endpoints
-│   │   ├── stock_routes.py     # Stock market endpoints
-│   │   ├── transaction_routes.py# Transaction management
-│   │   └── user_routes.py      # User management endpoints
-│   ├── services/               # Business logic layer
-│   │   ├── account_service.py  # Account operations
-│   │   ├── asset_service.py    # Asset management
-│   │   ├── bank_service.py     # Banking operations
-│   │   ├── base_service.py     # Base service class
-│   │   ├── budget_service.py   # Budget operations
-│   │   ├── gocardless_service.py# Bank integration
-│   │   ├── investment_service.py# Investment operations
-│   │   ├── stock_service.py    # Stock market operations
-│   │   └── user_service.py     # User management
-│   ├── schemas/               # Data validation schemas
-│   │   └── schema_registry.py # Central schema registry
-│   ├── types/                # Type definitions and hints
-│   ├── utils/                # Helper functions
-│   ├── database.py           # Database configuration and models
-│   ├── logger.py            # Logging configuration
-│   ├── middleware.py        # Request/Response middleware
-│   ├── models.py            # SQLAlchemy models
-│   ├── schemas.py           # Global schema definitions
-│   └── swagger.py           # API documentation
-├── instance/                # Instance-specific data
-│   └── wealth_manager.db    # SQLite database
-├── logs/                   # Application logs
-│   └── app.log            # Main log file
-├── test/                   # Test suite
-│   ├── add_api_fake_data.py # Test data generation
-│   ├── test_api.py         # API tests
-│   └── test_from_swagger/  # Swagger-based tests
-├── Dockerfile              # Container configuration
-├── requirements.txt        # Python dependencies
-├── app.py                 # Application entry point
-└── run.py                 # Development server script
-```
+## Setup
 
-## 🚀 Getting Started
+1. Copy environment variables:
 
-### Prerequisites
+   ```bash
+   cp .env.example .env
+   ```
 
-- Python 3.12+
-- pip (Python package manager)
-- Virtual environment (recommended)
+2. Set **`SQLITE_DB_PATH`** and **`JWT_SECRET_KEY`** in `.env` (see `.env.example` for optional tuning).
 
-### Installation
+3. Install and migrate:
 
-1. Clone the repository and navigate to the backend directory:
+   ```bash
+   bun install
+   bun run migrate
+   ```
+
+4. Start the server:
+
+   ```bash
+   bun run dev
+   ```
+
+The server listens on **`PORT`** (default **5000**). On normal startup, **`src/index.ts` runs migrations** before listening, so a separate `migrate` step is optional for local dev.
+
+## Scripts
+
+| Script                          | Purpose                                                                                                          |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `bun run dev` / `bun run start` | Run the API once                                                                                                 |
+| `bun run dev:watch`             | Run with `--watch` (used in some Docker setups)                                                                  |
+| `bun run migrate`               | Run DB migrations only                                                                                           |
+| `bun run codegen`               | Regenerate `schema.generated.ts`, TypeBox schemas, and `docs/schema-reference.sql` from **`src/db/manifest.ts`** |
+| `bun run test`                  | `bun test`                                                                                                       |
+| `bun run lint`                  | ESLint on `src`                                                                                                  |
+| `bun run build:types`           | Emit `.d.ts` (run from repo root via `tsconfig.build.json`; used by the web app’s typecheck)                     |
+| `bun run benchmark`             | Performance script                                                                                               |
+
+## API
+
+**Compatibility:** Routes and payloads match the legacy Flask API so existing clients keep working.
+
+- **`GET /health`** — `{ "status": "ok" }` (no auth)
+- **`GET /openapi`** — OpenAPI document
+
+Resource routes are mounted at **top-level paths** (no global `/api` prefix), for example:
+
+- `/users` — register, login, refresh, profile, `verify-token`
+- `/banks`, `/accounts`, `/transactions`, `/assets`
+- `/refund_groups`, `/refund_items`, `/potential_refunds`
+- `/budgets`
+- `/investments`, `/stocks`
+- `/liabilities`, `/liability_payments`
+- `/gocardless` — institutions, requisitions, accounts (see `STUBS.md` where behavior is placeholder)
+
+Protected routes expect **`Authorization: Bearer <access_token>`**.
+
+## Environment
+
+See **`.env.example`**. Notable variables:
+
+- **`SQLITE_DB_PATH`** — SQLite file path (required for real runs; test/dev behavior is relaxed in code)
+- **`JWT_SECRET_KEY`** — In **production**, must be **≥ 32 characters** and not the dev default
+- **`PORT`** — Listen port (default `5000`)
+- **`JWT_ACCESS_TOKEN_EXPIRES`**, **`JWT_REFRESH_TOKEN_EXPIRES`** — Optional TTL overrides
+- **`LOG_JSON`** — Set to `1` or `true` for JSON line logs
+
+Placeholders in `.env.example` for **GoCardless** / **DEMO_MODE** are not wired everywhere in `src`; check routes and `STUBS.md` before relying on them.
+
+## Docker
+
+### Repo-level compose (full stack)
+
+From the **repository root**:
+
+- **Development:** `docker compose -f docker-compose.dev.yml up` — API + web app, volumes for `node_modules` and data.
+- **Production:** `docker compose -f docker-compose.prod.yml up` — API on host port **5001**, static web on **80**.
+
+### Backend-only compose
+
+In **`backend/`**:
+
 ```bash
-cd backend
+docker compose up --build
 ```
 
-2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+- Binds `./src` for hot reload; SQLite in volume at `/data/wealth.sqlite` (see `docker-compose.yml`).
 
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+## Security
 
-4. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-### Running the Server
-
-Development mode:
-```bash
-python run.py
-```
-
-Production mode:
-```bash
-flask run --host=0.0.0.0
-```
-
-## 📚 API Documentation
-
-The API documentation is available through Swagger UI when the server is running:
-- Development: http://localhost:5000/api/docs
-- Production: https://[your-domain]/api/docs
-
-## 🔧 Core Dependencies
-
-- **Flask**: Web framework
-- **Flask-CORS**: Cross-Origin Resource Sharing
-- **Flask-JWT-Extended**: JWT authentication
-- **Marshmallow**: Object serialization/deserialization
-- **YFinance**: Financial data integration
-- **Sentry**: Error tracking
-- **Nordigen**: Banking integration
-
-## 🛠️ Development
-
-### Project Structure
-
-- `app/__init__.py`: Application factory and configuration
-- `app/routes/`: API endpoints organized by domain
-- `app/services/`: Business logic implementation
-- `app/models.py`: SQLAlchemy models
-- `app/schemas.py`: Marshmallow schemas
-- `app/database.py`: Database configuration
-
-### Testing
-
-Run the test suite:
-```bash
-python -m pytest
-```
-
-### Docker Support
-
-Build the container:
-```bash
-docker build -t wealthmanager-backend .
-```
-
-Run the container:
-```bash
-docker run -p 5000:5000 wealthmanager-backend
-```
-
-## 📝 Logging
-
-Logs are stored in:
-- `logs/`: Application logs
-- `test_debug.log`: Test execution logs
-
-## 🔐 Security
-
-- JWT-based authentication
-- CORS protection
-- Environment variable configuration
-- Sentry error tracking
-
-## 🤝 Contributing
-
-1. Create a new branch
-2. Make your changes
-3. Write/update tests
-4. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+- **Secrets:** Never commit `.env`. Production JWT secret must be strong and unique.
+- **Passwords:** Argon2id via `Bun.password`; never returned in JSON.
+- **Multi-tenancy:** `userId` from the JWT scopes all queries.
+- **Validation:** TypeBox on inputs; Kysely uses bound parameters.
+- **Errors:** Production 5xx bodies are generic; details go to logs.
+- **CORS:** Defaults are permissive; tighten for production.
+- **Hardening:** Rate limits on auth routes, HTTPS termination, and strict CORS are recommended for public deployments.

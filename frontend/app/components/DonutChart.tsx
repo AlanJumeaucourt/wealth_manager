@@ -1,9 +1,9 @@
-import DonutPath from '@/app/components/DonutPath';
-import { darkTheme } from '@/constants/theme';
-import { Canvas, Path, SkFont, Skia, Text } from '@shopify/react-native-skia';
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { SharedValue } from 'react-native-reanimated';
+import DonutPath from "@/app/components/DonutPath";
+import { darkTheme } from "@/constants/theme";
+import { Canvas, Path, SkFont, Skia, Text } from "@shopify/react-native-skia";
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { SharedValue } from "react-native-reanimated";
 
 type Props = {
   n: number;
@@ -77,8 +77,6 @@ const DonutChart = ({
             text={totalText}
             font={smallFont}
             color={darkTheme.colors.text}
-            align="center"
-            horizontalAlign="center"
           />
         )}
         {font && (
@@ -88,8 +86,6 @@ const DonutChart = ({
             text={targetText}
             font={font}
             color={darkTheme.colors.text}
-            align="center"
-            horizontalAlign="center"
           />
         )}
       </Canvas>

@@ -1,38 +1,16 @@
-import { useAccounts, useAssets, useLiabilities, useTransactions } from "@/api/queries"
-import { Button } from "@/components/ui/button"
-import { useCommandPalette } from "@/hooks/useCommandPalette"
-import { useRouter } from "@tanstack/react-router"
-import { Bell, CalendarDays, Search, Settings } from "lucide-react"
-import { useState } from "react"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCommandPalette } from "@/hooks/useCommandPalette";
+import { Bell, CalendarDays, Search, Settings } from "lucide-react";
 
 interface WelcomeHeaderProps {
-  greeting: string
-  currentTime: Date
-  userName: string
+  greeting: string;
+  currentTime: Date;
+  userName: string;
 }
 
 export function WelcomeHeader({ greeting, currentTime, userName }: WelcomeHeaderProps) {
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const router = useRouter()
-  const { open } = useCommandPalette()
-
-  // Search hooks (limit to 5 results per type)
-  const { data: accountsData, isLoading: accountsLoading } = useAccounts({ search: searchQuery, per_page: 5, page: 1 })
-  const { data: assetsData, isLoading: assetsLoading } = useAssets({ search: searchQuery, per_page: 5, page: 1 })
-  const { data: transactionsData, isLoading: transactionsLoading } = useTransactions({ search: searchQuery, per_page: 5, page: 1 })
-  // Only pass supported filters to useLiabilities (no pagination)
-  const { data: liabilitiesData, isLoading: liabilitiesLoading } = useLiabilities({})
-
-  const isLoading = accountsLoading || assetsLoading || transactionsLoading || liabilitiesLoading
-
-  const toggleSearch = () => setIsSearchOpen(!isSearchOpen)
+  const { open } = useCommandPalette();
 
   return (
     <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 rounded-t-xl">
@@ -43,10 +21,10 @@ export function WelcomeHeader({ greeting, currentTime, userName }: WelcomeHeader
           </h1>
           <p className="text-muted-foreground mt-1">
             {currentTime.toLocaleDateString(undefined, {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
             })}
           </p>
         </div>
@@ -54,12 +32,7 @@ export function WelcomeHeader({ greeting, currentTime, userName }: WelcomeHeader
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full"
-                  onClick={open}
-                >
+                <Button variant="ghost" size="icon" className="rounded-full" onClick={open}>
                   <Search className="h-5 w-5" />
                   <span className="sr-only">Search</span>
                 </Button>
@@ -85,5 +58,5 @@ export function WelcomeHeader({ greeting, currentTime, userName }: WelcomeHeader
         </div>
       </div>
     </div>
-  )
+  );
 }

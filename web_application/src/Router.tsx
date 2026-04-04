@@ -1,276 +1,107 @@
-import { AppSidebar } from "@/components/app-sidebar"
-import { CommandPalette } from "@/components/CommandPalette"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { DatePicker } from "@/components/ui/datePicker"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Toaster } from "@/components/ui/toaster"
-import { AccountDetailPage } from "@/pages/AccountDetailPage"
-import { AccountsPage } from "@/pages/AccountsPage"
-import Categories from "@/pages/Categories"
-import GoCardlessAccounts from "@/pages/GoCardlessAccounts"
-import { InvestmentDetailPage } from "@/pages/InvestmentDetailPage"
-import Liabilities from "@/pages/Liabilities"
-import LiabilityDetail from "@/pages/LiabilityDetail"
-import { Welcome } from "@/pages/Welcome"
-import { useDateRangeStore } from "@/store/dateRangeStore"
-import {
-  Outlet,
-  RootRoute,
-  Route,
-  Router,
-  redirect,
-  useRouter,
-} from "@tanstack/react-router"
-import { parse } from "date-fns"
-import { useEffect, useState } from "react"
-import { KeyboardShortcutsHelp } from "./components/keyboard-shortcuts-help"
-import ConnectBank from "./pages/ConnectBank"
-import { ExportImportPage } from "./pages/ExportImportPage"
-import GoCardlessCallback from "./pages/GoCardlessCallback"
-import { InvestmentsPage } from "./pages/investmentsPage"
-import { InvestmentsTransactionPage } from "./pages/InvestmentsTransactionPage"
-import { Landing } from "./pages/Landing"
-import { RefundsPage } from "./pages/RefundsPage"
-import { Signup } from "./pages/Signup"
-import { TransactionDetailPage } from "./pages/TransactionDetailPage"
-import { TransactionsPage } from "./pages/TransactionsPage"
-import { Wealth } from "./pages/Wealth"
+import { AuthenticatedLayout } from "@/components/router/AuthenticatedLayout";
+import { AppRoot } from "@/components/router/AppRoot";
+import { AccountDetailPage } from "@/pages/AccountDetailPage";
+import { AccountsPage } from "@/pages/AccountsPage";
+import BudgetSetup from "@/pages/BudgetSetup";
+import Categories from "@/pages/Categories";
+import GoCardlessAccounts from "@/pages/GoCardlessAccounts";
+import { InvestmentDetailPage } from "@/pages/InvestmentDetailPage";
+import Liabilities from "@/pages/Liabilities";
+import LiabilityDetail from "@/pages/LiabilityDetail";
+import { Welcome } from "@/pages/Welcome";
+
+import { type AnyRoute, RootRoute, Route, Router, redirect } from "@tanstack/react-router";
+
+import ConnectBank from "./pages/ConnectBank";
+import { ExportImportPage } from "./pages/ExportImportPage";
+import GoCardlessCallback from "./pages/GoCardlessCallback";
+import { InvestmentsPage } from "./pages/investmentsPage";
+import { InvestmentsTransactionPage } from "./pages/InvestmentsTransactionPage";
+import { Landing } from "./pages/Landing";
+import { RefundsPage } from "./pages/RefundsPage";
+import { Signup } from "./pages/Signup";
+import { TransactionDetailPage } from "./pages/TransactionDetailPage";
+import { TransactionsPage } from "./pages/TransactionsPage";
+import { Wealth } from "./pages/Wealth";
 
 // Create a root route without search params validation
 const rootRoute = new RootRoute({
-  component: Root,
-})
+  component: AppRoot,
+});
 
 const authenticatedLayout = new Route({
   getParentRoute: () => rootRoute,
   id: "authenticated",
   beforeLoad: async () => {
-    const token = localStorage.getItem("access_token")
+    const token = localStorage.getItem("access_token");
     if (!token) {
       throw redirect({
         to: "/",
-      })
+      });
     }
   },
   component: AuthenticatedLayout,
-})
-
-const dataMinDate = parse("2020-01-01", "yyyy-MM-dd", new Date())
-const dataMaxDate = parse("2025-12-31", "yyyy-MM-dd", new Date())
-
-function AuthenticatedLayout() {
-  const router = useRouter()
-  const { fromDate, toDate, setFromDate, setToDate } = useDateRangeStore()
-  const [currentPath, setCurrentPath] = useState(router.state.location.pathname)
-
-  // Move pathname updates to useEffect to avoid state updates during render
-  useEffect(() => {
-    setCurrentPath(router.state.location.pathname)
-  }, [router.state.location.pathname])
-
-  // Helper function to get breadcrumb title
-  const getBreadcrumbTitle = (path: string) => {
-    const segments = path.split("/").filter(Boolean)
-    const lastSegment = segments[segments.length - 1]
-
-    if (!lastSegment) return "Dashboard"
-
-    // Handle nested routes
-    if (segments.length > 1) {
-      const parentSegment = segments[segments.length - 2]
-      switch (parentSegment) {
-        case "accounts":
-          switch (lastSegment) {
-            case "all":
-              return "All Accounts"
-            case "regular":
-              return "Regular Accounts"
-            case "expense":
-              return "Expense Accounts"
-            case "income":
-              return "Income Accounts"
-            default:
-              return "Accounts"
-          }
-        case "transactions":
-          switch (lastSegment) {
-            case "all":
-              return "All Transactions"
-            case "income":
-              return "Income Transactions"
-            case "expense":
-              return "Expense Transactions"
-            case "transfer":
-              return "Transfer Transactions"
-            default:
-              return "Transactions"
-          }
-        default:
-          return lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1)
-      }
-    }
-
-    return lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1)
-  }
-
-  // Helper function to get home link
-  const getHomeLink = (path: string) => {
-    const segments = path.split("/").filter(Boolean)
-    if (segments.length > 1) {
-      return `/${segments[0]}`
-    }
-    return "/dashboard"
-  }
-
-  return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset className="flex flex-col h-screen overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b sticky top-0 z-10 bg-background transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4 w-full justify-between">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink href={getHomeLink(currentPath)}>
-                      {currentPath.includes("/accounts")
-                        ? "Accounts"
-                        : currentPath.includes("/transactions")
-                          ? "Transactions"
-                          : "Home"}
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="hidden md:block" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>
-                      {getBreadcrumbTitle(currentPath)}
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            </div>
-
-            {/* DatePickers */}
-            <div className="flex space-x-4 pt-2 pr-8">
-              <DatePicker
-                selectedDate={fromDate}
-                onDateChange={date => {
-                  if (date) {
-                    setFromDate(date)
-                  }
-                }}
-                minDate={dataMinDate}
-                maxDate={dataMaxDate}
-              />
-              <DatePicker
-                selectedDate={toDate}
-                onDateChange={date => {
-                  if (date) {
-                    setToDate(date)
-                  }
-                }}
-                minDate={dataMinDate}
-                maxDate={dataMaxDate}
-              />
-            </div>
-            <KeyboardShortcutsHelp />
-          </div>
-        </header>
-        <main className="flex-1 overflow-auto">
-          <Outlet />
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
-  )
-}
-
-function Root() {
-  return (
-    <>
-      <Outlet />
-      <CommandPalette />
-      <Toaster />
-    </>
-  )
-}
+});
 
 // Create routes
 const landingRoute = new Route({
   getParentRoute: () => rootRoute,
   path: "/",
   component: Landing,
-})
+});
 
 const signupRoute = new Route({
   getParentRoute: () => rootRoute,
   path: "/signup",
   component: Signup,
-})
+});
 
 const dashboardRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/dashboard",
   component: Welcome,
-})
+});
 
 // Accounts routes
 const accountsAllRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/accounts/all",
   component: () => <AccountsPage defaultType="all" />,
-})
+});
 
 const accountsRegularRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/accounts/regular",
   component: () => <AccountsPage defaultType="owned" />,
-})
+});
 
 const accountsExpenseRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/accounts/expense",
   component: () => <AccountsPage defaultType="expense" />,
-})
+});
 
 const accountsIncomeRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/accounts/income",
   component: () => <AccountsPage defaultType="income" />,
-})
+});
 
 // Add new account detail route
 export const accountDetailRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/accounts/$accountId",
-  validateSearch: (search: Record<string, unknown>) => ({}),
+  validateSearch: () => ({}),
   component: AccountDetailPage,
-  load: async ({
-    params: { accountId },
-  }: {
-    params: { accountId: string }
-  }) => {
+  loader: async ({ params: { accountId } }: { params: { accountId: string } }) => {
     return {
       accountId: parseInt(accountId),
-    }
+    };
   },
-})
+});
 
 // Transactions routes
-export const transactionsAllRoute = new Route({
+const transactionsAllRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/transactions/all",
   validateSearch: (search: Record<string, unknown>) => ({
@@ -284,7 +115,7 @@ export const transactionsAllRoute = new Route({
     search: search.search as string | undefined,
   }),
   component: () => <TransactionsPage defaultType="all" />,
-})
+});
 
 const transactionsIncomeRoute = new Route({
   getParentRoute: () => authenticatedLayout,
@@ -300,7 +131,7 @@ const transactionsIncomeRoute = new Route({
     search: search.search as string | undefined,
   }),
   component: () => <TransactionsPage defaultType="income" />,
-})
+});
 
 const transactionsExpenseRoute = new Route({
   getParentRoute: () => authenticatedLayout,
@@ -316,7 +147,7 @@ const transactionsExpenseRoute = new Route({
     search: search.search as string | undefined,
   }),
   component: () => <TransactionsPage defaultType="expense" />,
-})
+});
 
 const transactionsTransferRoute = new Route({
   getParentRoute: () => authenticatedLayout,
@@ -332,67 +163,69 @@ const transactionsTransferRoute = new Route({
     search: search.search as string | undefined,
   }),
   component: () => <TransactionsPage defaultType="transfer" />,
-})
+});
 
 // Add new transaction detail route
 export const transactionDetailRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/transactions/$transactionId",
   component: () => <TransactionDetailPage />,
-  load: async ({
-    params: { transactionId },
-  }: {
-    params: { transactionId: number }
-  }) => {
+  loader: async ({ params: { transactionId } }: { params: { transactionId: number } }) => {
     return {
       transactionId: transactionId,
-    }
+    };
   },
-})
+});
 
 const categoriesRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/categories",
   component: Categories,
-})
+});
+
+const budgetSetupRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/budget-setup",
+  component: BudgetSetup,
+});
 
 // Add this with the other routes
 const wealthRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/wealth",
   component: Wealth,
-})
+});
 
 // Add these with the other routes
 const accountsIndexRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/accounts",
-  validateSearch: (search: Record<string, unknown>) => ({}),
+  validateSearch: () => ({}),
   component: () => null,
   beforeLoad: () => {
     throw redirect({
       to: "/accounts/all",
-    })
+    });
   },
-})
+});
 
 const transactionsIndexRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/transactions",
-  validateSearch: (search: Record<string, unknown>) => ({}),
+  validateSearch: () => ({}),
   component: () => null,
   beforeLoad: () => {
     throw redirect({
       to: "/transactions/all",
-    })
+    });
   },
-})
+});
 
 const refundsRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/refunds",
   component: RefundsPage,
-})
+});
 
 const investmentsRoute = new Route({
   getParentRoute: () => authenticatedLayout,
@@ -401,39 +234,39 @@ const investmentsRoute = new Route({
   validateSearch: (search: Record<string, unknown>) => {
     return {
       addNew: search.addNew === "true" ? "true" : undefined,
-    }
+    };
   },
-})
+});
 
 const investmentsPageRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/investments",
   component: InvestmentsPage,
-})
+});
 
-export const investmentDetailRoute = new Route({
+const investmentDetailRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/investments/assets/$symbol",
   component: InvestmentDetailPage,
-  load: async ({ params: { symbol } }: { params: { symbol: string } }) => {
+  loader: async ({ params: { symbol } }: { params: { symbol: string } }) => {
     return {
       symbol,
-    }
+    };
   },
-})
+});
 
 // GoCardless routes
 const goCardlessCallbackRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/gocardless/callback",
   component: GoCardlessCallback,
-})
+});
 
 const connectBankRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/connect-bank",
   component: ConnectBank,
-})
+});
 
 // Add this with the other routes definition (around line 395)
 const settingsRoute = new Route({
@@ -445,41 +278,41 @@ const settingsRoute = new Route({
       <p>Settings page content will go here.</p>
     </div>
   ),
-})
+});
 
 const gocardlessAccountsRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/accounts/gocardless",
   component: GoCardlessAccounts,
-})
+});
 
 // Data Manager route
 const exportImportRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/export-import",
   component: ExportImportPage,
-})
+});
 
 // Liabilities routes
 const liabilitiesRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/liabilities",
   component: Liabilities,
-})
+});
 
 const liabilityDetailRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/liabilities/$liabilityId",
   component: LiabilityDetail,
-  load: async ({ params: { liabilityId } }: { params: { liabilityId: number } }) => {
+  loader: async ({ params: { liabilityId } }: { params: { liabilityId: number } }) => {
     return {
       liabilityId: liabilityId,
-    }
+    };
   },
-})
+});
 
 // Define the route tree
-export const routeTree = rootRoute.addChildren([
+const routeTree = rootRoute.addChildren([
   landingRoute,
   signupRoute,
   authenticatedLayout.addChildren([
@@ -505,6 +338,8 @@ export const routeTree = rootRoute.addChildren([
     investmentsPageRoute,
     // Categories route
     categoriesRoute,
+    // Budget Setup route
+    budgetSetupRoute,
     // Wealth route
     wealthRoute,
     // Refunds route
@@ -519,15 +354,15 @@ export const routeTree = rootRoute.addChildren([
     // Liabilities routes
     liabilitiesRoute,
     liabilityDetailRoute,
-  ]),
-])
+  ] as AnyRoute[]),
+]);
 
 // Create the router using your route tree
-export const router = new Router({ routeTree })
+export const router = new Router({ routeTree });
 
 // Register your router for maximum type safety
 declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router
+    router: typeof router;
   }
 }

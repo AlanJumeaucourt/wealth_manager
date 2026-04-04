@@ -1,11 +1,11 @@
-import { darkTheme } from '@/constants/theme';
-import { AuthProvider } from '@/context/AuthContext';
-import store from '@/store';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { PaperProvider } from 'react-native-paper';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider } from 'react-redux';
+import { darkTheme } from "@/constants/theme";
+import { AuthProvider } from "@/context/AuthContext";
+import store from "@/store";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { PaperProvider } from "react-native-paper";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Provider } from "react-redux";
 
 export default function RootLayout() {
   return (

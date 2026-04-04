@@ -1,30 +1,35 @@
-import { Liability } from '@/types'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { formatCurrency } from '@/utils/format'
-import { format, parseISO } from 'date-fns'
-import { PencilIcon, TrashIcon, CalendarIcon, ArrowRightIcon } from 'lucide-react'
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Liability } from "@/types";
+import { formatCurrency } from "@/utils/currency";
+import { format, parseISO } from "date-fns";
+import { ArrowRightIcon, CalendarIcon, PencilIcon, TrashIcon } from "lucide-react";
 
 interface LiabilityCardProps {
-  liability: Liability
-  onEdit: (liability: Liability) => void
-  onDelete: (liability: Liability) => void
-  onViewDetails: (liability: Liability) => void
+  liability: Liability;
+  onEdit: (liability: Liability) => void;
+  onDelete: (liability: Liability) => void;
+  onViewDetails: (liability: Liability) => void;
 }
 
 export function LiabilityCard({ liability, onEdit, onDelete, onViewDetails }: LiabilityCardProps) {
-  // Format dates
-  const startDate = liability.start_date ? format(parseISO(liability.start_date), 'MMM d, yyyy') : 'N/A'
-  const endDate = liability.end_date ? format(parseISO(liability.end_date), 'MMM d, yyyy') : 'N/A'
   const nextPaymentDate = liability.next_payment_date
-    ? format(parseISO(liability.next_payment_date), 'MMM d, yyyy')
-    : 'N/A'
+    ? format(parseISO(liability.next_payment_date), "MMM d, yyyy")
+    : "N/A";
 
   // Calculate progress percentage
-  const progressPercentage = liability.principal_paid && liability.principal_amount
-    ? Math.min(100, (liability.principal_paid / liability.principal_amount) * 100)
-    : 0
+  const progressPercentage =
+    liability.principal_paid && liability.principal_amount
+      ? Math.min(100, (liability.principal_paid / liability.principal_amount) * 100)
+      : 0;
 
   return (
     <Card className="w-full h-full">
@@ -33,11 +38,14 @@ export function LiabilityCard({ liability, onEdit, onDelete, onViewDetails }: Li
           <div>
             <CardTitle className="text-xl">{liability.name}</CardTitle>
             <CardDescription>
-              {liability.liability_type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+              {liability.liability_type
+                .split("_")
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" ")}
             </CardDescription>
           </div>
-          <Badge variant={liability.direction === 'i_owe' ? 'destructive' : 'default'}>
-            {liability.direction === 'i_owe' ? 'I Owe' : 'They Owe'}
+          <Badge variant={liability.direction === "i_owe" ? "destructive" : "default"}>
+            {liability.direction === "i_owe" ? "I Owe" : "They Owe"}
           </Badge>
         </div>
       </CardHeader>
@@ -69,10 +77,7 @@ export function LiabilityCard({ liability, onEdit, onDelete, onViewDetails }: Li
               <span>{progressPercentage.toFixed(1)}%</span>
             </div>
             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary"
-                style={{ width: `${progressPercentage}%` }}
-              />
+              <div className="h-full bg-primary" style={{ width: `${progressPercentage}%` }} />
             </div>
           </div>
 
@@ -87,7 +92,8 @@ export function LiabilityCard({ liability, onEdit, onDelete, onViewDetails }: Li
           {/* Missed payments warning */}
           {liability.missed_payments_count && liability.missed_payments_count > 0 && (
             <div className="text-destructive text-sm font-medium">
-              {liability.missed_payments_count} missed payment{liability.missed_payments_count > 1 ? 's' : ''}
+              {liability.missed_payments_count} missed payment
+              {liability.missed_payments_count > 1 ? "s" : ""}
             </div>
           )}
         </div>
@@ -109,5 +115,5 @@ export function LiabilityCard({ liability, onEdit, onDelete, onViewDetails }: Li
         </div>
       </CardFooter>
     </Card>
-  )
+  );
 }

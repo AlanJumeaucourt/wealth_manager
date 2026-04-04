@@ -1,7 +1,8 @@
 {
   "name": "wealth_manager",
-  "main": "expo-router/entry",
   "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -15,9 +16,6 @@
     "deploy-gh-pages": "npm run predeploy && npm run deploy",
     "knip": "knip",
     "eas": "eas"
-  },
-  "jest": {
-    "preset": "jest-expo"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.0",
@@ -71,5 +69,7 @@
     "react-test-renderer": "^18.3.1",
     "typescript": "^5.6.3"
   },
-  "private": true
+  "jest": {
+    "preset": "jest-expo"
+  }
 }

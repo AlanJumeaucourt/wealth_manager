@@ -1,18 +1,21 @@
-import { CategoryChart } from "@/components/categories/category-chart"
-import { CategoryList } from "@/components/categories/category-list"
-import { CategorySankey } from "@/components/categories/category-sankey"
-import { DateScopeSelector } from "@/components/categories/date-scope-selector"
-import { MoneySummary } from "@/components/categories/money-summary"
-import { PageContainer } from "@/components/layout/PageContainer"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DateRangeProvider } from "@/contexts/date-range-context"
-import { useCategories } from "@/hooks/use-categories"
+import { CategoryChart } from "@/components/categories/category-chart";
+import { CategoryList } from "@/components/categories/category-list";
+import { CategorySankey } from "@/components/categories/category-sankey";
+import { DateScopeSelector } from "@/components/categories/date-scope-selector";
+import { MoneySummary } from "@/components/categories/money-summary";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DateRangeProvider } from "@/contexts/date-range-context";
+import { useCategories } from "@/hooks/use-categories";
+import { Link } from "@tanstack/react-router";
+import { SettingsIcon } from "lucide-react";
 
-type CategoryType = "income" | "expense"
+type CategoryType = "income" | "expense";
 
 export default function CategoriesPage() {
-  const { type, setType } = useCategories()
+  const { type, setType } = useCategories();
 
   return (
     <DateRangeProvider>
@@ -21,7 +24,7 @@ export default function CategoriesPage() {
         action={
           <Tabs
             value={type}
-            onValueChange={value => setType(value as CategoryType)}
+            onValueChange={(value) => setType(value as CategoryType)}
             className="w-[400px]"
           >
             <TabsList className="grid w-full grid-cols-2">
@@ -49,9 +52,13 @@ export default function CategoriesPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Category Breakdown
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">Category Breakdown</CardTitle>
+                <Link to="/budget-setup">
+                  <Button variant="outline" size="sm">
+                    <SettingsIcon className="h-4 w-4 mr-2" />
+                    Budget Setup
+                  </Button>
+                </Link>
               </CardHeader>
               <CardContent>
                 <CategoryList />
@@ -70,5 +77,5 @@ export default function CategoriesPage() {
         </div>
       </PageContainer>
     </DateRangeProvider>
-  )
+  );
 }

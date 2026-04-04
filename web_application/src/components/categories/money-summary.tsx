@@ -1,25 +1,21 @@
-"use client"
+"use client";
 
-import { useCategorySummary } from "@/api/queries"
-import { Card } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useDateRange } from "@/contexts/date-range-context"
-import { useCategories } from "@/hooks/use-categories"
-import { formatCurrency } from "@/lib/utils"
-import { formatDate } from "date-fns"
-import { ArrowDownIcon, ArrowRightIcon, ArrowUpIcon } from "lucide-react"
+import { useCategorySummary } from "@/api/queries";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDateRange } from "@/contexts/date-range-context";
+import { useCategories } from "@/hooks/use-categories";
+import { formatCurrency } from "@/lib/utils";
+import { formatDate } from "date-fns";
+import { ArrowDownIcon, ArrowRightIcon, ArrowUpIcon } from "lucide-react";
 
 export function MoneySummary() {
-  const { dateRange } = useDateRange()
-  const { type, stats } = useCategories()
-  const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd")
-  const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd")
+  const { dateRange } = useDateRange();
+  const { type, stats } = useCategories();
+  const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd");
+  const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd");
 
-  const { data: summaryData, isLoading } = useCategorySummary(
-    startDate,
-    endDate
-  )
+  const { data: summaryData, isLoading } = useCategorySummary(startDate, endDate);
 
   if (isLoading) {
     return (
@@ -31,40 +27,39 @@ export function MoneySummary() {
         </div>
         <Skeleton className="h-8" />
       </div>
-    )
+    );
   }
 
   if (!summaryData) {
-    return null
+    return null;
   }
 
   // Calculate totals using the new API structure
-  const totalIncome = Math.abs(summaryData.income.total.net)
-  const totalExpenses = Math.abs(summaryData.expense.total.net)
-  const remainingMoney = totalIncome - totalExpenses
+  const totalIncome = Math.abs(summaryData.income.total.net);
+  const totalExpenses = Math.abs(summaryData.expense.total.net);
+  const remainingMoney = totalIncome - totalExpenses;
 
   // Calculate savings rate only if there's income and we have savings
-  let savingsText = ""
+  let savingsText = "";
   if (totalIncome === 0) {
-    savingsText = "(no income)"
+    savingsText = "(no income)";
   } else if (remainingMoney < 0) {
-    const overspendRate = (
-      (Math.abs(remainingMoney) / totalIncome) *
-      100
-    ).toFixed(1)
-    savingsText = `(${overspendRate}% overspent)`
+    const overspendRate = ((Math.abs(remainingMoney) / totalIncome) * 100).toFixed(1);
+    savingsText = `(${overspendRate}% overspent)`;
   } else {
-    const savingsRate = ((remainingMoney / totalIncome) * 100).toFixed(1)
-    savingsText = `(${savingsRate}% saved)`
+    const savingsRate = ((remainingMoney / totalIncome) * 100).toFixed(1);
+    savingsText = `(${savingsRate}% saved)`;
   }
 
   // Format the budget progress - ensure we handle zero values safely
-  const budgetProgressValue = stats.totalBudgeted > 0
-    ? Math.min(100, Math.max(0, (stats.totalActual / stats.totalBudgeted) * 100) || 0)
-    : 0
+  const budgetProgressValue =
+    stats.totalBudgeted > 0
+      ? Math.min(100, Math.max(0, (stats.totalActual / stats.totalBudgeted) * 100) || 0)
+      : 0;
 
   // Generate budget segments for categories
-  const budgetSegments = (type === 'expense') ? stats.expenseBudgetSegments || [] : stats.incomeBudgetSegments || []
+  const budgetSegments =
+    type === "expense" ? stats.expenseBudgetSegments || [] : stats.incomeBudgetSegments || [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -72,23 +67,17 @@ export function MoneySummary() {
         <Card className="p-4 shadow-sm">
           <div className="flex items-center gap-2">
             <ArrowUpIcon className="h-4 w-4 text-green-500" />
-            <span className="text-sm font-medium text-muted-foreground">
-              Total Income
-            </span>
+            <span className="text-sm font-medium text-muted-foreground">Total Income</span>
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-bold text-green-500">
-              {formatCurrency(totalIncome)}
-            </span>
+            <span className="text-2xl font-bold text-green-500">{formatCurrency(totalIncome)}</span>
           </div>
         </Card>
 
         <Card className="p-4 shadow-sm">
           <div className="flex items-center gap-2">
             <ArrowDownIcon className="h-4 w-4 text-destructive" />
-            <span className="text-sm font-medium text-muted-foreground">
-              Total Expenses
-            </span>
+            <span className="text-sm font-medium text-muted-foreground">Total Expenses</span>
           </div>
           <div className="mt-2">
             <span className="text-2xl font-bold text-destructive">
@@ -100,9 +89,7 @@ export function MoneySummary() {
         <Card className="p-4 shadow-sm">
           <div className="flex items-center gap-2">
             <ArrowRightIcon className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-muted-foreground">
-              Remaining Money
-            </span>
+            <span className="text-sm font-medium text-muted-foreground">Remaining Money</span>
           </div>
           <div className="mt-2">
             <span
@@ -112,9 +99,7 @@ export function MoneySummary() {
             >
               {formatCurrency(remainingMoney)}
             </span>
-            <span className="ml-2 text-sm text-muted-foreground">
-              {savingsText}
-            </span>
+            <span className="ml-2 text-sm text-muted-foreground">{savingsText}</span>
           </div>
         </Card>
       </div>
@@ -126,8 +111,8 @@ export function MoneySummary() {
             <div className="text-sm font-medium">
               Budget: {formatCurrency(stats.totalBudgeted)}
               <span className="text-xs text-muted-foreground ml-2">
-                {type === "expense" ? "Spent" : "Received"}: {formatCurrency(stats.totalActual)}
-                ({Math.round(budgetProgressValue)}%)
+                {type === "expense" ? "Spent" : "Received"}: {formatCurrency(stats.totalActual)}(
+                {Math.round(budgetProgressValue)}%)
               </span>
             </div>
           </div>
@@ -156,7 +141,7 @@ export function MoneySummary() {
             {budgetProgressValue > 100 && (
               <div
                 className="absolute top-0 h-full border-l-2 border-white"
-                style={{ left: '100%' }}
+                style={{ left: "100%" }}
               />
             )}
           </div>
@@ -167,5 +152,5 @@ export function MoneySummary() {
         </Card>
       )}
     </div>
-  )
+  );
 }

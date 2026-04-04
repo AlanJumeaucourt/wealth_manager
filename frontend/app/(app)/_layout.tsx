@@ -1,17 +1,16 @@
-import { darkTheme } from '@/constants/theme';
-import { useAuth } from '@/context/AuthContext';
-import { Redirect, Stack, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { darkTheme } from "@/constants/theme";
+import { useAuth } from "@/context/AuthContext";
+import { Redirect, Stack } from "expo-router";
+import { useEffect } from "react";
 
 export default function AppLayout() {
   const { isLoggedIn, checkAuthStatus } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     const initializeAuth = async () => {
       await checkAuthStatus();
     };
-    initializeAuth();
+    void initializeAuth();
   }, []);
 
   if (!isLoggedIn) {
@@ -25,20 +24,20 @@ export default function AppLayout() {
         contentStyle: {
           backgroundColor: darkTheme.colors.background,
         },
-        animation: 'slide_from_right',
+        animation: "slide_from_right",
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="transaction/[id]"
         options={{
-          headerShown: false
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="add-transaction"
         options={{
-          headerShown: false
+          headerShown: false,
         }}
       />
     </Stack>

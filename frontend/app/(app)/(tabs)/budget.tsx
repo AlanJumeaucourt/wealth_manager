@@ -1,26 +1,38 @@
-import { fetchBudgetSummary } from '@/app/api/bankApi';
-import DonutChart from '@/app/components/DonutChart';
-import { expenseCategories, incomeCategories } from '@/constants/categories';
-import { darkTheme } from '@/constants/theme';
-import { sharedStyles } from '@/styles/sharedStyles';
-import { BudgetCategory } from '@/types/budget';
-import { Ionicons } from '@expo/vector-icons';
-import { useFont } from '@shopify/react-native-skia';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
+import { fetchBudgetSummary } from "@/app/api/bankApi";
+import DonutChart from "@/app/components/DonutChart";
+import { expenseCategories, incomeCategories } from "@/constants/categories";
+import { darkTheme } from "@/constants/theme";
+import { sharedStyles } from "@/styles/sharedStyles";
+import { formatCurrency } from "@/utils/currency";
+import { Ionicons } from "@expo/vector-icons";
+import { useFont } from "@shopify/react-native-skia";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSharedValue } from "react-native-reanimated";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface Data {
   value: number;
   percentage: number;
   color: string;
   category: string;
-  subcategory?: string;
+  subcategory?: string | null;
   iconName?: string;
   iconSet?: string;
   transactionIds?: string[];
-  type?: 'income' | 'expense';
+  type?: "income" | "expense";
 }
 
 const RADIUS = 130;
@@ -28,28 +40,30 @@ const STROKE_WIDTH = 20;
 const OUTER_STROKE_WIDTH = 30;
 const GAP = 0.03;
 
-type PeriodType = 'month' | 'quarter' | 'year';
-
-type BudgetDetailParams = {
-  category: string;
-  subcategory: string | undefined;
-  transactionIds: string[] | undefined;
-};
+type PeriodType = "month" | "quarter" | "year";
 
 export default function BudgetScreen() {
   const router = useRouter();
   const [data, setData] = useState<Data[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [periodType, setPeriodType] = useState<PeriodType>('month');
-  const [filterType, setFilterType] = useState<'Income' | 'Expense'>('Expense'); // {{ edit: Remove 'All' from filterType state }}
+  const [periodType, setPeriodType] = useState<PeriodType>("month");
+  const [filterType, setFilterType] = useState<"Income" | "Expense">("Expense"); // {{ edit: Remove 'All' from filterType state }}
   const [totalValue, setTotalValue] = useState(0);
   const decimals = useSharedValue<number[]>([]);
-  const [allData, setAllData] = useState<Data[]>([]); // {{ edit: Add allData state }}
   // Add loading state
   const [isLoading, setIsLoading] = useState(true);
   // Add states to track data availability
   const [hasIncomeData, setHasIncomeData] = useState(false);
   const [hasExpenseData, setHasExpenseData] = useState(false);
+  const [preferredCurrency, setPreferredCurrency] = useState("EUR");
+
+  useEffect(() => {
+    AsyncStorage.getItem("preferredCurrency")
+      .then((v) => {
+        if (v) setPreferredCurrency(v.toUpperCase());
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,18 +72,26 @@ export default function BudgetScreen() {
         let startDate, endDate;
 
         switch (periodType) {
-          case 'month':
-            startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0];
-            endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
+          case "month":
+            startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+              .toISOString()
+              .split("T")[0];
+            endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+              .toISOString()
+              .split("T")[0];
             break;
-          case 'quarter':
+          case "quarter":
             const quarterStartMonth = Math.floor(currentDate.getMonth() / 3) * 3;
-            startDate = new Date(currentDate.getFullYear(), quarterStartMonth, 1).toISOString().split('T')[0];
-            endDate = new Date(currentDate.getFullYear(), quarterStartMonth + 3, 0).toISOString().split('T')[0];
+            startDate = new Date(currentDate.getFullYear(), quarterStartMonth, 1)
+              .toISOString()
+              .split("T")[0];
+            endDate = new Date(currentDate.getFullYear(), quarterStartMonth + 3, 0)
+              .toISOString()
+              .split("T")[0];
             break;
-          case 'year':
-            startDate = new Date(currentDate.getFullYear(), 0, 1).toISOString().split('T')[0];
-            endDate = new Date(currentDate.getFullYear(), 11, 31).toISOString().split('T')[0];
+          case "year":
+            startDate = new Date(currentDate.getFullYear(), 0, 1).toISOString().split("T")[0];
+            endDate = new Date(currentDate.getFullYear(), 11, 31).toISOString().split("T")[0];
             break;
         }
 
@@ -77,24 +99,28 @@ export default function BudgetScreen() {
         const budgetSummary = result;
 
         if (!Array.isArray(budgetSummary)) {
-          throw new Error('Expected budgetSummary to be an array');
+          throw new Error("Expected budgetSummary to be an array");
         }
 
         // Assign 'type' to each budget item based on category
         const categorizedBudgetSummary = budgetSummary.map((item) => {
-          let category = expenseCategories.find(cat => cat.name.toLowerCase() === item.category.toLowerCase());
-          let type: 'expense' | 'income' = 'expense';
+          let category = expenseCategories.find(
+            (cat) => cat.name.toLowerCase() === item.category.toLowerCase(),
+          );
+          let type: "expense" | "income" = "expense";
 
           if (!category) {
-            category = incomeCategories.find(cat => cat.name.toLowerCase() === item.category.toLowerCase());
+            category = incomeCategories.find(
+              (cat) => cat.name.toLowerCase() === item.category.toLowerCase(),
+            );
             if (category) {
-              type = 'income';
+              type = "income";
             }
           }
 
           if (!category) {
             console.warn(`Category "${item.category}" not found in expense or income categories.`);
-            type = 'expense';
+            type = "expense";
           }
 
           return {
@@ -105,39 +131,45 @@ export default function BudgetScreen() {
 
         // Filter based on filterType
         let filterBudgetSummary = categorizedBudgetSummary;
-        if (filterType === 'Income') {
-          filterBudgetSummary = categorizedBudgetSummary.filter(item => item.type === 'income');
-        } else if (filterType === 'Expense') {
-          filterBudgetSummary = categorizedBudgetSummary.filter(item => item.type === 'expense');
+        if (filterType === "Income") {
+          filterBudgetSummary = categorizedBudgetSummary.filter((item) => item.type === "income");
+        } else if (filterType === "Expense") {
+          filterBudgetSummary = categorizedBudgetSummary.filter((item) => item.type === "expense");
         }
 
-        filterBudgetSummary = filterBudgetSummary.filter(item => item.category !== 'Virements internes');
+        filterBudgetSummary = filterBudgetSummary.filter(
+          (item) => item.category !== "Virements internes",
+        );
 
         const total = filterBudgetSummary.reduce(
           (acc, currentValue) => acc + currentValue.net_amount,
-          0
+          0,
         );
 
         const generatePercentages = filterBudgetSummary.map((item) => {
-          let category = expenseCategories.find(cat => cat.name.toLowerCase() === item.category.toLowerCase());
-          let type: 'expense' | 'income' = 'expense';
+          let category = expenseCategories.find(
+            (cat) => cat.name.toLowerCase() === item.category.toLowerCase(),
+          );
+          let type: "expense" | "income" = "expense";
 
           if (!category) {
-            category = incomeCategories.find(cat => cat.name.toLowerCase() === item.category.toLowerCase());
+            category = incomeCategories.find(
+              (cat) => cat.name.toLowerCase() === item.category.toLowerCase(),
+            );
             if (category) {
-              type = 'income';
+              type = "income";
             }
           }
 
           if (!category) {
             console.warn(`Category "${item.category}" not found in expense or income categories.`);
-            type = 'expense';
+            type = "expense";
           }
 
           return {
             value: parseFloat(item.net_amount.toFixed(2)),
             percentage: (item.net_amount / total) * 100,
-            color: category?.color || '#cccccc',
+            color: category?.color || "#cccccc",
             category: item.category,
             subcategory: item.subcategories[0]?.subcategory,
             iconName: category?.iconName,
@@ -147,8 +179,8 @@ export default function BudgetScreen() {
           };
         });
 
-        const significantSegments = generatePercentages.filter(item => item.percentage >= 3);
-        const otherSegments = generatePercentages.filter(item => item.percentage < 3);
+        const significantSegments = generatePercentages.filter((item) => item.percentage >= 3);
+        const otherSegments = generatePercentages.filter((item) => item.percentage < 3);
 
         const otherTotal = otherSegments.reduce((acc, item) => acc + item.value, 0);
         const otherPercentage = otherSegments.reduce((acc, item) => acc + item.percentage, 0);
@@ -157,103 +189,104 @@ export default function BudgetScreen() {
           significantSegments.push({
             value: parseFloat(otherTotal.toFixed(2)),
             percentage: otherPercentage,
-            color: '#cccccc',
-            category: 'Other',
-            subcategory: undefined,
-            iconName: 'help-circle-outline',
-            iconSet: 'Ionicons',
-            transactionIds: otherSegments.flatMap(item => item.transactionIds || []),
-            type: 'expense',
+            color: "#cccccc",
+            category: "Other",
+            subcategory: null,
+            iconName: "help-circle-outline",
+            iconSet: "Ionicons",
+            transactionIds: otherSegments.flatMap((item) => item.transactionIds || []),
+            type: "expense",
           });
         }
 
         significantSegments.sort((a, b) => {
-          if (a.category === 'Other') return 1;
-          if (b.category === 'Other') return -1;
+          if (a.category === "Other") return 1;
+          if (b.category === "Other") return -1;
           return b.value - a.value;
         });
 
-        const generateDecimals = significantSegments.map(
-          (item) => item.percentage / 100,
-        );
+        const generateDecimals = significantSegments.map((item) => item.percentage / 100);
 
         const totalDecimals = generateDecimals.reduce((acc, val) => acc + val, 0);
         const normalizedDecimals = generateDecimals.map((decimal) => decimal / totalDecimals);
 
         decimals.value = [...normalizedDecimals];
 
-        setHasIncomeData(categorizedBudgetSummary.some(item => item.type === 'income'));
-        setHasExpenseData(categorizedBudgetSummary.some(item => item.type === 'expense'));
+        setHasIncomeData(categorizedBudgetSummary.some((item) => item.type === "income"));
+        setHasExpenseData(categorizedBudgetSummary.some((item) => item.type === "expense"));
         console.log("has income data", hasIncomeData);
         console.log("has expense data", hasExpenseData);
 
         setData(significantSegments);
         setTotalValue(total);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error instanceof Error ? error.message : error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
+    void fetchData();
   }, [currentDate, periodType, filterType]);
 
   const formatPeriod = (date: Date, type: PeriodType) => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric' };
+    const options: Intl.DateTimeFormatOptions = { year: "numeric" };
     switch (type) {
-      case 'month':
-        options.month = 'long';
+      case "month":
+        options.month = "long";
         break;
-      case 'quarter':
+      case "quarter":
         const quarter = Math.floor(date.getMonth() / 3) + 1;
         return `Q${quarter} ${date.getFullYear()}`;
-      case 'year':
+      case "year":
         return date.getFullYear().toString();
     }
-    return date.toLocaleString('default', options);
+    return date.toLocaleString("default", options);
   };
 
   const changePeriod = (increment: number) => {
     const newDate = new Date(currentDate);
     switch (periodType) {
-      case 'month':
+      case "month":
         newDate.setMonth(newDate.getMonth() + increment);
         break;
-      case 'quarter':
-        newDate.setMonth(newDate.getMonth() + (3 * increment));
+      case "quarter":
+        newDate.setMonth(newDate.getMonth() + 3 * increment);
         break;
-      case 'year':
+      case "year":
         newDate.setFullYear(newDate.getFullYear() + increment);
         break;
     }
     setCurrentDate(newDate);
   };
 
-  const font = Platform.OS === 'web' ? null : useFont(require('@/assets/fonts/Roboto-Bold.ttf'), 45);
-  const smallFont = Platform.OS === 'web' ? null : useFont(require('@/assets/fonts/Roboto-Light.ttf'), 25);
+  const font =
+    Platform.OS === "web" ? null : useFont(require("@/assets/fonts/Roboto-Bold.ttf"), 45);
+  const smallFont =
+    Platform.OS === "web" ? null : useFont(require("@/assets/fonts/Roboto-Light.ttf"), 25);
 
-  if (Platform.OS !== 'web' && !font && !smallFont) {
+  if (Platform.OS !== "web" && !font && !smallFont) {
     return <View />;
   }
 
-  function NoBudget({ type, hasOtherData }: { type: 'Income' | 'Expense'; hasOtherData: boolean }) {
+  function NoBudget({ type, hasOtherData }: { type: "Income" | "Expense"; hasOtherData: boolean }) {
     return (
       <View style={styles.noBudgetContainer}>
         <Ionicons
-          name={type === 'Income' ? 'cash-outline' : 'wallet-outline'}
+          name={type === "Income" ? "cash-outline" : "wallet-outline"}
           size={64}
           color={darkTheme.colors.textSecondary}
         />
         <Text style={styles.noBudgetText}>
-          No <Text style={{ fontWeight: 'bold' }}>{type.toLowerCase()}</Text> data available for this period
+          No <Text style={{ fontWeight: "bold" }}>{type.toLowerCase()}</Text> data available for
+          this period
         </Text>
         {hasOtherData && (
-          <TouchableOpacity onPress={() => setFilterType(type === 'Income' ? 'Expense' : 'Income')}>
+          <TouchableOpacity onPress={() => setFilterType(type === "Income" ? "Expense" : "Income")}>
             <Text style={styles.otherDataText}>
-              But {type === 'Income' ? 'Expense' : 'Income'} data is available for this period.{'\n'}
+              But {type === "Income" ? "Expense" : "Income"} data is available for this period.
+              {"\n"}
             </Text>
-
           </TouchableOpacity>
         )}
       </View>
@@ -265,7 +298,7 @@ export default function BudgetScreen() {
       <View style={sharedStyles.header}>
         <View style={styles.headerContent}>
           <Image
-            source={require('@/assets/images/logo-removebg-white.png')}
+            source={require("@/assets/images/logo-removebg-white.png")}
             style={{ width: 30, height: 30 }}
             resizeMode="contain"
           />
@@ -281,14 +314,11 @@ export default function BudgetScreen() {
         <View>
           <Text style={styles.periodText}>{formatPeriod(currentDate, periodType)}</Text>
           <View style={styles.periodTypeSelector}>
-            {['month', 'quarter', 'year'].map((type) => (
+            {["month", "quarter", "year"].map((type) => (
               <Pressable
                 key={type}
                 onPress={() => setPeriodType(type as PeriodType)}
-                style={[
-                  styles.periodTypeButton,
-                  periodType === type && styles.activePeriodType,
-                ]}
+                style={[styles.periodTypeButton, periodType === type && styles.activePeriodType]}
               >
                 <Text
                   style={[
@@ -310,8 +340,8 @@ export default function BudgetScreen() {
       <View style={styles.filterContainer}>
         <Text style={styles.filterLabel}>Expense</Text>
         <Switch
-          value={filterType === 'Income'}
-          onValueChange={(value) => setFilterType(value ? 'Income' : 'Expense')}
+          value={filterType === "Income"}
+          onValueChange={(value) => setFilterType(value ? "Income" : "Expense")}
           thumbColor={darkTheme.colors.surface}
           trackColor={{
             false: darkTheme.colors.error,
@@ -321,17 +351,17 @@ export default function BudgetScreen() {
         <Text style={styles.filterLabel}>Income</Text>
       </View>
 
-      {!isLoading && (
-        filterType === 'Income' && !hasIncomeData ? (
+      {!isLoading &&
+        (filterType === "Income" && !hasIncomeData ? (
           <NoBudget type="Income" hasOtherData={hasExpenseData} />
-        ) : filterType === 'Expense' && !hasExpenseData ? (
+        ) : filterType === "Expense" && !hasExpenseData ? (
           <NoBudget type="Expense" hasOtherData={hasIncomeData} />
         ) : (
           <ScrollView
             contentContainerStyle={styles.scrollViewContent}
             showsVerticalScrollIndicator={false}
           >
-            {Platform.OS !== 'web' ? (
+            {Platform.OS !== "web" ? (
               <View style={styles.chartContainer}>
                 <DonutChart
                   radius={RADIUS}
@@ -343,18 +373,18 @@ export default function BudgetScreen() {
                   totalValue={totalValue}
                   n={data.length}
                   decimals={decimals}
-                  colors={data.map(item => item.color)}
-                  totalText={filterType === 'Income' ? 'Total Income' : 'Total Expense'}
+                  colors={data.map((item) => item.color)}
+                  totalText={filterType === "Income" ? "Total Income" : "Total Expense"}
                 />
               </View>
             ) : (
               <View style={styles.webChartFallback}>
                 <View style={styles.webChartContent}>
                   <Text style={styles.webTotalLabel}>
-                    {filterType === 'Income' ? 'Total Income' : 'Total Expense'}
+                    {filterType === "Income" ? "Total Income" : "Total Expense"}
                   </Text>
                   <Text style={styles.webTotalValue}>
-                    {totalValue.toLocaleString()} €
+                    {formatCurrency(totalValue, preferredCurrency)}
                   </Text>
                 </View>
               </View>
@@ -364,16 +394,23 @@ export default function BudgetScreen() {
                 key={index}
                 style={styles.legendItem}
                 onPress={() =>
-                  router.push('BudgetDetail', {
-                    category: item.category,
-                    subcategory: item.subcategory,
-                    transactionIds: item.transactionIds,
+                  router.push({
+                    pathname: "/(app)/(tabs)/transactions",
+                    params: {
+                      budgetCategory: item.category,
+                      budgetSubcategory: item.subcategory ?? "",
+                      budgetTransactionIds: item.transactionIds?.join(",") ?? "",
+                    },
                   })
                 }
               >
                 <View style={[styles.iconCircle, { backgroundColor: item.color }]}>
-                  {item.iconSet === 'Ionicons' && (
-                    <Ionicons name={item.iconName as any} size={16} color={darkTheme.colors.surface} />
+                  {item.iconSet === "Ionicons" && (
+                    <Ionicons
+                      name={item.iconName as any}
+                      size={16}
+                      color={darkTheme.colors.surface}
+                    />
                   )}
                 </View>
                 <View style={styles.legendLabelContainer}>
@@ -384,12 +421,13 @@ export default function BudgetScreen() {
                     <Text style={styles.subCategoryLabel}>{item.subcategory}</Text>
                   )}
                 </View>
-                <Text style={styles.legendValue}>{item.value.toLocaleString()} €</Text>
+                <Text style={styles.legendValue}>
+                  {formatCurrency(item.value, preferredCurrency)}
+                </Text>
               </Pressable>
             ))}
           </ScrollView>
-        )
-      )}
+        ))}
 
       {isLoading && (
         <View style={styles.loadingContainer}>
@@ -399,13 +437,13 @@ export default function BudgetScreen() {
       )}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   periodSelector: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: darkTheme.spacing.m,
     paddingHorizontal: darkTheme.spacing.l,
     backgroundColor: darkTheme.colors.surface,
@@ -415,13 +453,13 @@ const styles = StyleSheet.create({
   },
   periodText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: darkTheme.colors.text,
-    textAlign: 'center',
+    textAlign: "center",
   },
   periodTypeSelector: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: darkTheme.spacing.s,
   },
   periodTypeButton: {
@@ -441,9 +479,9 @@ const styles = StyleSheet.create({
     color: darkTheme.colors.surface,
   },
   filterContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: darkTheme.spacing.m,
     backgroundColor: darkTheme.colors.surface,
   },
@@ -453,12 +491,12 @@ const styles = StyleSheet.create({
     marginHorizontal: darkTheme.spacing.m,
   },
   scrollViewContent: {
-    alignItems: 'center',
+    alignItems: "center",
     padding: darkTheme.spacing.m,
   },
   legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: darkTheme.spacing.m,
     backgroundColor: darkTheme.colors.surface,
     marginBottom: darkTheme.spacing.s,
@@ -469,8 +507,8 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   legendLabelContainer: {
     flex: 1,
@@ -479,7 +517,7 @@ const styles = StyleSheet.create({
   legendLabel: {
     fontSize: 14,
     color: darkTheme.colors.text,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   subCategoryLabel: {
     fontSize: 12,
@@ -488,7 +526,7 @@ const styles = StyleSheet.create({
   },
   legendValue: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: darkTheme.colors.text,
     marginLeft: darkTheme.spacing.m,
   },
@@ -500,20 +538,20 @@ const styles = StyleSheet.create({
   },
   noBudgetContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: darkTheme.spacing.xl,
   },
   noBudgetText: {
     fontSize: 16,
     color: darkTheme.colors.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: darkTheme.spacing.m,
   },
   headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
   },
   logo: {
     width: 30,
@@ -522,17 +560,17 @@ const styles = StyleSheet.create({
   otherDataText: {
     fontSize: 14,
     color: darkTheme.colors.primary,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: darkTheme.spacing.m,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   webChartFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: darkTheme.spacing.xl,
     backgroundColor: darkTheme.colors.surface,
     borderRadius: darkTheme.borderRadius.l,
@@ -541,19 +579,19 @@ const styles = StyleSheet.create({
     ...darkTheme.shadows.medium,
   },
   webChartContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   webTotalValue: {
     fontSize: 42,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: darkTheme.colors.primary,
     marginTop: darkTheme.spacing.m,
   },
   webTotalLabel: {
     fontSize: 18,
     color: darkTheme.colors.textSecondary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
   },
 });

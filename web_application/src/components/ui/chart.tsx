@@ -1,43 +1,30 @@
-"use client"
+"use client";
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { BarChart as Chart } from "@tremor/react"
-import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { BarChart as Chart } from "@tremor/react";
 
-export type ChartConfig = Record<string, { label: string; color: string }>
+export type ChartConfig = Record<string, { label: string; color: string }>;
 
 interface ChartContainerProps extends React.HTMLAttributes<HTMLDivElement> {
-  config: ChartConfig
+  config: ChartConfig;
 }
 
-export function ChartContainer({
-  config,
-  children,
-  className,
-  ...props
-}: ChartContainerProps) {
+export function ChartContainer({ config, children, className, ...props }: ChartContainerProps) {
+  void config;
   return (
     <div className={className} {...props}>
       {children}
     </div>
-  )
+  );
 }
 
 interface ChartTooltipProps extends React.ComponentProps<typeof Tooltip> {
-  content: React.ReactNode
+  content: React.ReactNode;
+  className?: string;
 }
 
-export function ChartTooltip({
-  content,
-  children,
-  className,
-  ...props
-}: ChartTooltipProps) {
+export function ChartTooltip({ content, children, className, ...props }: ChartTooltipProps) {
   return (
     <TooltipProvider>
       <Tooltip {...props}>
@@ -45,13 +32,13 @@ export function ChartTooltip({
         <TooltipContent className={className}>{content}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
-  )
+  );
 }
 
 interface ChartTooltipContentProps {
-  active?: boolean
-  payload?: Array<{ value: number; name: string; payload: Record<string, any> }>
-  hideLabel?: boolean
+  active?: boolean;
+  payload?: Array<{ value: number; name: string; payload: Record<string, any> }>;
+  hideLabel?: boolean;
 }
 
 export function ChartTooltipContent({
@@ -60,7 +47,7 @@ export function ChartTooltipContent({
   hideLabel = false,
 }: ChartTooltipContentProps) {
   if (!active || !payload?.length) {
-    return null
+    return null;
   }
 
   return (
@@ -68,19 +55,17 @@ export function ChartTooltipContent({
       {payload.map((item, index) => (
         <div key={index} className="flex flex-col">
           {!hideLabel && (
-            <span className="text-[0.70rem] uppercase text-muted-foreground">
-              {item.name}
-            </span>
+            <span className="text-[0.70rem] uppercase text-muted-foreground">{item.name}</span>
           )}
           <span className="font-bold">{item.value.toLocaleString()}</span>
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 interface ChartProps extends React.ComponentProps<typeof Chart> {
-  className?: string
+  className?: string;
 }
 
 export function BarChart({ className, ...props }: ChartProps) {
@@ -94,5 +79,5 @@ export function BarChart({ className, ...props }: ChartProps) {
       showXAxis
       showYAxis
     />
-  )
+  );
 }

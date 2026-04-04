@@ -1,62 +1,74 @@
-import { usePortfolioPerformance, usePortfolioSummary } from "@/api/queries"
-import { AssetAllocationChart } from "@/components/investments/AssetAllocationChart"
-import { AssetPerformanceChart } from "@/components/investments/AssetPerformanceChart"
-import { AssetStatistics } from "@/components/investments/AssetStatistics"
-import { PortfolioPerformanceChart } from "@/components/investments/PortfolioPerformanceChart"
-import { PageContainer } from "@/components/layout/PageContainer"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { usePortfolioPerformance, usePortfolioSummary } from "@/api/queries";
+import { AssetAllocationChart } from "@/components/investments/AssetAllocationChart";
+import { AssetPerformanceChart } from "@/components/investments/AssetPerformanceChart";
+import { AssetStatistics } from "@/components/investments/AssetStatistics";
+import { PortfolioPerformanceChart } from "@/components/investments/PortfolioPerformanceChart";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
-import { TimePeriod } from "@/types"
-import { useNavigate } from "@tanstack/react-router"
-import {
-  ArrowDown,
-  ArrowUp,
-  GiftIcon,
-  PercentIcon,
-  PieChart,
-  Plus,
-  TrendingUp,
-} from "lucide-react"
-import { useState } from "react"
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { TimePeriod } from "@/types";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowDown, ArrowUp, GiftIcon, Plus, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 export function InvestmentsPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("1Y")
-  const { data: portfolioSummary, isLoading: isLoadingSummary } = usePortfolioSummary()
-  const { data: performanceData, isLoading: isLoadingPerformance } = usePortfolioPerformance(selectedPeriod)
-  const navigate = useNavigate()
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("1Y");
+  const [selectedDateRange, setSelectedDateRange] = useState<{
+    startDate: string;
+    endDate: string;
+  } | null>(null);
+  const { data: portfolioSummary, isLoading: isLoadingSummary } = usePortfolioSummary();
+  const { isLoading: isLoadingPerformance } = usePortfolioPerformance(selectedPeriod);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setSelectedDateRange(null);
+  }, [selectedPeriod]);
+
+  // Current holdings only: cost basis of what you still hold, and return on that
+  const currentHoldingsMetrics = useMemo(() => {
+    const assets = portfolioSummary?.assets ?? [];
+    const costBasis = assets.reduce((s, a) => s + (a.cost_basis ?? 0), 0);
+    const currentValue = portfolioSummary?.total_value ?? 0;
+    const unrealizedGain = currentValue - costBasis;
+    const returnPct = costBasis > 0 ? (unrealizedGain / costBasis) * 100 : 0;
+    return { costBasis, unrealizedGain, returnPct };
+  }, [portfolioSummary?.assets, portfolioSummary?.total_value]);
 
   const lastUpdate = portfolioSummary?.last_update
     ? new Date(portfolioSummary.last_update).toLocaleString()
-    : "Unknown"
+    : "Unknown";
 
   // Check if there's no investment data
-  const hasNoInvestments = !isLoadingSummary && (!portfolioSummary ||
-    !portfolioSummary.assets ||
-    portfolioSummary.assets.length === 0 ||
-    (portfolioSummary.total_value === 0 &&
-     portfolioSummary.initial_investment === 0 &&
-     portfolioSummary.net_investment === 0))
+  const hasNoInvestments =
+    !isLoadingSummary &&
+    (!portfolioSummary ||
+      !portfolioSummary.assets ||
+      portfolioSummary.assets.length === 0 ||
+      (portfolioSummary.total_value === 0 &&
+        portfolioSummary.initial_investment === 0 &&
+        portfolioSummary.net_investment === 0));
 
   // Handle adding first investment
   const handleAddFirstInvestment = () => {
-    navigate({
+    void navigate({
       to: "/investmentTransactions",
       search: {
-        addNew: "true"
-      }
-    })
-  }
+        addNew: "true",
+      },
+    });
+  };
 
-  const isLoading = isLoadingSummary || isLoadingPerformance
+  const isLoading = isLoadingSummary || isLoadingPerformance;
 
   // Empty state for no investments
   if (hasNoInvestments) {
@@ -76,204 +88,83 @@ export function InvestmentsPage() {
           </Button>
         </div>
       </PageContainer>
-    )
+    );
   }
 
   return (
     <PageContainer
       title="Investment Portfolio"
-      action={
-        <p className="text-sm text-muted-foreground">
-          Last updated: {lastUpdate}
-        </p>
-      }
+      action={<p className="text-sm text-muted-foreground">Last updated: {lastUpdate}</p>}
     >
       <div className="space-y-6">
         {/* Portfolio Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="space-y-4">
           {isLoading ? (
-            <>
-              <Card className="p-6">
-                <Skeleton className="h-4 w-32 mb-2" />
-                <Skeleton className="h-8 w-40" />
-              </Card>
-              <Card className="p-6">
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-8 w-32" />
-                <Skeleton className="h-3 w-28 mt-1" />
-              </Card>
-              <Card className="p-6">
-                <Skeleton className="h-4 w-20 mb-2" />
-                <div className="flex items-center gap-2 mt-2">
-                  <Skeleton className="h-5 w-5" />
-                  <Skeleton className="h-8 w-24" />
-                </div>
-              </Card>
-              <Card className="p-6">
-                <Skeleton className="h-4 w-24 mb-2" />
-                <div className="flex items-center gap-2 mt-2">
-                  <Skeleton className="h-5 w-5" />
-                  <Skeleton className="h-8 w-24" />
-                </div>
-                <Skeleton className="h-3 w-32 mt-1" />
-              </Card>
-            </>
-          ) : (
-            <>
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  Total Portfolio Value
-                </p>
-                <p className="text-2xl font-semibold mt-2">
-                  {new Intl.NumberFormat(undefined, {
-                    style: "currency",
-                    currency: portfolioSummary?.currency ?? "EUR",
-                  }).format(portfolioSummary?.total_value ?? 0)}
-                </p>
-              </Card>
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground">Total Return</p>
-                <p
-                  className={cn(
-                    "text-2xl font-semibold mt-2",
-                    (portfolioSummary?.total_gain_loss ?? 0) > 0
-                      ? "text-green-500"
-                      : "text-red-500"
-                  )}
-                >
-                  {new Intl.NumberFormat(undefined, {
-                    style: "currency",
-                    currency: portfolioSummary?.currency ?? "EUR",
-                    signDisplay: "always",
-                  }).format(portfolioSummary?.total_gain_loss ?? 0)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {portfolioSummary?.returns_include_dividends
-                    ? "Including dividends"
-                    : "Excluding dividends"}
-                </p>
-              </Card>
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground">Return %</p>
-                <div className="flex items-center gap-2 mt-2">
-                  {(portfolioSummary?.total_gain_loss_percentage ?? 0) > 0 ? (
-                    <ArrowUp className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <ArrowDown className="h-5 w-5 text-red-500" />
-                  )}
-                  <p
-                    className={cn(
-                      "text-2xl font-semibold",
-                      (portfolioSummary?.total_gain_loss_percentage ?? 0) > 0
-                        ? "text-green-500"
-                        : "text-red-500"
-                    )}
-                  >
-                    {Math.abs(
-                      portfolioSummary?.total_gain_loss_percentage ?? 0
-                    ).toFixed(2)}
-                    %
-                  </p>
-                </div>
-              </Card>
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground">Dividend Yield</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <GiftIcon className="h-5 w-5 text-blue-500" />
-                  <p className="text-2xl font-semibold text-blue-500">
-                    {(portfolioSummary?.dividend_metrics?.portfolio_yield ?? 0) *
-                      100}
-                    %
-                  </p>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {new Intl.NumberFormat(undefined, {
-                    style: "currency",
-                    currency: portfolioSummary?.currency ?? "EUR",
-                  }).format(
-                    portfolioSummary?.dividend_metrics?.monthly_income_estimate ?? 0
-                  )}{" "}
-                  monthly est.
-                </p>
-              </Card>
-            </>
-          )}
-        </div>
-
-        {/* Investment & Metrics Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {isLoading ? (
-            <>
-              <Card className="p-6">
-                <Skeleton className="h-6 w-40 mb-4" />
-                <div className="space-y-4">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex justify-between items-center">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-4 w-24" />
-                    </div>
-                  ))}
-                </div>
-              </Card>
-              <Card className="p-6">
-                <Skeleton className="h-6 w-40 mb-4" />
-                <div className="space-y-4">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-4 w-4" />
-                        <Skeleton className="h-4 w-32" />
-                      </div>
-                      <Skeleton className="h-4 w-24" />
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </>
-          ) : (
-            <>
-              <Card className="p-6">
-                <div className="flex items-center mb-4">
-                  <h2 className="text-lg font-semibold">Investment Summary</h2>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">
-                      Initial Investment
-                    </span>
-                    <span className="font-medium">
-                      {new Intl.NumberFormat(undefined, {
-                        style: "currency",
-                        currency: portfolioSummary?.currency ?? "EUR",
-                      }).format(portfolioSummary?.initial_investment ?? 0)}
-                    </span>
+            <Card className="p-6">
+              <Skeleton className="h-4 w-32 mb-3" />
+              <Skeleton className="h-10 w-48 mb-6" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-6 w-28" />
+                    <Skeleton className="h-3 w-16" />
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Net Investment</span>
-                    <span className="font-medium">
+                ))}
+              </div>
+            </Card>
+          ) : (
+            <Card className="p-6 bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
+              <div className="space-y-5">
+                {/* Primary value */}
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Total Portfolio Value
+                  </p>
+                  <p className="mt-1.5 text-3xl md:text-4xl font-semibold tracking-tight">
+                    {new Intl.NumberFormat(undefined, {
+                      style: "currency",
+                      currency: portfolioSummary?.currency ?? "EUR",
+                    }).format(portfolioSummary?.total_value ?? 0)}
+                  </p>
+                </div>
+
+                {/* Metrics grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border/40">
+                  {/* Net Invested */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Wallet className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium uppercase tracking-wide">
+                        Net Invested
+                      </span>
+                    </div>
+                    <p className="text-lg font-semibold">
                       {new Intl.NumberFormat(undefined, {
                         style: "currency",
                         currency: portfolioSummary?.currency ?? "EUR",
                       }).format(portfolioSummary?.net_investment ?? 0)}
-                    </span>
+                    </p>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Total Withdrawals</span>
-                    <span className="font-medium">
-                      {new Intl.NumberFormat(undefined, {
-                        style: "currency",
-                        currency: portfolioSummary?.currency ?? "EUR",
-                      }).format(portfolioSummary?.total_withdrawals ?? 0)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2 border-t">
-                    <span className="text-muted-foreground">Total Gain/Loss</span>
-                    <span
+
+                  {/* Total Return (since inception) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      {(portfolioSummary?.total_gain_loss ?? 0) >= 0 ? (
+                        <TrendingUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <TrendingDown className="h-3.5 w-3.5" />
+                      )}
+                      <span className="text-xs font-medium uppercase tracking-wide">
+                        Total Return
+                      </span>
+                    </div>
+                    <p
                       className={cn(
-                        "font-semibold",
-                        (portfolioSummary?.total_gain_loss ?? 0) > 0
-                          ? "text-green-500"
-                          : "text-red-500"
+                        "text-lg font-semibold",
+                        (portfolioSummary?.total_gain_loss ?? 0) >= 0
+                          ? "text-emerald-600"
+                          : "text-red-500",
                       )}
                     >
                       {new Intl.NumberFormat(undefined, {
@@ -281,88 +172,88 @@ export function InvestmentsPage() {
                         currency: portfolioSummary?.currency ?? "EUR",
                         signDisplay: "always",
                       }).format(portfolioSummary?.total_gain_loss ?? 0)}
-                    </span>
+                    </p>
+                    <p
+                      className={cn(
+                        "text-xs font-medium",
+                        (portfolioSummary?.total_gain_loss_percentage ?? 0) >= 0
+                          ? "text-emerald-600"
+                          : "text-red-500",
+                      )}
+                    >
+                      {(portfolioSummary?.total_gain_loss_percentage ?? 0) >= 0 ? "+" : ""}
+                      {(portfolioSummary?.total_gain_loss_percentage ?? 0).toFixed(2)}%
+                      <span className="text-muted-foreground font-normal ml-1">
+                        since inception
+                      </span>
+                    </p>
                   </div>
-                </div>
-              </Card>
 
-              <Card className="p-6">
-                <div className="flex items-center mb-4">
-                  <h2 className="text-lg font-semibold">Portfolio Metrics</h2>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <PieChart className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        Diversification Score
+                  {/* Unrealized P/L (current holdings) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      {currentHoldingsMetrics.unrealizedGain >= 0 ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      )}
+                      <span className="text-xs font-medium uppercase tracking-wide">
+                        Unrealized P/L
                       </span>
                     </div>
-                    <span className="font-medium">
-                      {portfolioSummary?.metrics?.diversification_score?.toFixed(
-                        1
-                      ) ?? 0}
-                      /100
-                    </span>
+                    <p
+                      className={cn(
+                        "text-lg font-semibold",
+                        currentHoldingsMetrics.unrealizedGain >= 0
+                          ? "text-emerald-600"
+                          : "text-red-500",
+                      )}
+                    >
+                      {new Intl.NumberFormat(undefined, {
+                        style: "currency",
+                        currency: portfolioSummary?.currency ?? "EUR",
+                        signDisplay: "always",
+                      }).format(currentHoldingsMetrics.unrealizedGain)}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-xs font-medium",
+                        currentHoldingsMetrics.returnPct >= 0 ? "text-emerald-600" : "text-red-500",
+                      )}
+                    >
+                      {currentHoldingsMetrics.returnPct >= 0 ? "+" : ""}
+                      {currentHoldingsMetrics.returnPct.toFixed(2)}%
+                      <span className="text-muted-foreground font-normal ml-1">on holdings</span>
+                    </p>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <PercentIcon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        Largest Position
+
+                  {/* Dividend Yield */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <GiftIcon className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium uppercase tracking-wide">
+                        Dividend Yield
                       </span>
                     </div>
-                    <span className="font-medium">
-                      {portfolioSummary?.metrics?.largest_position_percentage?.toFixed(
-                        1
-                      ) ?? 0}
+                    <p className="text-lg font-semibold text-blue-500">
+                      {((portfolioSummary?.dividend_metrics?.portfolio_yield ?? 0) * 100).toFixed(
+                        1,
+                      )}
                       %
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <ArrowUp className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Total Dividends</span>
-                    </div>
-                    <span className="font-medium">
+                    </p>
+                    <p className="text-xs text-muted-foreground">
                       {new Intl.NumberFormat(undefined, {
                         style: "currency",
                         currency: portfolioSummary?.currency ?? "EUR",
                       }).format(
-                        portfolioSummary?.dividend_metrics
-                          ?.total_dividends_received ?? 0
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <ArrowUp className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        Dividend Growth (YoY)
-                      </span>
-                    </div>
-                    <span
-                      className={cn(
-                        "font-medium",
-                        (portfolioSummary?.dividend_metrics?.dividend_growth ?? 0) >
-                          0
-                          ? "text-green-500"
-                          : "text-red-500"
-                      )}
-                    >
-                      {(portfolioSummary?.dividend_metrics?.dividend_growth ?? 0) >
-                      0
-                        ? "+"
-                        : ""}
-                      {portfolioSummary?.dividend_metrics?.dividend_growth?.toFixed(
-                        2
-                      ) ?? 0}
-                      %
-                    </span>
+                        portfolioSummary?.dividend_metrics?.monthly_income_estimate ?? 0,
+                      )}{" "}
+                      /mo est.
+                    </p>
                   </div>
                 </div>
-              </Card>
-            </>
+              </div>
+            </Card>
           )}
         </div>
 
@@ -404,20 +295,30 @@ export function InvestmentsPage() {
             {isLoading ? (
               <Skeleton className="h-[400px] w-full" />
             ) : (
-              <PortfolioPerformanceChart period={selectedPeriod} />
+              <PortfolioPerformanceChart
+                period={selectedPeriod}
+                selectedRange={selectedDateRange}
+                onSelectedRangeChange={setSelectedDateRange}
+              />
             )}
           </Card>
 
           {/* Asset Allocation */}
-          <Card className="p-6 h-[90vh]">
+          <Card className="p-6 flex flex-col">
             {isLoading ? (
               <>
                 <Skeleton className="h-6 w-40 mb-4" />
-                <Skeleton className="h-[calc(90vh-8rem)] w-full" />
+                <Skeleton className="h-[280px] w-full" />
               </>
             ) : (
               <>
-                <h2 className="text-lg font-semibold mb-4">Asset Allocation</h2>
+                <div className="mb-4 flex items-center justify-between gap-2">
+                  <h2 className="text-lg font-semibold">Asset Allocation</h2>
+                  <span className="text-xs text-muted-foreground">
+                    {portfolioSummary?.assets?.filter((a) => a.current_value > 0).length ?? 0}{" "}
+                    holdings
+                  </span>
+                </div>
                 <AssetAllocationChart />
               </>
             )}
@@ -433,10 +334,12 @@ export function InvestmentsPage() {
             </>
           ) : (
             <>
-              <h2 className="text-lg font-semibold mb-4">
-                Individual Asset Performance
-              </h2>
-              <AssetPerformanceChart period={selectedPeriod} />
+              <h2 className="text-lg font-semibold mb-4">Individual Asset Performance</h2>
+              <AssetPerformanceChart
+                period={selectedPeriod}
+                selectedRange={selectedDateRange}
+                onSelectedRangeChange={setSelectedDateRange}
+              />
             </>
           )}
         </Card>
@@ -459,13 +362,9 @@ export function InvestmentsPage() {
               </>
             )}
           </div>
-          {isLoading ? (
-            <Skeleton className="h-[400px] w-full" />
-          ) : (
-            <AssetStatistics />
-          )}
+          {isLoading ? <Skeleton className="h-[400px] w-full" /> : <AssetStatistics />}
         </Card>
       </div>
     </PageContainer>
-  )
+  );
 }

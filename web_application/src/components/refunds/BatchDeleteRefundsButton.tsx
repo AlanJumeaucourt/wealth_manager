@@ -27,7 +27,7 @@ export function BatchDeleteRefundsButton({
   selectedRefundGroups = [],
   selectedRefundItems = [],
   onSuccess,
-  disabled = false
+  disabled = false,
 }: BatchDeleteRefundsButtonProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const batchDeleteGroups = useBatchDeleteRefundGroups();
@@ -39,8 +39,6 @@ export function BatchDeleteRefundsButton({
 
   // Determine which batch delete to use based on selection
   const currentBatchDelete = hasSelectedGroups ? batchDeleteGroups : batchDeleteItems;
-  const itemsToDelete = hasSelectedGroups ? selectedRefundGroups : selectedRefundItems;
-
   // No need to show if nothing is selected
   if (totalSelected === 0) {
     return null;
@@ -77,6 +75,15 @@ export function BatchDeleteRefundsButton({
     }
   };
 
+  const dialogProps = {
+    open: isDialogOpen,
+    onOpenChange: setIsDialogOpen,
+    title: getTitle(),
+    description: getDescription(),
+    deleteMutation: currentBatchDelete,
+    onSuccess: handleSuccess,
+  };
+
   return (
     <>
       <Button
@@ -89,16 +96,19 @@ export function BatchDeleteRefundsButton({
         Delete {totalSelected > 1 ? `(${totalSelected})` : ""}
       </Button>
 
-      <BatchDeleteDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        title={getTitle()}
-        description={getDescription()}
-        itemsToDelete={itemsToDelete}
-        itemDisplayField={hasSelectedGroups ? "name" : "id"}
-        deleteMutation={currentBatchDelete}
-        onSuccess={handleSuccess}
-      />
+      {hasSelectedGroups ? (
+        <BatchDeleteDialog<RefundGroup>
+          {...dialogProps}
+          itemsToDelete={selectedRefundGroups}
+          itemDisplayField="name"
+        />
+      ) : (
+        <BatchDeleteDialog<RefundItem>
+          {...dialogProps}
+          itemsToDelete={selectedRefundItems}
+          itemDisplayField="id"
+        />
+      )}
     </>
   );
 }

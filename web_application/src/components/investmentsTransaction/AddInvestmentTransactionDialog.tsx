@@ -5,49 +5,36 @@ import {
   useCreateInvestment,
   useStockHistory,
   useStockSearch,
-  useUpdateInvestment
-} from "@/api/queries"
-import { Button } from "@/components/ui/button"
-import { ComboboxInput } from "@/components/ui/comboboxInput"
+  useUpdateInvestment,
+} from "@/api/queries";
+import { Button } from "@/components/ui/button";
+import { ComboboxInput } from "@/components/ui/comboboxInput";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
-import { Investment } from "@/types"
-import { zodResolver } from "@hookform/resolvers/zod"
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  PlusCircle,
-  TrendingDown,
-  TrendingUp
-} from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Investment } from "@/types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowDownIcon, ArrowUpIcon, PlusCircle, TrendingDown, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 const formSchema = z.object({
-  investment_type: z.enum([
-    "Buy",
-    "Sell",
-    "Dividend",
-    "Interest",
-    "Deposit",
-    "Withdrawal",
-  ]),
+  investment_type: z.enum(["Buy", "Sell", "Dividend", "Interest", "Deposit", "Withdrawal"]),
   asset_id: z.number(),
   date: z.string(),
   fee: z.number(),
@@ -56,8 +43,9 @@ const formSchema = z.object({
   tax: z.number(),
   to_account_id: z.number(),
   unit_price: z.number(),
+  gain_loss_override: z.number().optional(),
   user_id: z.number(),
-})
+});
 
 const investment_typeS = [
   {
@@ -85,60 +73,54 @@ const investment_typeS = [
     label: "Dividend",
     icon: <ArrowDownIcon className="h-4 w-4 text-purple-500" />,
   },
-]
+];
 
 const assetFormSchema = z.object({
   symbol: z.string().min(1, "Symbol is required"),
   name: z.string().min(1, "Name is required"),
-})
+});
 
-type FormData = z.infer<typeof formSchema>
-type AssetFormData = z.infer<typeof assetFormSchema>
+type FormData = z.infer<typeof formSchema>;
+type AssetFormData = z.infer<typeof assetFormSchema>;
 
 interface AddInvestmentDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  investment?: Investment
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  investment?: Investment;
 }
 
 function accountsToOptions(accounts: Array<{ id: number; name: string }>) {
-  return accounts.map(account => ({
+  return accounts.map((account) => ({
     value: account.id.toString(),
     label: account.name,
-  }))
+  }));
 }
 
-function assetsToOptions(
-  assets: Array<{ id: number; name: string; symbol: string }>
-) {
-  return assets.map(asset => ({
+function assetsToOptions(assets: Array<{ id: number; name: string; symbol: string }>) {
+  return assets.map((asset) => ({
     value: asset.id.toString(),
     label: `${asset.name} (${asset.symbol})`,
-  }))
+  }));
 }
 
-export function AddInvestmentDialog({
-  open,
-  onOpenChange,
-  investment,
-}: AddInvestmentDialogProps) {
-  const { toast } = useToast()
-  const createMutation = useCreateInvestment()
-  const updateMutation = useUpdateInvestment()
+export function AddInvestmentDialog({ open, onOpenChange, investment }: AddInvestmentDialogProps) {
+  const { toast } = useToast();
+  const createMutation = useCreateInvestment();
+  const updateMutation = useUpdateInvestment();
   const { data: accountsResponse } = useAccounts({
     type: "investment",
     per_page: 1000,
-  })
-  const { data: assetsResponse, refetch: refetchAssets } = useAssets()
-  const [isAddingAsset, setIsAddingAsset] = useState(false)
+  });
+  const { data: assetsResponse } = useAssets();
+  const [isAddingAsset, setIsAddingAsset] = useState(false);
 
-  const accounts = accountsResponse?.items || []
-  const assetOptions = assetsToOptions(assetsResponse?.items || [])
+  const accounts = accountsResponse?.items || [];
+  const assetOptions = assetsToOptions(assetsResponse?.items || []);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      investment_type: investment?.investment_type || "Buy" as const,
+      investment_type: investment?.investment_type || ("Buy" as const),
       asset_id: investment?.asset_id || 0,
       date: investment?.date
         ? new Date(investment.date).toISOString().split("T")[0]
@@ -149,48 +131,58 @@ export function AddInvestmentDialog({
       tax: investment?.tax || 0,
       to_account_id: investment?.to_account_id || 0,
       unit_price: investment?.unit_price || 0,
+      gain_loss_override: investment?.gain_loss_override ?? undefined,
       user_id: parseInt(localStorage.getItem("user_id") || "0"),
     },
-  })
+  });
 
-  const accountOptions = accountsToOptions(accounts)
+  const accountOptions = accountsToOptions(accounts);
 
-  const [assetId, setAssetId] = useState<number | undefined>(form.getValues("asset_id") || undefined)
+  const [assetId, setAssetId] = useState<number | undefined>(
+    form.getValues("asset_id") || undefined,
+  );
 
   useEffect(() => {
-    setAssetId(form.getValues("asset_id") || undefined)
-  }, [form])
+    setAssetId(form.getValues("asset_id") || undefined);
+  }, [form]);
 
   const selectedAsset = useMemo(
     () =>
       assetsResponse?.items.find(
-        asset => asset.id.toString() === (assetId?.toString() || form.getValues("asset_id")?.toString())
+        (asset) =>
+          asset.id.toString() === (assetId?.toString() || form.getValues("asset_id")?.toString()),
       ),
-    [assetsResponse?.items, assetId, form]
-  )
+    [assetsResponse?.items, assetId, form],
+  );
 
-  const { data: stockHistory } = useStockHistory(selectedAsset?.symbol)
+  const { data: stockHistory } = useStockHistory(selectedAsset?.symbol);
 
-  const selectedDate = form.watch("date")
-  const investmentType = form.watch("investment_type")
+  const selectedDate = form.watch("date");
+  const investmentType = form.watch("investment_type");
 
   useEffect(() => {
     if (stockHistory && selectedDate) {
-      const priceData = stockHistory.find(p => p.date === selectedDate)
+      const priceData = stockHistory.find((p) => p.date === selectedDate);
       if (priceData) {
-        const currentPrice = form.getValues("unit_price")
+        const currentPrice = form.getValues("unit_price");
         if (currentPrice === 0) {
-          form.setValue("unit_price", Number(priceData.close.toFixed(4)))
+          form.setValue("unit_price", Number(priceData.close.toFixed(4)));
         }
       }
     }
-  }, [stockHistory, selectedDate, form])
+  }, [stockHistory, selectedDate, form]);
 
   useEffect(() => {
     if (investmentType === "Dividend") {
-      form.setValue("quantity", 1)
+      form.setValue("quantity", 1);
     }
-  }, [investmentType, form])
+  }, [investmentType, form]);
+
+  useEffect(() => {
+    if (investmentType !== "Sell") {
+      form.setValue("gain_loss_override", undefined);
+    }
+  }, [investmentType, form]);
 
   useEffect(() => {
     if (investment) {
@@ -204,94 +196,101 @@ export function AddInvestmentDialog({
         tax: investment.tax,
         to_account_id: investment.to_account_id,
         unit_price: investment.unit_price,
+        gain_loss_override: investment.gain_loss_override ?? undefined,
         user_id: parseInt(localStorage.getItem("user_id") || "0"),
-      })
-      setAssetId(investment.asset_id)
+      });
+      setAssetId(investment.asset_id);
     }
-  }, [investment, form])
+  }, [investment, form]);
 
   const onSubmit = async (data: FormData) => {
     try {
+      const { investment_type, ...rest } = data;
+      const payload = {
+        ...rest,
+        activity_type: investment_type,
+      };
+
       if (investment) {
         await updateMutation.mutateAsync({
           id: investment.transaction_id,
-          data: {
-            ...data,
-            date: new Date(data.date).toISOString(),
-          },
-        })
+          ...payload,
+          date: new Date(data.date).toISOString(),
+        } as Parameters<typeof updateMutation.mutateAsync>[0]);
         toast({
           title: "Investment Updated",
           description: "Your investment has been updated successfully.",
-        })
+        });
       } else {
         await createMutation.mutateAsync({
-          ...data,
+          ...payload,
           date: new Date(data.date).toISOString(),
-        })
+        } as unknown as Parameters<typeof createMutation.mutateAsync>[0]);
         toast({
           title: "Investment Added",
           description: "Your investment has been added successfully.",
-        })
+        });
       }
-      onOpenChange(false)
+      onOpenChange(false);
       if (!investment) {
-        form.reset()
+        form.reset();
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
-        description: `Failed to ${investment ? 'update' : 'add'} investment. Please try again.`,
+        description: `Failed to ${investment ? "update" : "add"} investment. Please try again.`,
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   // Create a state to track the selected asset option for the ComboboxInput
-  const [selectedAssetOption, setSelectedAssetOption] = useState<{value: string, label: string} | undefined>(
-    assetId ? assetOptions.find(opt => opt.value === assetId.toString()) : undefined
-  )
+  const [selectedAssetOption, setSelectedAssetOption] = useState<
+    { value: string; label: string } | undefined
+  >(assetId ? assetOptions.find((opt) => opt.value === assetId.toString()) : undefined);
 
   // Update selectedAssetOption when assetOptions or assetId changes
   useEffect(() => {
     if (assetId) {
-      const option = assetOptions.find(opt => opt.value === assetId.toString())
+      const option = assetOptions.find((opt) => opt.value === assetId.toString());
       if (option) {
-        setSelectedAssetOption(option)
+        setSelectedAssetOption(option);
       }
     }
-  }, [assetOptions, assetId])
+  }, [assetOptions, assetId]);
 
   const onAssetCreated = async (asset: { id: number; symbol: string; name: string }) => {
     // Update the form value immediately
-    form.setValue("asset_id", asset.id)
+    form.setValue("asset_id", asset.id);
 
     // Update the local state
-    setAssetId(asset.id)
+    setAssetId(asset.id);
 
     // Create the asset option directly
     const newAssetOption = {
       value: asset.id.toString(),
-      label: `${asset.name} (${asset.symbol})`
-    }
+      label: `${asset.name} (${asset.symbol})`,
+    };
 
     // Set the selected asset option directly
-    setSelectedAssetOption(newAssetOption)
+    setSelectedAssetOption(newAssetOption);
 
     // Close the asset dialog
-    setIsAddingAsset(false)
+    setIsAddingAsset(false);
 
     toast({
       title: "Asset Selected",
       description: `Asset "${asset.symbol}" has been created and selected.`,
-    })
-  }
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>{investment ? "Edit Investment Transaction" : "Add Investment Transaction"}</DialogTitle>
+          <DialogTitle>
+            {investment ? "Edit Investment Transaction" : "Add Investment Transaction"}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
@@ -299,16 +298,14 @@ export function AddInvestmentDialog({
             <div className="col-span-2">
               <Label>Transaction Type</Label>
               <Select
-                onValueChange={value =>
-                  form.setValue("investment_type", value as any)
-                }
+                onValueChange={(value) => form.setValue("investment_type", value as any)}
                 defaultValue={form.getValues("investment_type")}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {investment_typeS.map(type => (
+                  {investment_typeS.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       <div className="flex items-center gap-2">
                         {type.icon}
@@ -337,29 +334,21 @@ export function AddInvestmentDialog({
               <div className="relative">
                 <ComboboxInput
                   options={assetOptions}
-                  value={selectedAssetOption || assetOptions.find(
-                    opt => opt.value === (assetId?.toString() || form.getValues("asset_id")?.toString())
-                  )}
-                  onValueChange={option => {
-                    form.setValue("asset_id", parseInt(option.value))
-                    setAssetId(parseInt(option.value))
-                    setSelectedAssetOption(option)
+                  value={
+                    selectedAssetOption ||
+                    assetOptions.find(
+                      (opt) =>
+                        opt.value ===
+                        (assetId?.toString() || form.getValues("asset_id")?.toString()),
+                    )
+                  }
+                  onValueChange={(option) => {
+                    form.setValue("asset_id", parseInt(option.value));
+                    setAssetId(parseInt(option.value));
+                    setSelectedAssetOption(option);
                   }}
                   placeholder="Select asset"
-                  emptyMessage={
-                    <div className="p-2 text-center">
-                      <p className="text-sm text-muted-foreground mb-2">No assets found</p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setIsAddingAsset(true);
-                        }}
-                      >
-                        <PlusCircle className="h-3 w-3 mr-1" /> Create New Asset
-                      </Button>
-                    </div>
-                  }
+                  emptyMessage="No assets found — use Add New Asset above."
                   isLoading={!assetsResponse}
                 />
               </div>
@@ -368,11 +357,7 @@ export function AddInvestmentDialog({
             {/* Date */}
             <div className="col-span-2">
               <Label>Date</Label>
-              <Input
-                type="date"
-                {...form.register("date")}
-                className="w-full"
-              />
+              <Input type="date" {...form.register("date")} className="w-full" />
             </div>
 
             {/* Accounts */}
@@ -381,11 +366,10 @@ export function AddInvestmentDialog({
               <ComboboxInput
                 options={accountOptions}
                 value={accountOptions.find(
-                  opt =>
-                    opt.value === form.getValues("from_account_id")?.toString()
+                  (opt) => opt.value === form.getValues("from_account_id")?.toString(),
                 )}
-                onValueChange={option => {
-                  form.setValue("from_account_id", parseInt(option.value))
+                onValueChange={(option) => {
+                  form.setValue("from_account_id", parseInt(option.value));
                 }}
                 placeholder="Select source account"
                 emptyMessage="No accounts found"
@@ -398,11 +382,10 @@ export function AddInvestmentDialog({
               <ComboboxInput
                 options={accountOptions}
                 value={accountOptions.find(
-                  opt =>
-                    opt.value === form.getValues("to_account_id")?.toString()
+                  (opt) => opt.value === form.getValues("to_account_id")?.toString(),
                 )}
-                onValueChange={option => {
-                  form.setValue("to_account_id", parseInt(option.value))
+                onValueChange={(option) => {
+                  form.setValue("to_account_id", parseInt(option.value));
                 }}
                 placeholder="Select destination account"
                 emptyMessage="No accounts found"
@@ -439,14 +422,9 @@ export function AddInvestmentDialog({
                       size="sm"
                       className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
                       onClick={() => {
-                        const priceData = stockHistory.find(
-                          p => p.date === selectedDate
-                        )
+                        const priceData = stockHistory.find((p) => p.date === selectedDate);
                         if (priceData) {
-                          form.setValue(
-                            "unit_price",
-                            Number(priceData.close.toFixed(4))
-                          )
+                          form.setValue("unit_price", Number(priceData.close.toFixed(4)));
                         }
                       }}
                     >
@@ -463,9 +441,7 @@ export function AddInvestmentDialog({
                     currency: "EUR",
                     minimumFractionDigits: 4,
                     maximumFractionDigits: 4,
-                  }).format(
-                    stockHistory.find(p => p.date === selectedDate)?.close || 0
-                  )}
+                  }).format(stockHistory.find((p) => p.date === selectedDate)?.close || 0)}
                 </p>
               )}
             </div>
@@ -490,14 +466,27 @@ export function AddInvestmentDialog({
                 {...form.register("tax", { valueAsNumber: true })}
               />
             </div>
+
+            {investmentType === "Sell" && (
+              <div className="col-span-2">
+                <Label>Realized gain/loss (optional)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 125.50 (gain) or -80.00 (loss)"
+                  step="0.01"
+                  {...form.register("gain_loss_override", {
+                    setValueAs: (v) => (v === "" || v == null ? undefined : Number(v)),
+                  })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Before fees & taxes. Leave empty to let the backend calculate it.
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              type="button"
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)} type="button">
               Cancel
             </Button>
             <Button
@@ -505,8 +494,12 @@ export function AddInvestmentDialog({
               disabled={investment ? updateMutation.isPending : createMutation.isPending}
             >
               {investment
-                ? (updateMutation.isPending ? "Updating..." : "Update Investment")
-                : (createMutation.isPending ? "Adding..." : "Add Investment")}
+                ? updateMutation.isPending
+                  ? "Updating..."
+                  : "Update Investment"
+                : createMutation.isPending
+                  ? "Adding..."
+                  : "Add Investment"}
             </Button>
           </DialogFooter>
         </form>
@@ -519,7 +512,7 @@ export function AddInvestmentDialog({
         onAssetCreated={onAssetCreated}
       />
     </Dialog>
-  )
+  );
 }
 
 function AddAssetDialog({
@@ -527,12 +520,12 @@ function AddAssetDialog({
   onOpenChange,
   onAssetCreated,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onAssetCreated: (asset: { id: number; symbol: string; name: string }) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAssetCreated: (asset: { id: number; symbol: string; name: string }) => void;
 }) {
-  const { toast } = useToast()
-  const createAssetMutation = useCreateAsset()
+  const { toast } = useToast();
+  const createAssetMutation = useCreateAsset();
   const [searchQuery, setSearchQuery] = useState<string>("");
   const { data: searchResults = [], isLoading: isSearching } = useStockSearch(searchQuery);
 
@@ -542,9 +535,9 @@ function AddAssetDialog({
       symbol: "",
       name: "",
     },
-  })
+  });
 
-  const selectSearchResult = (result: {symbol: string, name: string}) => {
+  const selectSearchResult = (result: { symbol: string; name: string; type?: string }) => {
     form.setValue("symbol", result.symbol);
     form.setValue("name", result.name);
     setSearchQuery("");
@@ -552,22 +545,25 @@ function AddAssetDialog({
 
   const onSubmit = async (data: AssetFormData) => {
     try {
-      const result = await createAssetMutation.mutateAsync(data)
+      const result = await createAssetMutation.mutateAsync({
+        ...data,
+        type: "stock",
+      });
       toast({
         title: "Asset Created",
         description: `Asset "${data.symbol}" has been created successfully.`,
-      })
-      onAssetCreated(result)
-      onOpenChange(false)
-      form.reset()
-    } catch (error) {
+      });
+      onAssetCreated(result);
+      onOpenChange(false);
+      form.reset();
+    } catch {
       toast({
         title: "Error",
         description: "Failed to create asset. Please try again.",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -613,9 +609,7 @@ function AddAssetDialog({
                 </div>
               )}
               {form.formState.errors.symbol && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.symbol.message}
-                </p>
+                <p className="text-sm text-red-500 mt-1">{form.formState.errors.symbol.message}</p>
               )}
             </div>
             <div>
@@ -626,29 +620,20 @@ function AddAssetDialog({
                 {...form.register("name")}
               />
               {form.formState.errors.name && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.name.message}
-                </p>
+                <p className="text-sm text-red-500 mt-1">{form.formState.errors.name.message}</p>
               )}
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              type="button"
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)} type="button">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={createAssetMutation.isPending}
-            >
+            <Button type="submit" disabled={createAssetMutation.isPending}>
               {createAssetMutation.isPending ? "Creating..." : "Create Asset"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

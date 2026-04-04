@@ -5,6 +5,8 @@ on:
     branches: ["main"]
     paths:
       - "showcase_website/**"
+      - "package.json"
+      - "bun.lockb"
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -28,21 +30,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Build showcase website
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: "npm"
-          cache-dependency-path: "./showcase_website/package-lock.json"
+          bun-version: latest
 
-      - name: Install dependencies
-        working-directory: ./showcase_website
-        run: npm ci
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
 
-      - name: Build
-        working-directory: ./showcase_website
-        run: npm run build
+      - name: Install workspace (monorepo root)
+        run: bun install --frozen-lockfile
+
+      - name: Build showcase website
+        run: bun run --filter wealth-manager-website build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

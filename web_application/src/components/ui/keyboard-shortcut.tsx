@@ -1,59 +1,47 @@
-import { cn } from "@/lib/utils"
-import * as React from "react"
+import { cn } from "@/lib/utils";
+import * as React from "react";
 
 interface KeyboardShortcutProps extends React.HTMLAttributes<HTMLSpanElement> {
-  shortcut: string
+  shortcut: string;
 }
 
-export function KeyboardShortcut({
-  shortcut,
-  className,
-  ...props
-}: KeyboardShortcutProps) {
+export function KeyboardShortcut({ shortcut, className, ...props }: KeyboardShortcutProps) {
   return (
     <span
-      className={cn(
-        "ml-auto text-xs tracking-widest text-muted-foreground",
-        className
-      )}
+      className={cn("ml-auto text-xs tracking-widest text-muted-foreground", className)}
       {...props}
     >
       {shortcut}
     </span>
-  )
-}
-
-interface ShortcutTooltipProps {
-  shortcut: string
-  children: React.ReactNode
+  );
 }
 
 export function formatShortcut(shortcut: string): string {
   return shortcut
     .split("+")
-    .map(key => key.trim())
-    .map(key => {
+    .map((key) => key.trim())
+    .map((key) => {
       switch (key.toLowerCase()) {
         case "ctrl":
-          return "⌃"
+          return "⌃";
         case "shift":
-          return "⇧"
+          return "⇧";
         case "alt":
-          return "⌥"
+          return "⌥";
         case "cmd":
         case "meta":
-          return "⌘"
+          return "⌘";
         case "arrowleft":
-          return "←"
+          return "←";
         case "arrowright":
-          return "→"
+          return "→";
         case "arrowup":
-          return "↑"
+          return "↑";
         case "arrowdown":
-          return "↓"
+          return "↓";
         default:
-          return key.toUpperCase()
+          return key.toUpperCase();
       }
     })
-    .join(" ")
+    .join(" ");
 }

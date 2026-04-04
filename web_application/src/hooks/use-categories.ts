@@ -1,51 +1,51 @@
-"use client"
+"use client";
 
-import { create } from "zustand"
+import { create } from "zustand";
 
 interface BudgetSegment {
-  name: string
-  amount: number
-  percentage: number
-  color: string
+  name: string;
+  amount: number;
+  percentage: number;
+  color: string;
 }
 
 interface CategoriesStore {
-  type: "income" | "expense" | "transfer"
+  type: "income" | "expense" | "transfer";
   stats: {
-    monthlyBudget: number
-    remaining: number
-    remainingPercentage: number
-    usedPercentage: number
-    totalBudgeted: number
-    totalActual: number
-    overBudgetCount: number
-    expenseBudgetSegments: BudgetSegment[]
-    incomeBudgetSegments: BudgetSegment[]
+    monthlyBudget: number;
+    remaining: number;
+    remainingPercentage: number;
+    usedPercentage: number;
+    totalBudgeted: number;
+    totalActual: number;
+    overBudgetCount: number;
+    expenseBudgetSegments: BudgetSegment[];
+    incomeBudgetSegments: BudgetSegment[];
     biggestCategory: {
-      name: string
-      amount: number
-      difference: number
-      percentage: number
-    }
+      name: string;
+      amount: number;
+      difference: number;
+      percentage: number;
+    };
     dailyAverage: {
-      amount: number
-      difference: number
-      percentage: number
-    }
+      amount: number;
+      difference: number;
+      percentage: number;
+    };
     mostOverCategory: {
-      name: string
-      budgeted: number
-      actual: number
-      over: number
-      percentage: number
-    }
-  }
-  setType: (type: "income" | "expense" | "transfer") => void
-  setStats: (stats: Partial<CategoriesStore["stats"]>) => void
-  setBudgetSegments: (type: "income" | "expense", segments: BudgetSegment[]) => void
+      name: string;
+      budgeted: number;
+      actual: number;
+      over: number;
+      percentage: number;
+    };
+  };
+  setType: (type: "income" | "expense" | "transfer") => void;
+  setStats: (stats: Partial<CategoriesStore["stats"]>) => void;
+  setBudgetSegments: (type: "income" | "expense", segments: BudgetSegment[]) => void;
 }
 
-export const useCategories = create<CategoriesStore>(set => ({
+export const useCategories = create<CategoriesStore>((set) => ({
   type: "expense",
   stats: {
     monthlyBudget: 3200,
@@ -73,19 +73,21 @@ export const useCategories = create<CategoriesStore>(set => ({
       budgeted: 0,
       actual: 0,
       over: 0,
-      percentage: 0
-    }
+      percentage: 0,
+    },
   },
-  setType: type => set({ type }),
-  setStats: newStats => set(state => ({
-    stats: { ...state.stats, ...newStats }
-  })),
-  setBudgetSegments: (type, segments) => set(state => ({
-    stats: {
-      ...state.stats,
-      ...(type === "expense"
-        ? { expenseBudgetSegments: segments }
-        : { incomeBudgetSegments: segments })
-    }
-  })),
-}))
+  setType: (type) => set({ type }),
+  setStats: (newStats) =>
+    set((state) => ({
+      stats: { ...state.stats, ...newStats },
+    })),
+  setBudgetSegments: (type, segments) =>
+    set((state) => ({
+      stats: {
+        ...state.stats,
+        ...(type === "expense"
+          ? { expenseBudgetSegments: segments }
+          : { incomeBudgetSegments: segments }),
+      },
+    })),
+}));

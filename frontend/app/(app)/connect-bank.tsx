@@ -1,29 +1,37 @@
-import { fetchInstitutions } from '@/app/api/gocardlessApi';
-import { darkTheme } from '@/constants/theme';
-import { sharedStyles } from '@/styles/sharedStyles';
-import { GoCardlessInstitution } from '@/types/gocardless';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Searchbar } from 'react-native-paper';
+import { fetchInstitutions } from "@/app/api/gocardlessApi";
+import { darkTheme } from "@/constants/theme";
+import { sharedStyles } from "@/styles/sharedStyles";
+import { GoCardlessInstitution } from "@/types/gocardless";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Searchbar } from "react-native-paper";
 
 export default function ConnectBankScreen() {
   const [institutions, setInstitutions] = useState<GoCardlessInstitution[]>([]);
   const [filteredInstitutions, setFilteredInstitutions] = useState<GoCardlessInstitution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
   useEffect(() => {
-    loadInstitutions();
+    void loadInstitutions();
   }, []);
 
   useEffect(() => {
     if (institutions.length > 0) {
-      const filtered = institutions.filter(institution =>
-        institution.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const filtered = institutions.filter((institution) =>
+        institution.name.toLowerCase().includes(searchQuery.toLowerCase()),
       );
       setFilteredInstitutions(filtered);
     }
@@ -37,8 +45,8 @@ export default function ConnectBankScreen() {
       setInstitutions(response);
       setFilteredInstitutions(response);
     } catch (err) {
-      setError('Failed to load banks. Please try again.');
-      console.error('Error loading institutions:', err);
+      setError("Failed to load banks. Please try again.");
+      console.error("Error loading institutions:", err);
     } finally {
       setLoading(false);
     }
@@ -46,38 +54,25 @@ export default function ConnectBankScreen() {
 
   const handleInstitutionPress = (institution: GoCardlessInstitution) => {
     router.push({
-      pathname: '/connect-bank/[id]',
-      params: { id: institution.id }
+      pathname: "/connect-bank/[id]",
+      params: { id: institution.id },
     });
   };
 
   const renderInstitutionItem = ({ item }: { item: GoCardlessInstitution }) => (
-    <Pressable
-      style={styles.institutionItem}
-      onPress={() => handleInstitutionPress(item)}
-    >
+    <Pressable style={styles.institutionItem} onPress={() => handleInstitutionPress(item)}>
       <View style={styles.institutionIconContainer}>
         {item.logo ? (
-          <Image
-            source={{ uri: item.logo }}
-            style={styles.institutionIcon}
-            resizeMode="contain"
-          />
+          <Image source={{ uri: item.logo }} style={styles.institutionIcon} resizeMode="contain" />
         ) : (
           <Ionicons name="business-outline" size={24} color={darkTheme.colors.primary} />
         )}
       </View>
       <View style={styles.institutionContent}>
         <Text style={styles.institutionName}>{item.name}</Text>
-        <Text style={styles.institutionCountries}>
-          {item.countries.join(', ')}
-        </Text>
+        <Text style={styles.institutionCountries}>{item.countries.join(", ")}</Text>
       </View>
-      <Ionicons
-        name="chevron-forward"
-        size={24}
-        color={darkTheme.colors.textSecondary}
-      />
+      <Ionicons name="chevron-forward" size={24} color={darkTheme.colors.textSecondary} />
     </Pressable>
   );
 
@@ -158,8 +153,8 @@ const styles = StyleSheet.create({
     padding: darkTheme.spacing.m,
   },
   institutionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: darkTheme.spacing.m,
     backgroundColor: darkTheme.colors.surface,
     borderRadius: darkTheme.borderRadius.m,
@@ -171,8 +166,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: `${darkTheme.colors.primary}20`,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: darkTheme.spacing.m,
   },
   institutionIcon: {
@@ -184,19 +179,19 @@ const styles = StyleSheet.create({
   },
   institutionName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: darkTheme.colors.text,
     marginBottom: darkTheme.spacing.xs,
   },
   institutionCountries: {
     fontSize: 12,
     color: darkTheme.colors.textSecondary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     marginTop: darkTheme.spacing.m,
@@ -205,15 +200,15 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: darkTheme.spacing.xl,
   },
   errorText: {
     marginTop: darkTheme.spacing.m,
     fontSize: 16,
     color: darkTheme.colors.error,
-    textAlign: 'center',
+    textAlign: "center",
   },
   retryButton: {
     marginTop: darkTheme.spacing.l,
@@ -225,18 +220,18 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: darkTheme.colors.background,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: darkTheme.spacing.xl,
   },
   emptyText: {
     marginTop: darkTheme.spacing.m,
     fontSize: 16,
     color: darkTheme.colors.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

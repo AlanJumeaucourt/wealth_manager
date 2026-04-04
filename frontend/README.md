@@ -1,105 +1,112 @@
 # Wealth Manager Mobile App 🚀
 
-A sophisticated cross-platform mobile application for comprehensive wealth management, built with React Native and Expo. Track your finances, analyze spending patterns, and manage your investments - all in one beautifully designed app.
+A cross-platform **React Native** app built with **Expo** and **expo-router**. Track accounts, budgets, investments, and transactions with charts and a workflow tuned for phones and tablets.
 
-<img src="screenshots/app-overview.png" alt="App Overview" width="50%">
+<p align="center">
+  <img src="screenshots/app-overview.png" alt="App Overview" width="50%"/>
+</p>
+
+> **Note:** This package (`wealth_manager`) is **not** part of the Bun workspaces in the repo root. Install dependencies **inside `frontend/`** (npm or Bun—see `package.json`).
 
 ## ✨ Key Features
 
 ### 📊 Real-Time Wealth Tracking
+
 - Interactive wealth evolution charts
 - Multi-currency support
-- Customizable date ranges (1M, 3M, 6M, 1Y, 3Y, 5Y, Max)
+- Customizable ranges (1M, 3M, 6M, 1Y, 3Y, 5Y, Max)
 
-<img src="screenshots/wealth-tracking.png" alt="Wealth Tracking" width="50%">
+<img src="screenshots/wealth-tracking.png" alt="Wealth Tracking" width="50%"/>
 
 ### 💰 Smart Account Management
-- Multiple account types (Checking, Savings, Investment)
-- Bank integration
-- Real-time balance updates
-- Detailed transaction history
 
+- Multiple account types (checking, savings, investment)
+- Bank connectivity (where supported by the stack)
+- Balance and transaction history
 
-<img src="screenshots/accounts.png" alt="Account Management" width="50%">
+<img src="screenshots/accounts.png" alt="Account Management" width="50%"/>
 
 ### 📈 Budget Analytics
-- Beautiful donut charts for expense categorization
-- Customizable budget periods
-- Detailed category breakdown
-- Income vs Expense analysis
 
-<img src="screenshots/budget1.png" alt="Budget Analytics" width="50%">
-<img src="screenshots/budget2.png" alt="Budget Analytics" width="50%">
+- Donut and breakdown views for spending
+- Custom budget periods
+- Income vs expense views
+
+<img src="screenshots/budget1.png" alt="Budget Analytics" width="50%"/>
+<img src="screenshots/budget2.png" alt="Budget Analytics" width="50%"/>
 
 ### 🔄 Transaction Management
-- Easy transaction entry
-- Smart categorization
-- Detailed transaction view
-- Transfer between accounts
 
-<img src="screenshots/transactions.png" alt="Transactions" width="50%">
+- Add and edit transactions
+- Categories and transfers between accounts
 
-### 🎨 Modern UI/UX
-- Dark mode support
-- Smooth animations
-- Intuitive navigation
-- Responsive design
+<img src="screenshots/transactions.png" alt="Transactions" width="50%"/>
 
-<img src="screenshots/ui-showcase.png" alt="UI Showcase" width="50%">
+### 🎨 UI
+
+- Dark mode
+- **Expo Router** navigation
+- **React Native Paper** and **React Native Elements**
+
+<img src="screenshots/ui-showcase.png" alt="UI Showcase" width="50%"/>
 
 ## 🛠 Technical Stack
 
-- **Frontend Framework**: React Native with Expo
-- **State Management**: Redux
-- **Charts**: react-native-gifted-charts
-- **UI Components**: React Native Paper
-- **Navigation**: Expo Router
-- **API Integration**: Axios
-- **Authentication**: JWT
+| Area       | Technology                                                    |
+| ---------- | ------------------------------------------------------------- |
+| Framework  | Expo **52**, React **18**, React Native **0.76**              |
+| Navigation | **expo-router**                                               |
+| State      | Redux + thunk                                                 |
+| HTTP       | **Axios** (`app/api/axiosConfig.ts`)                          |
+| Auth       | JWT (tokens from the backend)                                 |
+| Charts     | react-native-gifted-charts, **@shopify/react-native-skia**    |
+| Web        | **react-native-web** (Expo web / static export)               |
+| Quality    | Jest (`jest-expo`), ESLint via `expo lint`, optional **Knip** |
+
+## 🔗 Backend URL
+
+The API base URL is defined in **`config.ts`** (default `http://localhost:5000`). Change it there—or extend the app to read from `expo-constants` / env—when pointing at a deployed API.
 
 ## 🚀 Getting Started
 
-1. Install dependencies:
 ```bash
+cd frontend
 npm install
+npm run start
+# or: npm run web   → Expo for web
+# or: npm run ios | npm run android
 ```
 
-2. Start the development server:
-```bash
-npx expo start
-```
-
-3. Run on your preferred platform:
-- Press `i` for iOS simulator
-- Press `a` for Android emulator
-- Scan QR code with Expo Go app for physical device
+- **iOS simulator:** press `i` in the CLI (macOS + Xcode).
+- **Android emulator:** press `a`.
+- **Physical device:** scan the QR code with **Expo Go** (same major SDK as the project).
 
 ## 📱 Platform Support
 
 - iOS
 - Android
-- Web (Progressive Web App)
+- Web (Expo web / exported static bundle for GitHub Pages—see `deploy` scripts)
+
+## 📜 Scripts (see `package.json`)
+
+| Script                            | Description                                     |
+| --------------------------------- | ----------------------------------------------- |
+| `npm run start`                   | `expo start`                                    |
+| `npm run web`                     | `expo start --web`                              |
+| `npm run android` / `npm run ios` | Platform dev clients                            |
+| `npm run test`                    | Jest watch                                      |
+| `npm run lint`                    | `expo lint`                                     |
+| `npm run predeploy` / `deploy`    | `expo export:web` + **gh-pages** to `web-build` |
 
 ## 🔒 Security
 
-- Secure authentication
-- Encrypted data transmission
-- Token-based API access
-- Automatic session management
-
-## 🎯 Future Roadmap
-
-- [ ] Investment portfolio tracking
-- [ ] AI-powered spending insights
-- [ ] Bill payment reminders
-- [ ] Custom category creation
-- [ ] Export financial reports
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- JWT access/refresh flow against the backend
+- Use HTTPS in production; keep tokens out of logs and screenshots shared publicly
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome via pull requests. Align API usage with [backend/README.md](../backend/README.md).
 
+## 📄 License
+
+This project is licensed under the MIT License—see the [LICENSE](../LICENSE) file in the repository root.

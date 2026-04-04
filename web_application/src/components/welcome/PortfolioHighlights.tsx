@@ -1,19 +1,33 @@
-import { PortfolioPerformance } from "@/api/queries"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { PortfolioSummary } from "@/types"
-import { ArrowDownRight, ArrowUpRight, BarChart3, DollarSign, Leaf, LineChart as LineChartIcon, PiggyBank, PlusCircle } from "lucide-react"
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import type { PortfolioPerformance } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PortfolioSummary } from "@/types";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  DollarSign,
+  Leaf,
+  LineChart as LineChartIcon,
+  PiggyBank,
+  PlusCircle,
+} from "lucide-react";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface PortfolioHighlightsProps {
-  portfolioSummary?: PortfolioSummary
-  performanceData?: PortfolioPerformance
-  onAssetClick?: (assetId: number, assetName?: string) => void
-  isLoading?: boolean
+  portfolioSummary?: PortfolioSummary;
+  performanceData?: PortfolioPerformance;
+  onAssetClick?: (assetId: number, assetName?: string) => void;
+  isLoading?: boolean;
 }
 
-export function PortfolioHighlights({ portfolioSummary, performanceData, onAssetClick, isLoading }: PortfolioHighlightsProps) {
+export function PortfolioHighlights({
+  portfolioSummary,
+  performanceData,
+  onAssetClick,
+  isLoading,
+}: PortfolioHighlightsProps) {
   // Show loading state
   if (isLoading) {
     return (
@@ -61,7 +75,7 @@ export function PortfolioHighlights({ portfolioSummary, performanceData, onAsset
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   // Show empty state when no portfolio data is available
@@ -80,66 +94,67 @@ export function PortfolioHighlights({ portfolioSummary, performanceData, onAsset
             <p className="text-muted-foreground text-sm mb-4">
               Start building your investment portfolio to track your performance and returns.
             </p>
-            <Button onClick={() => window.location.href = "/investments/add"} className="gap-2">
+            <Button onClick={() => (window.location.href = "/investments/add")} className="gap-2">
               <PlusCircle className="h-4 w-4" />
               Add Investment
             </Button>
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: portfolioSummary?.currency || "EUR",
-    }).format(Math.abs(amount))
-  }
+    }).format(Math.abs(amount));
+  };
 
   const formatPercent = (value: number) => {
-    return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
-  }
+    return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
+  };
 
   // Format date for tooltip
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
+    const date = new Date(dateStr);
     return date.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   // Get performance chart data from performance data if available
-  const chartData = performanceData?.data_points?.map((point) => ({
-    date: point.date,
-    value: point.total_gains
-  })) || []
+  const chartData =
+    performanceData?.data_points?.map((point) => ({
+      date: point.date,
+      value: point.total_gains,
+    })) || [];
 
-  const isPositiveReturn = (portfolioSummary?.total_gain_loss || 0) >= 0
+  const isPositiveReturn = (portfolioSummary?.total_gain_loss || 0) >= 0;
 
   // Custom tooltip component for the chart
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-background border border-border shadow-sm rounded-lg p-2 text-xs">
           <p className="font-medium">{formatDate(payload[0].payload.date)}</p>
-          <p className={`${payload[0].value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+          <p className={`${payload[0].value >= 0 ? "text-green-500" : "text-red-500"}`}>
             {payload[0].value >= 0 ? "+" : ""}
             {payload[0].value} €
           </p>
         </div>
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
-  const handleAssetClick = (symbol: string, assetName?: string) => {
+  const handleAssetClick = (symbol: string) => {
     if (onAssetClick) {
       onAssetClick(0, symbol);
     }
-  }
+  };
 
   return (
     <Card>
@@ -169,9 +184,11 @@ export function PortfolioHighlights({ portfolioSummary, performanceData, onAsset
                 <ArrowDownRight className="h-4 w-4 text-red-500" />
               )}
             </div>
-            <p className={`text-lg font-semibold mt-1 ${
-              isPositiveReturn ? "text-green-500" : "text-red-500"
-            }`}>
+            <p
+              className={`text-lg font-semibold mt-1 ${
+                isPositiveReturn ? "text-green-500" : "text-red-500"
+              }`}
+            >
               {formatCurrency(portfolioSummary.total_gain_loss)}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -247,7 +264,7 @@ export function PortfolioHighlights({ portfolioSummary, performanceData, onAsset
                   <div
                     key={asset.symbol}
                     className="flex items-center justify-between text-sm hover:bg-muted/50 p-2 rounded-lg cursor-pointer transition-colors"
-                    onClick={() => handleAssetClick(asset.symbol, asset.name)}
+                    onClick={() => handleAssetClick(asset.symbol)}
                     role="button"
                     tabIndex={0}
                   >
@@ -262,9 +279,11 @@ export function PortfolioHighlights({ portfolioSummary, performanceData, onAsset
                     </div>
                     <div className="text-right">
                       <p className="font-medium">{formatCurrency(asset.current_value)}</p>
-                      <p className={`text-xs ${
-                        asset.gain_loss_percentage >= 0 ? "text-green-500" : "text-red-500"
-                      }`}>
+                      <p
+                        className={`text-xs ${
+                          asset.gain_loss_percentage >= 0 ? "text-green-500" : "text-red-500"
+                        }`}
+                      >
                         {formatPercent(asset.gain_loss_percentage)}
                       </p>
                     </div>
@@ -275,5 +294,5 @@ export function PortfolioHighlights({ portfolioSummary, performanceData, onAsset
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

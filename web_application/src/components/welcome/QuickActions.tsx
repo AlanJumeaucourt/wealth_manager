@@ -1,9 +1,9 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowRightLeft, BarChart4, PlusCircle, Receipt } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRightLeft, BarChart4, PlusCircle, Receipt } from "lucide-react";
 
 interface QuickActionsProps {
-  navigate: (to: string) => void
+  navigate: (to: string) => void;
 }
 
 export function QuickActions({ navigate }: QuickActionsProps) {
@@ -12,27 +12,27 @@ export function QuickActions({ navigate }: QuickActionsProps) {
       name: "Add Account",
       icon: <PlusCircle className="h-5 w-5 mr-2" />,
       onClick: () => navigate("/accounts/all?openAddDialog=true"),
-      variant: "default" as const
+      variant: "default" as const,
     },
     {
       name: "Transfer",
       icon: <ArrowRightLeft className="h-5 w-5 mr-2" />,
       onClick: () => navigate("/transactions/all"),
-      variant: "outline" as const
+      variant: "outline" as const,
     },
     {
       name: "Add Transaction",
       icon: <Receipt className="h-5 w-5 mr-2" />,
       onClick: () => navigate("/transactions/all?openAddDialog=true"),
-      variant: "outline" as const
+      variant: "outline" as const,
     },
     {
       name: "Investments",
       icon: <BarChart4 className="h-5 w-5 mr-2" />,
       onClick: () => navigate("/investments"),
-      variant: "outline" as const
+      variant: "outline" as const,
     },
-  ]
+  ];
 
   return (
     <Card>
@@ -53,5 +53,5 @@ export function QuickActions({ navigate }: QuickActionsProps) {
         ))}
       </CardContent>
     </Card>
-  )
+  );
 }

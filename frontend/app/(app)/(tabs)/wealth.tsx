@@ -1,301 +1,327 @@
-import { fetchWealthData } from '@/app/api/bankApi';
-import { darkTheme } from '@/constants/theme';
-import { sharedStyles } from '@/styles/sharedStyles';
+import { fetchWealthData } from "@/app/api/bankApi";
+import { darkTheme } from "@/constants/theme";
+import { sharedStyles } from "@/styles/sharedStyles";
+import { formatCurrency } from "@/utils/currency";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { LineChart } from 'react-native-gifted-charts';
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { LineChart } from "react-native-gifted-charts";
 
 interface DataPoint {
-    value: number;
-    date: string;
+  value: number;
+  date: string;
 }
 
 export default function WealthScreen() {
-    const [selectedRange, setSelectedRange] = useState("1Y");
-    const [wealthData, setWealthData] = useState<Record<string, number>>({});
-    const [loading, setLoading] = useState(true);
-    const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 40);
+  const [selectedRange, setSelectedRange] = useState("1Y");
+  const [allWealthData, setAllWealthData] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [chartWidth, setChartWidth] = useState(Dimensions.get("window").width - 40);
+  const [preferredCurrency, setPreferredCurrency] = useState("EUR");
 
-    // Move the resize effect up here, before any conditional returns
-    useEffect(() => {
-        const handleResize = () => {
-            setChartWidth(Dimensions.get('window').width - 40);
-        };
+  // Move the resize effect up here, before any conditional returns
+  useEffect(() => {
+    const handleResize = () => {
+      setChartWidth(Dimensions.get("window").width - 40);
+    };
 
-        const subscription = Dimensions.addEventListener('change', handleResize);
+    const subscription = Dimensions.addEventListener("change", handleResize);
 
-        return () => {
-            subscription?.remove();
-        };
-    }, []);
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
 
-    useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            try {
-                const endDate = new Date();
-                const startDate = new Date();
+  useEffect(() => {
+    AsyncStorage.getItem("preferredCurrency")
+      .then((v) => {
+        if (v) setPreferredCurrency(v.toUpperCase());
+      })
+      .catch(() => {});
+  }, []);
 
-                switch (selectedRange) {
-                    case "1M":
-                        startDate.setMonth(startDate.getMonth() - 1);
-                        break;
-                    case "3M":
-                        startDate.setMonth(startDate.getMonth() - 3);
-                        break;
-                    case "6M":
-                        startDate.setMonth(startDate.getMonth() - 6);
-                        break;
-                    case "1Y":
-                        startDate.setFullYear(startDate.getFullYear() - 1);
-                        break;
-                    case "3Y":
-                        startDate.setFullYear(startDate.getFullYear() - 3);
-                        break;
-                    case "5Y":
-                        startDate.setFullYear(startDate.getFullYear() - 5);
-                        break;
-                    case "Max":
-                        startDate.setFullYear(2000);
-                        break;
-                    default:
-                        break;
-                }
+  // Load the full history once (up to "Max" range), then slice on the client
+  useEffect(() => {
+    const loadAllData = async () => {
+      setLoading(true);
+      try {
+        const endDate = new Date();
+        const startDate = new Date();
+        // "Max" range: earliest date we care about
+        startDate.setFullYear(2000);
 
-                const data = await fetchWealthData(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]);
-                setWealthData(data);
-            } catch (error) {
-                console.error("Error fetching wealth data:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadData();
-    }, [selectedRange]);
-
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={darkTheme.colors.primary} />
-            </View>
+        const data = await fetchWealthData(
+          startDate.toISOString().split("T")[0],
+          endDate.toISOString().split("T")[0],
         );
+        setAllWealthData(data);
+      } catch (error) {
+        console.error("Error fetching wealth data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadAllData();
+  }, []);
+
+  const formatData = (): DataPoint[] => {
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+
+    switch (selectedRange) {
+      case "1M":
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case "3M":
+        startDate.setMonth(startDate.getMonth() - 3);
+        break;
+      case "6M":
+        startDate.setMonth(startDate.getMonth() - 6);
+        break;
+      case "1Y":
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        break;
+      case "3Y":
+        startDate.setFullYear(startDate.getFullYear() - 3);
+        break;
+      case "5Y":
+        startDate.setFullYear(startDate.getFullYear() - 5);
+        break;
+      case "Max":
+        startDate.setFullYear(2000);
+        break;
+      default:
+        break;
     }
 
-    const formatData = (): DataPoint[] => {
-        return Object.entries(wealthData).map(([date, value]) => ({
-            value: parseFloat(value.toFixed(2)),
-            date
-        }));
-    };
+    const start = startDate.getTime();
+    const end = endDate.getTime();
 
-    const calculateMaxPoints = (dataLength: number): number => {
-        // Fonction exponentielle décroissante pour calculer le nombre maximum de points
-        const baseMax = 250; // Nombre maximum de points pour un petit ensemble de données
-        const minMax = 100; // Nombre minimum de points pour un grand ensemble de données
-        const decayFactor = 0.0005; // Facteur de décroissance, ajustez selon vos besoins
+    return Object.entries(allWealthData)
+      .filter(([date]) => {
+        const d = new Date(date).getTime();
+        return d >= start && d <= end;
+      })
+      .map(([date, value]) => ({
+        value: parseFloat(value.toFixed(2)),
+        date,
+      }));
+  };
 
-        return Math.max(
-            Math.floor(baseMax * Math.exp(-decayFactor * dataLength)),
-            minMax
-        );
-    };
+  const calculateMaxPoints = (dataLength: number): number => {
+    // Fonction exponentielle décroissante pour calculer le nombre maximum de points
+    const baseMax = 250; // Nombre maximum de points pour un petit ensemble de données
+    const minMax = 100; // Nombre minimum de points pour un grand ensemble de données
+    const decayFactor = 0.0005; // Facteur de décroissance, ajustez selon vos besoins
 
-    const reduceDataPoints = (data: DataPoint[]): DataPoint[] => {
-        const maxPoints = calculateMaxPoints(data.length);
-        if (data.length <= maxPoints) return data;
-        const interval = Math.ceil(data.length / maxPoints);
-        return data.filter((_, index) => index % interval === 0);
-    };
+    return Math.max(Math.floor(baseMax * Math.exp(-decayFactor * dataLength)), minMax);
+  };
 
-    const data = reduceDataPoints(formatData());
+  const reduceDataPoints = (data: DataPoint[]): DataPoint[] => {
+    const maxPoints = calculateMaxPoints(data.length);
+    if (data.length <= maxPoints) return data;
+    const interval = Math.ceil(data.length / maxPoints);
+    return data.filter((_, index) => index % interval === 0);
+  };
 
-    const minValue = () => {
-        const maxValue = Math.max(...data.map(point => point.value));
-        const minValue = Math.min(...data.map(point => point.value));
-        const valueRange = maxValue - minValue;
-        const value = minValue - (valueRange * 0.3)
-        if (value < 0) {
-            return 0;
-        }
-        return value;
-    };
+  const data = reduceDataPoints(formatData());
 
-    const calculateSpacing = (width: number, dataLength: number): number => {
-        const minSpacing = 0.1;
-        const maxSpacing = 100;
-        const calculatedSpacing = Math.max(
-            minSpacing,
-            Math.min(maxSpacing, (width - 80) / (dataLength + 1))
-        );
-        return calculatedSpacing;
-    };
+  const minValue = () => {
+    if (data.length === 0) {
+      return 0;
+    }
+    const maxValue = Math.max(...data.map((point) => point.value));
+    const minValue = Math.min(...data.map((point) => point.value));
+    const valueRange = maxValue - minValue;
+    const value = minValue - valueRange * 0.3;
+    if (value < 0) {
+      return 0;
+    }
+    return value;
+  };
 
-    return (
-        <View style={[sharedStyles.container]}>
-            <View style={sharedStyles.header}>
-                <Image
-                    source={require('@/assets/images/logo-removebg-white.png')}
-                    style={{ width: 30, height: 30 }}
-                    resizeMode="contain"
-                />
-                <View style={sharedStyles.headerTitleContainer}>
-                    <Text style={sharedStyles.headerTitle}>Wealth over time</Text>
-                </View>
-            </View>
-            <View style={sharedStyles.body}>
-                <View style={styles.buttonContainer}>
-                    {["1M", "3M", "6M", "1Y", "3Y", "5Y", "Max"].map((range) => (
-                        <TouchableOpacity
-                            key={range}
-                            style={[
-                                styles.button,
-                                selectedRange === range && styles.selectedButton,
-                            ]}
-                            onPress={() => setSelectedRange(range)}
-                        >
-                            <Text style={[
-                                styles.buttonText,
-                                selectedRange === range && styles.selectedButtonText
-                            ]}>
-                                {range}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                {loading ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={darkTheme.colors.primary} />
-                    </View>
-                ) : (
-                    <View style={styles.graphContainer}>
-                        <LineChart
-                            areaChart
-                            data={data}
-                            width={chartWidth}
-                            height={300}
-                            spacing={calculateSpacing(chartWidth, data.length)}
-                            adjustToWidth={true}
-                            color={darkTheme.colors.primary}
-                            thickness={1.5}
-                            startFillColor={`${darkTheme.colors.primary}40`}
-                            endFillColor={`${darkTheme.colors.primary}10`}
-                            startOpacity={0.9}
-                            endOpacity={0.2}
-                            initialSpacing={0}
-                            noOfSections={5}
-                            yAxisOffset={minValue()}
-                            yAxisColor="transparent"
-                            xAxisColor="transparent"
-                            yAxisTextStyle={{ color: darkTheme.colors.textTertiary }}
-                            hideRules
-                            hideDataPoints
-                            showVerticalLines={false}
-                            xAxisLabelTextStyle={{
-                                color: darkTheme.colors.textTertiary,
-                                fontSize: 10,
-                                width: 60,
-                                textAlign: 'center'
-                            }}
-                            yAxisTextNumberOfLines={1}
-                            yAxisLabelSuffix="€"
-                            yAxisLabelPrefix=""
-                            rulesType="solid"
-                            xAxisThickness={0}
-                            rulesColor="rgba(0, 0, 0, 0.1)"
-                            curved
-                            animateOnDataChange
-                            animationDuration={1000}
-                            xAxisLabelsVerticalShift={20}
-                            pointerConfig={{
-                                showPointerStrip: true,
-                                pointerStripWidth: 2,
-                                pointerStripUptoDataPoint: true,
-                                pointerStripColor: 'rgba(0, 0, 0, 0.5)',
-                                width: 10,
-                                height: 10,
-                                radius: 6,
-                                pointerLabelWidth: 150,
-                                pointerLabelHeight: 90,
-                                activatePointersOnLongPress: false,
-                                autoAdjustPointerLabelPosition: true,
-                                pointerLabelComponent: (items: any) => {
-                                    const item = items[0];
-                                    return (
-                                        <View style={styles.tooltipContainer}>
-                                            <Text style={styles.tooltipValue}>{item.value.toFixed(0)} €</Text>
-                                            <Text style={styles.tooltipDate}>{new Date(item.date).toDateString()}</Text>
-                                        </View>
-                                    );
-                                },
-                            }}
-                        />
-                    </View>
-                )}
-            </View>
-        </View>
+  const calculateSpacing = (width: number, dataLength: number): number => {
+    const minSpacing = 0.1;
+    const maxSpacing = 100;
+    const calculatedSpacing = Math.max(
+      minSpacing,
+      Math.min(maxSpacing, (width - 80) / (dataLength + 1)),
     );
+    return calculatedSpacing;
+  };
+
+  return (
+    <View style={[sharedStyles.container]}>
+      <View style={sharedStyles.header}>
+        <Image
+          source={require("@/assets/images/logo-removebg-white.png")}
+          style={{ width: 30, height: 30 }}
+          resizeMode="contain"
+        />
+        <View style={sharedStyles.headerTitleContainer}>
+          <Text style={sharedStyles.headerTitle}>Wealth over time</Text>
+        </View>
+      </View>
+      <View style={sharedStyles.body}>
+        <View style={styles.buttonContainer}>
+          {["1M", "3M", "6M", "1Y", "3Y", "5Y", "Max"].map((range) => (
+            <TouchableOpacity
+              key={range}
+              style={[styles.button, selectedRange === range && styles.selectedButton]}
+              onPress={() => setSelectedRange(range)}
+            >
+              <Text
+                style={[styles.buttonText, selectedRange === range && styles.selectedButtonText]}
+              >
+                {range}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {loading ? (
+          <View style={styles.graphContainer}>
+            <ActivityIndicator size="large" color={darkTheme.colors.primary} />
+          </View>
+        ) : (
+          <View style={styles.graphContainer}>
+            <LineChart
+              areaChart
+              data={data}
+              width={chartWidth}
+              height={300}
+              spacing={calculateSpacing(chartWidth, data.length)}
+              adjustToWidth={true}
+              color={darkTheme.colors.primary}
+              thickness={1.5}
+              startFillColor={`${darkTheme.colors.primary}40`}
+              endFillColor={`${darkTheme.colors.primary}10`}
+              startOpacity={0.9}
+              endOpacity={0.2}
+              initialSpacing={0}
+              noOfSections={5}
+              yAxisOffset={minValue()}
+              yAxisColor="transparent"
+              xAxisColor="transparent"
+              yAxisTextStyle={{ color: darkTheme.colors.textTertiary }}
+              hideRules
+              hideDataPoints
+              showVerticalLines={false}
+              xAxisLabelTextStyle={{
+                color: darkTheme.colors.textTertiary,
+                fontSize: 10,
+                width: 60,
+                textAlign: "center",
+              }}
+              yAxisTextNumberOfLines={1}
+              yAxisLabelSuffix={` ${preferredCurrency}`}
+              yAxisLabelPrefix=""
+              rulesType="solid"
+              xAxisThickness={0}
+              rulesColor="rgba(0, 0, 0, 0.1)"
+              curved
+              animateOnDataChange
+              animationDuration={1000}
+              xAxisLabelsVerticalShift={20}
+              pointerConfig={{
+                showPointerStrip: true,
+                pointerStripWidth: 2,
+                pointerStripUptoDataPoint: true,
+                pointerStripColor: "rgba(0, 0, 0, 0.5)",
+                width: 10,
+                height: 10,
+                radius: 6,
+                pointerLabelWidth: 150,
+                pointerLabelHeight: 90,
+                activatePointersOnLongPress: false,
+                autoAdjustPointerLabelPosition: true,
+                pointerLabelComponent: (items: any) => {
+                  const item = items[0];
+                  return (
+                    <View style={styles.tooltipContainer}>
+                      <Text style={styles.tooltipValue}>
+                        {formatCurrency(item.value, preferredCurrency)}
+                      </Text>
+                      <Text style={styles.tooltipDate}>{new Date(item.date).toDateString()}</Text>
+                    </View>
+                  );
+                },
+              }}
+            />
+          </View>
+        )}
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    subtitle: {
-        fontSize: 16,
-        color: darkTheme.colors.textSecondary,
-        marginBottom: darkTheme.spacing.m,
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: darkTheme.spacing.s,
-        marginVertical: darkTheme.spacing.m,
-    },
-    button: {
-        paddingVertical: darkTheme.spacing.s,
-        paddingHorizontal: darkTheme.spacing.m,
-        borderRadius: darkTheme.borderRadius.m,
-        backgroundColor: darkTheme.colors.surface,
-    },
-    selectedButton: {
-        backgroundColor: darkTheme.colors.primary,
-    },
-    buttonText: {
-        color: darkTheme.colors.textSecondary,
-        fontSize: 14,
-    },
-    selectedButtonText: {
-        color: darkTheme.colors.background,
-        fontWeight: '600',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    graphContainer: {
-        backgroundColor: darkTheme.colors.surface,
-        borderRadius: darkTheme.borderRadius.l,
-        padding: darkTheme.spacing.m,
-        marginVertical: darkTheme.spacing.m,
-        ...darkTheme.shadows.medium,
-    },
-    tooltipContainer: {
-        backgroundColor: darkTheme.colors.surface,
-        padding: 10,
-        borderRadius: 5,
-        alignItems: 'center',
-        borderColor: darkTheme.colors.primary,
-        borderWidth: 1,
-    },
-    tooltipValue: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: darkTheme.colors.primary,
-    },
-    tooltipDate: {
-        fontSize: 14,
-        color: 'gray',
-        marginTop: 5,
-    },
+  subtitle: {
+    fontSize: 16,
+    color: darkTheme.colors.textSecondary,
+    marginBottom: darkTheme.spacing.m,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: darkTheme.spacing.s,
+    marginVertical: darkTheme.spacing.m,
+  },
+  button: {
+    paddingVertical: darkTheme.spacing.s,
+    paddingHorizontal: darkTheme.spacing.m,
+    borderRadius: darkTheme.borderRadius.m,
+    backgroundColor: darkTheme.colors.surface,
+  },
+  selectedButton: {
+    backgroundColor: darkTheme.colors.primary,
+  },
+  buttonText: {
+    color: darkTheme.colors.textSecondary,
+    fontSize: 14,
+  },
+  selectedButtonText: {
+    color: darkTheme.colors.background,
+    fontWeight: "600",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  graphContainer: {
+    backgroundColor: darkTheme.colors.surface,
+    borderRadius: darkTheme.borderRadius.l,
+    padding: darkTheme.spacing.m,
+    marginVertical: darkTheme.spacing.m,
+    ...darkTheme.shadows.medium,
+  },
+  tooltipContainer: {
+    backgroundColor: darkTheme.colors.surface,
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    borderColor: darkTheme.colors.primary,
+    borderWidth: 1,
+  },
+  tooltipValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: darkTheme.colors.primary,
+  },
+  tooltipDate: {
+    fontSize: 14,
+    color: "gray",
+    marginTop: 5,
+  },
 });

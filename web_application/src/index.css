@@ -217,9 +217,82 @@
   }
 }
 
-/* For mobile devices */
+/* Mobile optimizations */
 @media (max-width: 640px) {
   .modal-open {
     margin-right: 0 !important;
+  }
+
+  /* Remove default padding and margins on mobile */
+  body {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Full width containers on mobile */
+  .container {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    max-width: 100% !important;
+  }
+
+  /* Remove horizontal padding from main content */
+  main {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* Optimize for mobile viewport */
+  html {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure full width on mobile */
+  #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+/* Extra small mobile devices */
+@media (max-width: 480px) {
+  body {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .container {
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+  }
+
+  main {
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+  }
+}
+
+/* Global mobile utility classes */
+.mobile-full-width {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+
+@media (max-width: 640px) {
+  .mobile-full-width {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-full-width {
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
   }
 }

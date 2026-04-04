@@ -1,10 +1,26 @@
+# Build context: repository root (`wealth/`) so `backend/` is available for the workspace dependency.
 FROM oven/bun:1
 
-WORKDIR /app
+# Root `prepare` runs `vp config`, which shells out to `git` (not in the base image).
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+  && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+WORKDIR /repo
+
 COPY package.json bun.lockb ./
+COPY backend/package.json ./backend/
+COPY web_application/package.json ./web_application/
+COPY showcase_website/package.json ./showcase_website/
+
 RUN bun install
 
-# Development stage command with hot reload
-CMD ["bun", "run", "dev", "--host"]
+COPY backend ./backend
+COPY web_application/package.json ./web_application/
+
+WORKDIR /repo/web_application
+
+ENV NODE_ENV=development
+EXPOSE 5173
+
+# Re-install when mounted package.json changes; then start Vite+ dev server.
+CMD ["sh", "-c", "cd /repo && bun install && cd web_application && bunx vp dev --host 0.0.0.0 --port 5173"]

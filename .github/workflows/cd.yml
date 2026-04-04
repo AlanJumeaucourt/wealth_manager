@@ -130,6 +130,7 @@ EOL
         uses: docker/build-push-action@v5
         with:
           context: ./backend
+          file: ./backend/Dockerfile.prod
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.env.outputs.environment }}
@@ -144,7 +145,8 @@ EOL
       - name: Build and push frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./web_application
+          context: .
+          file: ./web_application/Dockerfile.prod
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ steps.env.outputs.environment }}

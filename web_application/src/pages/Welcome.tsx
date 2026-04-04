@@ -5,52 +5,51 @@ import {
   usePortfolioSummary,
   useTransactions,
   useWealthOverTime,
-} from "@/api/queries"
-import { PageContainer } from "@/components/layout/PageContainer"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { FinancialGoals } from "@/components/welcome/FinancialGoals"
-import { FinancialSummary } from "@/components/welcome/FinancialSummary"
-import { PortfolioHighlights } from "@/components/welcome/PortfolioHighlights"
-import { QuickActions } from "@/components/welcome/QuickActions"
-import { RecentActivity } from "@/components/welcome/RecentActivity"
-import { WealthInsights } from "@/components/welcome/WealthInsights"
-import { WelcomeHeader } from "@/components/welcome/WelcomeHeader"
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
-import { useToast } from "@/hooks/use-toast"
-import { Transaction } from "@/types"
-import { userStorage } from "@/utils/user-storage"
-import { useRouter } from "@tanstack/react-router"
-import { useEffect, useState } from "react"
-
+} from "@/api/queries";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { FinancialGoals } from "@/components/welcome/FinancialGoals";
+import { FinancialSummary } from "@/components/welcome/FinancialSummary";
+import { PortfolioHighlights } from "@/components/welcome/PortfolioHighlights";
+import { QuickActions } from "@/components/welcome/QuickActions";
+import { RecentActivity } from "@/components/welcome/RecentActivity";
+import { WealthInsights } from "@/components/welcome/WealthInsights";
+import { WelcomeHeader } from "@/components/welcome/WelcomeHeader";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useToast } from "@/hooks/use-toast";
+import { Transaction } from "@/types";
+import { userStorage } from "@/utils/user-storage";
+import { useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 export function Welcome() {
-  const router = useRouter()
-  const [greeting, setGreeting] = useState("Welcome back")
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const router = useRouter();
+  const [greeting, setGreeting] = useState("Welcome back");
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedItem, setSelectedItem] = useState<{
-    type: 'account' | 'transaction' | 'asset';
+    type: "account" | "transaction" | "asset";
     id: number;
     name?: string;
-  } | null>(null)
-  const { toast } = useToast()
+  } | null>(null);
+  const { toast } = useToast();
 
   // Create a simplified navigation function for components
   const handleNavigate = (to: string) => {
-    router.navigate({ to: to as any })
-  }
+    void router.navigate({ to: to as any });
+  };
 
   // Set appropriate greeting based on time of day
   useEffect(() => {
-    const hour = new Date().getHours()
-    if (hour < 12) setGreeting("Good morning")
-    else if (hour < 18) setGreeting("Good afternoon")
-    else setGreeting("Good evening")
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Good morning");
+    else if (hour < 18) setGreeting("Good afternoon");
+    else setGreeting("Good evening");
 
     // Update time every minute
-    const interval = setInterval(() => setCurrentTime(new Date()), 60000)
-    return () => clearInterval(interval)
-  }, [])
+    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch main data
   const {
@@ -60,16 +59,12 @@ export function Welcome() {
   } = useAccounts({
     page: 1,
     per_page: 9999,
-  })
+  });
 
-  const {
-    data: banksResponse,
-    isLoading: isLoadingBanks,
-    error: banksError,
-  } = useBanks({
+  const { isLoading: isLoadingBanks, error: banksError } = useBanks({
     page: 1,
     per_page: 100,
-  })
+  });
 
   const {
     data: transactionsResponse,
@@ -80,23 +75,19 @@ export function Welcome() {
     per_page: 5,
     sort_by: "date",
     sort_order: "desc",
-  })
+  });
 
-  const {
-    data: wealthData,
-    isLoading: isLoadingWealth,
-    error: wealthError,
-  } = useWealthOverTime()
+  const { data: wealthData, isLoading: isLoadingWealth, error: wealthError } = useWealthOverTime();
   const {
     data: portfolioSummary,
     isLoading: isLoadingPortfolio,
     error: portfolioError,
-  } = usePortfolioSummary()
+  } = usePortfolioSummary();
   const {
     data: performanceData,
     isLoading: isLoadingPerformance,
     error: performanceError,
-  } = usePortfolioPerformance("1Y")
+  } = usePortfolioPerformance("1Y");
 
   const isLoading =
     isLoadingAccounts ||
@@ -104,7 +95,7 @@ export function Welcome() {
     isLoadingTransactions ||
     isLoadingWealth ||
     isLoadingPortfolio ||
-    isLoadingPerformance
+    isLoadingPerformance;
 
   const hasError =
     accountsError ||
@@ -112,25 +103,30 @@ export function Welcome() {
     transactionsError ||
     wealthError ||
     portfolioError ||
-    performanceError
+    performanceError;
 
-  const accounts = accountsResponse?.items || []
-  const banks = banksResponse?.items || []
-  const transactions = transactionsResponse?.items || []
+  const accounts = accountsResponse?.items || [];
+  const transactions = transactionsResponse?.items || [];
+
+  console.log(
+    accounts
+      .filter((account) => account.type === "investment")
+      .reduce((acc, account) => acc + (account.market_value ?? account.balance), 0),
+  );
 
   // Handle keyboard shortcuts
   const handleEdit = () => {
     if (selectedItem) {
-      const { type, id, name } = selectedItem
-      if (type === 'account') {
-        handleNavigate(`/accounts/${id}/edit`)
-      } else if (type === 'transaction') {
-        handleNavigate(`/transactions/${id}/edit`)
-      } else if (type === 'asset') {
+      const { type, id, name } = selectedItem;
+      if (type === "account") {
+        handleNavigate(`/accounts/${id}/edit`);
+      } else if (type === "transaction") {
+        handleNavigate(`/transactions/${id}/edit`);
+      } else if (type === "asset") {
         if (id === 0 && name) {
-          handleNavigate(`/investments/assets/${name}/edit`)
+          handleNavigate(`/investments/assets/${name}/edit`);
         } else {
-          handleNavigate(`/investments/assets/${id}/edit`)
+          handleNavigate(`/investments/assets/${id}/edit`);
         }
       }
     } else {
@@ -138,13 +134,13 @@ export function Welcome() {
         title: "No item selected",
         description: "Please select an item to edit",
         variant: "default",
-      })
+      });
     }
-  }
+  };
 
   const handleDelete = () => {
     if (selectedItem) {
-      const { type, id, name } = selectedItem
+      const { type, id, name } = selectedItem;
       toast({
         title: `Delete ${type}`,
         description: `Are you sure you want to delete ${name || `this ${type}`}?`,
@@ -154,7 +150,7 @@ export function Welcome() {
             variant="outline"
             onClick={() => {
               // For assets with symbols (id=0), use the name (which contains the symbol)
-              if (type === 'asset' && id === 0 && name) {
+              if (type === "asset" && id === 0 && name) {
                 handleNavigate(`/investments/assets/${name}/delete`);
               } else {
                 handleNavigate(`/${type}s/${id}/delete`);
@@ -165,75 +161,74 @@ export function Welcome() {
             Confirm
           </Button>
         ),
-      })
+      });
     } else {
       toast({
         title: "No item selected",
         description: "Please select an item to delete",
         variant: "default",
-      })
+      });
     }
-  }
+  };
 
   useKeyboardShortcuts({
     onEdit: handleEdit,
     onDelete: handleDelete,
     disabled: isLoading,
-  })
+  });
 
   // Handle item selection
   const handleAccountSelection = (accountId: number) => {
-    const selectedAccount = accounts.find(acc => acc.id === accountId)
+    const selectedAccount = accounts.find((acc) => acc.id === accountId);
     setSelectedItem({
-      type: 'account',
+      type: "account",
       id: accountId,
-      name: selectedAccount?.name
-    })
-    handleNavigate(`/accounts/${accountId}`)
-  }
+      name: selectedAccount?.name,
+    });
+    handleNavigate(`/accounts/${accountId}`);
+  };
 
   const handleTransactionSelection = (transactionId: number) => {
-    const selectedTransaction = transactions.find(tx => tx.id === transactionId)
+    const selectedTransaction = transactions.find((tx) => tx.id === transactionId);
     setSelectedItem({
-      type: 'transaction',
+      type: "transaction",
       id: transactionId,
-      name: selectedTransaction?.description
-    })
-    handleNavigate(`/transactions/${transactionId}`)
-  }
+      name: selectedTransaction?.description,
+    });
+    handleNavigate(`/transactions/${transactionId}`);
+  };
 
   const handleAssetSelection = (assetId: number, assetSymbol?: string) => {
     // When called from PortfolioHighlights, assetId is 0 and assetSymbol contains the symbol
     // In this case, we use the symbol for navigation and as the item name
     if (assetId === 0 && assetSymbol) {
       setSelectedItem({
-        type: 'asset',
+        type: "asset",
         id: assetId,
-        name: assetSymbol
-      })
-      handleNavigate(`/investments/assets/${assetSymbol}`)
+        name: assetSymbol,
+      });
+      handleNavigate(`/investments/assets/${assetSymbol}`);
     } else {
       // For backward compatibility with other components that might use ID
       setSelectedItem({
-        type: 'asset',
+        type: "asset",
         id: assetId,
-        name: assetSymbol
-      })
-      handleNavigate(`/investments/assets/${assetId}`)
+        name: assetSymbol,
+      });
+      handleNavigate(`/investments/assets/${assetId}`);
     }
-  }
+  };
 
   if (hasError) {
     return (
       <PageContainer title="Welcome to WealthManager">
         <Alert variant="destructive">
           <AlertDescription>
-            There was an error loading your financial data. Please try again
-            later.
+            There was an error loading your financial data. Please try again later.
           </AlertDescription>
         </Alert>
       </PageContainer>
-    )
+    );
   }
   return (
     <PageContainer className="p-0 overflow-hidden">
@@ -243,7 +238,7 @@ export function Welcome() {
           <WelcomeHeader
             greeting={greeting}
             currentTime={currentTime}
-            userName={userStorage.getUser()?.name}
+            userName={userStorage.getUser()?.name ?? ""}
           />
         </div>
 
@@ -253,11 +248,11 @@ export function Welcome() {
           <div className="lg:col-span-2 space-y-6">
             <FinancialSummary
               accounts={accounts.filter(
-                account =>
+                (account) =>
                   account.type == "checking" ||
                   account.type == "savings" ||
                   account.type == "investment" ||
-                  account.type == "loan"
+                  account.type == "loan",
               )}
               wealthData={wealthData || []}
               onAccountClick={handleAccountSelection}
@@ -274,11 +269,11 @@ export function Welcome() {
             <WealthInsights
               wealthData={wealthData || []}
               accounts={accounts.filter(
-                account =>
+                (account) =>
                   account.type == "checking" ||
                   account.type == "savings" ||
                   account.type == "investment" ||
-                  account.type == "loan"
+                  account.type == "loan",
               )}
               onAccountClick={handleAccountSelection}
               isLoading={isLoadingWealth}
@@ -295,11 +290,13 @@ export function Welcome() {
               navigate={handleNavigate}
               onAccountClick={handleAccountSelection}
               onTransactionClick={handleTransactionSelection}
-              onTransactionSelect={(transaction: Transaction) => setSelectedItem({
-                type: 'transaction',
-                id: transaction.id,
-                name: transaction.description
-              })}
+              onTransactionSelect={(transaction: Transaction) =>
+                setSelectedItem({
+                  type: "transaction",
+                  id: transaction.id,
+                  name: transaction.description,
+                })
+              }
               isLoading={isLoadingTransactions}
             />
 
@@ -312,5 +309,5 @@ export function Welcome() {
         </div>
       </div>
     </PageContainer>
-  )
+  );
 }

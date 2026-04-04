@@ -25,7 +25,7 @@ interface BatchDeleteInvestmentsButtonProps {
 export function BatchDeleteInvestmentsButton({
   selectedInvestments = [],
   onSuccess,
-  disabled = false
+  disabled = false,
 }: BatchDeleteInvestmentsButtonProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const batchDeleteInvestments = useBatchDeleteInvestments();
@@ -42,7 +42,7 @@ export function BatchDeleteInvestmentsButton({
   };
 
   const getDescription = () => {
-    return `You are about to delete ${totalSelected} investment transaction${totalSelected !== 1 ? 's' : ''}. This action cannot be undone.`;
+    return `You are about to delete ${totalSelected} investment transaction${totalSelected !== 1 ? "s" : ""}. This action cannot be undone.`;
   };
 
   const handleBatchDelete = () => {

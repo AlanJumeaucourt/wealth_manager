@@ -1,38 +1,38 @@
-import { API_URL } from "@/api/queries"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Icons } from "@/components/ui/icons"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useNavigate } from "@tanstack/react-router"
-import { useState } from "react"
+import { API_URL } from "@/api/queries";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Icons } from "@/components/ui/icons";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 
 export function Signup() {
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const navigate = useNavigate()
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
     // Basic validation
     if (password !== confirmPassword) {
-      setError("Passwords do not match")
-      return
+      setError("Passwords do not match");
+      return;
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters long")
-      return
+      setError("Password must be at least 6 characters long");
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       const response = await fetch(`${API_URL}/users/register`, {
@@ -41,7 +41,7 @@ export function Signup() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ name, email, password }),
-      })
+      });
 
       if (response.ok) {
         // Automatically log in the user after successful signup
@@ -51,32 +51,30 @@ export function Signup() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ email, password }),
-        })
+        });
 
         if (loginResponse.ok) {
-          const data = await loginResponse.json()
-          localStorage.setItem("access_token", data.access_token)
-          navigate({ to: "/dashboard" })
+          const data = await loginResponse.json();
+          localStorage.setItem("access_token", data.access_token);
+          void navigate({ to: "/dashboard" });
         }
       } else {
-        const errorData = await response.json()
-        setError(errorData.msg || "Signup failed")
+        const errorData = await response.json();
+        setError(errorData.msg || "Signup failed");
       }
     } catch (error) {
-      console.error("Signup error:", error)
-      setError("Signup failed. Please try again.")
+      console.error("Signup error:", error);
+      setError("Signup failed. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
       <div className="container flex items-center justify-center gap-12 px-4 md:px-6">
         <div className="hidden lg:flex flex-col gap-4 max-w-lg">
-          <h1 className="text-4xl font-bold tracking-tight">
-            Join WealthManager
-          </h1>
+          <h1 className="text-4xl font-bold tracking-tight">Join WealthManager</h1>
           <p className="text-xl text-muted-foreground">
             Start your journey to financial freedom today
           </p>
@@ -97,9 +95,7 @@ export function Signup() {
 
         <Card className="w-full max-w-md">
           <CardHeader>
-            <h2 className="text-2xl font-semibold text-center">
-              Create an account
-            </h2>
+            <h2 className="text-2xl font-semibold text-center">Create an account</h2>
           </CardHeader>
           <CardContent>
             {error && (
@@ -114,7 +110,7 @@ export function Signup() {
                   id="name"
                   type="text"
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your full name"
                   disabled={isLoading}
                   required
@@ -126,7 +122,7 @@ export function Signup() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   disabled={isLoading}
                   required
@@ -138,7 +134,7 @@ export function Signup() {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="Create a password"
                   disabled={isLoading}
                   required
@@ -150,16 +146,14 @@ export function Signup() {
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm your password"
                   disabled={isLoading}
                   required
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && (
-                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                )}
+                {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
                 Create Account
               </Button>
             </form>
@@ -167,11 +161,7 @@ export function Signup() {
           <CardFooter className="flex justify-center">
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Button
-                variant="link"
-                className="p-0"
-                onClick={() => navigate({ to: "/" })}
-              >
+              <Button variant="link" className="p-0" onClick={() => void navigate({ to: "/" })}>
                 Sign in
               </Button>
             </p>
@@ -179,5 +169,5 @@ export function Signup() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

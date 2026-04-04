@@ -1,76 +1,72 @@
 {
-    "files.insertFinalNewline": true,
-    "files.trimTrailingWhitespace": true,
-    "python.defaultInterpreterPath": "/home/vscode/.venv/bin/python",
-    "[dockercompose]": {
-        "editor.autoIndent": "advanced",
-        "editor.defaultFormatter": "redhat.vscode-yaml",
-        "editor.formatOnSave": true,
-        "editor.insertSpaces": true,
-        "editor.quickSuggestions": {
-            "other": true,
-            "comments": false,
-            "strings": true
-        },
-        "editor.tabSize": 4
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "oxc.fmt.configPath": "./vite.config.ts",
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "explicit"
+  },
+  "[dockercompose]": {
+    "editor.autoIndent": "advanced",
+    "editor.defaultFormatter": "redhat.vscode-yaml",
+    "editor.formatOnSave": true,
+    "editor.insertSpaces": true,
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": false,
+      "strings": true
     },
-    "[dockerfile]": {
-        "editor.formatOnSave": true
+    "editor.tabSize": 4
+  },
+  "[dockerfile]": {
+    "editor.formatOnSave": true
+  },
+  "[github-actions-workflow]": {
+    "editor.autoIndent": "advanced",
+    "editor.defaultFormatter": "redhat.vscode-yaml",
+    "editor.insertSpaces": true,
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": false,
+      "strings": true
     },
-    "[github-actions-workflow]": {
-        "editor.autoIndent": "advanced",
-        "editor.defaultFormatter": "redhat.vscode-yaml",
-        "editor.insertSpaces": true,
-        "editor.quickSuggestions": {
-            "other": true,
-            "comments": false,
-            "strings": true
-        },
-        "editor.tabSize": 2
-    },
-    "[json][jsonc]": {
-        "editor.defaultFormatter": "vscode.json-language-features",
-        "editor.formatOnSave": true,
-        "editor.insertSpaces": true,
-        "editor.tabSize": 4
-    },
-    "[python]": {
-        "editor.codeActionsOnSave": {
-            "source.fixAll": "explicit",
-            "source.organizeImports": "explicit"
-        },
-        "editor.defaultFormatter": "charliermarsh.ruff",
-        "editor.formatOnSave": true,
-        "editor.tabSize": 4
-    },
-    "[toml]": {
-        "editor.defaultFormatter": "tamasfe.even-better-toml",
-        "editor.formatOnSave": true,
-        "editor.insertSpaces": true,
-        "editor.tabSize": 4
-    },
-    "[yaml]": {
-        "editor.autoIndent": "advanced",
-        "editor.defaultFormatter": "redhat.vscode-yaml",
-        "editor.formatOnSave": true,
-        "editor.insertSpaces": true,
-        "editor.tabSize": 2
-    },
-    "python.analysis.autoImportCompletions": true,
-    "workbench.colorCustomizations": {
-        "activityBar.activeBackground": "#feb43d",
-        "activityBar.background": "#feb43d",
-        "activityBar.foreground": "#15202b",
-        "activityBar.inactiveForeground": "#15202b99",
-        "activityBarBadge.background": "#017f4e",
-        "activityBarBadge.foreground": "#e7e7e7",
-        "commandCenter.border": "#15202b99",
-        "editorGroup.border": "#feb43d",
-        "sash.hoverBorder": "#feb43d",
-        "titleBar.activeBackground": "#fea00a",
-        "titleBar.activeForeground": "#15202b",
-        "titleBar.inactiveBackground": "#fea00a99",
-        "titleBar.inactiveForeground": "#15202b99"
-    },
-    "peacock.remoteColor": "#fea00a"
+    "editor.tabSize": 2
+  },
+  "[json][jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.formatOnSave": true,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml",
+    "editor.formatOnSave": true,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4
+  },
+  "[yaml]": {
+    "editor.autoIndent": "advanced",
+    "editor.defaultFormatter": "redhat.vscode-yaml",
+    "editor.formatOnSave": true,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2
+  },
+  "workbench.colorCustomizations": {
+    "activityBar.activeBackground": "#d5ba3d",
+    "activityBar.background": "#d5ba3d",
+    "activityBar.foreground": "#15202b",
+    "activityBar.inactiveForeground": "#15202b99",
+    "activityBarBadge.background": "#1c8371",
+    "activityBarBadge.foreground": "#e7e7e7",
+    "commandCenter.border": "#15202b99",
+    "editorGroup.border": "#d5ba3d",
+    "sash.hoverBorder": "#d5ba3d",
+    "titleBar.activeBackground": "#b79e28",
+    "titleBar.activeForeground": "#15202b",
+    "titleBar.inactiveBackground": "#b79e2899",
+    "titleBar.inactiveForeground": "#15202b99"
+  },
+  "peacock.remoteColor": "#b79e28"
 }

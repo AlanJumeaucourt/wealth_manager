@@ -1,37 +1,37 @@
-import { useAccounts, useAssets, useInvestments } from "@/api/queries"
-import { AddInvestmentDialog } from "@/components/investmentsTransaction/AddInvestmentTransactionDialog"
+import { useAccounts, useAssets, useInvestments } from "@/api/queries";
+import { AddInvestmentDialog } from "@/components/investmentsTransaction/AddInvestmentTransactionDialog";
 import {
   BatchDeleteInvestmentsButton,
   BatchDeleteResponse,
-} from "@/components/investmentsTransaction/BatchDeleteInvestmentsButton"
-import { DeleteInvestmentDialog } from "@/components/investmentsTransaction/DeleteInvestmentTransactionDialog"
-import { PageContainer } from "@/components/layout/PageContainer"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
+} from "@/components/investmentsTransaction/BatchDeleteInvestmentsButton";
+import { DeleteInvestmentDialog } from "@/components/investmentsTransaction/DeleteInvestmentTransactionDialog";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -39,14 +39,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useDebounce } from "@/hooks/use-debounce"
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
-import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
-import { Investment } from "@/types"
-import { useNavigate, useSearch } from "@tanstack/react-router"
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDebounce } from "@/hooks/use-debounce";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { Investment } from "@/types";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ArrowDownIcon,
   ArrowUpDown,
@@ -63,8 +63,8 @@ import {
   Trash,
   TrendingDown,
   TrendingUp,
-} from "lucide-react"
-import { memo, useEffect, useMemo, useRef, useState } from "react"
+} from "lucide-react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 type SortField =
   | "date"
@@ -73,15 +73,9 @@ type SortField =
   | "unit_price"
   | "total_paid"
   | "fee"
-  | "tax"
-type SortDirection = "asc" | "desc"
-type InvestmentTypeFilter =
-  | "all"
-  | "Buy"
-  | "Sell"
-  | "Deposit"
-  | "Withdrawal"
-  | "Dividend"
+  | "tax";
+type SortDirection = "asc" | "desc";
+type InvestmentTypeFilter = "all" | "Buy" | "Sell" | "Deposit" | "Withdrawal" | "Dividend";
 
 const INVESTMENT_TYPE_ICONS = {
   Buy: <TrendingUp className="h-4 w-4 text-green-500" />,
@@ -89,7 +83,7 @@ const INVESTMENT_TYPE_ICONS = {
   Deposit: <ArrowDownIcon className="h-4 w-4 text-blue-500" />,
   Withdrawal: <ArrowUpIcon className="h-4 w-4 text-orange-500" />,
   Dividend: <ArrowDownIcon className="h-4 w-4 text-purple-500" />,
-}
+};
 
 const INVESTMENT_TYPE_LABELS = {
   Buy: "Buy",
@@ -97,23 +91,23 @@ const INVESTMENT_TYPE_LABELS = {
   Deposit: "Deposit",
   Withdrawal: "Withdrawal",
   Dividend: "Dividend",
-}
+};
 
 const createMemoizedHelpers = (accounts: any[], assets: any[]) => {
   const getAccountName = (accountId?: number) => {
-    if (!accountId) return ""
-    const account = accounts.find(a => a.id === accountId)
-    return account ? account.name : ""
-  }
+    if (!accountId) return "";
+    const account = accounts.find((a) => a.id === accountId);
+    return account ? account.name : "";
+  };
 
   const getAssetSymbol = (assetId?: number) => {
-    if (!assetId) return ""
-    const asset = assets.find(a => a.id === assetId)
-    return asset ? asset.symbol : ""
-  }
+    if (!assetId) return "";
+    const asset = assets.find((a) => a.id === assetId);
+    return asset ? asset.symbol : "";
+  };
 
-  return { getAccountName, getAssetSymbol }
-}
+  return { getAccountName, getAssetSymbol };
+};
 
 const InvestmentTableRow = memo(function InvestmentTableRow({
   investment,
@@ -125,22 +119,22 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
   getAssetSymbol,
   navigate,
 }: {
-  investment: Investment
-  selectedInvestments: number[]
-  onSelectInvestment: (id: number, checked: boolean) => void
-  onEdit: (investment: Investment) => void
-  onDelete: (investment: Investment) => void
-  getAccountName: (id?: number) => string
-  getAssetSymbol: (id?: number) => string
-  navigate: (params: any) => void
+  investment: Investment;
+  selectedInvestments: number[];
+  onSelectInvestment: (id: number, checked: boolean) => void;
+  onEdit: (investment: Investment) => void;
+  onDelete: (investment: Investment) => void;
+  getAccountName: (id?: number) => string;
+  getAssetSymbol: (id?: number) => string;
+  navigate: (params: any) => void;
 }) {
   const formattedDate = useMemo(() => {
-    const date = new Date(investment.date)
+    const date = new Date(investment.date);
     return {
       date: date.toLocaleDateString(),
       time: date.toLocaleTimeString(),
-    }
-  }, [investment.date])
+    };
+  }, [investment.date]);
 
   const formattedValues = useMemo(
     () => ({
@@ -168,36 +162,34 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
       investment.fee,
       investment.tax,
       investment.total_paid,
-    ]
-  )
+    ],
+  );
 
-  const fromAccountName = getAccountName(investment.from_account_id)
-  const toAccountName = getAccountName(investment.to_account_id)
+  const fromAccountName = getAccountName(investment.from_account_id);
+  const toAccountName = getAccountName(investment.to_account_id);
 
   return (
     <TableRow className="group border-l-2 hover:bg-muted/50 transition-colors">
       <TableCell>
         <Checkbox
           checked={selectedInvestments.includes(investment.transaction_id)}
-          onCheckedChange={checked =>
+          onCheckedChange={(checked) =>
             onSelectInvestment(investment.transaction_id, checked as boolean)
           }
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         />
       </TableCell>
       <TableCell>
         <div className="flex flex-col">
           <span>{formattedDate.date}</span>
-          <span className="text-xs text-muted-foreground">
-            {formattedDate.time}
-          </span>
+          <span className="text-xs text-muted-foreground">{formattedDate.time}</span>
         </div>
       </TableCell>
       <TableCell>
         <div
           className={cn(
             "flex items-center gap-2 rounded-md border px-2 py-1 w-fit",
-            "bg-background"
+            "bg-background",
           )}
         >
           {INVESTMENT_TYPE_ICONS[investment.investment_type]}
@@ -279,9 +271,7 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
           <span
             className={cn(
               "font-medium",
-              investment.fee > 0
-                ? "text-red-600 dark:text-red-400"
-                : "text-muted-foreground"
+              investment.fee > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground",
             )}
           >
             {formattedValues.fee}
@@ -294,9 +284,7 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
           <span
             className={cn(
               "font-medium",
-              investment.tax > 0
-                ? "text-red-600 dark:text-red-400"
-                : "text-muted-foreground"
+              investment.tax > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground",
             )}
           >
             {formattedValues.tax}
@@ -313,7 +301,7 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
                 investment.investment_type === "Deposit" ||
                 investment.investment_type === "Dividend"
                 ? "text-green-600 dark:text-green-400"
-                : "text-red-600 dark:text-red-400"
+                : "text-red-600 dark:text-red-400",
             )}
           >
             {formattedValues.total}
@@ -347,47 +335,195 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
         </DropdownMenu>
       </TableCell>
     </TableRow>
-  )
-})
+  );
+});
+
+// Mobile-friendly investment card (replaces table row on small screens)
+const MobileInvestmentCard = memo(function MobileInvestmentCard({
+  investment,
+  isSelected,
+  onSelect,
+  onEdit,
+  onDelete,
+  getAccountName,
+  getAssetSymbol,
+  navigate,
+}: {
+  investment: Investment;
+  isSelected: boolean;
+  onSelect: (id: number, checked: boolean) => void;
+  onEdit: (investment: Investment) => void;
+  onDelete: (investment: Investment) => void;
+  getAccountName: (id?: number) => string;
+  getAssetSymbol: (id?: number) => string;
+  navigate: (params: any) => void;
+}) {
+  const formattedDate = new Date(investment.date).toLocaleDateString();
+  const formattedTime = new Date(investment.date).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const totalFormatted = new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "EUR",
+  }).format(investment.total_paid || 0);
+  const isInflow =
+    investment.investment_type === "Buy" ||
+    investment.investment_type === "Deposit" ||
+    investment.investment_type === "Dividend";
+  const totalClass = isInflow
+    ? "text-green-600 dark:text-green-400"
+    : "text-red-600 dark:text-red-400";
+
+  const handleClick = () => {
+    navigate({
+      to: "/investments/assets/$symbol",
+      params: { symbol: getAssetSymbol(investment.asset_id) },
+    });
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => e.key === "Enter" && handleClick()}
+      aria-label={`View ${getAssetSymbol(investment.asset_id)} - ${investment.investment_type}`}
+      className={cn(
+        "rounded-xl border border-border/50 bg-card p-4 shadow-sm transition-colors active:bg-muted/50",
+        isSelected && "ring-2 ring-primary/50",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className="pt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={(checked) => onSelect(investment.transaction_id, checked as boolean)}
+            aria-label={`Select ${getAssetSymbol(investment.asset_id)} ${investment.investment_type}`}
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {INVESTMENT_TYPE_ICONS[investment.investment_type]}
+              <span className="font-medium">
+                {INVESTMENT_TYPE_LABELS[investment.investment_type]}
+              </span>
+            </div>
+            <span className={cn("font-semibold shrink-0", totalClass)}>{totalFormatted}</span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{formattedDate}</span>
+            <span>{formattedTime}</span>
+            {investment.asset_id && (
+              <button
+                type="button"
+                className="font-medium text-primary hover:underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate({
+                    to: "/investments/assets/$symbol",
+                    params: { symbol: getAssetSymbol(investment.asset_id) },
+                  });
+                }}
+              >
+                {getAssetSymbol(investment.asset_id)}
+              </button>
+            )}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span>
+              Qty: {investment.quantity.toLocaleString()} @{" "}
+              {new Intl.NumberFormat(undefined, {
+                style: "currency",
+                currency: "EUR",
+              }).format(investment.unit_price)}
+            </span>
+            {investment.from_account_id && (
+              <span>From: {getAccountName(investment.from_account_id)}</span>
+            )}
+            {investment.fee > 0 && (
+              <span className="text-red-600 dark:text-red-400">
+                Fee:{" "}
+                {new Intl.NumberFormat(undefined, {
+                  style: "currency",
+                  currency: "EUR",
+                }).format(investment.fee)}
+              </span>
+            )}
+            {investment.to_account_id && (
+              <span>To: {getAccountName(investment.to_account_id)}</span>
+            )}
+            {investment.tax > 0 && (
+              <span className="text-red-600 dark:text-red-400">
+                Tax:{" "}
+                {new Intl.NumberFormat(undefined, {
+                  style: "currency",
+                  currency: "EUR",
+                }).format(investment.tax)}
+              </span>
+            )}
+          </div>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onEdit(investment)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onDelete(investment)}
+              className="text-red-600 dark:text-red-400"
+            >
+              <Trash className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+});
 
 export function InvestmentsTransactionPage() {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [sortField, setSortField] = useState<SortField>("date")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
-  const [investmentTypeFilter, setActivityTypeFilter] =
-    useState<InvestmentTypeFilter>("all")
-  const [assetFilter, setAssetFilter] = useState<number | "all">("all")
-  const itemsPerPage = 25
-  const [editingInvestment, setEditingInvestment] = useState<Investment | null>(
-    null
-  )
-  const [deletingInvestment, setDeletingInvestment] =
-    useState<Investment | null>(null)
-  const { toast } = useToast()
-  const tableRef = useRef<HTMLTableElement>(null)
-  const [selectedInvestments, setSelectedInvestments] = useState<number[]>([])
-  const [isAddingInvestment, setIsAddingInvestment] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const debouncedSearch = useDebounce(searchTerm, 300)
-  const [isEnteringPage, setIsEnteringPage] = useState(false)
-  const [manualPageInput, setManualPageInput] = useState("")
-  const navigate = useNavigate()
-  const search = useSearch({})
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [investmentTypeFilter, setActivityTypeFilter] = useState<InvestmentTypeFilter>("all");
+  const [assetFilter, setAssetFilter] = useState<number | "all">("all");
+  const itemsPerPage = 25;
+  const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
+  const [deletingInvestment, setDeletingInvestment] = useState<Investment | null>(null);
+  const { toast } = useToast();
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [selectedInvestments, setSelectedInvestments] = useState<number[]>([]);
+  const [isAddingInvestment, setIsAddingInvestment] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 300);
+  const [isEnteringPage, setIsEnteringPage] = useState(false);
+  const [manualPageInput, setManualPageInput] = useState("");
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false });
 
   // Check URL parameters for 'addNew' to open the investment dialog
   useEffect(() => {
     if (search.addNew === "true") {
-      setIsAddingInvestment(true)
+      setIsAddingInvestment(true);
       // Clear the URL parameter after opening the dialog
-      navigate({
+      void navigate({
         search: (prev) => {
-          const newSearch = { ...prev }
-          delete newSearch.addNew
-          return newSearch
+          const newSearch = { ...prev };
+          delete newSearch.addNew;
+          return newSearch;
         },
-      })
+      });
     }
-  }, [search, navigate])
+  }, [search, navigate]);
 
   const { data: investmentsResponse, isLoading } = useInvestments({
     page: currentPage,
@@ -396,7 +532,7 @@ export function InvestmentsTransactionPage() {
     sort_order: sortDirection,
     search: debouncedSearch,
     asset_id: assetFilter !== "all" ? assetFilter : undefined,
-  })
+  });
 
   // Fetch only the specific accounts needed for current investments
   const { data: accountsResponse } = useAccounts(
@@ -405,20 +541,20 @@ export function InvestmentsTransactionPage() {
           id: Array.from(
             new Set(
               investmentsResponse.items
-                .flatMap(inv => [inv.from_account_id, inv.to_account_id])
-                .filter(Boolean) as number[]
-            )
+                .flatMap((inv) => [inv.from_account_id, inv.to_account_id])
+                .filter(Boolean) as number[],
+            ),
           ),
         }
-      : undefined
-  )
+      : undefined,
+  );
 
   // Fetch all available assets for the filter dropdown (small list, ok to fetch all)
   const { data: allAssetsResponse } = useAssets({
     per_page: 1000,
     sort_by: "symbol",
     sort_order: "asc",
-  })
+  });
 
   // Fetch only the specific assets needed for current investments
   const { data: assetsResponse } = useAssets(
@@ -427,112 +563,106 @@ export function InvestmentsTransactionPage() {
           symbol: Array.from(
             new Set(
               investmentsResponse.items
-                .map(inv => inv.asset_id)
+                .map((inv) => inv.asset_id)
                 .filter(Boolean)
-                .map(assetId => {
-                  const asset = allAssetsResponse?.items?.find(a => a.id === assetId);
+                .map((assetId) => {
+                  const asset = allAssetsResponse?.items?.find((a) => a.id === assetId);
                   return asset?.symbol;
                 })
-                .filter(Boolean) as string[]
-            )
+                .filter(Boolean) as string[],
+            ),
           ),
         }
-      : undefined
-  )
+      : undefined,
+  );
 
-  const investments = (investmentsResponse?.items || []) as Investment[]
-  const totalItems = investmentsResponse?.total || 0
-  const totalPages = Math.ceil(totalItems / itemsPerPage)
-  const accounts = accountsResponse?.items || []
-  const assets = assetsResponse?.items || []
+  const investments = (investmentsResponse?.items || []) as Investment[];
+  const totalItems = investmentsResponse?.total || 0;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const accounts = useMemo(() => accountsResponse?.items ?? [], [accountsResponse]);
+  const assets = useMemo(() => assetsResponse?.items ?? [], [assetsResponse]);
 
   const { getAccountName, getAssetSymbol } = useMemo(
     () => createMemoizedHelpers(accounts, assets),
-    [accounts, assets]
-  )
+    [accounts, assets],
+  );
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
-      setSortField(field)
-      setSortDirection("desc")
+      setSortField(field);
+      setSortDirection("desc");
     }
-    setCurrentPage(1)
-  }
+    setCurrentPage(1);
+  };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />
+    if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />;
     return sortDirection === "asc" ? (
       <ArrowUpIcon className="ml-2 h-4 w-4" />
     ) : (
       <ArrowDownIcon className="ml-2 h-4 w-4" />
-    )
-  }
+    );
+  };
 
   useEffect(() => {
-    setCurrentPage(1)
-  }, [debouncedSearch, investmentTypeFilter, assetFilter])
+    setCurrentPage(1);
+  }, [debouncedSearch, investmentTypeFilter, assetFilter]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedInvestments(
-        investments.map(investment => investment.transaction_id)
-      )
+      setSelectedInvestments(investments.map((investment) => investment.transaction_id));
     } else {
-      setSelectedInvestments([])
+      setSelectedInvestments([]);
     }
-  }
+  };
 
   const handleSelectInvestment = (transactionId: number, checked: boolean) => {
     if (checked) {
-      setSelectedInvestments(prev => [...prev, transactionId])
+      setSelectedInvestments((prev) => [...prev, transactionId]);
     } else {
-      setSelectedInvestments(prev => prev.filter(id => id !== transactionId))
+      setSelectedInvestments((prev) => prev.filter((id) => id !== transactionId));
     }
-  }
+  };
 
   useKeyboardShortcuts({
     onNew: () => {
       if (!isAddingInvestment) {
-        setIsAddingInvestment(true)
+        setIsAddingInvestment(true);
       }
     },
     onEdit: () => {
       if (selectedInvestments.length > 0 && !editingInvestment) {
-        const investment = investments.find(
-          i => i.transaction_id === selectedInvestments[0]
-        )
+        const investment = investments.find((i) => i.transaction_id === selectedInvestments[0]);
         if (investment) {
-          setEditingInvestment(investment)
+          setEditingInvestment(investment);
         }
       }
     },
     onDelete: () => {
       if (selectedInvestments.length > 0 && !deletingInvestment) {
-        const investment = investments.find(
-          i => i.transaction_id === selectedInvestments[0]
-        )
+        const investment = investments.find((i) => i.transaction_id === selectedInvestments[0]);
         if (investment) {
-          setDeletingInvestment(investment)
+          setDeletingInvestment(investment);
         }
       }
     },
     onHome: () => {
       if (tableRef.current) {
-        tableRef.current.scrollTop = 0
-        setCurrentPage(1)
+        tableRef.current.scrollTop = 0;
+        setCurrentPage(1);
       }
     },
     onEnd: () => {
       if (tableRef.current) {
-        tableRef.current.scrollTop = tableRef.current.scrollHeight
-        setCurrentPage(totalPages)
+        tableRef.current.scrollTop = tableRef.current.scrollHeight;
+        setCurrentPage(totalPages);
       }
     },
-    onPrevPage: () => setCurrentPage(p => Math.max(1, p - 1)),
-    onNextPage: () => setCurrentPage(p => Math.min(totalPages, p + 1)),
-  })
+    onPrevPage: () => setCurrentPage((p) => Math.max(1, p - 1)),
+    onNextPage: () => setCurrentPage((p) => Math.min(totalPages, p + 1)),
+  });
 
   const totalInvested = investments.reduce((sum, inv) => {
     if (
@@ -540,18 +670,19 @@ export function InvestmentsTransactionPage() {
       inv.investment_type === "Deposit" ||
       inv.investment_type === "Dividend"
     ) {
-      return sum + (inv.total_paid || 0)
+      return sum + (inv.total_paid || 0);
     }
-    return sum
-  }, 0)
-  const totalFees = investments.reduce((sum, inv) => sum + inv.fee, 0)
-  const totalTax = investments.reduce((sum, inv) => sum + inv.tax, 0)
+    return sum;
+  }, 0);
+  const totalFees = investments.reduce((sum, inv) => sum + inv.fee, 0);
+  const totalTax = investments.reduce((sum, inv) => sum + inv.tax, 0);
 
-  const filteredInvestments = investments.filter(investment => {
+  const filteredInvestments = investments.filter((investment) => {
     if (investmentTypeFilter === "all" && assetFilter === "all") return true;
     if (investmentTypeFilter !== "all" && assetFilter !== "all") {
-      return investment.investment_type === investmentTypeFilter &&
-             investment.asset_id === assetFilter;
+      return (
+        investment.investment_type === investmentTypeFilter && investment.asset_id === assetFilter
+      );
     }
     if (investmentTypeFilter !== "all") {
       return investment.investment_type === investmentTypeFilter;
@@ -560,7 +691,7 @@ export function InvestmentsTransactionPage() {
       return investment.asset_id === assetFilter;
     }
     return true;
-  })
+  });
 
   const stats = [
     {
@@ -590,19 +721,19 @@ export function InvestmentsTransactionPage() {
       }).format(totalTax),
       icon: <ArrowUpIcon className="h-4 w-4 text-red-500" />,
     },
-  ]
+  ];
 
   // Fix the type for the batch delete handler
   const handleBatchDeleteSuccess = (result: BatchDeleteResponse) => {
     // Clear selections after successful delete
     if (result.total_successful > 0) {
-      setSelectedInvestments([])
+      setSelectedInvestments([]);
       toast({
         title: "Investments deleted",
         description: `Successfully deleted ${result.total_successful} investment transactions.`,
-      })
+      });
     }
-  }
+  };
 
   return (
     <PageContainer title="Investment Transactions">
@@ -632,9 +763,7 @@ export function InvestmentsTransactionPage() {
                     {stat.icon}
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
-                      {stat.valueFormatted}
-                    </div>
+                    <div className="text-2xl font-bold">{stat.valueFormatted}</div>
                   </CardContent>
                 </Card>
               ))}
@@ -648,7 +777,7 @@ export function InvestmentsTransactionPage() {
               <Input
                 placeholder="Search investments..."
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 w-[300px]"
               />
             </div>
@@ -673,9 +802,7 @@ export function InvestmentsTransactionPage() {
 
             <Tabs
               value={investmentTypeFilter}
-              onValueChange={value =>
-                setActivityTypeFilter(value as InvestmentTypeFilter)
-              }
+              onValueChange={(value) => setActivityTypeFilter(value as InvestmentTypeFilter)}
               className="flex-1 min-w-0"
             >
               <TabsList className="grid w-full grid-cols-6">
@@ -703,8 +830,8 @@ export function InvestmentsTransactionPage() {
             {selectedInvestments.length > 0 && (
               <>
                 <BatchDeleteInvestmentsButton
-                  selectedInvestments={investments.filter(i =>
-                    selectedInvestments.includes(i.transaction_id)
+                  selectedInvestments={investments.filter((i) =>
+                    selectedInvestments.includes(i.transaction_id),
                   )}
                   onSuccess={handleBatchDeleteSuccess}
                   disabled={isLoading}
@@ -722,17 +849,16 @@ export function InvestmentsTransactionPage() {
           </div>
         </div>
 
-        {/* Investments Table */}
-        <Card>
+        {/* Desktop: Investments Table (hidden on mobile) */}
+        <Card className="hidden md:block" ref={tableRef}>
           <CardContent className="p-0">
-            <Table ref={tableRef}>
+            <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-[50px]">
                     <Checkbox
                       checked={
-                        selectedInvestments.length === investments.length &&
-                        investments.length > 0
+                        selectedInvestments.length === investments.length && investments.length > 0
                       }
                       onCheckedChange={handleSelectAll}
                       aria-label="Select all"
@@ -840,7 +966,7 @@ export function InvestmentsTransactionPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredInvestments.map(investment => (
+                  filteredInvestments.map((investment) => (
                     <InvestmentTableRow
                       key={investment.transaction_id}
                       investment={investment}
@@ -859,13 +985,58 @@ export function InvestmentsTransactionPage() {
           </CardContent>
         </Card>
 
+        {/* Mobile: investment cards (hidden on desktop) */}
+        <div className="md:hidden space-y-3">
+          {isLoading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border/50 bg-card p-4 shadow-sm">
+                <Skeleton className="h-5 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/4 mb-2" />
+                <Skeleton className="h-3 w-full" />
+              </div>
+            ))
+          ) : filteredInvestments.length === 0 ? (
+            <div className="rounded-xl border border-border/50 bg-card p-8 text-center shadow-sm">
+              <p className="text-muted-foreground">No investment transactions found</p>
+              <Button variant="link" onClick={() => setIsAddingInvestment(true)} className="mt-2">
+                Add your first investment
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-card px-4 py-2 shadow-sm">
+                <Checkbox
+                  checked={
+                    selectedInvestments.length === investments.length && investments.length > 0
+                  }
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                />
+                <span className="text-sm text-muted-foreground">Select all</span>
+              </div>
+              {filteredInvestments.map((investment) => (
+                <MobileInvestmentCard
+                  key={investment.transaction_id}
+                  investment={investment}
+                  isSelected={selectedInvestments.includes(investment.transaction_id)}
+                  onSelect={handleSelectInvestment}
+                  onEdit={setEditingInvestment}
+                  onDelete={setDeletingInvestment}
+                  getAccountName={getAccountName}
+                  getAssetSymbol={getAssetSymbol}
+                  navigate={navigate}
+                />
+              ))}
+            </>
+          )}
+        </div>
+
         {/* Pagination */}
         {!isLoading && totalPages > 1 && (
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
               Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-              {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}{" "}
-              entries
+              {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} entries
             </div>
             <div className="flex items-center space-x-2">
               <Button
@@ -879,7 +1050,7 @@ export function InvestmentsTransactionPage() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -891,25 +1062,23 @@ export function InvestmentsTransactionPage() {
                       ? i + 1
                       : currentPage >= totalPages - 2
                         ? totalPages - 4 + i
-                        : currentPage - 2 + i
+                        : currentPage - 2 + i;
                   return (
                     <Button
                       key={i}
-                      variant={
-                        pageNumber === currentPage ? "default" : "outline"
-                      }
+                      variant={pageNumber === currentPage ? "default" : "outline"}
                       size="icon"
                       onClick={() => setCurrentPage(pageNumber)}
                     >
                       {pageNumber}
                     </Button>
-                  )
+                  );
                 })}
               </div>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -929,10 +1098,10 @@ export function InvestmentsTransactionPage() {
         {/* Dialogs */}
         <AddInvestmentDialog
           open={isAddingInvestment || !!editingInvestment}
-          onOpenChange={open => {
+          onOpenChange={(open) => {
             if (!open) {
-              setIsAddingInvestment(false)
-              setEditingInvestment(null)
+              setIsAddingInvestment(false);
+              setEditingInvestment(null);
             }
           }}
           investment={editingInvestment || undefined}
@@ -941,7 +1110,7 @@ export function InvestmentsTransactionPage() {
         <DeleteInvestmentDialog
           investment={deletingInvestment}
           open={!!deletingInvestment}
-          onOpenChange={open => !open && setDeletingInvestment(null)}
+          onOpenChange={(open) => !open && setDeletingInvestment(null)}
         />
 
         <Dialog open={isEnteringPage} onOpenChange={setIsEnteringPage}>
@@ -957,7 +1126,7 @@ export function InvestmentsTransactionPage() {
                   min={1}
                   max={totalPages}
                   value={manualPageInput}
-                  onChange={e => setManualPageInput(e.target.value)}
+                  onChange={(e) => setManualPageInput(e.target.value)}
                   placeholder={`Enter page (1-${totalPages})`}
                 />
               </div>
@@ -965,11 +1134,11 @@ export function InvestmentsTransactionPage() {
             <DialogFooter>
               <Button
                 onClick={() => {
-                  const page = parseInt(manualPageInput)
+                  const page = parseInt(manualPageInput);
                   if (page >= 1 && page <= totalPages) {
-                    setCurrentPage(page)
-                    setIsEnteringPage(false)
-                    setManualPageInput("")
+                    setCurrentPage(page);
+                    setIsEnteringPage(false);
+                    setManualPageInput("");
                   }
                 }}
                 disabled={
@@ -985,5 +1154,5 @@ export function InvestmentsTransactionPage() {
         </Dialog>
       </div>
     </PageContainer>
-  )
+  );
 }

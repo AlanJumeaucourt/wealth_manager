@@ -1,35 +1,35 @@
-import { useTransactions } from "@/api/queries"
-import { CreateRefundModal } from "@/components/refunds/CreateRefundModal"
-import { Button } from "@/components/ui/button"
+import { useTransactions } from "@/api/queries";
+import { CreateRefundModal } from "@/components/refunds/CreateRefundModal";
+import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Checkbox } from "@/components/ui/checkbox"
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
-import { RefundGroup, RefundItem, Transaction } from "@/types"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { RefundGroup, RefundItem, Transaction } from "@/types";
 import {
-    ArrowDownRight,
-    ArrowRight,
-    ArrowUpRight,
-    Calendar,
-    DollarSign,
-    MoreHorizontal,
-    Pencil,
-    Sparkles,
-    Trash,
-    Wallet,
-} from "lucide-react"
-import { useState } from "react"
-import { BatchDeleteRefundsButton } from "./BatchDeleteRefundsButton"
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  Calendar,
+  DollarSign,
+  MoreHorizontal,
+  Pencil,
+  Sparkles,
+  Trash,
+  Wallet,
+} from "lucide-react";
+import { useState } from "react";
+import { BatchDeleteRefundsButton } from "./BatchDeleteRefundsButton";
 
 interface RefundsListProps {
-  refundGroups: RefundGroup[]
-  refundItems: RefundItem[]
-  onDeleteRefundGroup: (group: RefundGroup) => void
-  onDeleteRefundItem: (item: RefundItem) => void
+  refundGroups: RefundGroup[];
+  refundItems: RefundItem[];
+  onDeleteRefundGroup: (group: RefundGroup) => void;
+  onDeleteRefundItem: (item: RefundItem) => void;
 }
 
 // Match the backend response format
@@ -52,31 +52,31 @@ export function RefundsList({
   // Get all unique transaction IDs from refund items
   const allTransactionIds = Array.from(
     new Set([
-      ...refundItems.map(item => item.expense_transaction_id),
-      ...refundItems.map(item => item.income_transaction_id),
-    ])
-  )
+      ...refundItems.map((item) => item.expense_transaction_id),
+      ...refundItems.map((item) => item.income_transaction_id),
+    ]),
+  );
 
   // Fetch all transactions by IDs
   const { data: transactionsData } = useTransactions({
     id: allTransactionIds,
     per_page: allTransactionIds.length || 1,
-  })
+  });
 
   const [editingRefund, setEditingRefund] = useState<{
-    refundGroupId?: number
+    refundGroupId?: number;
     refundItems: {
-      id: number
-      expenseId: number
-      incomeId: number
-      amount: number
-    }[]
-  } | null>(null)
+      id: number;
+      expenseId: number;
+      incomeId: number;
+      amount: number;
+    }[];
+  } | null>(null);
 
   const [hoveredItem, setHoveredItem] = useState<{
-    type: "group" | "item"
-    id: number
-  } | null>(null)
+    type: "group" | "item";
+    id: number;
+  } | null>(null);
 
   // Add state for batch selection
   const [selectedGroups, setSelectedGroups] = useState<RefundGroup[]>([]);
@@ -84,28 +84,24 @@ export function RefundsList({
 
   // Create a map of all transactions
   const transactionsMap = new Map<number, Transaction>(
-    (transactionsData?.items || []).map(t => [t.id, t])
-  )
+    (transactionsData?.items || []).map((t) => [t.id, t]),
+  );
 
   // Group standalone refund items (not part of a group)
-  const standaloneItems = refundItems.filter(item => !item.refund_group_id)
+  const standaloneItems = refundItems.filter((item) => !item.refund_group_id);
 
   // Add toggles for selection
   const toggleGroupSelection = (group: RefundGroup) => {
-    setSelectedGroups(prev => {
-      const isSelected = prev.some(g => g.id === group.id);
-      return isSelected
-        ? prev.filter(g => g.id !== group.id)
-        : [...prev, group];
+    setSelectedGroups((prev) => {
+      const isSelected = prev.some((g) => g.id === group.id);
+      return isSelected ? prev.filter((g) => g.id !== group.id) : [...prev, group];
     });
   };
 
   const toggleItemSelection = (item: RefundItem) => {
-    setSelectedItems(prev => {
-      const isSelected = prev.some(i => i.id === item.id);
-      return isSelected
-        ? prev.filter(i => i.id !== item.id)
-        : [...prev, item];
+    setSelectedItems((prev) => {
+      const isSelected = prev.some((i) => i.id === item.id);
+      return isSelected ? prev.filter((i) => i.id !== item.id) : [...prev, item];
     });
   };
 
@@ -121,22 +117,18 @@ export function RefundsList({
       clearSelections();
     } else {
       // Handle partial failure - remove successfully deleted items from selection
-      setSelectedGroups(prev =>
-        prev.filter(group => !result.successful.includes(group.id!))
-      );
-      setSelectedItems(prev =>
-        prev.filter(item => !result.successful.includes(item.id!))
-      );
+      setSelectedGroups((prev) => prev.filter((group) => !result.successful.includes(group.id!)));
+      setSelectedItems((prev) => prev.filter((item) => !result.successful.includes(item.id!)));
     }
   };
 
   // Check if a group or item is selected
   const isGroupSelected = (groupId: number) => {
-    return selectedGroups.some(g => g.id === groupId);
+    return selectedGroups.some((g) => g.id === groupId);
   };
 
   const isItemSelected = (itemId: number) => {
-    return selectedItems.some(i => i.id === itemId);
+    return selectedItems.some((i) => i.id === itemId);
   };
 
   const formatDate = (date: string) => {
@@ -144,22 +136,22 @@ export function RefundsList({
       year: "numeric",
       month: "short",
       day: "numeric",
-    })
-  }
+    });
+  };
 
   // Calculate summary statistics
   const calculateSummary = () => {
     const totalExpenses = refundItems.reduce((sum, item) => {
-      const tx = transactionsMap.get(item.expense_transaction_id)
-      return sum + (tx ? Math.abs(tx.amount) : 0)
-    }, 0)
+      const tx = transactionsMap.get(item.expense_transaction_id);
+      return sum + (tx ? Math.abs(tx.amount) : 0);
+    }, 0);
 
-    const totalRefunds = refundItems.reduce((sum, item) => sum + item.amount, 0)
+    const totalRefunds = refundItems.reduce((sum, item) => sum + item.amount, 0);
 
-    const refundRate = totalExpenses > 0 ? (totalRefunds / totalExpenses) * 100 : 0
+    const refundRate = totalExpenses > 0 ? (totalRefunds / totalExpenses) * 100 : 0;
 
-    const totalGroups = refundGroups.length
-    const totalIndividualRefunds = standaloneItems.length
+    const totalGroups = refundGroups.length;
+    const totalIndividualRefunds = standaloneItems.length;
 
     return {
       totalExpenses,
@@ -167,11 +159,11 @@ export function RefundsList({
       refundRate,
       totalGroups,
       totalIndividualRefunds,
-      totalRefundItems: refundItems.length
-    }
-  }
+      totalRefundItems: refundItems.length,
+    };
+  };
 
-  const summary = calculateSummary()
+  const summary = calculateSummary();
 
   const RefundCard = ({
     expense,
@@ -179,10 +171,10 @@ export function RefundsList({
     amount,
     item,
   }: {
-    expense: Transaction
-    income: Transaction
-    amount: number
-    item: RefundItem
+    expense: Transaction;
+    income: Transaction;
+    amount: number;
+    item: RefundItem;
   }) => (
     <div
       className="grid md:grid-cols-2 gap-4 p-4 bg-white rounded-lg border border-gray-100 shadow-sm transition-all hover:shadow-md"
@@ -245,22 +237,20 @@ export function RefundsList({
         </div>
       </div>
     </div>
-  )
+  );
 
   const handleEditGroup = (groupId: number) => {
-    const groupItems = refundItems.filter(
-      item => item.refund_group_id === groupId
-    )
+    const groupItems = refundItems.filter((item) => item.refund_group_id === groupId);
     setEditingRefund({
       refundGroupId: groupId,
-      refundItems: groupItems.map(item => ({
+      refundItems: groupItems.map((item) => ({
         id: item.id!,
         expenseId: item.expense_transaction_id,
         incomeId: item.income_transaction_id,
         amount: item.amount,
       })),
-    })
-  }
+    });
+  };
 
   const handleEditStandaloneItem = (item: RefundItem) => {
     setEditingRefund({
@@ -272,33 +262,33 @@ export function RefundsList({
           amount: item.amount,
         },
       ],
-    })
-  }
+    });
+  };
 
   useKeyboardShortcuts({
     onEdit: () => {
-      if (!hoveredItem) return
+      if (!hoveredItem) return;
 
-        if (hoveredItem.type === "group") {
-          handleEditGroup(hoveredItem.id)
-        } else {
-          const item = refundItems.find(i => i.id === hoveredItem.id)
-          if (item) handleEditStandaloneItem(item)
-        }
-    },
-    onDelete: () => {
-      if (!hoveredItem) return
-
-        if (hoveredItem.type === "group") {
-          const group = refundGroups.find(g => g.id === hoveredItem.id)
-          if (group) onDeleteRefundGroup(group)
-        } else {
-          const item = refundItems.find(i => i.id === hoveredItem.id)
-          if (item) onDeleteRefundItem(item)
+      if (hoveredItem.type === "group") {
+        handleEditGroup(hoveredItem.id);
+      } else {
+        const item = refundItems.find((i) => i.id === hoveredItem.id);
+        if (item) handleEditStandaloneItem(item);
       }
     },
-    disabled: !!editingRefund
-  })
+    onDelete: () => {
+      if (!hoveredItem) return;
+
+      if (hoveredItem.type === "group") {
+        const group = refundGroups.find((g) => g.id === hoveredItem.id);
+        if (group) onDeleteRefundGroup(group);
+      } else {
+        const item = refundItems.find((i) => i.id === hoveredItem.id);
+        if (item) onDeleteRefundItem(item);
+      }
+    },
+    disabled: !!editingRefund,
+  });
 
   return (
     <div className="space-y-8">
@@ -309,16 +299,10 @@ export function RefundsList({
             {selectedGroups.length > 0 && (
               <span className="mr-4">{selectedGroups.length} groups selected</span>
             )}
-            {selectedItems.length > 0 && (
-              <span>{selectedItems.length} refunds selected</span>
-            )}
+            {selectedItems.length > 0 && <span>{selectedItems.length} refunds selected</span>}
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearSelections}
-            >
+            <Button variant="outline" size="sm" onClick={clearSelections}>
               Clear Selection
             </Button>
             <BatchDeleteRefundsButton
@@ -376,26 +360,20 @@ export function RefundsList({
       </div>
 
       {/* Grouped Refunds */}
-      {refundGroups.map(group => {
-        const groupItems = refundItems.filter(
-          item => item.refund_group_id === group.id
-        )
-        const uniqueExpenseIds = new Set(
-          groupItems.map(item => item.expense_transaction_id)
-        )
-        const uniqueIncomeIds = new Set(
-          groupItems.map(item => item.income_transaction_id)
-        )
+      {refundGroups.map((group) => {
+        const groupItems = refundItems.filter((item) => item.refund_group_id === group.id);
+        const uniqueExpenseIds = new Set(groupItems.map((item) => item.expense_transaction_id));
+        const uniqueIncomeIds = new Set(groupItems.map((item) => item.income_transaction_id));
 
         const totalExpense = Array.from(uniqueExpenseIds)
-          .map(id => transactionsMap.get(id))
-          .reduce((sum, t) => sum + (t ? Math.abs(t.amount) : 0), 0)
+          .map((id) => transactionsMap.get(id))
+          .reduce((sum, t) => sum + (t ? Math.abs(t.amount) : 0), 0);
 
         const totalIncome = Array.from(uniqueIncomeIds)
-          .map(id => transactionsMap.get(id))
-          .reduce((sum, t) => sum + (t ? t.amount : 0), 0)
+          .map((id) => transactionsMap.get(id))
+          .reduce((sum, t) => sum + (t ? t.amount : 0), 0);
 
-        const refundPercentage = (totalIncome / totalExpense) * 100
+        const refundPercentage = totalExpense > 0 ? (totalIncome / totalExpense) * 100 : 0;
 
         return (
           <div
@@ -403,9 +381,7 @@ export function RefundsList({
             className={`bg-white rounded-lg shadow-sm border ${
               isGroupSelected(group.id!) ? "border-primary" : "border-gray-200"
             } overflow-hidden transition-all hover:shadow-md relative`}
-            onMouseEnter={() =>
-              setHoveredItem({ type: "group", id: group.id! })
-            }
+            onMouseEnter={() => setHoveredItem({ type: "group", id: group.id! })}
             onMouseLeave={() => setHoveredItem(null)}
           >
             <div className="absolute top-4 left-4 z-10">
@@ -419,9 +395,7 @@ export function RefundsList({
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-xl font-semibold">{group.name}</h2>
-                  {group.description && (
-                    <p className="text-gray-500 mt-1">{group.description}</p>
-                  )}
+                  {group.description && <p className="text-gray-500 mt-1">{group.description}</p>}
                 </div>
                 <div className="flex items-start gap-4">
                   <div className="text-right">
@@ -439,9 +413,7 @@ export function RefundsList({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => handleEditGroup(group.id!)}
-                      >
+                      <DropdownMenuItem onClick={() => handleEditGroup(group.id!)}>
                         <Pencil className="w-4 h-4 mr-2" />
                         Edit (E)
                       </DropdownMenuItem>
@@ -482,9 +454,7 @@ export function RefundsList({
                     <Sparkles className="w-4 h-4 mr-1.5 text-yellow-500" />
                     Refund Rate
                   </div>
-                  <div className="text-lg font-semibold">
-                    {refundPercentage.toFixed(1)}%
-                  </div>
+                  <div className="text-lg font-semibold">{refundPercentage.toFixed(1)}%</div>
                 </div>
               </div>
 
@@ -497,19 +467,14 @@ export function RefundsList({
                     Expenses
                   </h3>
                   <div className="space-y-2">
-                    {Array.from(uniqueExpenseIds).map(id => {
-                      const transaction = transactionsMap.get(id)
-                      if (!transaction) return null
+                    {Array.from(uniqueExpenseIds).map((id) => {
+                      const transaction = transactionsMap.get(id);
+                      if (!transaction) return null;
 
-                      const items = groupItems.filter(
-                        item => item.expense_transaction_id === id
-                      )
-                      const totalRefunded = items.reduce(
-                        (sum, item) => sum + item.amount,
-                        0
-                      )
-                      const percentage =
-                        (totalRefunded / Math.abs(transaction.amount)) * 100
+                      const items = groupItems.filter((item) => item.expense_transaction_id === id);
+                      const totalRefunded = items.reduce((sum, item) => sum + item.amount, 0);
+                      const amt = Math.abs(transaction.amount);
+                      const percentage = amt > 0 ? (totalRefunded / amt) * 100 : 0;
 
                       return (
                         <div
@@ -518,9 +483,7 @@ export function RefundsList({
                         >
                           <div className="flex justify-between items-start">
                             <div className="space-y-1">
-                              <div className="font-medium">
-                                {transaction.description}
-                              </div>
+                              <div className="font-medium">{transaction.description}</div>
                               <div className="flex items-center gap-3 text-sm text-gray-500">
                                 <div className="flex items-center gap-1.5">
                                   <Calendar className="w-4 h-4" />
@@ -534,7 +497,10 @@ export function RefundsList({
                                         ${Math.abs(transaction.amount).toFixed(2)}
                                       </span>
                                       <span className="text-red-600 font-medium">
-                                        ${Math.abs(transaction.amount - transaction.refunded_amount).toFixed(2)}
+                                        $
+                                        {Math.abs(
+                                          transaction.amount - transaction.refunded_amount,
+                                        ).toFixed(2)}
                                       </span>
                                     </>
                                   ) : (
@@ -544,7 +510,8 @@ export function RefundsList({
                               </div>
                               {transaction.refunded_amount > totalRefunded && (
                                 <div className="text-xs text-amber-600 mt-1">
-                                  Has additional refunds: ${(transaction.refunded_amount - totalRefunded).toFixed(2)}
+                                  Has additional refunds: $
+                                  {(transaction.refunded_amount - totalRefunded).toFixed(2)}
                                 </div>
                               )}
                             </div>
@@ -557,11 +524,9 @@ export function RefundsList({
                               </div>
                             </div>
                           </div>
-                          {items.map(item => {
-                            const income = transactionsMap.get(
-                              item.income_transaction_id
-                            )
-                            if (!income) return null
+                          {items.map((item) => {
+                            const income = transactionsMap.get(item.income_transaction_id);
+                            if (!income) return null;
 
                             return (
                               <div
@@ -569,17 +534,15 @@ export function RefundsList({
                                 className="flex items-center gap-2 text-sm pl-4 py-1 border-t border-gray-100 mt-2"
                               >
                                 <ArrowRight className="w-4 h-4 text-green-500" />
-                                <span className="text-gray-600">
-                                  {income.description}:
-                                </span>
+                                <span className="text-gray-600">{income.description}:</span>
                                 <span className="font-medium text-green-600">
                                   ${item.amount.toFixed(2)}
                                 </span>
                               </div>
-                            )
+                            );
                           })}
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 </div>
@@ -591,18 +554,14 @@ export function RefundsList({
                     Refunds
                   </h3>
                   <div className="space-y-2">
-                    {Array.from(uniqueIncomeIds).map(id => {
-                      const transaction = transactionsMap.get(id)
-                      if (!transaction) return null
+                    {Array.from(uniqueIncomeIds).map((id) => {
+                      const transaction = transactionsMap.get(id);
+                      if (!transaction) return null;
 
-                      const items = groupItems.filter(
-                        item => item.income_transaction_id === id
-                      )
-                      const totalContribution = items.reduce(
-                        (sum, item) => sum + item.amount,
-                        0
-                      )
-                      const percentage = (totalContribution / totalIncome) * 100
+                      const items = groupItems.filter((item) => item.income_transaction_id === id);
+                      const totalContribution = items.reduce((sum, item) => sum + item.amount, 0);
+                      const percentage =
+                        totalIncome !== 0 ? (totalContribution / totalIncome) * 100 : 0;
 
                       return (
                         <div
@@ -611,17 +570,14 @@ export function RefundsList({
                         >
                           <div className="flex justify-between items-start">
                             <div className="space-y-1">
-                              <div className="font-medium">
-                                {transaction.description}
-                              </div>
+                              <div className="font-medium">{transaction.description}</div>
                               <div className="flex items-center gap-3 text-sm text-gray-500">
                                 <div className="flex items-center gap-1.5">
                                   <Calendar className="w-4 h-4" />
                                   {formatDate(transaction.date)}
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <DollarSign className="w-4 h-4" />$
-                                  {transaction.amount.toFixed(2)}
+                                  <DollarSign className="w-4 h-4" />${transaction.amount.toFixed(2)}
                                 </div>
                               </div>
                             </div>
@@ -634,11 +590,9 @@ export function RefundsList({
                               </div>
                             </div>
                           </div>
-                          {items.map(item => {
-                            const expense = transactionsMap.get(
-                              item.expense_transaction_id
-                            )
-                            if (!expense) return null
+                          {items.map((item) => {
+                            const expense = transactionsMap.get(item.expense_transaction_id);
+                            if (!expense) return null;
 
                             return (
                               <div
@@ -646,24 +600,20 @@ export function RefundsList({
                                 className="flex items-center gap-2 text-sm pl-4 py-1 border-t border-gray-100 mt-2"
                               >
                                 <ArrowRight className="w-4 h-4 text-red-500" />
-                                <span className="text-gray-600">
-                                  {expense.description}:
-                                </span>
-                                <span className="font-medium">
-                                  ${item.amount.toFixed(2)}
-                                </span>
+                                <span className="text-gray-600">{expense.description}:</span>
+                                <span className="font-medium">${item.amount.toFixed(2)}</span>
                               </div>
-                            )
+                            );
                           })}
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        )
+        );
       })}
 
       {/* Standalone Refunds */}
@@ -676,11 +626,11 @@ export function RefundsList({
             Individual Refunds
           </h2>
           <div className="grid md:grid-cols-2 gap-4">
-            {standaloneItems.map(item => {
-              const expense = transactionsMap.get(item.expense_transaction_id)
-              const income = transactionsMap.get(item.income_transaction_id)
+            {standaloneItems.map((item) => {
+              const expense = transactionsMap.get(item.expense_transaction_id);
+              const income = transactionsMap.get(item.income_transaction_id);
 
-              if (!expense || !income) return null
+              if (!expense || !income) return null;
 
               return (
                 <div key={item.id} className="relative group">
@@ -690,12 +640,7 @@ export function RefundsList({
                       onCheckedChange={() => toggleItemSelection(item)}
                     />
                   </div>
-                  <RefundCard
-                    expense={expense}
-                    income={income}
-                    amount={item.amount}
-                    item={item}
-                  />
+                  <RefundCard expense={expense} income={income} amount={item.amount} item={item} />
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -704,9 +649,7 @@ export function RefundsList({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleEditStandaloneItem(item)}
-                        >
+                        <DropdownMenuItem onClick={() => handleEditStandaloneItem(item)}>
                           <Pencil className="w-4 h-4 mr-2" />
                           Edit (E)
                         </DropdownMenuItem>
@@ -721,7 +664,7 @@ export function RefundsList({
                     </DropdownMenu>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -735,9 +678,5 @@ export function RefundsList({
         />
       )}
     </div>
-  )
+  );
 }
-
-
-
-

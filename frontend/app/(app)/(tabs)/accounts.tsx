@@ -1,50 +1,61 @@
-import { fetchAccounts } from '@/actions/accountActions';
-import { fetchBanks } from '@/actions/bankActions';
-import { fetchWealthData } from '@/app/api/bankApi';
-import { colors } from '@/constants/colors';
-import { darkTheme } from '@/constants/theme';
-import { sharedStyles } from '@/styles/sharedStyles';
-import { Account } from '@/types/account';
-import { Bank } from '@/types/bank';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LineChart } from 'react-native-gifted-charts';
-import { ActivityIndicator, FAB, Menu, Button as PaperButton } from 'react-native-paper';
-import { useDispatch, useSelector } from 'react-redux';
-import { AnyAction } from 'redux';
-import { ThunkDispatch } from 'redux-thunk';
+import { fetchAccounts } from "@/actions/accountActions";
+import { fetchBanks } from "@/actions/bankActions";
+import { fetchWealthData, updatePreferredCurrency } from "@/app/api/bankApi";
+import { colors } from "@/constants/colors";
+import { darkTheme } from "@/constants/theme";
+import { sharedStyles } from "@/styles/sharedStyles";
+import { Account } from "@/types/account";
+import { Bank } from "@/types/bank";
+import { formatCompactCurrency, formatCurrency, formatDualCurrency } from "@/utils/currency";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Dimensions,
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { LineChart } from "react-native-gifted-charts";
+import { ActivityIndicator, FAB, Menu, Button as PaperButton } from "react-native-paper";
+import { useAppDispatch } from "@/store/hooks";
+import { useSelector } from "react-redux";
 
 interface DataPoint {
   value: number;
   date: string;
 }
 
-const filters = ['All', 'Checking', 'Savings', 'Investment'];
+const filters = ["All", "Checking", "Savings", "Investment"];
 
 export default function AccountsScreen() {
-  const dispatch: ThunkDispatch<{}, {}, AnyAction> = useDispatch();
+  const dispatch = useAppDispatch();
   const { accounts } = useSelector((state: any) => state.accounts);
   const { banks } = useSelector((state: any) => state.banks);
   const router = useRouter();
-  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [selectedFilter, setSelectedFilter] = useState("All");
   const [wealthData, setWealthData] = useState<Record<string, number>>({});
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 80);
+  const [chartWidth, setChartWidth] = useState(Dimensions.get("window").width - 80);
   const [fabOpen, setFabOpen] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [preferredCurrency, setPreferredCurrency] = useState("EUR");
 
   // Move the resize effect up here, before any conditional returns
   useEffect(() => {
     const handleResize = () => {
-      setChartWidth(Dimensions.get('window').width - 40);
+      setChartWidth(Dimensions.get("window").width - 40);
     };
 
-    const subscription = Dimensions.addEventListener('change', handleResize);
+    const subscription = Dimensions.addEventListener("change", handleResize);
 
     return () => {
       subscription?.remove();
@@ -63,104 +74,118 @@ export default function AccountsScreen() {
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 6); // 6 months ago
         const endDate = new Date(); // Current date
-        const response = await fetchWealthData(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]);
+        const response = await fetchWealthData(
+          startDate.toISOString().split("T")[0],
+          endDate.toISOString().split("T")[0],
+        );
         // console.log("response", response);
         if (response) {
           setWealthData(response);
-        }
-        else {
+        } else {
           console.log("No response");
         }
         setIsLoading(false);
         // console.log("wealthData", wealthData);
       } catch (error) {
-        console.error('Error fetching wealth data:', error);
+        console.error("Error fetching wealth data:", error);
         setIsLoading(false);
       }
     };
 
     // console.log("wealthData", wealthData);
-    fetchData();
-    dispatch(fetchAccounts());
-    dispatch(fetchBanks());
+    void fetchData();
+    void dispatch(fetchAccounts());
+    void dispatch(fetchBanks());
   }, [dispatch, refreshKey]);
 
   useEffect(() => {
     const handleResize = () => {
-      setChartWidth(Dimensions.get('window').width - 20); // Update width on resize
+      setChartWidth(Dimensions.get("window").width - 20); // Update width on resize
     };
 
-    const subscription = Dimensions.addEventListener('change', handleResize); // Listen for dimension changes
-    dispatch(fetchAccounts());
-    dispatch(fetchBanks());
+    const subscription = Dimensions.addEventListener("change", handleResize); // Listen for dimension changes
+    void dispatch(fetchAccounts());
+    void dispatch(fetchBanks());
 
     return () => {
       subscription?.remove(); // Clean up the event listener on unmount
     };
   }, []);
 
+  useEffect(() => {
+    AsyncStorage.getItem("preferredCurrency")
+      .then((v) => {
+        if (v) setPreferredCurrency(v.toUpperCase());
+      })
+      .catch(() => {});
+  }, []);
+
   const filteredAccounts = useMemo(() => {
-    if (selectedFilter === 'All') {
-      return accounts.filter((account:
-        Account) => account.type != 'income' && account.type != 'expense');
+    if (selectedFilter === "All") {
+      return accounts.filter(
+        (account: Account) => account.type != "income" && account.type != "expense",
+      );
     }
     return accounts.filter((account: Account) => account.type === selectedFilter.toLowerCase());
   }, [selectedFilter, accounts, dispatch]);
 
   const groupedAccounts = useMemo(() => {
-    const groups = filteredAccounts.reduce((groups: Record<string, Account[]>, account: Account) => {
-      const bankName = foundBankNameById(account.bank_id);
-      if (!groups[bankName as string]) {
-        groups[bankName as string] = [];
-      }
-      groups[bankName as string].push(account);
-      return groups;
-    }, {} as Record<string, Account[]>);
+    const groups = filteredAccounts.reduce(
+      (groups: Record<string, Account[]>, account: Account) => {
+        const bankName = foundBankNameById(account.bank_id);
+        if (!groups[bankName as string]) {
+          groups[bankName as string] = [];
+        }
+        groups[bankName as string].push(account);
+        return groups;
+      },
+      {} as Record<string, Account[]>,
+    );
 
     // Sort banks alphabetically
     const sortedGroups: Record<string, Account[]> = {};
-    Object.keys(groups).sort().forEach(key => {
-      // Sort accounts within each bank alphabetically
-      sortedGroups[key] = groups[key].sort((a: Account, b: Account) => a.name.localeCompare(b.name));
-    });
+    Object.keys(groups)
+      .sort()
+      .forEach((key) => {
+        // Sort accounts within each bank alphabetically
+        sortedGroups[key] = groups[key].sort((a: Account, b: Account) =>
+          a.name.localeCompare(b.name),
+        );
+      });
 
     return sortedGroups;
   }, [filteredAccounts, banks, accounts, dispatch]);
 
   const handleAccountPress = (account: Account) => {
-    if (account.type === 'checking' || account.type === 'savings' || account.type === 'investment') {
+    if (
+      account.type === "checking" ||
+      account.type === "savings" ||
+      account.type === "investment"
+    ) {
       router.push({
-        pathname: '/account/[id]',
-        params: { account: JSON.stringify(account) }
+        pathname: "/account/[id]",
+        params: { id: String(account.id), account: JSON.stringify(account) },
       });
     }
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('accessToken');
-    await AsyncStorage.removeItem('refreshToken');
-    router.replace('/(auth)/login');
-  };
-
-  const formatCompactNumber = (number: number) => {
-    if (number >= 1_000_000) {
-      return (number / 1_000_000).toFixed(2) + 'M';
-    } else if (number >= 1_000) {
-      return (number / 1_000).toFixed(2) + 'k';
-    }
-    return number.toFixed(2);
+    await AsyncStorage.removeItem("accessToken");
+    await AsyncStorage.removeItem("refreshToken");
+    router.replace("/(auth)/login");
   };
 
   const totalBalance = useMemo(() => {
-    return filteredAccounts.reduce((sum: number, account: Account) => sum + account.balance, 0);
+    return filteredAccounts.reduce(
+      (sum: number, account: Account) => sum + (account.balance_preferred ?? account.balance),
+      0,
+    );
   }, [filteredAccounts, dispatch]);
 
-  const renderFilterItem = ({ item }: { item: string }) => ( // Specify type for item
+  const renderFilterItem = ({ item }: { item: string }) => (
+    // Specify type for item
     <Pressable
-      style={[
-        styles.filterButton,
-        selectedFilter === item && styles.selectedFilter,
-      ]}
+      style={[styles.filterButton, selectedFilter === item && styles.selectedFilter]}
       onPress={() => setSelectedFilter(item)}
     >
       <Text style={[styles.filterText, selectedFilter === item && styles.selectedFilterText]}>
@@ -169,17 +194,8 @@ export default function AccountsScreen() {
     </Pressable>
   );
 
-  const LogoutButton = () => (
-    <Pressable
-      style={styles.logoutButton}
-      onPress={() => setIsLogoutModalVisible(true)}
-    >
-      <Ionicons name="log-out-outline" size={24} color={colors.text} />
-    </Pressable>
-  );
-
   const refreshPage = () => {
-    setRefreshKey(prev => prev + 1);
+    setRefreshKey((prev) => prev + 1);
   };
 
   const LogoutModal = () => (
@@ -201,18 +217,10 @@ export default function AccountsScreen() {
             >
               Cancel
             </PaperButton>
-            <PaperButton
-              mode="contained"
-              onPress={handleLogout}
-              style={styles.modalButton}
-            >
+            <PaperButton mode="contained" onPress={handleLogout} style={styles.modalButton}>
               Logout
             </PaperButton>
-            <PaperButton
-              mode="contained"
-              onPress={refreshPage}
-              style={styles.modalButton}
-            >
+            <PaperButton mode="contained" onPress={refreshPage} style={styles.modalButton}>
               refreshPage
             </PaperButton>
           </View>
@@ -221,20 +229,34 @@ export default function AccountsScreen() {
     </Modal>
   );
 
-  const formatNumber = (number: number) => {
-    return number.toLocaleString('en-US', { style: 'currency', currency: 'EUR' });
+  const formatNumber = (account: Account) => {
+    const preferred = account.balance_preferred ?? account.balance;
+    return formatDualCurrency(preferred, preferredCurrency, account.balance, account.currency);
   };
 
-  const handlePointClick = (point: { x: number, y: number }) => {
-    console.log(`Clicked on point: x=${point.x}, y=${point.y}`);
-    // You can add more logic here to handle the click event
+  const handleTogglePreferredCurrency = async () => {
+    const prev = preferredCurrency;
+    const next = prev === "EUR" ? "RON" : "EUR";
+    try {
+      setPreferredCurrency(next);
+      await AsyncStorage.setItem("preferredCurrency", next);
+      await updatePreferredCurrency(next);
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      // revert locally on failure
+      setPreferredCurrency(prev);
+      await AsyncStorage.setItem("preferredCurrency", prev);
+      console.error("Failed to update preferred currency", e);
+    } finally {
+      setVisible(false);
+    }
   };
 
   const formatData = (): DataPoint[] => {
     return Object.entries(wealthData)
       .map(([date, value]) => ({
-        value: typeof value === 'number' ? value : parseFloat(String(value)),
-        date
+        value: typeof value === "number" ? value : parseFloat(String(value)),
+        date,
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
@@ -245,10 +267,7 @@ export default function AccountsScreen() {
     const minMax = 100; // Minimum points for a large dataset
     const decayFactor = 0.0005; // Decay factor
 
-    return Math.max(
-      Math.floor(baseMax * Math.exp(-decayFactor * dataLength)),
-      minMax
-    );
+    return Math.max(Math.floor(baseMax * Math.exp(-decayFactor * dataLength)), minMax);
   };
 
   const reduceDataPoints = (data: DataPoint[]): DataPoint[] => {
@@ -261,10 +280,10 @@ export default function AccountsScreen() {
   const data = reduceDataPoints(formatData()); // Prepare the data for the graph
 
   const minValue = () => {
-    console.log("max value ", Math.max(...data.map(point => point.value)));
+    console.log("max value ", Math.max(...data.map((point) => point.value)));
 
-    const minValue = Math.min(...data.map(point => point.value));
-    const valueRange = Math.max(...data.map(point => point.value)) - minValue;
+    const minValue = Math.min(...data.map((point) => point.value));
+    const valueRange = Math.max(...data.map((point) => point.value)) - minValue;
     if (minValue < 0) {
       return minValue;
     }
@@ -276,7 +295,7 @@ export default function AccountsScreen() {
     const maxSpacing = 100;
     const calculatedSpacing = Math.max(
       minSpacing,
-      Math.min(maxSpacing, (width - 30) / (dataLength + 1))
+      Math.min(maxSpacing, (width - 30) / (dataLength + 1)),
     );
     return calculatedSpacing;
   };
@@ -284,65 +303,63 @@ export default function AccountsScreen() {
   // Update FAB actions to use router
   const fabActions = [
     {
-      icon: 'sync',
-      label: 'Add automatic sync',
-      onPress: () => router.push('/connect-bank'),
+      icon: "sync",
+      label: "Add automatic sync",
+      onPress: () => router.push("/connect-bank"),
     },
     {
-      icon: 'account-plus-outline',
-      label: 'Add Account',
-      onPress: () => router.push('/add-account'),
+      icon: "account-plus-outline",
+      label: "Add Account",
+      onPress: () => router.push("/add-account"),
     },
     {
-      icon: 'plus',
-      label: 'Add Transaction',
-      onPress: () => router.push('/add-transaction'),
+      icon: "plus",
+      label: "Add Transaction",
+      onPress: () => router.push("/add-transaction"),
     },
     {
-      icon: 'chart-line',
-      label: 'Add Investment Transaction',
-      onPress: () => router.push('/add-investment-transaction'),
+      icon: "chart-line",
+      label: "Add Investment Transaction",
+      onPress: () => router.push("/add-investment-transaction"),
     },
   ];
 
   // Update the account item styling
   const AccountItem = ({ account, onPress }: { account: Account; onPress: () => void }) => (
-    <Pressable
-      style={styles.accountItem}
-      onPress={onPress}
-    >
+    <Pressable style={styles.accountItem} onPress={onPress}>
       <View style={styles.accountIconContainer}>
-        <Image source={getAccountIcon(foundBankNameById(account.bank_id))} style={{ ...styles.accountIcon, overflow: 'hidden' }} />
+        <Image
+          source={getAccountIcon(foundBankNameById(account.bank_id))}
+          style={{ ...styles.accountIcon, overflow: "hidden" }}
+        />
       </View>
       <View style={styles.accountContent}>
         <View style={styles.accountHeader}>
           <Text style={styles.accountName}>{account.name}</Text>
           <Text style={styles.accountType}>{account.type}</Text>
         </View>
-        <Text style={styles.accountBalance}>
-          {formatNumber(account.balance)} €
-        </Text>
+        <Text style={styles.accountBalance}>{formatNumber(account)}</Text>
       </View>
     </Pressable>
   );
 
   // Add this helper function
   const getAccountIcon = (bank: string | undefined): any => {
-    if (!bank) return require('@/assets/images/icon.png');
+    if (!bank) return require("@/assets/images/icon.png");
 
     switch (bank.toLowerCase()) {
-      case 'boursorama':
-        return require('@/assets/images/boursorama.png');
-      case 'crédit agricole':
-        return require('@/assets/images/credit_agricole.png');
-      case 'fortuneo':
-        return require('@/assets/images/fortuneo.png');
-      case 'bank of america':
-        return require('@/assets/images/bank_of_america.png');
-      case 'chase bank':
-        return require('@/assets/images/chase_bank.png');
+      case "boursorama":
+        return require("@/assets/images/boursorama.png");
+      case "crédit agricole":
+        return require("@/assets/images/credit_agricole.png");
+      case "fortuneo":
+        return require("@/assets/images/fortuneo.png");
+      case "bank of america":
+        return require("@/assets/images/bank_of_america.png");
+      case "chase bank":
+        return require("@/assets/images/chase_bank.png");
       default:
-        return require('@/assets/images/icon.png');
+        return require("@/assets/images/icon.png");
     }
   };
 
@@ -350,7 +367,7 @@ export default function AccountsScreen() {
     <View style={[sharedStyles.container]}>
       <View style={sharedStyles.header}>
         <Image
-          source={require('@/assets/images/logo-removebg-white.png')}
+          source={require("@/assets/images/logo-removebg-white.png")}
           style={{ width: 30, height: 30 }}
           resizeMode="contain"
         />
@@ -364,6 +381,10 @@ export default function AccountsScreen() {
             </Pressable>
           }
         >
+          <Menu.Item
+            onPress={handleTogglePreferredCurrency}
+            title={`Display currency: ${preferredCurrency} (tap to switch)`}
+          />
           <Menu.Item onPress={handleLogout} title="Logout" />
         </Menu>
       </View>
@@ -375,7 +396,9 @@ export default function AccountsScreen() {
         >
           {/* Total Balance */}
           <View style={styles.totalBalanceContainer}>
-            <Text style={styles.totalBalance}>{formatCompactNumber(totalBalance)} €</Text>
+            <Text style={styles.totalBalance}>
+              {formatCompactCurrency(totalBalance, preferredCurrency)}
+            </Text>
             <Text style={styles.totalBalanceLabel}>total balance</Text>
           </View>
 
@@ -405,13 +428,15 @@ export default function AccountsScreen() {
                 yAxisOffset={minValue()}
                 yAxisColor="transparent"
                 xAxisColor="transparent"
-                formatYLabel={(value: string) => formatCompactNumber(Number(value)) + '€'}
+                formatYLabel={(value: string) =>
+                  formatCompactCurrency(Number(value), preferredCurrency)
+                }
                 yAxisTextStyle={{ color: darkTheme.colors.textTertiary }}
                 hideRules
                 hideDataPoints
                 showVerticalLines={false}
                 yAxisTextNumberOfLines={1}
-                yAxisLabelSuffix="€"
+                yAxisLabelSuffix={` ${preferredCurrency}`}
                 yAxisLabelPrefix=""
                 rulesType="solid"
                 xAxisThickness={0}
@@ -423,7 +448,7 @@ export default function AccountsScreen() {
                   showPointerStrip: true,
                   pointerStripWidth: 2,
                   pointerStripUptoDataPoint: true,
-                  pointerStripColor: 'rgba(0, 0, 0, 0.5)',
+                  pointerStripColor: "rgba(0, 0, 0, 0.5)",
                   width: 10,
                   height: 10,
                   radius: 6,
@@ -435,7 +460,9 @@ export default function AccountsScreen() {
                     const item = items[0];
                     return (
                       <View style={styles.tooltipContainer}>
-                        <Text style={styles.tooltipValue}>{item.value.toFixed(0)} €</Text>
+                        <Text style={styles.tooltipValue}>
+                          {formatCurrency(item.value, preferredCurrency)}
+                        </Text>
                         <Text style={styles.tooltipDate}>{new Date(item.date).toDateString()}</Text>
                       </View>
                     );
@@ -444,7 +471,6 @@ export default function AccountsScreen() {
               />
             </View>
           )}
-
 
           {/* Filters */}
           <View style={styles.filtersContainer}>
@@ -484,7 +510,7 @@ export default function AccountsScreen() {
       <FAB.Group
         visible
         open={fabOpen}
-        icon={fabOpen ? 'close' : 'plus'}
+        icon={fabOpen ? "close" : "plus"}
         actions={fabActions}
         onStateChange={({ open }) => setFabOpen(open)}
         onPress={() => {
@@ -497,14 +523,14 @@ export default function AccountsScreen() {
 
       <LogoutModal />
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: darkTheme.colors.background,
-    position: 'relative', // Ensure the container is relative for absolute positioning
+    position: "relative", // Ensure the container is relative for absolute positioning
   },
   scrollViewContent: {
     flexGrow: 1,
@@ -517,39 +543,39 @@ const styles = StyleSheet.create({
     backgroundColor: darkTheme.colors.surface,
     borderRadius: 12,
     marginHorizontal: darkTheme.spacing.m,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
-    alignItems: 'center',
+    alignItems: "center",
   },
   totalBalanceLabel: {
     fontSize: 14,
     color: darkTheme.colors.textSecondary,
     marginBottom: darkTheme.spacing.s,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
   },
   totalBalance: {
     fontSize: 42,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: darkTheme.colors.text,
     marginBottom: darkTheme.spacing.xs,
   },
   filtersContainer: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     marginBottom: darkTheme.spacing.m,
     paddingVertical: darkTheme.spacing.s,
-    alignItems: 'center',
+    alignItems: "center",
   },
   filterButton: {
     paddingVertical: darkTheme.spacing.s,
     paddingHorizontal: darkTheme.spacing.m,
     borderRadius: darkTheme.borderRadius.l,
     backgroundColor: darkTheme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: darkTheme.spacing.s,
   },
   selectedFilter: {
@@ -557,7 +583,7 @@ const styles = StyleSheet.create({
   },
   filterText: {
     color: darkTheme.colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 14,
   },
   selectedFilterText: {
@@ -568,8 +594,8 @@ const styles = StyleSheet.create({
     marginBottom: darkTheme.spacing.m,
     marginHorizontal: darkTheme.spacing.m,
     borderRadius: darkTheme.borderRadius.l,
-    overflow: 'hidden',
-    shadowColor: '#000',
+    overflow: "hidden",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -577,7 +603,7 @@ const styles = StyleSheet.create({
   },
   bankName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     padding: darkTheme.spacing.m,
     color: darkTheme.colors.text,
     backgroundColor: `${darkTheme.colors.primary}10`,
@@ -585,13 +611,13 @@ const styles = StyleSheet.create({
     borderBottomColor: darkTheme.colors.border,
   },
   accountItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: darkTheme.spacing.m,
     backgroundColor: darkTheme.colors.surface,
     borderRadius: 10,
     marginVertical: darkTheme.spacing.s,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -602,28 +628,28 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: `${darkTheme.colors.primary}20`,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: darkTheme.spacing.m,
   },
   accountContent: {
     flex: 1,
   },
   accountHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: darkTheme.spacing.xs,
   },
   accountName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: darkTheme.colors.text,
   },
   accountType: {
     fontSize: 12,
     color: darkTheme.colors.textSecondary,
-    textTransform: 'capitalize',
+    textTransform: "capitalize",
     backgroundColor: `${darkTheme.colors.primary}20`,
     paddingHorizontal: darkTheme.spacing.s,
     paddingVertical: 2,
@@ -631,7 +657,7 @@ const styles = StyleSheet.create({
   },
   accountBalance: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: darkTheme.colors.primary,
   },
   graphContainer: {
@@ -643,80 +669,80 @@ const styles = StyleSheet.create({
     ...darkTheme.shadows.medium,
   },
   addButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 30,
     right: 30,
     borderRadius: 30,
     padding: 16,
     backgroundColor: darkTheme.colors.primary,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: darkTheme.spacing.l,
     paddingVertical: darkTheme.spacing.m,
     backgroundColor: darkTheme.colors.primary,
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: "700",
     color: darkTheme.colors.background,
   },
   modalContent: {
     backgroundColor: darkTheme.colors.surface,
     borderRadius: darkTheme.borderRadius.l,
     padding: darkTheme.spacing.l,
-    width: '80%',
-    alignItems: 'center',
+    width: "80%",
+    alignItems: "center",
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: darkTheme.spacing.s,
     color: darkTheme.colors.text,
   },
   modalText: {
     fontSize: 16,
     marginBottom: darkTheme.spacing.l,
-    textAlign: 'center',
+    textAlign: "center",
     color: darkTheme.colors.textSecondary,
   },
   noAccountsText: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 20,
     color: colors.lightText,
   },
   bottomSheetContent: {
     flexGrow: 1,
-    alignItems: 'center',
+    alignItems: "center",
     padding: 16,
     paddingBottom: 32, // Add extra padding at the bottom
   },
   bottomSheetTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 16,
     color: colors.text,
   },
   input: {
-    width: '100%',
+    width: "100%",
     marginBottom: 16,
     backgroundColor: colors.white,
   },
   submitButton: {
-    width: '100%',
+    width: "100%",
     marginTop: 16,
     backgroundColor: colors.primary,
   },
   pickerContainer: {
-    width: '100%',
+    width: "100%",
     marginBottom: 16,
   },
   pickerLabel: {
@@ -735,17 +761,17 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   filtersScrollViewContent: {
     paddingHorizontal: 16,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   menuButton: {
     marginRight: 16,
@@ -756,7 +782,7 @@ const styles = StyleSheet.create({
     borderRadius: darkTheme.borderRadius.m,
     borderWidth: 1,
     borderColor: darkTheme.colors.primary,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -764,24 +790,24 @@ const styles = StyleSheet.create({
   },
   tooltipValue: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: darkTheme.colors.primary,
-    textAlign: 'center',
+    textAlign: "center",
   },
   tooltipDate: {
     fontSize: 12,
     color: darkTheme.colors.textSecondary,
     marginTop: darkTheme.spacing.xs,
-    textAlign: 'center',
+    textAlign: "center",
   },
   accountIcon: {
     width: 35,
     height: 35,
   },
   modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
+    flexDirection: "row",
+    justifyContent: "space-around",
+    width: "100%",
     marginTop: darkTheme.spacing.m,
   },
   modalButton: {
