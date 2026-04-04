@@ -25,7 +25,7 @@ services:
       context: .
       dockerfile: web_application/Dockerfile.prod
       args:
-        - VITE_API_URL=${API_URL:-/api}
+        VITE_API_URL: ${VITE_API_URL:-/api}
     ports:
       - "80:80"
     depends_on:

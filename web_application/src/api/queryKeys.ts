@@ -1,8 +1,24 @@
-export const API_URL = import.meta.env.VITE_API_URL;
-
-if (!API_URL) {
-  throw new Error("API_URL is not set");
+/**
+ * - Unset → same-origin `/api` (Vite proxy / nginx).
+ * - Starts with `/` → that path on the current origin (e.g. `/api`).
+ * - Already has a scheme (`https://`, `http://`) → used as-is.
+ * - Otherwise treated as a host (e.g. `jeanguy.com`, `api.example.com:8443/v1`) and prefixed with
+ *   `https://`, or `http://` for localhost-style hosts (matches typical dev setups).
+ */
+function resolveApiUrl(): string {
+  const raw = import.meta.env.VITE_API_URL;
+  if (typeof raw !== "string" || raw.trim() === "") return "/api";
+  const t = raw.trim();
+  if (t.includes("://")) return t;
+  if (t.startsWith("/")) return t;
+  const hostPart = t.split("/")[0] ?? t;
+  const isLocalHost =
+    /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(hostPart) ||
+    /^\[.+\](:\d+)?$/.test(hostPart);
+  return `${isLocalHost ? "http" : "https"}://${t}`;
 }
+
+export const API_URL = resolveApiUrl();
 
 // Define query key types
 export type QueryKeyArray = readonly (string | number | undefined)[];

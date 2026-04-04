@@ -18,7 +18,8 @@ COPY backend ./backend
 COPY web_application ./web_application
 COPY showcase_website ./showcase_website
 
-ARG VITE_API_URL
+# Same-origin `/api` unless overridden (e.g. separate API host in public deploys).
+ARG VITE_API_URL=/api
 ENV VITE_API_URL=${VITE_API_URL}
 
 WORKDIR /repo/web_application

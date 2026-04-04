@@ -8,6 +8,8 @@ import { API_URL } from "./queryKeys";
  * Backend `App` comes from emitted declarations (`bun --cwd ../backend run build:types`).
  */
 const wealthApiTreaty = treaty(API_URL, {
+  /** Required when `API_URL` is path-relative (`/api`); otherwise Eden prepends `https://` and `/api` becomes `https://api`. */
+  keepDomain: true,
   fetcher: (url, options) =>
     authFetch(url, {
       ...options,
