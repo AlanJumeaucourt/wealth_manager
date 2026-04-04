@@ -1,8 +1,11 @@
+import type { BalanceHistoryResponse } from "@/api/edenDerivedTypes";
 import { usePeriodSummary, useWealthOverTimeWithGains } from "@/api/queries";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -250,10 +253,17 @@ interface WealthKPIsProps {
   startDate: Date;
   endDate: Date;
   visibleSummaries: any[];
+  wealthData: BalanceHistoryResponse | undefined;
+  includeDebt: boolean;
 }
 
-function WealthKPIs({ startDate, endDate, visibleSummaries }: WealthKPIsProps) {
-  const { data: wealthData } = useWealthOverTimeWithGains();
+function WealthKPIs({
+  startDate,
+  endDate,
+  visibleSummaries,
+  wealthData,
+  includeDebt,
+}: WealthKPIsProps) {
   const { preferredCurrency } = usePreferredCurrency();
   const curr = preferredCurrency || "EUR";
 
@@ -330,7 +340,7 @@ function WealthKPIs({ startDate, endDate, visibleSummaries }: WealthKPIsProps) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <KPICard
-          label="Net Worth"
+          label={includeDebt ? "Net worth" : "Gross assets"}
           value={formatCompactCurrency(kpis.currentBalance, curr)}
           icon={<Wallet className="h-4 w-4 text-blue-500" />}
           accentClass="text-blue-600"
@@ -388,6 +398,7 @@ function WealthKPIs({ startDate, endDate, visibleSummaries }: WealthKPIsProps) {
           balanceByCurrency={kpis.latestCurrencies}
           totalBalance={kpis.currentBalance}
           preferredCurrency={curr}
+          includeDebt={includeDebt}
         />
       )}
     </div>
@@ -400,12 +411,14 @@ interface CurrencyBreakdownProps {
   balanceByCurrency: Record<string, number>;
   totalBalance: number;
   preferredCurrency: string;
+  includeDebt: boolean;
 }
 
 function CurrencyBreakdown({
   balanceByCurrency,
   totalBalance,
   preferredCurrency,
+  includeDebt,
 }: CurrencyBreakdownProps) {
   const sorted = Object.entries(balanceByCurrency).sort(
     ([, a], [, b]) => Math.abs(b) - Math.abs(a),
@@ -427,7 +440,7 @@ function CurrencyBreakdown({
     <div className="rounded-xl border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Net Worth by Currency
+          {includeDebt ? "Net worth by currency" : "Assets by currency"}
         </span>
         <span className="text-sm font-medium tabular-nums">
           {formatCurrency(totalBalance, preferredCurrency)}
@@ -517,6 +530,9 @@ export function Wealth() {
     startDate: string;
     endDate: string;
   } | null>(null);
+  /** Net worth includes loan balances; gross excludes them (assets only). */
+  const [wealthIncludeDebt, setWealthIncludeDebt] = useState(true);
+  const [wealthShowInvestmentGain, setWealthShowInvestmentGain] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -576,7 +592,9 @@ export function Wealth() {
     error: periodError,
   } = usePeriodSummary(fetchStartDateStr, fetchEndDateStr, selectedPeriod);
 
-  const { data: wealthData, isLoading: isLoadingWealth } = useWealthOverTimeWithGains();
+  const { data: wealthData, isLoading: isLoadingWealth } = useWealthOverTimeWithGains({
+    includeDebt: wealthIncludeDebt,
+  });
 
   // Derive the visible window from the cached full range
   const totalSummaries = rawPeriodData?.summaries?.length ?? 0;
@@ -694,7 +712,8 @@ export function Wealth() {
     }
   };
 
-  const isLoading = isLoadingPeriod || isLoadingWealth;
+  /** Full-page skeleton only when there is nothing to render yet; not on net↔gross refetch. */
+  const isLoading = isLoadingPeriod || (isLoadingWealth && !wealthData);
   const hasError = periodError;
 
   const dateSelector = (
@@ -745,15 +764,56 @@ export function Wealth() {
             startDate={displayStartDate}
             endDate={displayEndDate}
             visibleSummaries={visibleSummaries}
+            wealthData={wealthData}
+            includeDebt={wealthIncludeDebt}
           />
 
           {/* Wealth Evolution Chart */}
           <Card className="shadow-sm">
             <CardHeader className="pb-0">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
                   <CardTitle>Wealth Evolution</CardTitle>
-                  <CardDescription>Track your net worth over time</CardDescription>
+                  <CardDescription>
+                    {wealthIncludeDebt
+                      ? "Net worth includes loan balances (full picture)."
+                      : "Gross assets: checking, savings, and investments—debt balances excluded."}
+                  </CardDescription>
+                </div>
+                <div className="flex flex-col gap-3 sm:min-w-[260px] sm:items-end">
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:justify-end">
+                    <Label
+                      htmlFor="wealth-basis"
+                      className="text-xs text-muted-foreground shrink-0"
+                    >
+                      Basis
+                    </Label>
+                    <Select
+                      value={wealthIncludeDebt ? "net" : "gross"}
+                      onValueChange={(v) => setWealthIncludeDebt(v === "net")}
+                    >
+                      <SelectTrigger id="wealth-basis" className="h-8 w-full min-w-0 sm:w-[220px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="net">Net worth (with debt)</SelectItem>
+                        <SelectItem value="gross">Gross assets (no debt)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2 sm:justify-end">
+                    <Switch
+                      id="wealth-gain-chart"
+                      checked={wealthShowInvestmentGain}
+                      onCheckedChange={setWealthShowInvestmentGain}
+                    />
+                    <Label
+                      htmlFor="wealth-gain-chart"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Investment gain on chart
+                    </Label>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -762,6 +822,9 @@ export function Wealth() {
                 startDate={displayStartDate}
                 endDate={displayEndDate}
                 periodType={selectedPeriod}
+                wealthData={wealthData}
+                isLoading={isLoadingWealth && !wealthData}
+                showInvestmentGain={wealthShowInvestmentGain}
                 headerActions={exportShareButtons}
                 selectedRange={selectedDateRange}
                 onSelectedRangeChange={setSelectedDateRange}

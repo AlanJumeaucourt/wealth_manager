@@ -66,10 +66,16 @@ export async function edenBudgetCategories(): Promise<unknown> {
 export async function edenBalanceOverTime(
   startDate: string,
   endDate: string,
+  options?: { includeDebt?: boolean },
 ): Promise<BalanceHistoryResponse> {
+  const includeDebt = options?.includeDebt ?? true;
   return unwrapEden<BalanceHistoryResponse>(
     wealthApi.accounts.balance_over_time.get({
-      query: { start_date: startDate, end_date: endDate },
+      query: {
+        start_date: startDate,
+        end_date: endDate,
+        include_debt: includeDebt ? "true" : "false",
+      },
     }) as Promise<unknown>,
   );
 }

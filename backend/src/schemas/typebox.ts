@@ -78,3 +78,13 @@ export const tBatchDeleteBodySchema = t.Object({
 
 /** Partial object for flexible updates (any extra keys allowed). */
 export const tPartialUpdateSchema = t.Object({}, { additionalProperties: true });
+
+/** GET /accounts/balance_over_time — optional `include_debt` excludes loan balances when false (gross assets). */
+export const tBalanceOverTimeQuerySchema = t.Object(
+  {
+    start_date: t.String(),
+    end_date: t.String(),
+    include_debt: t.Optional(t.Union([t.Literal("true"), t.Literal("false")])),
+  },
+  { additionalProperties: false },
+);

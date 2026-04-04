@@ -3,6 +3,7 @@ import { db } from "../db/client.js";
 import { authDerivePlugin, requireAuth } from "../middleware/auth.js";
 import { listQueryDescription } from "../schemas/openapi.js";
 import {
+  tBalanceOverTimeQuerySchema,
   tBatchCreateBodySchema,
   tBatchDeleteBodySchema,
   tBatchUpdateBodySchema,
@@ -45,10 +46,12 @@ const accountsBase = new Elysia({ prefix: "/accounts", tags: ["accounts"] })
   .get(
     "/balance_over_time",
     ({ query, userId, set }) =>
-      withDateRange({ query: query as Record<string, unknown>, set, userId }, (start, end) =>
-        sumAccountsBalancesOverDays(userId!, start, end),
-      ),
-    { query: tDateRangeQuerySchema },
+      withDateRange({ query: query as Record<string, unknown>, set, userId }, (start, end) => {
+        const raw = query as { include_debt?: string };
+        const includeDebt = raw.include_debt !== "false";
+        return sumAccountsBalancesOverDays(userId!, start, end, undefined, { includeDebt });
+      }),
+    { query: tBalanceOverTimeQuerySchema },
   )
   .get("/wealth", async ({ userId, set: _set }) => {
     requireAuth({ userId });

@@ -5,7 +5,10 @@ import { convert, getExchangeRatesInRange } from "../utils/currency.js";
 import * as market from "./market.js";
 import { getPortfolioPerformance } from "./portfolioPerformance.js";
 
-const preferredCurrencyCache = createCache<string>({ ttlMs: 60 * 1000, maxKeys: 500 });
+const preferredCurrencyCache = createCache<string>({
+  ttlMs: 60 * 1000,
+  maxKeys: 500,
+});
 
 /** Generate an array of YYYY-MM-DD strings from start to end (inclusive). */
 function generateDateRange(startDate: string, endDate: string): string[] {
@@ -181,12 +184,21 @@ export type BalanceOverTimePoint = {
  * Balance over time: date (YYYY-MM-DD) -> { balance, balance_by_currency, investment_gain }.
  * Legacy: sum_accounts_balances_over_days. accountId optional = all accounts.
  */
+export type SumAccountsBalancesOptions = {
+  /**
+   * When false, loan accounts are omitted (gross assets only). Default true = full net worth including debt.
+   */
+  includeDebt?: boolean;
+};
+
 export async function sumAccountsBalancesOverDays(
   userId: number,
   startDate: string,
   endDate: string,
   accountId?: number,
+  options?: SumAccountsBalancesOptions,
 ): Promise<Record<string, BalanceOverTimePoint>> {
+  const includeDebt = options?.includeDebt ?? true;
   if (accountId != null) {
     const database = db();
     const accountRow = await database
@@ -305,7 +317,11 @@ export async function sumAccountsBalancesOverDays(
   }
 
   const database = db();
-  const includedTypes = new Set(["checking", "savings", "investment", "loan"]);
+  const includedTypes = new Set<string>(
+    includeDebt
+      ? ["checking", "savings", "investment", "loan"]
+      : ["checking", "savings", "investment"],
+  );
   const preferredPromise = getPreferredCurrency(userId);
   const accountsPromise = database
     .selectFrom("accounts")
@@ -326,11 +342,15 @@ export async function sumAccountsBalancesOverDays(
       ? sql`and (from_account_id = ${accountId} or to_account_id = ${accountId})`
       : sql``;
 
+  const wealthAccountTypesFilter = includeDebt
+    ? sql`and type in ('checking','savings','investment','loan')`
+    : sql`and type in ('checking','savings','investment')`;
+
   const txRowsPromise = sql<TxRow>`
     with wa_ids(id) as (
       select id from accounts
       where user_id = ${userId}
-        and type in ('checking','savings','investment','loan')
+        ${wealthAccountTypesFilter}
     )
     select
       date,
@@ -569,7 +589,11 @@ export async function enrichAccountsBatch(
   const symbolsByAccountId = new Map<number, Array<{ symbol: string; quantity: number }>>();
   const uniqueSymbols = new Set<string>();
   for (const r of assetRows ?? []) {
-    const row = r as { account_id: number; symbol: string; quantity: string | number | null };
+    const row = r as {
+      account_id: number;
+      symbol: string;
+      quantity: string | number | null;
+    };
     const accId = row.account_id;
     const symbol = String(row.symbol ?? "").trim();
     const qty = Number(row.quantity ?? 0);

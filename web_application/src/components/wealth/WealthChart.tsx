@@ -1,6 +1,6 @@
 "use client";
 
-import { useWealthOverTimeWithGains } from "@/api/queries";
+import type { BalanceHistoryResponse } from "@/api/edenDerivedTypes";
 
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { formatCompactCurrency, formatCurrency } from "@/utils/currency";
@@ -20,6 +20,11 @@ interface WealthChartProps {
   startDate: Date;
   endDate: Date;
   periodType?: "week" | "month" | "quarter" | "year";
+  /** Aggregated wealth history (includes balance + investment_gain per day). */
+  wealthData: BalanceHistoryResponse | undefined;
+  isLoading?: boolean;
+  /** When false, the chart shows balance only (cost basis path); gain is omitted from the series. */
+  showInvestmentGain?: boolean;
   headerActions?: React.ReactNode;
   selectedRange?: { startDate: string; endDate: string } | null;
   onSelectedRangeChange?: (range: { startDate: string; endDate: string } | null) => void;
@@ -39,7 +44,14 @@ function formatSignedCurrency(value: number, currency: string) {
   return `${value >= 0 ? "+" : ""}${formatCurrency(value, currency)}`;
 }
 
-function CustomTooltip({ active, payload, label, preferredCurrency, rangeSelection }: any) {
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  preferredCurrency,
+  rangeSelection,
+  showInvestmentGain = true,
+}: any) {
   if (!active || !payload?.length) return null;
 
   const data = payload[0]?.payload;
@@ -93,33 +105,37 @@ function CustomTooltip({ active, payload, label, preferredCurrency, rangeSelecti
                 {formatSignedCurrency(endPoint.balance - startPoint.balance, curr)}
               </span>
             </div>
-            <div>
-              Gain diff:{" "}
-              <span
-                className={
-                  endPoint.investment_gain_value - startPoint.investment_gain_value >= 0
-                    ? "text-green-700"
-                    : "text-red-700"
-                }
-              >
-                {formatSignedCurrency(
-                  endPoint.investment_gain_value - startPoint.investment_gain_value,
-                  curr,
-                )}
-              </span>
-            </div>
-            <div>
-              Total value diff:{" "}
-              <span
-                className={
-                  endPoint.total_value - startPoint.total_value >= 0
-                    ? "text-green-700"
-                    : "text-red-700"
-                }
-              >
-                {formatSignedCurrency(endPoint.total_value - startPoint.total_value, curr)}
-              </span>
-            </div>
+            {showInvestmentGain && (
+              <>
+                <div>
+                  Gain diff:{" "}
+                  <span
+                    className={
+                      endPoint.investment_gain_value - startPoint.investment_gain_value >= 0
+                        ? "text-green-700"
+                        : "text-red-700"
+                    }
+                  >
+                    {formatSignedCurrency(
+                      endPoint.investment_gain_value - startPoint.investment_gain_value,
+                      curr,
+                    )}
+                  </span>
+                </div>
+                <div>
+                  Total value diff:{" "}
+                  <span
+                    className={
+                      endPoint.total_value - startPoint.total_value >= 0
+                        ? "text-green-700"
+                        : "text-red-700"
+                    }
+                  >
+                    {formatSignedCurrency(endPoint.total_value - startPoint.total_value, curr)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         )}
         <div className="text-sm font-medium">
@@ -138,17 +154,21 @@ function CustomTooltip({ active, payload, label, preferredCurrency, rangeSelecti
               ))}
           </div>
         )}
-        <div className="text-sm">
-          Investment Gain:{" "}
-          <span className={investmentGain >= 0 ? "text-green-600" : "text-red-600"}>
-            {investmentGain >= 0 ? "+" : ""}
-            {formatCurrency(investmentGain, curr)}
-          </span>
-        </div>
-        <div className="text-sm">
-          Total value (preferred):{" "}
-          <span className="text-blue-500">{formatCurrency(totalValue, curr)}</span>
-        </div>
+        {showInvestmentGain && (
+          <>
+            <div className="text-sm">
+              Investment Gain:{" "}
+              <span className={investmentGain >= 0 ? "text-green-600" : "text-red-600"}>
+                {investmentGain >= 0 ? "+" : ""}
+                {formatCurrency(investmentGain, curr)}
+              </span>
+            </div>
+            <div className="text-sm">
+              Total value (preferred):{" "}
+              <span className="text-blue-500">{formatCurrency(totalValue, curr)}</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -158,12 +178,14 @@ export function WealthChart({
   startDate,
   endDate,
   periodType = "month",
+  wealthData,
+  isLoading = false,
+  showInvestmentGain = true,
   headerActions,
   selectedRange = null,
   onSelectedRangeChange,
 }: WealthChartProps) {
   const { preferredCurrency } = usePreferredCurrency();
-  const { data: wealthData, isLoading } = useWealthOverTimeWithGains();
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
   const [selectionStartIndex, setSelectionStartIndex] = React.useState<number | null>(null);
   const [isDraggingSelection, setIsDraggingSelection] = React.useState(false);
@@ -171,29 +193,13 @@ export function WealthChart({
     time: 0,
     index: null,
   });
-  React.useEffect(() => {
-    if (!isDraggingSelection) return;
-    const bodyStyle = document.body.style;
-    const previousUserSelect = bodyStyle.userSelect;
-    const previousWebkitUserSelect = bodyStyle.getPropertyValue("-webkit-user-select");
-    bodyStyle.userSelect = "none";
-    bodyStyle.setProperty("-webkit-user-select", "none");
-    const handleWindowMouseUp = () => {
-      setIsDraggingSelection(false);
-      setSelectionStartIndex(null);
-      setHoveredIndex(null);
-    };
-    window.addEventListener("mouseup", handleWindowMouseUp);
-    return () => {
-      window.removeEventListener("mouseup", handleWindowMouseUp);
-      bodyStyle.userSelect = previousUserSelect;
-      if (previousWebkitUserSelect) {
-        bodyStyle.setProperty("-webkit-user-select", previousWebkitUserSelect);
-      } else {
-        bodyStyle.removeProperty("-webkit-user-select");
-      }
-    };
-  }, [isDraggingSelection]);
+  const isDraggingRef = React.useRef(false);
+  const dragRangeRef = React.useRef<{
+    start: number;
+    end: number;
+    startPoint: ChartPoint;
+    endPoint: ChartPoint;
+  } | null>(null);
   const chartConfig = React.useMemo(
     () => ({
       balance: {
@@ -256,11 +262,19 @@ export function WealthChart({
     bottom: Math.max(balanceRange, totalRange) * 0.1,
   };
 
-  const shouldStartFromZero = minBalance < maxBalance * 0.05;
-  const yDomain = [
-    shouldStartFromZero ? 0 : Math.min(minBalance, minTotal) - padding.bottom,
-    Math.max(maxBalance, maxTotal) + padding.top,
-  ] as [number, number];
+  const shouldStartFromZero = showInvestmentGain
+    ? minBalance < maxBalance * 0.05
+    : minBalance < maxBalance * 0.05;
+  const yDomain = showInvestmentGain
+    ? ([
+        shouldStartFromZero ? 0 : Math.min(minBalance, minTotal) - padding.bottom,
+        Math.max(maxBalance, maxTotal) + padding.top,
+      ] as [number, number])
+    : (() => {
+        const r = maxBalance - minBalance;
+        const pad = Math.max(r, 1) * 0.1;
+        return [shouldStartFromZero ? 0 : minBalance - pad, maxBalance + pad] as [number, number];
+      })();
 
   const currentBalance = activeData[activeData.length - 1]?.balance || 0;
   const currentGainValue = activeData[activeData.length - 1]?.investment_gain_value || 0;
@@ -282,6 +296,8 @@ export function WealthChart({
       endPoint,
     };
   }, [selectionStartIndex, currentTooltipIndex, activeData]);
+
+  dragRangeRef.current = dragRange;
 
   // Dynamic date formatting based on period type
   const formatDate = (date: string) => {
@@ -322,7 +338,7 @@ export function WealthChart({
     return Math.ceil(dataLength / 12);
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <div className="px-6 py-8 text-sm text-muted-foreground">Loading...</div>;
   if (!wealthData) return null;
 
   return (
@@ -345,24 +361,26 @@ export function WealthChart({
                 </span>
               </span>
             </div>
-            <div className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:gap-x-3 text-xs sm:text-sm">
-              <span>
-                Investment Gain:{" "}
-                <span
-                  className={`font-medium ${currentGainValue >= 0 ? "text-green-600" : "text-red-600"}`}
-                >
-                  {currentGainValue >= 0 ? "+" : ""}
-                  {formatCurrency(currentGainValue, preferredCurrency)}
+            {showInvestmentGain && (
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:gap-x-3 text-xs sm:text-sm">
+                <span>
+                  Investment Gain:{" "}
+                  <span
+                    className={`font-medium ${currentGainValue >= 0 ? "text-green-600" : "text-red-600"}`}
+                  >
+                    {currentGainValue >= 0 ? "+" : ""}
+                    {formatCurrency(currentGainValue, preferredCurrency)}
+                  </span>
                 </span>
-              </span>
-              <span>
-                Change:{" "}
-                <span className={gainChange >= 0 ? "text-green-500" : "text-red-500"}>
-                  {gainChange >= 0 ? "+" : ""}
-                  {formatCurrency(gainChange, preferredCurrency)}
+                <span>
+                  Change:{" "}
+                  <span className={gainChange >= 0 ? "text-green-500" : "text-red-500"}>
+                    {gainChange >= 0 ? "+" : ""}
+                    {formatCurrency(gainChange, preferredCurrency)}
+                  </span>
                 </span>
-              </span>
-            </div>
+              </div>
+            )}
           </div>
           {headerActions && <div className="flex gap-2 shrink-0">{headerActions}</div>}
         </div>
@@ -382,30 +400,48 @@ export function WealthChart({
                   setSelectionStartIndex(null);
                   setHoveredIndex(null);
                   setIsDraggingSelection(false);
+                  isDraggingRef.current = false;
                   lastClickRef.current = { time: 0, index: null };
                   return;
                 }
                 lastClickRef.current = { time: now, index };
+                isDraggingRef.current = true;
                 setSelectionStartIndex(state.activeTooltipIndex);
                 setHoveredIndex(state.activeTooltipIndex);
                 setIsDraggingSelection(true);
+
+                const bodyStyle = document.body.style;
+                const previousUserSelect = bodyStyle.userSelect;
+                const previousWebkitUserSelect = bodyStyle.getPropertyValue("-webkit-user-select");
+                bodyStyle.userSelect = "none";
+                bodyStyle.setProperty("-webkit-user-select", "none");
+
+                const onWindowMouseUp = () => {
+                  const dr = dragRangeRef.current;
+                  if (isDraggingRef.current && dr && dr.start !== dr.end) {
+                    onSelectedRangeChange?.({
+                      startDate: dr.startPoint.date,
+                      endDate: dr.endPoint.date,
+                    });
+                  }
+                  isDraggingRef.current = false;
+                  setIsDraggingSelection(false);
+                  setSelectionStartIndex(null);
+                  setHoveredIndex(null);
+                  bodyStyle.userSelect = previousUserSelect;
+                  if (previousWebkitUserSelect) {
+                    bodyStyle.setProperty("-webkit-user-select", previousWebkitUserSelect);
+                  } else {
+                    bodyStyle.removeProperty("-webkit-user-select");
+                  }
+                };
+                window.addEventListener("mouseup", onWindowMouseUp, { once: true });
               }}
               onMouseMove={(state: any) => {
                 if (typeof state?.activeTooltipIndex !== "number") return;
                 setHoveredIndex(state.activeTooltipIndex);
               }}
               onMouseLeave={() => {
-                setHoveredIndex(null);
-              }}
-              onMouseUp={() => {
-                if (isDraggingSelection && dragRange && dragRange.start !== dragRange.end) {
-                  onSelectedRangeChange?.({
-                    startDate: dragRange.startPoint.date,
-                    endDate: dragRange.endPoint.date,
-                  });
-                }
-                setIsDraggingSelection(false);
-                setSelectionStartIndex(null);
                 setHoveredIndex(null);
               }}
             >
@@ -463,38 +499,50 @@ export function WealthChart({
                   fillOpacity={0.08}
                 />
               )}
-              {/* Base balance area - always visible */}
-              <Area
-                type="monotone"
-                dataKey="balance_with_negative_gains"
-                stroke="none"
-                fill="url(#fillBalance)"
-                strokeWidth={0}
-                isAnimationActive={false}
-              />
-
-              {/* Balance line - the reference line that gains stick to */}
-              <Area
-                type="monotone"
-                dataKey="balance"
-                stroke={chartConfig.balance.color}
-                fill="url(#fillBalance)"
-                strokeWidth={2}
-                isAnimationActive={false}
-              />
-
-              {/* Investment gains area - sticks to balance line */}
-              <Area
-                type="monotone"
-                dataKey="total_value"
-                stroke={chartConfig.investmentGain.color}
-                fill="url(#fillInvestmentGain)"
-                strokeWidth={2}
-                isAnimationActive={false}
-              />
+              {showInvestmentGain ? (
+                <>
+                  <Area
+                    type="monotone"
+                    dataKey="balance_with_negative_gains"
+                    stroke="none"
+                    fill="url(#fillBalance)"
+                    strokeWidth={0}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="balance"
+                    stroke={chartConfig.balance.color}
+                    fill="url(#fillBalance)"
+                    strokeWidth={2}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="total_value"
+                    stroke={chartConfig.investmentGain.color}
+                    fill="url(#fillInvestmentGain)"
+                    strokeWidth={2}
+                    isAnimationActive={false}
+                  />
+                </>
+              ) : (
+                <Area
+                  type="monotone"
+                  dataKey="balance"
+                  stroke={chartConfig.balance.color}
+                  fill="url(#fillBalance)"
+                  strokeWidth={2}
+                  isAnimationActive={false}
+                />
+              )}
               <Tooltip
                 content={
-                  <CustomTooltip preferredCurrency={preferredCurrency} rangeSelection={dragRange} />
+                  <CustomTooltip
+                    preferredCurrency={preferredCurrency}
+                    rangeSelection={dragRange}
+                    showInvestmentGain={showInvestmentGain}
+                  />
                 }
                 wrapperStyle={{ outline: "none" }}
                 active={currentTooltipIndex !== null}

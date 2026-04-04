@@ -40,7 +40,7 @@ import {
   TransactionPaginatedResponse,
   TransactionQueryParams,
 } from "@/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type BatchOperationResponse,
   buildListQueryParams,
@@ -48,6 +48,7 @@ import {
   createCrudOperations,
   createPaginatedQuery,
   useCreateQuery,
+  DEFAULT_STALE_TIME,
   fetchWithAuth,
   invalidateQueries,
 } from "./apiUtils";
@@ -185,9 +186,12 @@ export function useWealthOverTime() {
   });
 }
 
-export function useWealthOverTimeWithGains() {
-  return useCreateQuery<BalanceHistoryResponse>({
-    queryKey: [...QueryKeys.wealthOverTime, "withGains"],
+export function useWealthOverTimeWithGains(options?: { includeDebt?: boolean }) {
+  const includeDebt = options?.includeDebt ?? true;
+  return useQuery<BalanceHistoryResponse>({
+    queryKey: [...QueryKeys.wealthOverTime, "withGains", includeDebt],
+    placeholderData: keepPreviousData,
+    staleTime: DEFAULT_STALE_TIME,
     queryFn: async () => {
       const endDate = new Date().toISOString().split("T")[0];
       const startDate = new Date();
@@ -196,7 +200,11 @@ export function useWealthOverTimeWithGains() {
 
       return unwrapEden(
         wealthApi.accounts.balance_over_time.get({
-          query: { start_date: startDateStr, end_date: endDate },
+          query: {
+            start_date: startDateStr,
+            end_date: endDate,
+            include_debt: includeDebt ? "true" : "false",
+          },
         }),
       ) as Promise<BalanceHistoryResponse>;
     },

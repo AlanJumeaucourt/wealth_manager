@@ -110,6 +110,27 @@ interface ChartDataPoint {
   averageExpense?: number;
 }
 
+/** Normalize API date fields (string, Date, or ISO-like) to YYYY-MM-DD for lexicographic compare. */
+function toDateKey(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.slice(0, 10);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "number" && !Number.isNaN(value)) {
+    return new Date(value).toISOString().slice(0, 10);
+  }
+  return "";
+}
+
+/** True when [periodStart, periodEnd] overlaps [rangeStart, rangeEnd] (YYYY-MM-DD strings). */
+function periodOverlapsRange(
+  summary: { start_date: unknown; end_date: unknown },
+  range: { startDate: string; endDate: string },
+): boolean {
+  const p0 = toDateKey(summary.start_date);
+  const p1 = toDateKey(summary.end_date);
+  return p0 <= range.endDate && p1 >= range.startDate;
+}
+
 export function PeriodChart({
   data,
   selectedRange = null,
@@ -119,33 +140,17 @@ export function PeriodChart({
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
   const [selectionStartIndex, setSelectionStartIndex] = React.useState<number | null>(null);
   const [isDraggingSelection, setIsDraggingSelection] = React.useState(false);
+  const isDraggingRef = React.useRef(false);
+  const selectedChartRangeRef = React.useRef<{
+    start: number;
+    end: number;
+    startPoint: ChartDataPoint;
+    endPoint: ChartDataPoint;
+  } | null>(null);
   const lastClickRef = React.useRef<{ time: number; index: number | null }>({
     time: 0,
     index: null,
   });
-  React.useEffect(() => {
-    if (!isDraggingSelection) return;
-    const bodyStyle = document.body.style;
-    const previousUserSelect = bodyStyle.userSelect;
-    const previousWebkitUserSelect = bodyStyle.getPropertyValue("-webkit-user-select");
-    bodyStyle.userSelect = "none";
-    bodyStyle.setProperty("-webkit-user-select", "none");
-    const handleWindowMouseUp = () => {
-      setIsDraggingSelection(false);
-      setSelectionStartIndex(null);
-      setHoveredIndex(null);
-    };
-    window.addEventListener("mouseup", handleWindowMouseUp);
-    return () => {
-      window.removeEventListener("mouseup", handleWindowMouseUp);
-      bodyStyle.userSelect = previousUserSelect;
-      if (previousWebkitUserSelect) {
-        bodyStyle.setProperty("-webkit-user-select", previousWebkitUserSelect);
-      } else {
-        bodyStyle.removeProperty("-webkit-user-select");
-      }
-    };
-  }, [isDraggingSelection]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat(undefined, {
@@ -252,11 +257,7 @@ export function PeriodChart({
   };
 
   const summariesInRange = selectedRange
-    ? data.summaries.filter(
-        (summary) =>
-          summary.start_date >= selectedRange.startDate &&
-          summary.start_date <= selectedRange.endDate,
-      )
+    ? data.summaries.filter((summary) => periodOverlapsRange(summary, selectedRange))
     : data.summaries;
   const activeSummaries = summariesInRange.length > 0 ? summariesInRange : data.summaries;
 
@@ -420,6 +421,8 @@ export function PeriodChart({
     };
   }, [selectionStartIndex, currentTooltipIndex, chartDataWithMetrics]);
 
+  selectedChartRangeRef.current = selectedChartRange;
+
   return (
     <Card>
       <div className="p-6">
@@ -557,34 +560,48 @@ export function PeriodChart({
                   setSelectionStartIndex(null);
                   setHoveredIndex(null);
                   setIsDraggingSelection(false);
+                  isDraggingRef.current = false;
                   lastClickRef.current = { time: 0, index: null };
                   return;
                 }
                 lastClickRef.current = { time: now, index };
+                isDraggingRef.current = true;
                 setSelectionStartIndex(state.activeTooltipIndex);
                 setHoveredIndex(state.activeTooltipIndex);
                 setIsDraggingSelection(true);
+
+                const bodyStyle = document.body.style;
+                const previousUserSelect = bodyStyle.userSelect;
+                const previousWebkitUserSelect = bodyStyle.getPropertyValue("-webkit-user-select");
+                bodyStyle.userSelect = "none";
+                bodyStyle.setProperty("-webkit-user-select", "none");
+
+                const onWindowMouseUp = () => {
+                  const range = selectedChartRangeRef.current;
+                  if (isDraggingRef.current && range && range.start !== range.end) {
+                    onSelectedRangeChange?.({
+                      startDate: range.startPoint.period,
+                      endDate: range.endPoint.period,
+                    });
+                  }
+                  isDraggingRef.current = false;
+                  setIsDraggingSelection(false);
+                  setSelectionStartIndex(null);
+                  setHoveredIndex(null);
+                  bodyStyle.userSelect = previousUserSelect;
+                  if (previousWebkitUserSelect) {
+                    bodyStyle.setProperty("-webkit-user-select", previousWebkitUserSelect);
+                  } else {
+                    bodyStyle.removeProperty("-webkit-user-select");
+                  }
+                };
+                window.addEventListener("mouseup", onWindowMouseUp, { once: true });
               }}
               onMouseMove={(state: any) => {
                 if (typeof state?.activeTooltipIndex !== "number") return;
                 setHoveredIndex(state.activeTooltipIndex);
               }}
               onMouseLeave={() => {
-                setHoveredIndex(null);
-              }}
-              onMouseUp={() => {
-                if (
-                  isDraggingSelection &&
-                  selectedChartRange &&
-                  selectedChartRange.start !== selectedChartRange.end
-                ) {
-                  onSelectedRangeChange?.({
-                    startDate: selectedChartRange.startPoint.period,
-                    endDate: selectedChartRange.endPoint.period,
-                  });
-                }
-                setIsDraggingSelection(false);
-                setSelectionStartIndex(null);
                 setHoveredIndex(null);
               }}
             >

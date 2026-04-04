@@ -45,7 +45,8 @@ export interface BatchOperationResponse {
   };
 }
 
-const DEFAULT_STALE_TIME = 5 * 60 * 1000; // 5 minutes
+/** Default `staleTime` for `useCreateQuery` / shared list queries (5 minutes). */
+export const DEFAULT_STALE_TIME = 5 * 60 * 1000;
 
 /** Maps list query params to Eden query objects (same semantics as legacy URLSearchParams). */
 export function buildListQueryParams(
@@ -312,7 +313,9 @@ export function useBatchCreateMutation<T extends { id?: number }, TItem = Omit<T
 ) {
   const res = crudResource(resource) as {
     batch?: {
-      create: { post: (args: { body: { items: unknown[] } }) => Promise<unknown> };
+      create: {
+        post: (args: { body: { items: unknown[] } }) => Promise<unknown>;
+      };
     };
   };
   return useMutation<BatchCreateResponse<T>, Error, TItem[]>({
