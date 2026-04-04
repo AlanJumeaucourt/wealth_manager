@@ -1,4 +1,6 @@
-import { API_URL, useStockHistory } from "@/api/queries";
+import { unwrapEden } from "@/api/edenUnwrap";
+import { useStockHistory } from "@/api/queries";
+import { wealthApi } from "@/api/wealthApi";
 import { CustomPriceDialog } from "@/components/investments/CustomPriceDialog";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -131,49 +133,28 @@ export function InvestmentDetailPage() {
   const { data: transactions } = useQuery<AssetTransaction[]>({
     queryKey: ["asset", symbol, "transactions"],
     queryFn: async () => {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${API_URL}/investments/assets/${symbol}/transactions`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch transactions");
-      const data = await response.json();
-      // Remove duplicate transactions (each transaction appears twice in the data)
-      const uniqueTransactions = data.filter(
+      const data = await unwrapEden<AssetTransaction[]>(
+        wealthApi.investments.assets({ symbol: symbol! }).transactions.get() as Promise<unknown>,
+      );
+      return data.filter(
         (transaction: AssetTransaction, index: number, self: AssetTransaction[]) =>
           index === self.findIndex((t) => t.id === transaction.id),
       );
-      return uniqueTransactions;
     },
   });
 
   const { data: assetInfo } = useQuery<AssetInfo>({
     queryKey: ["asset", symbol],
-    queryFn: async () => {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${API_URL}/stocks/${symbol}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch asset info");
-      return response.json();
-    },
+    queryFn: async () =>
+      unwrapEden<AssetInfo>(wealthApi.stocks({ symbol: symbol! }).get() as Promise<unknown>),
   });
 
   const { data: assetDetails } = useQuery<AssetDetails>({
     queryKey: ["asset", symbol, "details"],
-    queryFn: async () => {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${API_URL}/stocks/${symbol}/details`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch asset details");
-      return response.json();
-    },
+    queryFn: async () =>
+      unwrapEden<AssetDetails>(
+        wealthApi.stocks({ symbol: symbol! }).summary.get() as Promise<unknown>,
+      ),
   });
 
   const { data: priceHistory } = useStockHistory(symbol);

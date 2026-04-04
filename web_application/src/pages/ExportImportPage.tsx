@@ -23,6 +23,19 @@ import {
   useTransactions,
   useWealthOverTime,
 } from "@/api/queries";
+import { authFetch } from "@/api/authFetch";
+import {
+  edenBalanceOverTime,
+  edenBudgetCategories,
+  edenDeleteAsset,
+  edenListAccounts,
+  edenListAssets,
+  edenListBanks,
+  edenListInvestments,
+  edenListRefundGroups,
+  edenListRefundItems,
+  edenListTransactions,
+} from "@/api/edenListHelpers";
 import type { BalanceHistoryResponse } from "@/types";
 import { QueryKeys } from "@/api/queryKeys";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -346,11 +359,6 @@ export function ExportImportPage() {
           ]
         : selectedDataTypes;
 
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        throw new Error("Authentication token not found");
-      }
-
       // Cache for mapping IDs to names
       let cachedBanks: Record<number, string> = {};
       let cachedAccounts: Record<number, string> = {};
@@ -359,40 +367,35 @@ export function ExportImportPage() {
       // Fetch banks, accounts and assets first if we're doing readable export
       // We need this data to replace IDs with names later
       if (readableExport) {
-        // Fetch all banks
-        const banksResponse = await fetch(`${API_URL}/banks?per_page=1000`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (banksResponse.ok) {
-          const data = await banksResponse.json();
-          cachedBanks = data.items.reduce((acc: Record<number, string>, bank: any) => {
+        try {
+          const banksData = await edenListBanks();
+          cachedBanks = banksData.items.reduce((acc: Record<number, string>, bank: any) => {
             acc[bank.id] = bank.name;
             return acc;
           }, {});
+        } catch {
+          /* ignore cache fill failure */
         }
-
-        // Fetch all accounts
-        const accountsResponse = await fetch(`${API_URL}/accounts?per_page=1000`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (accountsResponse.ok) {
-          const data = await accountsResponse.json();
-          cachedAccounts = data.items.reduce((acc: Record<number, string>, account: any) => {
-            acc[account.id] = account.name;
-            return acc;
-          }, {});
+        try {
+          const accountsData = await edenListAccounts();
+          cachedAccounts = accountsData.items.reduce(
+            (acc: Record<number, string>, account: any) => {
+              acc[account.id] = account.name;
+              return acc;
+            },
+            {},
+          );
+        } catch {
+          /* ignore */
         }
-
-        // Fetch all assets
-        const assetsResponse = await fetch(`${API_URL}/assets?per_page=1000`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (assetsResponse.ok) {
-          const data = await assetsResponse.json();
-          cachedAssets = data.items.reduce((acc: Record<number, string>, asset: any) => {
+        try {
+          const assetsData = await edenListAssets();
+          cachedAssets = assetsData.items.reduce((acc: Record<number, string>, asset: any) => {
             acc[asset.id] = asset.name;
             return acc;
           }, {});
+        } catch {
+          /* ignore */
         }
       }
 
@@ -400,11 +403,7 @@ export function ExportImportPage() {
         switch (dataType) {
           case "accounts":
             await fetchData(dataType, async () => {
-              const response = await fetch(`${API_URL}/accounts?per_page=1000`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!response.ok) throw new Error(`Failed to fetch accounts: ${response.statusText}`);
-              const data = await response.json();
+              const data = await edenListAccounts();
 
               // Convert data to readable format if needed
               if (readableExport) {
@@ -424,23 +423,14 @@ export function ExportImportPage() {
 
           case "banks":
             await fetchData(dataType, async () => {
-              const response = await fetch(`${API_URL}/banks?per_page=1000`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!response.ok) throw new Error(`Failed to fetch banks: ${response.statusText}`);
-              const data = await response.json();
+              const data = await edenListBanks();
               return data.items;
             });
             break;
 
           case "transactions":
             await fetchData(dataType, async () => {
-              const response = await fetch(`${API_URL}/transactions?per_page=10000`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!response.ok)
-                throw new Error(`Failed to fetch transactions: ${response.statusText}`);
-              const data = await response.json();
+              const data = await edenListTransactions();
 
               // Convert data to readable format if needed
               if (readableExport) {
@@ -467,12 +457,7 @@ export function ExportImportPage() {
 
           case "investments":
             await fetchData(dataType, async () => {
-              const response = await fetch(`${API_URL}/investments?per_page=1000`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!response.ok)
-                throw new Error(`Failed to fetch investments: ${response.statusText}`);
-              const data = await response.json();
+              const data = await edenListInvestments();
 
               // Convert data to readable format if needed
               if (readableExport) {
@@ -504,11 +489,7 @@ export function ExportImportPage() {
 
           case "assets":
             await fetchData(dataType, async () => {
-              const response = await fetch(`${API_URL}/assets?per_page=1000`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!response.ok) throw new Error(`Failed to fetch assets: ${response.statusText}`);
-              const data = await response.json();
+              const data = await edenListAssets();
               return data.items;
             });
             break;
@@ -521,15 +502,10 @@ export function ExportImportPage() {
               startDate.setMonth(startDate.getMonth() - 24);
               const startDateStr = startDate.toISOString().split("T")[0];
 
-              const response = await fetch(
-                `${API_URL}/accounts/balance_over_time?start_date=${startDateStr}&end_date=${endDate}`,
-                {
-                  headers: { Authorization: `Bearer ${token}` },
-                },
-              );
-              if (!response.ok)
-                throw new Error(`Failed to fetch wealth history: ${response.statusText}`);
-              const data = (await response.json()) as BalanceHistoryResponse;
+              const data = (await edenBalanceOverTime(
+                startDateStr,
+                endDate,
+              )) as BalanceHistoryResponse;
               return Object.entries(data).map(([date, v]) => ({
                 date,
                 balance: v.balance,
@@ -541,24 +517,14 @@ export function ExportImportPage() {
 
           case "refundGroups":
             await fetchData(dataType, async () => {
-              const response = await fetch(`${API_URL}/refund_groups?per_page=1000`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!response.ok)
-                throw new Error(`Failed to fetch refund groups: ${response.statusText}`);
-              const data = await response.json();
+              const data = await edenListRefundGroups();
               return data.items;
             });
             break;
 
           case "refundItems":
             await fetchData(dataType, async () => {
-              const response = await fetch(`${API_URL}/refund_items?per_page=1000`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!response.ok)
-                throw new Error(`Failed to fetch refund items: ${response.statusText}`);
-              const data = await response.json();
+              const data = await edenListRefundItems();
 
               // Convert data to readable format if needed
               if (readableExport) {
@@ -612,12 +578,7 @@ export function ExportImportPage() {
 
           case "categories":
             await fetchData(dataType, async () => {
-              const response = await fetch(`${API_URL}/budgets/categories`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!response.ok)
-                throw new Error(`Failed to fetch categories: ${response.statusText}`);
-              return await response.json();
+              return edenBudgetCategories();
             });
             break;
         }
@@ -823,44 +784,30 @@ export function ExportImportPage() {
             (importedData.transactions[0].from_account || importedData.transactions[0].to_account);
 
           if (isReadableImport) {
-            // Fetch existing data to map names to IDs
-            const token = localStorage.getItem("access_token");
-            if (!token) {
-              throw new Error("Authentication token not found");
-            }
-
-            // Fetch account information to map names to IDs
-            const accountsResponse = await fetch(`${API_URL}/accounts?per_page=1000`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (accountsResponse.ok) {
-              const accountsData = await accountsResponse.json();
+            try {
+              const accountsData = await edenListAccounts();
               accountsData.items.forEach((account: any) => {
                 accountNameToIdMap[account.name] = account.id;
               });
+            } catch {
+              /* ignore */
             }
-
-            // Fetch bank information
-            const banksResponse = await fetch(`${API_URL}/banks?per_page=1000`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (banksResponse.ok) {
-              const banksData = await banksResponse.json();
+            try {
+              const banksData = await edenListBanks();
               banksData.items.forEach((bank: any) => {
                 bankNameToIdMap[bank.name] = bank.id;
               });
+            } catch {
+              /* ignore */
             }
-
-            // Fetch asset information
-            const assetsResponse = await fetch(`${API_URL}/assets?per_page=1000`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (assetsResponse.ok) {
-              const assetsData = await assetsResponse.json();
+            try {
+              const assetsData = await edenListAssets();
               assetsData.items.forEach((asset: any) => {
                 assetNameToIdMap[asset.name] = asset.id;
-                assetNameToIdMap[asset.symbol] = asset.id; // Also map by symbol
+                assetNameToIdMap[asset.symbol] = asset.id;
               });
+            } catch {
+              /* ignore */
             }
           }
 
@@ -1552,12 +1499,10 @@ export function ExportImportPage() {
 
                 case "categories":
                   if (importedData.categories && Object.keys(importedData.categories).length > 0) {
-                    // For categories we just update the complete structure through a special endpoint
-                    const token = localStorage.getItem("access_token");
-                    await fetch(`${API_URL}/budgets/categories/import`, {
+                    // Legacy import path — not yet exposed on typed Eden `App`; uses authFetch + auth.
+                    await authFetch(`${API_URL}/budgets/categories/import`, {
                       method: "POST",
                       headers: {
-                        Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json",
                       },
                       body: JSON.stringify(importedData.categories),
@@ -1672,48 +1617,30 @@ export function ExportImportPage() {
 
       // If deleting all, we need to get both bank IDs and asset IDs
       if (deleteAll) {
-        // Fetch banks for cascade deletion
-        const banksResponse = await fetch(`${API_URL}/banks?per_page=1000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (banksResponse.ok) {
-          const data = await banksResponse.json();
-          bankIds = data.items.map((bank: any) => bank.id);
+        try {
+          const banksData = await edenListBanks();
+          bankIds = banksData.items.map((bank: any) => bank.id);
+        } catch {
+          /* ignore */
         }
-
-        // Also fetch assets because they need to be deleted separately
-        const assetsResponse = await fetch(`${API_URL}/assets?per_page=1000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (assetsResponse.ok) {
-          const data = await assetsResponse.json();
-          assetIds = data.items.map((asset: any) => asset.id);
+        try {
+          const assetsData = await edenListAssets();
+          assetIds = assetsData.items.map((asset: any) => asset.id);
+        } catch {
+          /* ignore */
         }
-
-        const refundItemsResponse = await fetch(`${API_URL}/refund_items?per_page=1000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (refundItemsResponse.ok) {
-          const data = await refundItemsResponse.json();
-          refundItemIds = data.items.map((item: any) => item.id);
+        try {
+          const refundItemsData = await edenListRefundItems();
+          refundItemIds = refundItemsData.items.map((item: any) => item.id);
+        } catch {
+          /* ignore */
         }
 
         // Delete assets first
         if (assetIds.length > 0) {
           try {
-            // There might not be a batch delete for assets, so create one if needed
-            const token = localStorage.getItem("access_token");
             for (const assetId of assetIds) {
-              await fetch(`${API_URL}/assets/${assetId}`, {
-                method: "DELETE",
-                headers: { Authorization: `Bearer ${token}` },
-              });
+              await edenDeleteAsset(assetId);
             }
             console.log(`Deleted ${assetIds.length} assets`);
           } catch (error) {
@@ -1746,87 +1673,66 @@ export function ExportImportPage() {
 
       // For specific selections, including assets
       if (selectedDataTypes.includes("assets")) {
-        const assetsResponse = await fetch(`${API_URL}/assets?per_page=1000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (assetsResponse.ok) {
-          const data = await assetsResponse.json();
+        try {
+          const data = await edenListAssets();
           assetIds = data.items.map((asset: any) => asset.id);
+        } catch {
+          /* ignore */
         }
       }
 
       // If we're not deleting all data or banks specifically, fetch IDs for selected data types
       if (selectedDataTypes.includes("accounts")) {
-        const accountsResponse = await fetch(`${API_URL}/accounts?per_page=1000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (accountsResponse.ok) {
-          const data = await accountsResponse.json();
+        try {
+          const data = await edenListAccounts();
           accountIds = data.items.map((account: any) => account.id);
+        } catch {
+          /* ignore */
         }
       }
 
       if (selectedDataTypes.includes("banks")) {
-        const banksResponse = await fetch(`${API_URL}/banks?per_page=1000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (banksResponse.ok) {
-          const data = await banksResponse.json();
+        try {
+          const data = await edenListBanks();
           bankIds = data.items.map((bank: any) => bank.id);
+        } catch {
+          /* ignore */
         }
       }
 
       if (selectedDataTypes.includes("transactions")) {
-        const transactionsResponse = await fetch(`${API_URL}/transactions?per_page=10000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (transactionsResponse.ok) {
-          const data = await transactionsResponse.json();
+        try {
+          const data = await edenListTransactions();
           transactionIds = data.items.map((transaction: any) => transaction.id);
+        } catch {
+          /* ignore */
         }
       }
 
       if (selectedDataTypes.includes("investments")) {
-        const investmentsResponse = await fetch(`${API_URL}/investments?per_page=1000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (investmentsResponse.ok) {
-          const data = await investmentsResponse.json();
+        try {
+          const data = await edenListInvestments();
           investmentIds = data.items.map((investment: any) => investment.id);
+        } catch {
+          /* ignore */
         }
       }
 
       if (selectedDataTypes.includes("refundGroups")) {
-        const refundGroupsResponse = await fetch(`${API_URL}/refund_groups?per_page=1000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (refundGroupsResponse.ok) {
-          const data = await refundGroupsResponse.json();
+        try {
+          const data = await edenListRefundGroups();
           refundGroupIds = data.items.map((group: any) => group.id);
+        } catch {
+          /* ignore */
         }
       }
 
       if (selectedDataTypes.includes("refundItems")) {
-        const refundItemsResponse = await fetch(`${API_URL}/refund_items?per_page=1000`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
-        if (refundItemsResponse.ok) {
-          const data = await refundItemsResponse.json();
+        try {
+          const data = await edenListRefundItems();
           refundItemIds = data.items.map((item: any) => item.id);
+        } catch {
+          /* ignore */
         }
       }
 
@@ -1873,12 +1779,8 @@ export function ExportImportPage() {
       if (selectedDataTypes.includes("assets") && assetIds.length > 0) {
         // There might not be a batch delete for assets, so do it one by one
         try {
-          const token = localStorage.getItem("access_token");
           for (const assetId of assetIds) {
-            await fetch(`${API_URL}/assets/${assetId}`, {
-              method: "DELETE",
-              headers: { Authorization: `Bearer ${token}` },
-            });
+            await edenDeleteAsset(assetId);
           }
           console.log(`Deleted ${assetIds.length} assets`);
         } catch (error) {

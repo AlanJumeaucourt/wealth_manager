@@ -1,4 +1,5 @@
-import { API_URL } from "@/api/queries";
+import { unwrapEden } from "@/api/edenUnwrap";
+import { wealthApi } from "@/api/wealthApi";
 import { userStorage } from "@/utils/user-storage";
 import { QueryClient } from "@tanstack/react-query";
 
@@ -24,23 +25,12 @@ interface RegisterData extends AuthCredentials {
 
 export const authService = {
   async login(credentials: AuthCredentials) {
-    const response = await fetch(`${API_URL}/users/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(credentials),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.msg || "Login failed");
-    }
-
-    const data: LoginResponse = await response.json();
+    const data = await unwrapEden<LoginResponse>(
+      wealthApi.users.login.post(credentials as never) as Promise<unknown>,
+    );
     localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
 
-    // Store user data from login response
     if (data.user) {
       userStorage.setUser(data.user);
       userStorage.updateLastFetch();
@@ -50,40 +40,24 @@ export const authService = {
   },
 
   async register(data: RegisterData) {
-    const response = await fetch(`${API_URL}/users/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.msg || "Registration failed");
-    }
-
-    const responseData: LoginResponse = await response.json();
-    localStorage.setItem("access_token", responseData.access_token);
-    return responseData;
+    return unwrapEden<Record<string, unknown>>(
+      wealthApi.users.register.post(data as never) as Promise<unknown>,
+    );
   },
 
   logout(queryClient?: QueryClient) {
-    // Clear all auth-related items from localStorage
     localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
     localStorage.removeItem("lastUserFetch");
 
-    // Clear any other app-specific data
     localStorage.removeItem("selectedTeam");
     localStorage.removeItem("dateRange");
 
-    // Clear all React Query cache if queryClient is provided
     if (queryClient) {
       queryClient.clear();
     }
 
-    // Clear any other cached data
     sessionStorage.clear();
   },
 };

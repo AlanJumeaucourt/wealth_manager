@@ -1,4 +1,4 @@
-import { API_URL } from "@/api/queries";
+import { useUpdateBank } from "@/api/queries";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Bank } from "@/types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 interface EditBankDialogProps {
@@ -23,39 +22,8 @@ interface EditBankDialogProps {
 export function EditBankDialog({ bank, open, onOpenChange }: EditBankDialogProps) {
   const [name, setName] = useState(bank.name);
   const [website, setWebsite] = useState(bank.website || "");
-  const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  const updateBankMutation = useMutation({
-    mutationFn: async (data: { name: string; website?: string }) => {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${API_URL}/banks/${bank.id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Failed to update bank");
-      return response.json();
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["banks"] });
-      toast({
-        title: "🏦 Bank Updated!",
-        description: "Changes saved successfully!",
-      });
-      onOpenChange(false);
-    },
-    onError: () => {
-      toast({
-        title: "😅 Oops!",
-        description: "Couldn't update the bank. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
+  const updateBank = useUpdateBank();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,10 +36,25 @@ export function EditBankDialog({ bank, open, onOpenChange }: EditBankDialogProps
       return;
     }
 
-    updateBankMutation.mutate({
-      name,
-      website: website || undefined,
-    });
+    updateBank.mutate(
+      { id: bank.id, name, website: website || undefined },
+      {
+        onSuccess: () => {
+          toast({
+            title: "🏦 Bank Updated!",
+            description: "Changes saved successfully!",
+          });
+          onOpenChange(false);
+        },
+        onError: () => {
+          toast({
+            title: "😅 Oops!",
+            description: "Couldn't update the bank. Please try again.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
   };
 
   return (
@@ -104,8 +87,8 @@ export function EditBankDialog({ bank, open, onOpenChange }: EditBankDialogProps
             </div>
           </div>
           <DialogFooter className="mt-6">
-            <Button type="submit" disabled={updateBankMutation.isPending}>
-              {updateBankMutation.isPending ? "Saving..." : "Save Changes"}
+            <Button type="submit" disabled={updateBank.isPending}>
+              {updateBank.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </form>

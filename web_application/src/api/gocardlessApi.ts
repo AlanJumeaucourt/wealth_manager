@@ -8,10 +8,12 @@ import {
   GoCardlessInstitution,
   GoCardlessRequisition,
 } from "@/types/gocardless";
-import { API_URL } from "./queries";
+import { type TreatyResult, unwrapEden } from "./edenUnwrap";
+import { wealthApi } from "./wealthApi";
 
-// Base GoCardless API URL
-const GOCARDLESS_API_URL = `${API_URL}/gocardless`;
+/** GoCardless stub routes are not fully present on `Treaty.Create<App>`; still use Eden Treaty + authFetch. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Eden path typing gap for stub module
+const gc = wealthApi.gocardless as any;
 
 // Custom error class for rate limit errors
 export class RateLimitError extends Error {
@@ -58,23 +60,12 @@ const handleApiError = (error: any): Error => {
 
 // Function to fetch institutions
 export const fetchInstitutions = async (countryCode?: string): Promise<GoCardlessInstitution[]> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    // According to docs, country is a required parameter
-    const url = `${GOCARDLESS_API_URL}/institutions${countryCode ? `?country=${countryCode}` : ""}`;
-
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch institutions: ${response.statusText}`);
-    }
-
-    return await response.json();
+    return unwrapEden(
+      gc.institutions.get({
+        query: countryCode ? { country: countryCode } : ({} as never),
+      }) as Promise<TreatyResult<GoCardlessInstitution[]>>,
+    );
   } catch (error) {
     console.error("Error fetching institutions:", error);
     throw handleApiError(error);
@@ -88,31 +79,17 @@ export const createEndUserAgreement = async (
   accessValidForDays: number = 90,
   accessScope: string[] = ["balances", "details", "transactions"],
 ): Promise<GoCardlessEndUserAgreement> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    const response = await fetch(`${GOCARDLESS_API_URL}/agreements/enduser`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        institution_id: institutionId,
-        max_historical_days: maxHistoricalDays,
-        access_valid_for_days: accessValidForDays,
-        access_scope: accessScope,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.summary || `Failed to create end user agreement: ${response.statusText}`,
-      );
-    }
-
-    return await response.json();
+    return unwrapEden(
+      gc.agreements.enduser.post({
+        body: {
+          institution_id: institutionId,
+          max_historical_days: maxHistoricalDays,
+          access_valid_for_days: accessValidForDays,
+          access_scope: accessScope,
+        },
+      }) as Promise<TreatyResult<GoCardlessEndUserAgreement>>,
+    );
   } catch (error) {
     console.error("Error creating end user agreement:", error);
     throw handleApiError(error);
@@ -128,10 +105,8 @@ export const createRequisition = async (
   userLanguage?: string,
   accountSelection: boolean = false,
 ): Promise<GoCardlessRequisition> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    const requisitionData: any = {
+    const requisitionData: Record<string, unknown> = {
       institution_id: institutionId,
       redirect: redirectUrl,
       account_selection: accountSelection,
@@ -141,21 +116,11 @@ export const createRequisition = async (
     if (reference) requisitionData.reference = reference;
     if (userLanguage) requisitionData.user_language = userLanguage;
 
-    const response = await fetch(`${GOCARDLESS_API_URL}/requisitions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requisitionData),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.summary || `Failed to create requisition: ${response.statusText}`);
-    }
-
-    return await response.json();
+    return unwrapEden(
+      gc.requisitions.post({
+        body: requisitionData,
+      }) as Promise<TreatyResult<GoCardlessRequisition>>,
+    );
   } catch (error) {
     console.error("Error creating requisition:", error);
     throw handleApiError(error);
@@ -166,20 +131,10 @@ export const createRequisition = async (
 export const getRequisitionStatus = async (
   requisitionId: string,
 ): Promise<GoCardlessRequisition> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    const response = await fetch(`${GOCARDLESS_API_URL}/requisitions/${requisitionId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get requisition status: ${response.statusText}`);
-    }
-
-    return await response.json();
+    return unwrapEden(
+      gc.requisitions({ id: requisitionId }).get() as Promise<TreatyResult<GoCardlessRequisition>>,
+    );
   } catch (error) {
     console.error("Error getting requisition status:", error);
     throw handleApiError(error);
@@ -190,20 +145,13 @@ export const getRequisitionStatus = async (
 export const getRequisitionByReference = async (
   reference: string,
 ): Promise<GoCardlessRequisition> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    const response = await fetch(`${GOCARDLESS_API_URL}/requisitions/by-reference/${reference}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get requisition by reference: ${response.statusText}`);
-    }
-
-    return await response.json();
+    const byRef = (
+      gc.requisitions as unknown as {
+        "by-reference": (p: { reference: string }) => { get: () => Promise<unknown> };
+      }
+    )["by-reference"];
+    return unwrapEden(byRef({ reference }).get() as Promise<TreatyResult<GoCardlessRequisition>>);
   } catch (error) {
     console.error("Error getting requisition by reference:", error);
     throw handleApiError(error);
@@ -212,21 +160,10 @@ export const getRequisitionByReference = async (
 
 // Function to get accounts by requisition
 const getAccountsByRequisition = async (requisitionId: string): Promise<GoCardlessAccount[]> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    // First, get the requisition to get the account IDs
-    const response = await fetch(`${GOCARDLESS_API_URL}/accounts/${requisitionId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get accounts: ${response.statusText}`);
-    }
-
-    return await response.json();
+    return unwrapEden(
+      gc.accounts({ id: requisitionId }).get() as Promise<TreatyResult<GoCardlessAccount[]>>,
+    );
   } catch (error) {
     console.error("Error getting accounts by requisition:", error);
     throw handleApiError(error);
@@ -238,23 +175,14 @@ export const getAccountDetails = async (
   accountId: string,
   updateCache: boolean = false,
 ): Promise<GoCardlessAccountDetail> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    const response = await fetch(
-      `${GOCARDLESS_API_URL}/accounts/${accountId}/details?update_cache=${updateCache}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
+    return unwrapEden(
+      gc
+        .accounts({ id: accountId })
+        .details.get({ query: { update_cache: updateCache } }) as Promise<
+        TreatyResult<GoCardlessAccountDetail>
+      >,
     );
-
-    if (!response.ok) {
-      throw new Error(`Failed to get account details: ${response.statusText}`);
-    }
-
-    return await response.json();
   } catch (error) {
     console.error("Error getting account details:", error);
     throw handleApiError(error);
@@ -266,23 +194,14 @@ export const getAccountBalances = async (
   accountId: string,
   updateCache: boolean = false,
 ): Promise<GoCardlessAccountBalance> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    const response = await fetch(
-      `${GOCARDLESS_API_URL}/accounts/${accountId}/balances?update_cache=${updateCache}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
+    return unwrapEden(
+      gc
+        .accounts({ id: accountId })
+        .balances.get({ query: { update_cache: updateCache } }) as Promise<
+        TreatyResult<GoCardlessAccountBalance>
+      >,
     );
-
-    if (!response.ok) {
-      throw new Error(`Failed to get account balances: ${response.statusText}`);
-    }
-
-    return await response.json();
   } catch (error) {
     console.error("Error getting account balances:", error);
     throw handleApiError(error);
@@ -296,28 +215,15 @@ export const getAccountTransactions = async (
   dateTo?: string,
   updateCache: boolean = false,
 ): Promise<GoCardlessAccountTransactions> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    const params = new URLSearchParams();
-    if (dateFrom) params.append("date_from", dateFrom);
-    if (dateTo) params.append("date_to", dateTo);
-    params.append("update_cache", updateCache.toString());
-
-    const response = await fetch(
-      `${GOCARDLESS_API_URL}/accounts/${accountId}/transactions?${params.toString()}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
+    const query: Record<string, string | boolean> = { update_cache: updateCache };
+    if (dateFrom) query.date_from = dateFrom;
+    if (dateTo) query.date_to = dateTo;
+    return unwrapEden(
+      gc.accounts({ id: accountId }).transactions.get({
+        query: query as never,
+      }) as Promise<TreatyResult<GoCardlessAccountTransactions>>,
     );
-
-    if (!response.ok) {
-      throw new Error(`Failed to get account transactions: ${response.statusText}`);
-    }
-
-    return await response.json();
   } catch (error) {
     console.error("Error getting account transactions:", error);
     throw handleApiError(error);
@@ -326,24 +232,12 @@ export const getAccountTransactions = async (
 
 // Function to link accounts to user
 const linkAccountsToUser = async (requisitionId: string, accountIds: string[]): Promise<void> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    const response = await fetch(`${GOCARDLESS_API_URL}/link-accounts`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        requisition_id: requisitionId,
-        account_ids: accountIds,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to link accounts: ${response.statusText}`);
-    }
+    await unwrapEden(
+      gc["link-accounts"].post({
+        body: { requisition_id: requisitionId, account_ids: accountIds },
+      }) as Promise<TreatyResult<unknown>>,
+    );
   } catch (error) {
     console.error("Error linking accounts:", error);
     throw handleApiError(error);
@@ -391,39 +285,15 @@ export const handleGoCardlessCallback = async (
 };
 
 export async function getAccount(accountId: string): Promise<GoCardlessAccount> {
-  const token = localStorage.getItem("gocardless_token");
-  if (!token) {
-    throw new Error("No GoCardless token found");
-  }
-
-  const response = await fetch(`${GOCARDLESS_API_URL}/accounts/${accountId}/`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to fetch account details");
-  }
-
-  return response.json();
+  return unwrapEden(
+    gc.accounts({ id: accountId }).get() as Promise<TreatyResult<GoCardlessAccount>>,
+  );
 }
 
 // Function to get all GoCardless accounts for the current user
 export const getUserAccounts = async (): Promise<GoCardlessAccount[]> => {
-  const token = localStorage.getItem("access_token");
-
   try {
-    const response = await fetch(`${GOCARDLESS_API_URL}/accounts`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return await response.json();
+    return unwrapEden(gc.accounts.get() as Promise<TreatyResult<GoCardlessAccount[]>>);
   } catch (error) {
     console.error("Error getting user accounts:", error);
     throw handleApiError(error);

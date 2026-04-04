@@ -22,10 +22,11 @@ export async function unwrapEden<T>(promise: Promise<unknown>): Promise<T> {
   const r = (await promise) as TreatyResult<T>;
   if (r.error) {
     const payload = errorPayload(r.error);
-    if (payload && handleTokenExpiration(payload)) {
+    if (payload && handleTokenExpiration(payload, r.status)) {
       throw new Error("Token expired");
     }
     const msg =
+      (payload?.msg as string | undefined) ||
       (payload?.message as string | undefined) ||
       (payload?.error as string | undefined) ||
       (typeof r.error === "string" ? r.error : "Request failed");

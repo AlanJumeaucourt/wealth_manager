@@ -413,6 +413,7 @@ export function useStockSearch(query: string) {
   });
 }
 
+/** Custom price HTTP routes are not yet on the typed Eden `App`; uses `fetchWithAuth` (authFetch). */
 export function useCustomPrices(symbol: string) {
   return useQuery({
     queryKey: QueryKeys.customPrices(symbol),

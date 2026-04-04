@@ -1,10 +1,10 @@
-import { API_URL } from "@/api/queries";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Icons } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { authService } from "@/services/auth";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -21,7 +21,6 @@ export function Signup() {
     e.preventDefault();
     setError(null);
 
-    // Basic validation
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -35,36 +34,12 @@ export function Signup() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/users/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      if (response.ok) {
-        // Automatically log in the user after successful signup
-        const loginResponse = await fetch(`${API_URL}/users/login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (loginResponse.ok) {
-          const data = await loginResponse.json();
-          localStorage.setItem("access_token", data.access_token);
-          void navigate({ to: "/dashboard" });
-        }
-      } else {
-        const errorData = await response.json();
-        setError(errorData.msg || "Signup failed");
-      }
-    } catch (error) {
-      console.error("Signup error:", error);
-      setError("Signup failed. Please try again.");
+      await authService.register({ name, email, password });
+      await authService.login({ email, password });
+      void navigate({ to: "/dashboard" });
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError(err instanceof Error ? err.message : "Signup failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

@@ -1,3 +1,4 @@
+import { authFetch } from "@/api/authFetch";
 import { handleTokenExpiration } from "@/utils/auth";
 import { QueryKey, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PaginatedResponse } from "../types";
@@ -86,20 +87,16 @@ export function buildListQueryParams(
 // #region Legacy fetch (routes not covered by Eden / stubs)
 export async function fetchWithAuth<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   console.log("[apiUtils] fetchWithAuth (legacy Eden bypass)", options.method ?? "GET", endpoint);
-  const token = localStorage.getItem("access_token");
-  const response = await fetch(`${API_URL}/${endpoint}`, {
+  const response = await authFetch(`${API_URL}/${endpoint}`, {
     method: options.method || "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-    },
+    headers: options.body ? { "Content-Type": "application/json" } : {},
     ...(options.body ? { body: JSON.stringify(options.body) } : {}),
   });
 
   if (!response.ok) {
     try {
       const error = await response.json();
-      if (handleTokenExpiration(error)) {
+      if (handleTokenExpiration(error, response.status)) {
         throw new Error("Token expired");
       }
       throw new Error(

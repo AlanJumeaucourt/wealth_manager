@@ -1,4 +1,5 @@
-import { API_URL } from "@/api/queries";
+import { unwrapEden } from "@/api/edenUnwrap";
+import { wealthApi } from "@/api/wealthApi";
 import { User } from "@/types/user";
 
 export const userStorage = {
@@ -21,18 +22,16 @@ export const userStorage = {
   shouldFetchUser: () => {
     const lastFetch = localStorage.getItem("lastUserFetch");
     if (!lastFetch) return true;
-    // Refetch if last fetch was more than 5 minutes ago
     return Date.now() - parseInt(lastFetch) > 5 * 60 * 1000;
   },
 
   fetchUser: async () => {
-    const response = await fetch(`${API_URL}/users/`, {
-      headers: { Authorization: `Bearer ${userStorage.getToken()}` },
-    });
-    if (response.ok) {
-      const user = await response.json();
+    try {
+      const user = await unwrapEden<User>(wealthApi.users.get() as Promise<unknown>);
       userStorage.setUser(user);
       userStorage.updateLastFetch();
+    } catch {
+      /* ignore — session may be invalid */
     }
   },
 };

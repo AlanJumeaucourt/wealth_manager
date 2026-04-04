@@ -17,6 +17,7 @@ export function Landing() {
 
   useEffect(() => {
     localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
