@@ -33,10 +33,17 @@ Do **not** ask the user to run commands you can run yourself in this environment
 
 ## Conventions for agents
 
+- **Strict typing is mandatory**: prefer precise TypeScript types everywhere; avoid `any` and unsafe casts unless there is no better option (then narrow immediately). Do not ship changes that fail `vp check` / typecheck. Prefer `unknown` + narrowing over `any`.
 - **Match existing code**: naming, imports, formatting, and abstraction level in the files you touch.
 - **Keep scope tight**: implement what was asked; avoid drive-by refactors, unrelated files, or extra documentation unless the user requested it.
 - **Secrets**: never commit real `.env` values or API keys; use `.env.example` patterns only.
 - **Cross-package changes**: API contract changes may require updates in `backend` and the web client (generated or hand-maintained types) — check how the web app imports the API package before assuming.
+
+### API types (Elysia + Eden Treaty)
+
+- **`unwrapEden` is runtime only** — it unwraps the Eden `{ data, error }` result; it does **not** provide TypeScript types for responses.
+- **Web app**: derive response shapes from the treaty client with `Treaty.Data<ReturnType<typeof wealthApi.<segment>.<method>>>` and list/field extraction patterns in [`web_application/src/api/edenDerivedTypes.ts`](web_application/src/api/edenDerivedTypes.ts) (same idea as `Account` / `Bank`). Re-export from [`web_application/src/types/`](web_application/src/types/) where files already proxy Eden-derived types — avoid duplicating hand-written interfaces that mirror the API.
+- **Backend**: where practical, attach **request/response TypeBox schemas** on routes (`response: { 200: … }`, etc.) so OpenAPI and Eden inference stay accurate and the PWA does not need parallel manual DTOs.
 
 ## Quality checks (when relevant)
 

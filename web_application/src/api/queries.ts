@@ -27,6 +27,7 @@ import {
   LiabilityPaymentFilters,
   PaginatedResponse,
   PeriodSummaryResponse,
+  normalizePotentialRefundItem,
   PortfolioPerformance,
   PortfolioRiskMetrics,
   PortfolioSummary,
@@ -40,6 +41,7 @@ import {
   TransactionPaginatedResponse,
   TransactionQueryParams,
 } from "@/types";
+import type { PotentialRefundsListResponse } from "@/api/edenDerivedTypes";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type BatchOperationResponse,
@@ -299,7 +301,7 @@ export const useInvestments = createPaginatedQuery<Investment, InvestmentQueryPa
 // #region RefundGroup Operations and Queries
 const refundGroupOperations = createCrudOperations<RefundGroup>({
   resource: "refund_groups",
-  queryKeysToInvalidate: ["refundGroups", "refundItems", "transactions"],
+  queryKeysToInvalidate: ["refundGroups", "refundItems", "transactions", "potentialRefunds"],
 });
 
 export const {
@@ -313,7 +315,7 @@ export function useBatchCreateRefundGroups() {
   const queryClient = useQueryClient();
   return useBatchCreateMutation<RefundGroup>(
     "refund_groups",
-    ["refundGroups", "refundItems", "transactions"],
+    ["refundGroups", "refundItems", "transactions", "potentialRefunds"],
     queryClient,
   );
 }
@@ -332,7 +334,7 @@ export const useRefundGroups = createPaginatedQuery<RefundGroup, RefundGroupQuer
 // #region RefundItem Operations and Queries
 const refundItemOperations = createCrudOperations<RefundItem>({
   resource: "refund_items",
-  queryKeysToInvalidate: ["refundItems", "transactions"],
+  queryKeysToInvalidate: ["refundItems", "transactions", "potentialRefunds"],
 });
 
 export const {
@@ -346,7 +348,7 @@ export function useBatchCreateRefundItems() {
   const queryClient = useQueryClient();
   return useBatchCreateMutation<RefundItem>(
     "refund_items",
-    ["refundItems", "transactions"],
+    ["refundItems", "transactions", "potentialRefunds"],
     queryClient,
   );
 }
@@ -360,6 +362,38 @@ export const useRefundItems = createPaginatedQuery<RefundItem, RefundItemQueryPa
     ) as unknown as Promise<PaginatedResponse<RefundItem>>,
   (params) => [...QueryKeys.refundItems, params],
 );
+
+export function usePotentialRefunds(options?: { limit?: number }) {
+  const limit = options?.limit ?? 100;
+  return useQuery({
+    queryKey: [...QueryKeys.potentialRefunds, limit] as const,
+    staleTime: DEFAULT_STALE_TIME,
+    queryFn: async () => {
+      const data = (await unwrapEden(
+        wealthApi.potential_refunds.get({
+          query: { limit } as never,
+        }),
+      )) as PotentialRefundsListResponse;
+      return data.items.map(normalizePotentialRefundItem);
+    },
+  });
+}
+
+export function useDismissPotentialRefund() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (incomeTransactionId: number) => {
+      await unwrapEden(
+        wealthApi.potential_refunds.dismiss.post({
+          body: { income_transaction_id: incomeTransactionId } as never,
+        }),
+      );
+    },
+    onSuccess: () => {
+      invalidateQueries(queryClient, "potentialRefunds");
+    },
+  });
+}
 // #endregion
 
 // #region Asset Operations and Queries

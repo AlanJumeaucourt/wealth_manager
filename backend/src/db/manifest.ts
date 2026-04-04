@@ -247,7 +247,13 @@ export const TABLE_MANIFEST: TableDef[] = [
       defaultFilters: ["id"],
     },
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "user_id", sqlType: "INTEGER", required: true, kind: "server" },
       { name: "name", sqlType: "TEXT", required: true, minLength: 1 },
       { name: "website", sqlType: "TEXT", required: false, nullable: true },
@@ -272,7 +278,13 @@ export const TABLE_MANIFEST: TableDef[] = [
       defaultFilters: ["id", "type", "bank_id"],
     },
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "user_id", sqlType: "INTEGER", required: true, kind: "server" },
       { name: "name", sqlType: "TEXT", required: true, minLength: 1 },
       {
@@ -326,7 +338,13 @@ export const TABLE_MANIFEST: TableDef[] = [
       defaultFilters: ["symbol"],
     },
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "user_id", sqlType: "INTEGER", required: true, kind: "server" },
       { name: "symbol", sqlType: "TEXT", required: true, minLength: 1 },
       { name: "name", sqlType: "TEXT", required: true, minLength: 1 },
@@ -351,7 +369,13 @@ export const TABLE_MANIFEST: TableDef[] = [
       defaultFilters: ["id"],
     },
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "user_id", sqlType: "INTEGER", required: true, kind: "server" },
       { name: "name", sqlType: "TEXT", required: true, minLength: 1 },
       { name: "description", sqlType: "TEXT", required: false, nullable: true },
@@ -388,12 +412,24 @@ export const TABLE_MANIFEST: TableDef[] = [
       listQueryExtraKeys: ["account_id", "has_refund", "from_date", "to_date"],
     },
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "user_id", sqlType: "INTEGER", required: true, kind: "server" },
       { name: "date", sqlType: "TEXT", required: true },
       { name: "date_accountability", sqlType: "TEXT", required: true },
       { name: "description", sqlType: "TEXT", required: true, minLength: 1 },
-      { name: "amount", sqlType: "TEXT", required: true, apiNumber: true, min: 0.000001 },
+      {
+        name: "amount",
+        sqlType: "TEXT",
+        required: true,
+        apiNumber: true,
+        min: 0.000001,
+      },
       {
         name: "to_amount",
         sqlType: "TEXT",
@@ -413,7 +449,13 @@ export const TABLE_MANIFEST: TableDef[] = [
         required: true,
         enumValues: ["expense", "income", "transfer"] as const,
       },
-      { name: "investment_id", sqlType: "INTEGER", required: false, nullable: true, min: 1 },
+      {
+        name: "investment_id",
+        sqlType: "INTEGER",
+        required: false,
+        nullable: true,
+        min: 1,
+      },
     ],
     updatePartial: true,
     primaryKey: { columns: ["id"] },
@@ -452,14 +494,43 @@ export const TABLE_MANIFEST: TableDef[] = [
     tableName: "budgets",
     userUpdatable: true,
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "user_id", sqlType: "INTEGER", required: true, kind: "server" },
       { name: "category", sqlType: "TEXT", required: true, minLength: 1 },
-      { name: "year", sqlType: "INTEGER", required: true, min: 1900, max: 3000 },
+      {
+        name: "year",
+        sqlType: "INTEGER",
+        required: true,
+        min: 1900,
+        max: 3000,
+      },
       { name: "month", sqlType: "INTEGER", required: true, min: 1, max: 12 },
-      { name: "amount", sqlType: "TEXT", required: true, apiUnionStringNumber: true },
-      { name: "created_at", sqlType: "TEXT", required: false, nullable: true, kind: "generated" },
-      { name: "updated_at", sqlType: "TEXT", required: false, nullable: true, kind: "generated" },
+      {
+        name: "amount",
+        sqlType: "TEXT",
+        required: true,
+        apiUnionStringNumber: true,
+      },
+      {
+        name: "created_at",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+        kind: "generated",
+      },
+      {
+        name: "updated_at",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+        kind: "generated",
+      },
     ],
     updatePartial: true,
     primaryKey: { columns: ["id"] },
@@ -468,7 +539,13 @@ export const TABLE_MANIFEST: TableDef[] = [
   {
     tableName: "users",
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "name", sqlType: "TEXT", required: true, minLength: 1 },
       { name: "email", sqlType: "TEXT", required: true, format: "email" },
       { name: "password", sqlType: "TEXT", required: true, minLength: 6 },
@@ -487,12 +564,33 @@ export const TABLE_MANIFEST: TableDef[] = [
       defaultFilters: ["id", "refund_group_id", "income_transaction_id", "expense_transaction_id"],
     },
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "user_id", sqlType: "INTEGER", required: true, kind: "server" },
-      { name: "income_transaction_id", sqlType: "INTEGER", required: true, min: 1 },
-      { name: "expense_transaction_id", sqlType: "INTEGER", required: true, min: 1 },
+      {
+        name: "income_transaction_id",
+        sqlType: "INTEGER",
+        required: true,
+        min: 1,
+      },
+      {
+        name: "expense_transaction_id",
+        sqlType: "INTEGER",
+        required: true,
+        min: 1,
+      },
       { name: "amount", sqlType: "REAL", required: true },
-      { name: "refund_group_id", sqlType: "INTEGER", required: false, nullable: true },
+      {
+        name: "refund_group_id",
+        sqlType: "INTEGER",
+        required: false,
+        nullable: true,
+      },
       { name: "description", sqlType: "TEXT", required: false, nullable: true },
     ],
     updatePartial: true,
@@ -538,7 +636,13 @@ export const TABLE_MANIFEST: TableDef[] = [
       defaultFilters: ["id", "liability_type", "direction", "account_id"],
     },
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "user_id", sqlType: "INTEGER", required: true, kind: "server" },
       { name: "name", sqlType: "TEXT", required: true, minLength: 1 },
       { name: "description", sqlType: "TEXT", required: false, nullable: true },
@@ -549,11 +653,26 @@ export const TABLE_MANIFEST: TableDef[] = [
       { name: "end_date", sqlType: "TEXT", required: false, nullable: true },
       { name: "compounding_period", sqlType: "TEXT", required: true },
       { name: "payment_frequency", sqlType: "TEXT", required: true },
-      { name: "payment_amount", sqlType: "TEXT", required: false, nullable: true },
+      {
+        name: "payment_amount",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+      },
       { name: "deferral_period_months", sqlType: "INTEGER", required: true },
-      { name: "deferral_type", sqlType: "TEXT", required: false, nullable: true },
+      {
+        name: "deferral_type",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+      },
       { name: "direction", sqlType: "TEXT", required: true },
-      { name: "account_id", sqlType: "INTEGER", required: false, nullable: true },
+      {
+        name: "account_id",
+        sqlType: "INTEGER",
+        required: false,
+        nullable: true,
+      },
       { name: "lender_name", sqlType: "TEXT", required: false, nullable: true },
       // API may send null/omit; normalizeLiabilityBody defaults from profile before insert (DB column stays NOT NULL).
       {
@@ -563,11 +682,38 @@ export const TABLE_MANIFEST: TableDef[] = [
         nullable: true,
         typeboxExplicitJsonNull: true,
       },
-      { name: "created_at", sqlType: "TEXT", required: false, nullable: true, kind: "generated" },
-      { name: "updated_at", sqlType: "TEXT", required: false, nullable: true, kind: "generated" },
-      { name: "capitalization_frequency", sqlType: "TEXT", required: false, nullable: true },
-      { name: "interest_calculation", sqlType: "TEXT", required: false, nullable: true },
-      { name: "first_period_days", sqlType: "INTEGER", required: false, nullable: true },
+      {
+        name: "created_at",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+        kind: "generated",
+      },
+      {
+        name: "updated_at",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+        kind: "generated",
+      },
+      {
+        name: "capitalization_frequency",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+      },
+      {
+        name: "interest_calculation",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+      },
+      {
+        name: "first_period_days",
+        sqlType: "INTEGER",
+        required: false,
+        nullable: true,
+      },
     ],
     updatePartial: true,
     primaryKey: { columns: ["id"] },
@@ -605,12 +751,42 @@ export const TABLE_MANIFEST: TableDef[] = [
         required: true,
         enumValues: ["Buy", "Sell", "Dividend", "Interest", "Deposit", "Withdrawal"] as const,
       },
-      { name: "pl_transaction_id", sqlType: "INTEGER", required: false, nullable: true },
-      { name: "fee_transaction_id", sqlType: "INTEGER", required: false, nullable: true },
-      { name: "tax_transaction_id", sqlType: "INTEGER", required: false, nullable: true },
-      { name: "gain_loss_override", sqlType: "TEXT", required: false, nullable: true },
-      { name: "gain_loss_source", sqlType: "TEXT", required: false, nullable: true },
-      { name: "gain_loss_calculated", sqlType: "TEXT", required: false, nullable: true },
+      {
+        name: "pl_transaction_id",
+        sqlType: "INTEGER",
+        required: false,
+        nullable: true,
+      },
+      {
+        name: "fee_transaction_id",
+        sqlType: "INTEGER",
+        required: false,
+        nullable: true,
+      },
+      {
+        name: "tax_transaction_id",
+        sqlType: "INTEGER",
+        required: false,
+        nullable: true,
+      },
+      {
+        name: "gain_loss_override",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+      },
+      {
+        name: "gain_loss_source",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+      },
+      {
+        name: "gain_loss_calculated",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+      },
     ],
     primaryKey: { columns: ["transaction_id"] },
     foreignKeys: [
@@ -676,7 +852,12 @@ export const TABLE_MANIFEST: TableDef[] = [
       { name: "user_id", sqlType: "INTEGER", required: true },
       { name: "institution_id", sqlType: "TEXT", required: true },
       { name: "reference", sqlType: "TEXT", required: false, nullable: true },
-      { name: "agreement_id", sqlType: "TEXT", required: false, nullable: true },
+      {
+        name: "agreement_id",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+      },
       { name: "created_at", sqlType: "TEXT", required: false, nullable: true },
     ],
     primaryKey: {
@@ -718,7 +899,12 @@ export const TABLE_MANIFEST: TableDef[] = [
         typeboxExplicitJsonNull: true,
       },
       { name: "balance", sqlType: "REAL", required: false, nullable: true },
-      { name: "account_type", sqlType: "TEXT", required: false, nullable: true },
+      {
+        name: "account_type",
+        sqlType: "TEXT",
+        required: false,
+        nullable: true,
+      },
       { name: "user_id", sqlType: "INTEGER", required: true },
     ],
     primaryKey: {
@@ -751,7 +937,13 @@ export const TABLE_MANIFEST: TableDef[] = [
   {
     tableName: "custom_prices",
     columns: [
-      { name: "id", sqlType: "INTEGER", required: true, kind: "generated", autoIncrement: true },
+      {
+        name: "id",
+        sqlType: "INTEGER",
+        required: true,
+        kind: "generated",
+        autoIncrement: true,
+      },
       { name: "symbol", sqlType: "TEXT", required: true },
       { name: "date", sqlType: "TEXT", required: true },
       { name: "open", sqlType: "TEXT", required: true },
@@ -926,7 +1118,13 @@ export const TABLE_MANIFEST: TableDef[] = [
     typeboxName: "Investment",
     columns: [
       { name: "date", sqlType: "TEXT", required: true },
-      { name: "asset_id", sqlType: "INTEGER", required: false, nullable: true, min: 1 },
+      {
+        name: "asset_id",
+        sqlType: "INTEGER",
+        required: false,
+        nullable: true,
+        min: 1,
+      },
       { name: "symbol", sqlType: "TEXT", required: false, minLength: 1 },
       { name: "name", sqlType: "TEXT", required: false },
       {
@@ -941,7 +1139,12 @@ export const TABLE_MANIFEST: TableDef[] = [
       { name: "tax", sqlType: "REAL", required: true, min: 0 },
       { name: "from_account_id", sqlType: "INTEGER", required: true, min: 1 },
       { name: "to_account_id", sqlType: "INTEGER", required: true, min: 1 },
-      { name: "gain_loss_override", sqlType: "REAL", required: false, nullable: true },
+      {
+        name: "gain_loss_override",
+        sqlType: "REAL",
+        required: false,
+        nullable: true,
+      },
     ],
     updatePartial: true,
   },
@@ -952,8 +1155,14 @@ export const TABLE_MANIFEST: TableDef[] = [
  * These are part of the Kysely Database type (see src/db/schema.ts), so list endpoints still need
  * a strict allowlist for identifier validation.
  */
-export const VIEW_MANIFEST: ReadonlyArray<{ tableName: string; columns: readonly string[] }> = [
-  { tableName: "account_balances", columns: ["account_id", "current_balance"] as const },
+export const VIEW_MANIFEST: ReadonlyArray<{
+  tableName: string;
+  columns: readonly string[];
+}> = [
+  {
+    tableName: "account_balances",
+    columns: ["account_id", "current_balance"] as const,
+  },
   {
     tableName: "asset_balances_by_account",
     columns: ["user_id", "account_id", "asset_id", "symbol", "asset_name", "quantity"] as const,

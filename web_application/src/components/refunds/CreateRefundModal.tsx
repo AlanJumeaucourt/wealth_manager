@@ -18,6 +18,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 interface CreateRefundModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** When set (without `editMode`), loads this income/expense pair and opens the review step with a default allocation. */
+  prefillPair?: { incomeId: number; expenseId: number } | null;
   editMode?: {
     refundGroupId?: number;
     refundItems: {
@@ -38,8 +40,13 @@ interface AllocationItem {
 
 type Step = "expenses" | "incomes" | "allocations" | "review";
 
-export function CreateRefundModal({ isOpen, onClose, editMode }: CreateRefundModalProps) {
-  console.log("CreateRefundModal render", { isOpen, editMode });
+export function CreateRefundModal({
+  isOpen,
+  onClose,
+  prefillPair = null,
+  editMode,
+}: CreateRefundModalProps) {
+  console.log("CreateRefundModal render", { isOpen, editMode, prefillPair });
   const { toast } = useToast();
   const [step, setStep] = useState<Step>("expenses");
   const [selectedIncomes, setSelectedIncomes] = useState<Transaction[]>([]);
@@ -183,12 +190,16 @@ export function CreateRefundModal({ isOpen, onClose, editMode }: CreateRefundMod
   // Replace individual transaction queries with a single query for all IDs
   const expenseIds = editMode?.refundItems.map((item) => item.expenseId) || [];
   const incomeIds = editMode?.refundItems.map((item) => item.incomeId) || [];
-  const allIds = [...expenseIds, ...incomeIds];
+  const prefillIds = prefillPair && !editMode ? [prefillPair.incomeId, prefillPair.expenseId] : [];
+  const allIds = Array.from(new Set([...expenseIds, ...incomeIds, ...prefillIds]));
 
-  const { data: editTransactions } = useTransactions({
-    id: allIds,
-    per_page: allIds.length || 1,
-  });
+  const { data: editTransactions } = useTransactions(
+    {
+      id: allIds.length > 0 ? allIds : undefined,
+      per_page: Math.max(allIds.length, 1),
+    },
+    { enabled: allIds.length > 0 },
+  );
 
   const editExpenses = editTransactions?.items
     .filter((tx) => expenseIds.includes(tx.id))
@@ -246,6 +257,34 @@ export function CreateRefundModal({ isOpen, onClose, editMode }: CreateRefundMod
     console.log("Setting new allocations", newAllocations);
     setAllocations(newAllocations);
   };
+
+  const initializePrefillMode = useCallback(() => {
+    if (!prefillPair || editMode || isInitialized) return;
+    if (!editTransactions?.items?.length) return;
+
+    const income = editTransactions.items.find((t) => t.id === prefillPair.incomeId);
+    const expense = editTransactions.items.find((t) => t.id === prefillPair.expenseId);
+    if (!income || !expense) return;
+
+    const maxAmount = Math.min(Math.abs(expense.amount), income.amount);
+    setSelectedIncomes([income]);
+    setSelectedExpenses([expense]);
+    setAllocations([
+      {
+        expenseId: expense.id,
+        incomeId: income.id,
+        amount: maxAmount,
+        maxAmount,
+      },
+    ]);
+    const shortDesc = expense.description
+      ? `${expense.description.slice(0, 40)}${expense.description.length > 40 ? "…" : ""}`
+      : "Refund";
+    setGroupName(`${shortDesc} Refund`);
+    setGroupDescription("From potential refund match");
+    setStep("review");
+    setIsInitialized(true);
+  }, [prefillPair, editMode, isInitialized, editTransactions]);
 
   // Initialize edit mode
   const initializeEditMode = useCallback(() => {
@@ -330,6 +369,12 @@ export function CreateRefundModal({ isOpen, onClose, editMode }: CreateRefundMod
       initializeEditMode();
     }
   }, [isOpen, editMode, isInitialized, initializeEditMode]);
+
+  useEffect(() => {
+    if (isOpen && prefillPair && !editMode && !isInitialized) {
+      initializePrefillMode();
+    }
+  }, [isOpen, prefillPair, editMode, isInitialized, initializePrefillMode]);
 
   // Calculate remaining amounts
   const getRemainingAmount = (transaction: Transaction, type: "income" | "expense") => {

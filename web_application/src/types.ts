@@ -7,6 +7,7 @@ export * from "./types/budget";
 export * from "./types/category";
 export * from "./types/investment";
 export * from "./types/liability";
+export * from "./types/potentialRefund";
 export * from "./types/portfolio";
 export * from "./types/refundGroup";
 export * from "./types/refundItem";

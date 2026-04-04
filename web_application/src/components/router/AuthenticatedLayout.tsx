@@ -56,6 +56,13 @@ export function AuthenticatedLayout() {
             default:
               return "Transactions";
           }
+        case "refunds":
+          switch (lastSegment) {
+            case "potential":
+              return "Potential refunds";
+            default:
+              return "Refunds";
+          }
         default:
           return lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1);
       }

@@ -18,6 +18,7 @@ import GoCardlessCallback from "./pages/GoCardlessCallback";
 import { InvestmentsPage } from "./pages/investmentsPage";
 import { InvestmentsTransactionPage } from "./pages/InvestmentsTransactionPage";
 import { Landing } from "./pages/Landing";
+import { PotentialRefundsPage } from "./pages/PotentialRefundsPage";
 import { RefundsPage } from "./pages/RefundsPage";
 import { Signup } from "./pages/Signup";
 import { TransactionDetailPage } from "./pages/TransactionDetailPage";
@@ -221,6 +222,12 @@ const transactionsIndexRoute = new Route({
   },
 });
 
+const refundsPotentialRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/refunds/potential",
+  component: PotentialRefundsPage,
+});
+
 const refundsRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/refunds",
@@ -342,7 +349,8 @@ const routeTree = rootRoute.addChildren([
     budgetSetupRoute,
     // Wealth route
     wealthRoute,
-    // Refunds route
+    // Refunds routes
+    refundsPotentialRoute,
     refundsRoute,
     // Settings routes
     settingsRoute,

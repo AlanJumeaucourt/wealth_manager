@@ -50,6 +50,7 @@ export const QueryKeys = {
   refundGroupById: (id: number) => ["refund_groups", id] as QueryKeyArray,
   refundItems: ["refund_items"] as QueryKeyArray,
   refundItemById: (id: number) => ["refund_items", id] as QueryKeyArray,
+  potentialRefunds: ["potential_refunds"] as QueryKeyArray,
   assets: ["assets"] as QueryKeyArray,
   stockHistory: (symbol: string) => ["stocks", symbol, "history"] as QueryKeyArray,
   stockSearch: (query: string) => ["stocks", "search", query] as QueryKeyArray,

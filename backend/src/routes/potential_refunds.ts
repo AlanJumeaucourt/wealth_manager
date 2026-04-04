@@ -1,6 +1,9 @@
 import { Elysia } from "elysia";
 import { authDerivePlugin, requireAuth } from "../middleware/auth.js";
-import { tPotentialRefundsListQuerySchema } from "../schemas/typebox.js";
+import {
+  tPotentialRefundsListQuerySchema,
+  tPotentialRefundsListResponse,
+} from "../schemas/typebox.js";
 import { getPotentialRefunds, dismissPotentialRefund } from "../services/potentialRefunds.js";
 
 export const potentialRefundsRoutes = new Elysia({
@@ -19,7 +22,18 @@ export const potentialRefundsRoutes = new Elysia({
       const items = await getPotentialRefunds(userId!, limit);
       return { items };
     },
-    { query: tPotentialRefundsListQuerySchema },
+    {
+      query: tPotentialRefundsListQuerySchema,
+      response: {
+        200: tPotentialRefundsListResponse,
+      },
+      detail: {
+        summary: "List potential refunds",
+        description:
+          "Income transactions that look like refund credits, with suggested expense matches. " +
+          "Requires `Authorization: Bearer`.",
+      },
+    },
   )
   .post("/dismiss", async ({ body, userId, set }) => {
     requireAuth({ userId });

@@ -162,6 +162,16 @@ const STATIC_DATA = {
       title: "Refunds",
       url: "/refunds",
       icon: RefreshCw,
+      items: [
+        {
+          title: "Recorded",
+          url: "/refunds",
+        },
+        {
+          title: "Potential",
+          url: "/refunds/potential",
+        },
+      ],
     },
     {
       title: "Import / Export",

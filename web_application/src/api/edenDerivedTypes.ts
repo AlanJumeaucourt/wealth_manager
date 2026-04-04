@@ -79,3 +79,24 @@ type AccountsBalanceOverTimeData = Treaty.Data<
   ReturnType<typeof wealthApi.accounts.balance_over_time.get>
 >;
 export type BalanceHistoryResponse = Exclude<AccountsBalanceOverTimeData, { error: string }>;
+
+// --- Potential refunds (GET /potential_refunds) — response schema on backend enables inference ---
+
+/** `GET /potential_refunds` JSON body (after Eden unwrap). */
+export type PotentialRefundsListResponse = Treaty.Data<
+  ReturnType<typeof wealthApi.potential_refunds.get>
+>;
+
+/** One element of `items` from `GET /potential_refunds`. */
+export type PotentialRefundApiItem = PotentialRefundsListResponse extends {
+  items: readonly (infer Item)[];
+}
+  ? Item
+  : never;
+
+/** Transaction row embedded in potential-refund payloads (same shape for income and suggested expense). */
+export type PotentialRefundTransactionRow = PotentialRefundApiItem extends {
+  incomeTransaction: infer Row;
+}
+  ? Row
+  : never;

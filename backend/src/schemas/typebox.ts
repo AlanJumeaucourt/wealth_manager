@@ -88,3 +88,49 @@ export const tBalanceOverTimeQuerySchema = t.Object(
   },
   { additionalProperties: false },
 );
+
+/** Transaction row embedded in GET /potential_refunds (matches `TransactionRow` in `potentialRefunds` service). */
+export const tPotentialRefundTransactionRow = t.Object(
+  {
+    id: t.Number(),
+    date: t.String(),
+    date_accountability: t.Union([t.String(), t.Null()]),
+    description: t.String(),
+    amount: t.Union([t.String(), t.Number()]),
+    to_amount: t.Union([t.String(), t.Null()]),
+    to_currency: t.Union([t.String(), t.Null()]),
+    from_account_id: t.Number(),
+    to_account_id: t.Number(),
+    category: t.String(),
+    subcategory: t.Union([t.String(), t.Null()]),
+    type: t.String(),
+    investment_id: t.Union([t.Number(), t.Null()]),
+  },
+  /** `selectAll()` may include extra columns (e.g. `user_id`); allow them at runtime. */
+  { additionalProperties: true },
+);
+
+export const tPotentialRefundSuggestedExpense = t.Object(
+  {
+    transaction: tPotentialRefundTransactionRow,
+    score: t.Number(),
+  },
+  { additionalProperties: false },
+);
+
+export const tPotentialRefundItem = t.Object(
+  {
+    incomeTransaction: tPotentialRefundTransactionRow,
+    suggestedExpenses: t.Array(tPotentialRefundSuggestedExpense),
+    matchReason: t.String(),
+  },
+  { additionalProperties: false },
+);
+
+/** GET /potential_refunds 200 body. */
+export const tPotentialRefundsListResponse = t.Object(
+  {
+    items: t.Array(tPotentialRefundItem),
+  },
+  { additionalProperties: false },
+);
