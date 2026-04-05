@@ -61,7 +61,7 @@ function CustomTooltip({
   const investmentGain = data.investment_gain_value;
   const totalValue = data.total_value;
   const balanceByCurrency = data.balance_by_currency as Record<string, number> | undefined;
-  const curr = preferredCurrency || "EUR";
+  const curr = preferredCurrency;
   const hasRange = Boolean(rangeSelection?.startPoint && rangeSelection?.endPoint);
   const startPoint = rangeSelection?.startPoint as ChartPoint | undefined;
   const endPoint = rangeSelection?.endPoint as ChartPoint | undefined;
@@ -545,7 +545,7 @@ export function WealthChart({
                   />
                 }
                 wrapperStyle={{ outline: "none" }}
-                active={currentTooltipIndex !== null}
+                active={hoveredIndex !== null}
               />
             </AreaChart>
           </ResponsiveContainer>

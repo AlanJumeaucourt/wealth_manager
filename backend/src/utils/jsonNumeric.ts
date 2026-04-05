@@ -48,7 +48,9 @@ const TABLE_JSON_NUMERIC_KEYS = buildTableJsonNumericKeys();
 /** Enrichment / computed fields not tied to a single manifest column. */
 const RESPONSE_NUMERIC_KEYS = new Set([
   "refunded_amount",
+  "refunded_amount_preferred",
   "amount_preferred",
+  "net_amount_preferred",
   "balance",
   "balance_preferred",
   "market_value",

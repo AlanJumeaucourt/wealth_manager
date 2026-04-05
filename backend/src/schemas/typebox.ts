@@ -12,8 +12,10 @@ import { tListFilterValueSchema, tListQueryBaseProps } from "./typebox.generated
 
 export * from "./typebox.generated.js";
 
-export { tCreateBudgetSchema as tBudgetUpsertSchema } from "./typebox.generated.js";
-export { tUpdateBudgetSchema as tBudgetUpdateSchema } from "./typebox.generated.js";
+export {
+  tUpdateBudgetSchema as tBudgetUpdateSchema,
+  tCreateBudgetSchema as tBudgetUpsertSchema,
+} from "./typebox.generated.js";
 
 // --- Users: auth-specific shapes (register/login/preferred_currency) ---
 
@@ -61,6 +63,47 @@ export function tListResponseSchema<T extends ReturnType<typeof t.Object>>(itemS
     per_page: t.Number(),
   });
 }
+
+/** Refund line item attached to a transaction on GET /transactions (list/detail). */
+export const tTransactionRefundItemSchema = t.Object({
+  id: t.Number(),
+  amount: t.Number(),
+  date: t.Union([t.String(), t.Null()]),
+  description: t.Union([t.String(), t.Null()]),
+  refund_group_id: t.Union([t.Number(), t.Null()]),
+});
+
+/**
+ * Enriched transaction row for GET /transactions and GET /transactions/:id
+ * (DB row + currency + refund aggregation). `additionalProperties` allows `user_id` and rows
+ * returned when `fields=` requests a column subset.
+ */
+export const tTransactionListItemSchema = t.Object(
+  {
+    id: t.Number(),
+    date: t.String(),
+    date_accountability: t.String(),
+    description: t.String(),
+    amount: t.Number(),
+    from_account_id: t.Number(),
+    to_account_id: t.Number(),
+    type: t.Union([t.Literal("expense"), t.Literal("income"), t.Literal("transfer")]),
+    category: t.String(),
+    subcategory: t.Optional(t.Union([t.String(), t.Null()])),
+    refunded_amount: t.Number(),
+    investment_id: t.Optional(t.Nullable(t.Number())),
+    to_amount: t.Optional(t.Nullable(t.Number())),
+    currency: t.Optional(t.String()),
+    from_currency: t.Optional(t.String()),
+    to_currency: t.Optional(t.String()),
+    /** Booked amount converted to the authenticated user's `users.preferred_currency` (null for cross-currency transfers with two legs). */
+    amount_preferred: t.Optional(t.Nullable(t.Number())),
+    refunded_amount_preferred: t.Optional(t.Number()),
+    net_amount_preferred: t.Optional(t.Nullable(t.Number())),
+    refund_items: t.Optional(t.Array(tTransactionRefundItemSchema)),
+  },
+  { additionalProperties: true },
+);
 
 export function tBatchCreateBodySchema(itemSchema: ReturnType<typeof t.Object>) {
   return t.Object({ items: t.Array(itemSchema, { minItems: 1 }) });

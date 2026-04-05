@@ -18,7 +18,14 @@ import { cn } from "@/lib/utils";
 import { transactionDetailRoute } from "@/Router";
 import { useDialogStore } from "@/store/dialogStore";
 import { Investment, Transaction } from "@/types";
-import { formatCurrency, formatDualCurrency } from "@/utils/currency";
+import { formatCurrency } from "@/utils/currency";
+import {
+  formatSignedTransactionAmountDisplay,
+  formatTransactionAmountDisplay,
+  netAmountAfterRefundsPreferred,
+  refundedAmountPreferred,
+  transactionOriginalCurrency,
+} from "@/utils/transactionDisplay";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
@@ -37,24 +44,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-function formatTxAmount(t: Transaction, preferredCurrency: string): string {
-  const amt = Math.abs(t.amount_preferred ?? t.amount);
-  const curr = t.preferred_currency ?? preferredCurrency;
-  const fromCurr = (t.from_currency ?? "EUR").toUpperCase();
-  const toCurr = (t.to_currency ?? "EUR").toUpperCase();
-  // Cross-currency transfer: - old currency, + new currency
-  if (t.type === "transfer" && t.to_amount != null && fromCurr !== toCurr) {
-    return `-${formatCurrency(Math.abs(t.amount), fromCurr)} (+${formatCurrency(Math.abs(t.to_amount), toCurr)})`;
-  }
-  const orig = t.currency ?? "EUR";
-  if (orig !== curr) {
-    return formatDualCurrency(amt, curr, Math.abs(t.amount), orig);
-  }
-  return formatCurrency(amt, curr);
-}
-
 function formatUnitPrice(amount: number, currency: string): string {
-  const code = (currency || "EUR").toUpperCase();
+  const code = currency.toUpperCase();
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
@@ -153,12 +144,7 @@ function InvestmentTransactionExtras({
     return assetsResponse?.items?.find((a) => a.id === investment.asset_id) ?? null;
   }, [assetsResponse?.items, investment]);
 
-  const displayCurrency = (
-    transaction.currency ??
-    transaction.preferred_currency ??
-    preferredCurrency ??
-    "EUR"
-  ).toUpperCase();
+  const displayCurrency = preferredCurrency.toUpperCase();
 
   const totalFallback =
     investment != null
@@ -666,20 +652,18 @@ export function TransactionDetailPage() {
                 <div className="flex flex-col items-center w-full max-w-sm">
                   <p className={cn("text-lg line-through text-muted-foreground")}>
                     {transaction.type === "transfer"
-                      ? formatTxAmount(transaction, preferredCurrency)
-                      : `${
-                          transaction.type === "expense" ? "-" : "+"
-                        }${formatTxAmount(transaction, preferredCurrency)}`}
+                      ? formatTransactionAmountDisplay(transaction, preferredCurrency)
+                      : formatSignedTransactionAmountDisplay(transaction, preferredCurrency)}
                   </p>
                   <p className={cn("text-3xl font-semibold tracking-tight", transactionColor)}>
                     {transaction.type === "transfer"
                       ? formatCurrency(
-                          Math.abs(transaction.amount - transaction.refunded_amount),
-                          transaction.preferred_currency ?? preferredCurrency,
+                          netAmountAfterRefundsPreferred(transaction),
+                          preferredCurrency,
                         )
                       : `${transaction.type === "expense" ? "-" : "+"}${formatCurrency(
-                          Math.abs(transaction.amount - transaction.refunded_amount),
-                          transaction.preferred_currency ?? preferredCurrency,
+                          netAmountAfterRefundsPreferred(transaction),
+                          preferredCurrency,
                         )}`}
                   </p>
 
@@ -687,10 +671,7 @@ export function TransactionDetailPage() {
                     <RefreshCw className="h-3.5 w-3.5 mr-1" />
                     <span>
                       {transaction.type === "expense" ? "Refunded: " : "Used in refunds: "}
-                      {formatCurrency(
-                        transaction.refunded_amount,
-                        transaction.preferred_currency ?? preferredCurrency,
-                      )}
+                      {formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       (
@@ -720,10 +701,8 @@ export function TransactionDetailPage() {
               ) : (
                 <p className={cn("text-3xl font-semibold tracking-tight", transactionColor)}>
                   {transaction.type === "transfer"
-                    ? formatTxAmount(transaction, preferredCurrency)
-                    : `${
-                        transaction.type === "expense" ? "-" : "+"
-                      }${formatTxAmount(transaction, preferredCurrency)}`}
+                    ? formatTransactionAmountDisplay(transaction, preferredCurrency)
+                    : formatSignedTransactionAmountDisplay(transaction, preferredCurrency)}
                 </p>
               )}
             </div>
@@ -824,16 +803,13 @@ export function TransactionDetailPage() {
                     <div className="space-y-1">
                       <span className="text-sm text-muted-foreground">Original Amount</span>
                       <p className="text-lg font-medium text-destructive">
-                        {formatTxAmount(transaction, preferredCurrency)}
+                        {formatTransactionAmountDisplay(transaction, preferredCurrency)}
                       </p>
                     </div>
                     <div className="space-y-1">
                       <span className="text-sm text-muted-foreground">Total Refunded</span>
                       <p className="text-lg font-medium text-emerald-600">
-                        {formatCurrency(
-                          refundItems.reduce((total, item) => total + item.amount, 0),
-                          transaction.preferred_currency ?? preferredCurrency,
-                        )}
+                        {formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}
                       </p>
                     </div>
                   </div>
@@ -853,9 +829,8 @@ export function TransactionDetailPage() {
                       <div className="text-right">
                         <span className="text-xs font-semibold inline-block text-destructive">
                           {formatCurrency(
-                            Math.abs(transaction.amount) -
-                              refundItems.reduce((total, item) => total + item.amount, 0),
-                            transaction.preferred_currency ?? preferredCurrency,
+                            netAmountAfterRefundsPreferred(transaction),
+                            preferredCurrency,
                           )}{" "}
                           remaining
                         </span>
@@ -926,7 +901,7 @@ export function TransactionDetailPage() {
                               {transaction.type === "expense" ? "+" : "-"}
                               {formatCurrency(
                                 Math.abs(item.amount),
-                                transaction.preferred_currency ?? preferredCurrency,
+                                transactionOriginalCurrency(transaction),
                               )}
                             </p>
                           </div>

@@ -3,6 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { Account, Transaction } from "@/types";
 import { formatCurrency } from "@/utils/currency";
+import { amountPreferredOrFallback } from "@/utils/transactionDisplay";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock } from "lucide-react";
 
@@ -63,10 +64,7 @@ export function RecentActivity({
   };
 
   const formatAmount = (t: Transaction) =>
-    formatCurrency(
-      Math.abs(t.amount_preferred ?? t.amount),
-      t.preferred_currency ?? preferredCurrency,
-    );
+    formatCurrency(amountPreferredOrFallback(t), preferredCurrency);
 
   // Format date
   const formatDate = (dateStr: string) => {

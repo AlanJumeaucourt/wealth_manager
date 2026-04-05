@@ -1,8 +1,14 @@
 import { authFetch } from "@/api/authFetch";
 import { handleTokenExpiration } from "@/utils/auth";
-import { QueryKey, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  QueryKey,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import type { PaginatedResponse } from "../types";
-import { type TreatyResult, unwrapEden } from "./edenUnwrap";
+import { unwrapEden, type TreatyResult } from "./edenUnwrap";
 import { API_URL, QueryKeyArray, QueryKeys } from "./queryKeys";
 import { wealthApi } from "./wealthApi";
 
@@ -145,6 +151,63 @@ export function invalidateQueries(
   }
 }
 
+function isPaginatedListCache(value: unknown): value is PaginatedResponse<unknown> {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as PaginatedResponse<unknown>;
+  return Array.isArray(v.items) && typeof v.total === "number";
+}
+
+/**
+ * Optimistically removes rows from every cached query whose key matches `queryKey` (prefix match).
+ * Supports plain `T[]` caches and {@link PaginatedResponse} (filters `items`, adjusts `total`).
+ * Use with {@link rollbackOptimisticQuerySnapshots} in the mutation `onError` handler.
+ */
+export async function optimisticFilterListQueries<T>(
+  queryClient: QueryClient,
+  options: {
+    queryKey: QueryKey;
+    /** Return true to keep the row; false removes it from the cached list. */
+    shouldKeep: (item: T) => boolean;
+    /** Default true: avoids in-flight fetches overwriting the optimistic update. */
+    cancelQueries?: boolean;
+  },
+): Promise<{ previous: Array<[QueryKey, unknown]> }> {
+  const { queryKey, shouldKeep, cancelQueries = true } = options;
+  if (cancelQueries) {
+    await queryClient.cancelQueries({ queryKey });
+  }
+  const previous = queryClient.getQueriesData({ queryKey });
+  queryClient.setQueriesData({ queryKey }, (old: unknown) => {
+    if (old == null) return old;
+    if (isPaginatedListCache(old)) {
+      const newItems = old.items.filter(
+        shouldKeep as (item: unknown) => boolean,
+      ) as typeof old.items;
+      const removed = old.items.length - newItems.length;
+      return {
+        ...old,
+        items: newItems,
+        total: Math.max(0, old.total - removed),
+      };
+    }
+    if (Array.isArray(old)) {
+      return old.filter(shouldKeep as (item: unknown) => boolean);
+    }
+    return old;
+  });
+  return { previous };
+}
+
+/** Restores cache entries from a snapshot produced by {@link optimisticFilterListQueries}. */
+export function rollbackOptimisticQuerySnapshots(
+  queryClient: QueryClient,
+  previous: Array<[QueryKey, unknown]>,
+): void {
+  for (const [key, data] of previous) {
+    queryClient.setQueryData(key, data);
+  }
+}
+
 interface QueryConfig<T> {
   queryKey: readonly unknown[];
   queryFn: () => Promise<T>;
@@ -199,6 +262,20 @@ const CRUD_PATH: Record<CrudResourceKey, string> = {
   assets: "assets",
 };
 
+/** Primary list query prefix for each CRUD resource (paginated and/or array list caches). */
+const CRUD_LIST_QUERY_KEY: Record<CrudResourceKey, QueryKey> = {
+  banks: QueryKeys.banks,
+  accounts: QueryKeys.accounts,
+  transactions: QueryKeys.transactions,
+  investments: QueryKeys.investments,
+  refund_groups: QueryKeys.refundGroups,
+  refund_items: QueryKeys.refundItems,
+  liabilities: QueryKeys.liabilities,
+  liability_payments: QueryKeys.liabilityPayments,
+  budgets_budgets: QueryKeys.budgets,
+  assets: QueryKeys.assets,
+};
+
 function crudResource(key: CrudResourceKey) {
   switch (key) {
     case "banks":
@@ -245,14 +322,27 @@ export function createCrudOperations<T extends { id?: number }, TCreate = Omit<T
 
   const useBatchDelete = () => {
     const queryClient = useQueryClient();
-    return useBatchDeleteMutation(resource, queryKeysToInvalidate, queryClient);
+    return useBatchDeleteMutation<T>(resource, queryKeysToInvalidate, queryClient);
   };
 
   const useDelete = () => {
     const queryClient = useQueryClient();
-    return useMutation<T, Error, number>({
+    const listQueryKey = CRUD_LIST_QUERY_KEY[resource];
+    return useMutation<T, Error, number, { previous: Array<[QueryKey, unknown]> }>({
       mutationFn: (id: number) =>
         unwrapEden(res({ id: String(id) }).delete() as Promise<TreatyResult<T>>),
+      onMutate: async (id) => {
+        const { previous } = await optimisticFilterListQueries<T>(queryClient, {
+          queryKey: listQueryKey,
+          shouldKeep: (item) => Number(item.id) !== id,
+        });
+        return { previous };
+      },
+      onError: (_err, _id, ctx) => {
+        if (ctx?.previous) {
+          rollbackOptimisticQuerySnapshots(queryClient, ctx.previous);
+        }
+      },
       onSuccess: () => {
         queryKeysToInvalidate.forEach((key) => {
           invalidateQueries(queryClient, key);
@@ -265,11 +355,7 @@ export function createCrudOperations<T extends { id?: number }, TCreate = Omit<T
     const queryClient = useQueryClient();
     return useMutation<T, Error, TCreate>({
       mutationFn: (data: TCreate) =>
-        unwrapEden(
-          (res.post as (args: { body: unknown }) => Promise<TreatyResult<T>>)({
-            body: data,
-          }),
-        ),
+        unwrapEden((res.post as (payload: TCreate) => Promise<TreatyResult<T>>)(data)),
       onSuccess: () => {
         queryKeysToInvalidate.forEach((key) => {
           invalidateQueries(queryClient, key);
@@ -285,9 +371,9 @@ export function createCrudOperations<T extends { id?: number }, TCreate = Omit<T
         const { id, ...updateData } = data;
         const endpoint = res({ id: String(id) });
         return unwrapEden(
-          (endpoint.put as (args: { body: unknown }) => Promise<TreatyResult<T>>)({
-            body: updateData,
-          }),
+          (endpoint.put as (payload: Record<string, unknown>) => Promise<TreatyResult<T>>)(
+            updateData as Record<string, unknown>,
+          ),
         );
       },
       onSuccess: () => {
@@ -314,7 +400,7 @@ export function useBatchCreateMutation<T extends { id?: number }, TItem = Omit<T
   const res = crudResource(resource) as {
     batch?: {
       create: {
-        post: (args: { body: { items: unknown[] } }) => Promise<unknown>;
+        post: (args: { items: unknown[] }) => Promise<unknown>;
       };
     };
   };
@@ -326,7 +412,7 @@ export function useBatchCreateMutation<T extends { id?: number }, TItem = Omit<T
       if (res.batch?.create?.post) {
         return unwrapEden(
           res.batch.create.post({
-            body: { items: items as never[] },
+            items: items as never[],
           }) as Promise<TreatyResult<BatchCreateResponse<T>>>,
         );
       }
@@ -347,17 +433,23 @@ export function useBatchCreateMutation<T extends { id?: number }, TItem = Omit<T
   });
 }
 
-function useBatchDeleteMutation(
+function useBatchDeleteMutation<T extends { id?: number }>(
   resource: CrudResourceKey,
   queryKeysToInvalidate: (keyof typeof QueryKeys)[],
   queryClient: ReturnType<typeof useQueryClient>,
 ) {
+  const listQueryKey = CRUD_LIST_QUERY_KEY[resource];
   const res = crudResource(resource) as {
     batch?: {
-      delete: { post: (args: { body: { ids: number[] } }) => Promise<unknown> };
+      delete: { post: (args: { ids: number[] }) => Promise<unknown> };
     };
   };
-  return useMutation<BatchDeleteResponse, Error, number[]>({
+  return useMutation<
+    BatchDeleteResponse,
+    Error,
+    number[],
+    { previous: Array<[QueryKey, unknown]> }
+  >({
     mutationFn: async (ids: number[]) => {
       if (!Array.isArray(ids) || ids.length === 0) {
         throw new Error("No IDs provided for batch delete");
@@ -365,7 +457,7 @@ function useBatchDeleteMutation(
       if (res.batch?.delete?.post) {
         return unwrapEden(
           res.batch.delete.post({
-            body: { ids },
+            ids,
           }) as Promise<TreatyResult<BatchDeleteResponse>>,
         );
       }
@@ -373,6 +465,19 @@ function useBatchDeleteMutation(
         method: "POST",
         body: { ids },
       });
+    },
+    onMutate: async (ids) => {
+      const idSet = new Set(ids);
+      const { previous } = await optimisticFilterListQueries<T>(queryClient, {
+        queryKey: listQueryKey,
+        shouldKeep: (item) => item.id == null || !idSet.has(Number(item.id)),
+      });
+      return { previous };
+    },
+    onError: (_err, _ids, ctx) => {
+      if (ctx?.previous) {
+        rollbackOptimisticQuerySnapshots(queryClient, ctx.previous);
+      }
     },
     onSuccess: () => {
       queryKeysToInvalidate.forEach((key) => {

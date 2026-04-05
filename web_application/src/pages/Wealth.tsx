@@ -265,7 +265,7 @@ function WealthKPIs({
   includeDebt,
 }: WealthKPIsProps) {
   const { preferredCurrency } = usePreferredCurrency();
-  const curr = preferredCurrency || "EUR";
+  const curr = preferredCurrency;
 
   const kpis = useMemo(() => {
     if (!wealthData) return null;

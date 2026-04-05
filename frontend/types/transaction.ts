@@ -12,10 +12,12 @@ export interface Transaction {
   subcategory: string | null;
   is_investment: boolean;
 
-  // Enriched by backend for multi-currency display
+  // Enriched by backend for multi-currency display (amounts are in native account currencies)
   currency?: string;
   from_currency?: string;
   to_currency?: string;
-  preferred_currency?: string;
-  amount_preferred?: number;
+  /** Converted to the user's preferred currency (see GET /users). */
+  amount_preferred?: number | null;
+  refunded_amount_preferred?: number;
+  net_amount_preferred?: number | null;
 }

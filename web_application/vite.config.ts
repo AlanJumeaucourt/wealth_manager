@@ -1,8 +1,8 @@
 import { devtools } from "@tanstack/devtools-vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import { defineConfig } from "vite-plus";
 import { VitePWA } from "vite-plugin-pwa";
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   fmt: {},
@@ -161,6 +161,7 @@ export default defineConfig({
     },
   },
   server: {
+    allowedHosts: true,
     proxy: {
       "/api": {
         target: "http://backend:5000/",

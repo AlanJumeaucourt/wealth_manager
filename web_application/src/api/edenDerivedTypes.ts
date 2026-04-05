@@ -80,6 +80,43 @@ type AccountsBalanceOverTimeData = Treaty.Data<
 >;
 export type BalanceHistoryResponse = Exclude<AccountsBalanceOverTimeData, { error: string }>;
 
+// --- Transactions (GET list / POST / query) ---
+
+type TransactionsListPayload = Treaty.Data<ReturnType<typeof wealthApi.transactions.get>>;
+
+/** Row from `GET /transactions` `items[]` / `GET /transactions/:id` (enriched row). */
+export type Transaction = TransactionsListPayload extends {
+  items: infer Items extends readonly unknown[];
+}
+  ? Items[number]
+  : never;
+
+type TransactionsPost = WealthApi["transactions"] extends {
+  post: infer P extends (...args: never[]) => unknown;
+}
+  ? P
+  : never;
+type TransactionsPostFirstArg = Parameters<TransactionsPost>[0];
+/**
+ * `POST /transactions` body — inferred from the treaty client (`wealthApi` is typed loosely to avoid TS2344).
+ */
+export type TransactionCreateBody = TransactionsPostFirstArg extends { body: infer B }
+  ? B
+  : TransactionsPostFirstArg;
+
+type TransactionsGet = WealthApi["transactions"] extends {
+  get: infer G extends (...args: never[]) => unknown;
+}
+  ? G
+  : never;
+type TransactionsGetArgs = NonNullable<Parameters<TransactionsGet>[0]>;
+/** `GET /transactions` query — matches `tTransactionsListQuerySchema` in the backend. */
+export type TransactionQueryParams = TransactionsGetArgs extends { query?: infer Q }
+  ? Q
+  : TransactionsGetArgs extends { query: infer Q }
+    ? Q
+    : never;
+
 // --- Potential refunds (GET /potential_refunds) — response schema on backend enables inference ---
 
 /** `GET /potential_refunds` JSON body (after Eden unwrap). */

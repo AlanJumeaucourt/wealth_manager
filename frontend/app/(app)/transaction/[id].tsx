@@ -5,7 +5,8 @@ import { colors } from "@/constants/colors";
 import { darkTheme } from "@/constants/theme";
 import { sharedStyles } from "@/styles/sharedStyles";
 import { Account } from "@/types/account";
-import { formatCurrency } from "@/utils/currency";
+import { formatTransactionAmountDisplay } from "@/utils/transactionDisplay";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -14,29 +15,6 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Icon, Text } from "react-native-elements";
 import { Menu } from "react-native-paper";
 import { useSelector } from "react-redux";
-
-const formatTransactionAmount = (t: any) => {
-  const preferredCurrency = (t.preferred_currency || "EUR").toUpperCase();
-  const fromCurrency = (t.from_currency || t.currency || "EUR").toUpperCase();
-  const toCurrency = (t.to_currency || "EUR").toUpperCase();
-
-  const signedPreferred =
-    t.type === "expense" ? -(t.amount_preferred ?? t.amount) : (t.amount_preferred ?? t.amount);
-
-  if (t.type === "transfer" && t.to_amount != null && fromCurrency !== toCurrency) {
-    const sent = formatCurrency(t.amount, fromCurrency);
-    const received = formatCurrency(t.to_amount, toCurrency);
-    return `${formatCurrency(signedPreferred, preferredCurrency)} (${sent} → ${received})`;
-  }
-
-  const originalCurrency = t.type === "income" ? toCurrency : fromCurrency;
-  const originalAmount = t.type === "income" ? (t.to_amount ?? t.amount) : t.amount;
-  const signedOriginal = t.type === "expense" ? -originalAmount : originalAmount;
-
-  const preferredText = formatCurrency(signedPreferred, preferredCurrency);
-  if (preferredCurrency === originalCurrency) return preferredText;
-  return `${preferredText} (${formatCurrency(signedOriginal, originalCurrency)})`;
-};
 
 const accountNameFromId = (accountId: number, accounts: Account[] | undefined) => {
   if (!accounts || !Array.isArray(accounts)) {
@@ -70,6 +48,13 @@ export default function TransactionDetailsScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const transaction = params.transaction ? JSON.parse(params.transaction as string) : undefined;
+  const [preferredCurrency, setPreferredCurrency] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    void AsyncStorage.getItem("preferredCurrency").then((v) => {
+      if (v) setPreferredCurrency(v.toUpperCase());
+    });
+  }, []);
 
   const { accounts, error: accountsError } = useSelector((state: any) => state.accounts || {});
 
@@ -167,7 +152,9 @@ export default function TransactionDetailsScreen() {
             </View>
           </View>
           <Text style={[styles.amount, { color: getAmountColor(transaction.type) }]}>
-            {formatTransactionAmount(transaction)}
+            {preferredCurrency
+              ? formatTransactionAmountDisplay(transaction, preferredCurrency)
+              : "—"}
           </Text>
 
           <View style={styles.categoryContainer}>

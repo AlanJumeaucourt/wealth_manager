@@ -29,7 +29,13 @@ import { useDateRange } from "@/contexts/date-range-context";
 import { useCategories } from "@/hooks/use-categories";
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { CategoryMetadata } from "@/types/category";
+import type { Transaction as ApiTransaction } from "@/types";
 import { formatCurrency } from "@/utils/currency";
+import {
+  amountPreferredOrFallback,
+  netAmountAfterRefundsPreferred,
+  transactionOriginalCurrency,
+} from "@/utils/transactionDisplay";
 import { useNavigate } from "@tanstack/react-router";
 import { formatDate } from "date-fns";
 import {
@@ -55,8 +61,10 @@ interface Transaction {
   category: string;
   subcategory?: string;
   refunded_amount: number;
-  amount_preferred?: number;
-  preferred_currency?: string;
+  from_currency?: string;
+  to_currency?: string;
+  currency?: string;
+  to_amount?: number | null;
 }
 
 interface TransformedCategory {
@@ -280,14 +288,14 @@ function TransactionDialog({ category, open, onOpenChange, type }: TransactionDi
                           <>
                             <span className="text-sm line-through text-muted-foreground">
                               {formatCurrency(
-                                (type === "expense" ? -1 : 1) *
-                                  Math.abs(transaction.amount_preferred ?? transaction.amount),
-                                transaction.preferred_currency ?? preferredCurrency,
+                                (type === "expense" ? -1 : 1) * Math.abs(transaction.amount),
+                                transactionOriginalCurrency(transaction as ApiTransaction),
                               )}
                             </span>
                             <span className="text-sm font-medium">
                               {formatCurrency(
-                                (type === "expense" ? -1 : 1) * netAmount,
+                                (type === "expense" ? -1 : 1) *
+                                  netAmountAfterRefundsPreferred(transaction as ApiTransaction),
                                 preferredCurrency,
                               )}
                             </span>
@@ -296,8 +304,8 @@ function TransactionDialog({ category, open, onOpenChange, type }: TransactionDi
                           <span className="text-sm font-medium">
                             {formatCurrency(
                               (type === "expense" ? -1 : 1) *
-                                Math.abs(transaction.amount_preferred ?? transaction.amount),
-                              transaction.preferred_currency ?? preferredCurrency,
+                                amountPreferredOrFallback(transaction as ApiTransaction),
+                              preferredCurrency,
                             )}
                           </span>
                         )}

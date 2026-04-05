@@ -24,6 +24,7 @@ From repo root after `bun install`:
 - **Backend:** `cd backend && cp .env.example .env` (set `JWT_SECRET_KEY`, paths), then `bun run dev`. OpenAPI at `/openapi`, health at `/health`.
 - **Web app:** `cd web_application` and `VITE_API_URL=http://localhost:5000 vp dev --host` (or whatever URL the browser can reach).
 - **Docker dev (API + web + hot reload):** `docker compose -f docker-compose.dev.yml up --build` — see root README for ports and env.
+  - To see logs from all Docker containers, run: `docker compose logs`
 
 Production-style Docker: `docker-compose.prod.yml`; optional `API_URL=...` when building the web image for a public API base URL.
 

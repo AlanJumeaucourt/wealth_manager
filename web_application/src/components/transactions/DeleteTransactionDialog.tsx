@@ -12,6 +12,7 @@ import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useToast } from "@/hooks/use-toast";
 import { useDialogStore } from "@/store/dialogStore";
 import { formatCurrency } from "@/utils/currency";
+import { amountPreferredOrFallback } from "@/utils/transactionDisplay";
 import { useNavigate } from "@tanstack/react-router";
 import { memo, useCallback } from "react";
 
@@ -79,14 +80,7 @@ export const DeleteTransactionDialog = memo(function DeleteTransactionDialog({
                 </p>
                 <p>
                   <strong>Amount:</strong>{" "}
-                  {formatCurrency(
-                    Math.abs(
-                      (transaction as { amount_preferred?: number }).amount_preferred ??
-                        transaction.amount,
-                    ),
-                    (transaction as { preferred_currency?: string }).preferred_currency ??
-                      preferredCurrency,
-                  )}
+                  {formatCurrency(amountPreferredOrFallback(transaction), preferredCurrency)}
                 </p>
                 <p>
                   <strong>Date:</strong> {new Date(transaction.date).toLocaleDateString()}

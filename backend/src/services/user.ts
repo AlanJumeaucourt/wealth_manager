@@ -45,6 +45,16 @@ function rowToUser(row: {
   };
 }
 
+/** Uppercase ISO currency code for display amounts (`amount_preferred`, etc.). */
+export async function getUserPreferredCurrency(userId: number): Promise<string> {
+  const row = await db()
+    .selectFrom("users")
+    .select("preferred_currency")
+    .where("id", "=", userId)
+    .executeTakeFirst();
+  return (row?.preferred_currency ?? "EUR").toUpperCase();
+}
+
 export async function getUserById(userId: number): Promise<User | null> {
   const row = await db()
     .selectFrom("users")

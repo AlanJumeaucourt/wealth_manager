@@ -19,8 +19,8 @@ export function formatDualCurrency(
   originalCurrency: string,
   locale?: string,
 ): string {
-  const pref = (preferredCurrency || "EUR").toUpperCase();
-  const orig = (originalCurrency || "EUR").toUpperCase();
+  const pref = preferredCurrency.toUpperCase();
+  const orig = originalCurrency.toUpperCase();
   const preferredText = formatCurrency(amountPreferred, pref, locale);
 
   if (pref === orig) {
@@ -32,7 +32,7 @@ export function formatDualCurrency(
 }
 
 export function formatCompactCurrency(amount: number, currency: string): string {
-  const code = (currency || "EUR").toUpperCase();
+  const code = currency.toUpperCase();
   const abs = Math.abs(amount);
   const sign = amount < 0 ? "-" : "";
   const compact = (value: number, suffix: string) => `${sign}${value.toFixed(2)}${suffix} ${code}`;

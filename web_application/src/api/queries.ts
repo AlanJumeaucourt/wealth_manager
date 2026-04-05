@@ -1,3 +1,4 @@
+import type { PotentialRefundsListResponse } from "@/api/edenDerivedTypes";
 import {
   Account,
   AccountCreateBody,
@@ -25,9 +26,10 @@ import {
   LiabilityFilters,
   LiabilityPayment,
   LiabilityPaymentFilters,
-  PaginatedResponse,
-  PeriodSummaryResponse,
   normalizePotentialRefundItem,
+  PaginatedResponse,
+  PotentialRefund,
+  PeriodSummaryResponse,
   PortfolioPerformance,
   PortfolioRiskMetrics,
   PortfolioSummary,
@@ -38,21 +40,29 @@ import {
   StockPrice,
   StockSearchResult,
   Transaction,
+  TransactionCreateBody,
   TransactionPaginatedResponse,
   TransactionQueryParams,
 } from "@/types";
-import type { PotentialRefundsListResponse } from "@/api/edenDerivedTypes";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  type QueryKey,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   type BatchOperationResponse,
   buildListQueryParams,
-  useBatchCreateMutation,
   createCrudOperations,
   createPaginatedQuery,
-  useCreateQuery,
   DEFAULT_STALE_TIME,
   fetchWithAuth,
   invalidateQueries,
+  optimisticFilterListQueries,
+  rollbackOptimisticQuerySnapshots,
+  useBatchCreateMutation,
+  useCreateQuery,
 } from "./apiUtils";
 import { unwrapEden } from "./edenUnwrap";
 import { QueryKeys } from "./queryKeys";
@@ -215,7 +225,7 @@ export function useWealthOverTimeWithGains(options?: { includeDebt?: boolean }) 
 // #endregion
 
 // #region Transaction Operations and Queries
-const transactionOperations = createCrudOperations<Transaction>({
+const transactionOperations = createCrudOperations<Transaction, TransactionCreateBody>({
   resource: "transactions",
   queryKeysToInvalidate: [
     "transactions",
@@ -236,7 +246,7 @@ export const {
 
 export function useBatchCreateTransactions() {
   const queryClient = useQueryClient();
-  return useBatchCreateMutation<Transaction>(
+  return useBatchCreateMutation<Transaction, TransactionCreateBody>(
     "transactions",
     [
       "transactions",
@@ -381,13 +391,37 @@ export function usePotentialRefunds(options?: { limit?: number }) {
 
 export function useDismissPotentialRefund() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useMutation<void, Error, number, { previous: Array<[QueryKey, unknown]> }>({
     mutationFn: async (incomeTransactionId: number) => {
       await unwrapEden(
         wealthApi.potential_refunds.dismiss.post({
-          body: { income_transaction_id: incomeTransactionId } as never,
-        }),
+          income_transaction_id: incomeTransactionId,
+        } as never),
       );
+    },
+    onMutate: async (incomeTransactionId) => {
+      const { previous } = await optimisticFilterListQueries<PotentialRefund>(queryClient, {
+        queryKey: QueryKeys.potentialRefunds,
+        shouldKeep: (item) => item.incomeTransaction.id !== incomeTransactionId,
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        rollbackOptimisticQuerySnapshots(queryClient, ctx.previous);
+      }
+    },
+    onSuccess: () => {
+      invalidateQueries(queryClient, "potentialRefunds");
+    },
+  });
+}
+
+export function useResetPotentialRefundDismissals() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, void>({
+    mutationFn: async () => {
+      await unwrapEden(wealthApi.potential_refunds.reset_dismissals.post({} as never));
     },
     onSuccess: () => {
       invalidateQueries(queryClient, "potentialRefunds");
@@ -416,9 +450,7 @@ export function useCreateAsset() {
   const queryClient = useQueryClient();
   return useMutation<Asset, Error, { symbol: string; name: string; type: string }>({
     mutationFn: (data) =>
-      unwrapEden(
-        wealthApi.assets.post({ body: data as never } as never),
-      ) as unknown as Promise<Asset>,
+      unwrapEden(wealthApi.assets.post(data as never)) as unknown as Promise<Asset>,
     onSuccess: () => {
       invalidateQueries(queryClient, "assets");
       invalidateQueries(queryClient, "investments");
@@ -776,10 +808,12 @@ export function useRecordLiabilityPayment() {
   return useMutation({
     mutationFn: (data: Omit<LiabilityPayment, "id" | "created_at" | "updated_at">) =>
       unwrapEden(
-        wealthApi.liability_payments.record.post({ body: data as never } as never),
+        wealthApi.liability_payments.record.post(data as never),
       ) as unknown as Promise<LiabilityPayment>,
     onSuccess: (returnedData) => {
-      void queryClient.invalidateQueries({ queryKey: QueryKeys.liabilityPayments });
+      void queryClient.invalidateQueries({
+        queryKey: QueryKeys.liabilityPayments,
+      });
       if (returnedData && returnedData.liability_id) {
         void queryClient.invalidateQueries({
           queryKey: QueryKeys.liabilityPaymentsByLiability(returnedData.liability_id),
@@ -800,7 +834,9 @@ export function useUpdatePreferredCurrency() {
     mutationFn: (preferred_currency: string) =>
       unwrapEden(
         wealthApi.users.preferred_currency.put({
-          body: { preferred_currency: preferred_currency.toUpperCase() } as never,
+          body: {
+            preferred_currency: preferred_currency.toUpperCase(),
+          } as never,
         } as never),
       ) as unknown as Promise<{ preferred_currency: string }>,
     onSuccess: (_, preferred_currency) => {

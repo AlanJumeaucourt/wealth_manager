@@ -4,7 +4,11 @@ import {
   tPotentialRefundsListQuerySchema,
   tPotentialRefundsListResponse,
 } from "../schemas/typebox.js";
-import { getPotentialRefunds, dismissPotentialRefund } from "../services/potentialRefunds.js";
+import {
+  clearDismissedPotentialRefunds,
+  dismissPotentialRefund,
+  getPotentialRefunds,
+} from "../services/potentialRefunds.js";
 
 export const potentialRefundsRoutes = new Elysia({
   prefix: "/potential_refunds",
@@ -47,4 +51,21 @@ export const potentialRefundsRoutes = new Elysia({
     await dismissPotentialRefund(userId!, incomeTransactionId);
     set.status = 204;
     return "";
-  });
+  })
+  .post(
+    "/reset_dismissals",
+    async ({ userId, set }) => {
+      requireAuth({ userId });
+      await clearDismissedPotentialRefunds(userId!);
+      set.status = 204;
+      return "";
+    },
+    {
+      detail: {
+        summary: "Reset all dismissed potential refunds",
+        description:
+          "Clears every row in dismissed_potential_refunds for the current user so those " +
+          "income transactions can appear again in GET /potential_refunds. Requires `Authorization: Bearer`.",
+      },
+    },
+  );

@@ -11,8 +11,9 @@ import {
 import { DialogTitle } from "@/components/ui/dialog";
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useCommandPalette } from "@/hooks/useCommandPalette";
+import type { Transaction } from "@/types";
 import type { LiabilityFilters } from "@/types/liability";
-import { formatCurrency } from "@/utils/currency";
+import { formatTransactionAmountDisplay } from "@/utils/transactionDisplay";
 import { useRouter } from "@tanstack/react-router";
 import {
   BarChart3,
@@ -117,24 +118,8 @@ export function CommandPalette() {
 
   const { preferredCurrency } = usePreferredCurrency();
 
-  const formatTransactionAmount = (tx: {
-    type: string;
-    amount: number;
-    to_amount?: number | null;
-    from_currency?: string;
-    to_currency?: string;
-    amount_preferred?: number;
-    preferred_currency?: string;
-  }) => {
-    const fromCurr = (tx.from_currency ?? "EUR").toUpperCase();
-    const toCurr = (tx.to_currency ?? "EUR").toUpperCase();
-    if (tx.type === "transfer" && tx.to_amount != null && fromCurr !== toCurr) {
-      return `-${formatCurrency(Math.abs(tx.amount), fromCurr)} (+${formatCurrency(Math.abs(tx.to_amount), toCurr)})`;
-    }
-    const amt = Math.abs(tx.amount_preferred ?? tx.amount);
-    const curr = tx.preferred_currency ?? preferredCurrency;
-    return formatCurrency(amt, curr);
-  };
+  const formatTransactionAmount = (tx: Transaction) =>
+    formatTransactionAmountDisplay(tx, preferredCurrency);
 
   const isLoading = accountsLoading || assetsLoading || transactionsLoading || liabilitiesLoading;
 

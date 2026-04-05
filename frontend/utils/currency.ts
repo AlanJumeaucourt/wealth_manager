@@ -12,8 +12,8 @@ export function convertAmount(
   fromCurrency: CurrencyCode,
   toCurrency: CurrencyCode,
 ): number {
-  const from = (fromCurrency || "EUR").toUpperCase();
-  const to = (toCurrency || "EUR").toUpperCase();
+  const from = fromCurrency.toUpperCase();
+  const to = toCurrency.toUpperCase();
   const key = `${from}->${to}`;
   const rate = HARD_CODED_RATES[key];
   if (rate == null) {
@@ -45,8 +45,8 @@ export function formatDualCurrency(
   originalCurrency: CurrencyCode,
   locale?: string,
 ): string {
-  const pref = (preferredCurrency || "EUR").toUpperCase();
-  const orig = (originalCurrency || "EUR").toUpperCase();
+  const pref = preferredCurrency.toUpperCase();
+  const orig = originalCurrency.toUpperCase();
   const preferredText = formatCurrency(amountPreferred, pref, locale);
 
   if (pref === orig) {
@@ -58,7 +58,7 @@ export function formatDualCurrency(
 }
 
 export function formatCompactCurrency(amount: number, currency: CurrencyCode): string {
-  const code = (currency || "EUR").toUpperCase();
+  const code = currency.toUpperCase();
   const abs = Math.abs(amount);
   const sign = amount < 0 ? "-" : "";
 

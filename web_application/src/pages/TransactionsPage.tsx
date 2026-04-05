@@ -39,7 +39,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useDialogStore } from "@/store/dialogStore";
 import { Account, Transaction, TransactionField, TransactionType } from "@/types";
-import { formatCurrency, formatDualCurrency } from "@/utils/currency";
+import { formatCurrency } from "@/utils/currency";
+import {
+  formatSignedTransactionAmountDisplay,
+  formatTransactionAmountDisplay,
+  netAmountAfterRefundsPreferred,
+  refundedAmountPreferred,
+  transactionOriginalCurrency,
+} from "@/utils/transactionDisplay";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ArrowDownIcon,
@@ -131,22 +138,6 @@ const getStatsText = (defaultType: string) => {
   }
 };
 
-function formatTxAmount(t: Transaction, preferredCurrency: string): string {
-  const fromCurr = (t.from_currency ?? "EUR").toUpperCase();
-  const toCurr = (t.to_currency ?? "EUR").toUpperCase();
-  // Cross-currency transfer: - old currency, + new currency
-  if (t.type === "transfer" && t.to_amount != null && fromCurr !== toCurr) {
-    return `-${formatCurrency(Math.abs(t.amount), fromCurr)} (+${formatCurrency(Math.abs(t.to_amount), toCurr)})`;
-  }
-  const amt = Math.abs(t.amount_preferred ?? t.amount);
-  const curr = t.preferred_currency ?? preferredCurrency;
-  const orig = t.currency ?? "EUR";
-  if (orig !== curr) {
-    return formatDualCurrency(amt, curr, Math.abs(t.amount), orig);
-  }
-  return formatCurrency(amt, curr);
-}
-
 // Mobile-friendly transaction card (replaces table row on small screens)
 const MobileTransactionCard = memo(function MobileTransactionCard({
   transaction,
@@ -236,13 +227,13 @@ const MobileTransactionCard = memo(function MobileTransactionCard({
             <span className="font-medium truncate">{transaction.description}</span>
             <span className={`text-right font-semibold shrink-0 ${amountClass}`}>
               {transaction.type === "transfer"
-                ? formatTxAmount(transaction, preferredCurrency)
+                ? formatTransactionAmountDisplay(transaction, preferredCurrency)
                 : transaction.refunded_amount > 0
                   ? `${transaction.type === "expense" ? "−" : "+"}${formatCurrency(
-                      Math.abs(transaction.amount - transaction.refunded_amount),
-                      transaction.preferred_currency ?? preferredCurrency,
+                      netAmountAfterRefundsPreferred(transaction),
+                      preferredCurrency,
                     )}`
-                  : `${transaction.type === "expense" ? "-" : "+"}${formatTxAmount(transaction, preferredCurrency)}`}
+                  : formatSignedTransactionAmountDisplay(transaction, preferredCurrency)}
             </span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -280,11 +271,7 @@ const MobileTransactionCard = memo(function MobileTransactionCard({
           {transaction.refunded_amount > 0 && (
             <div className="mt-1 flex items-center text-xs text-amber-600">
               <RotateCcw className="h-3 w-3 mr-1 shrink-0" />
-              Refunded:{" "}
-              {formatCurrency(
-                transaction.refunded_amount,
-                transaction.preferred_currency ?? preferredCurrency,
-              )}
+              Refunded: {formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}
             </div>
           )}
         </div>
@@ -414,18 +401,15 @@ const TransactionRow = memo(function TransactionRow({
                   <div className="inline-flex items-center text-amber-600">
                     <RotateCcw className="h-4 w-4 mr-1" />
                     <span className="text-xs">
-                      {formatCurrency(
-                        transaction.refunded_amount,
-                        transaction.preferred_currency ?? preferredCurrency,
-                      )}
+                      {formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}
                     </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-sm">
                     {transaction.type === "expense"
-                      ? `Refunded amount: ${formatCurrency(transaction.refunded_amount, transaction.preferred_currency ?? preferredCurrency)}`
-                      : `Used in refund(s): ${formatCurrency(transaction.refunded_amount, transaction.preferred_currency ?? preferredCurrency)}`}
+                      ? `Refunded amount: ${formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}`
+                      : `Used in refund(s): ${formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}`}
                   </p>
                   {transaction.refund_items && (
                     <p className="text-xs text-muted-foreground mt-1">
@@ -574,26 +558,23 @@ const TransactionRow = memo(function TransactionRow({
         }`}
       >
         {transaction.type === "transfer" ? (
-          formatTxAmount(transaction, preferredCurrency)
+          formatTransactionAmountDisplay(transaction, preferredCurrency)
         ) : transaction.refunded_amount > 0 ? (
           <div className="flex flex-col items-end">
             <span className="line-through text-gray-500 text-sm">
               {transaction.type === "expense" ? "−" : "+"}
               {formatCurrency(
                 Math.abs(transaction.amount),
-                transaction.currency ?? preferredCurrency,
+                transactionOriginalCurrency(transaction),
               )}
             </span>
             <span>
               {transaction.type === "expense" ? "−" : "+"}
-              {formatCurrency(
-                Math.abs(transaction.amount - transaction.refunded_amount),
-                transaction.preferred_currency ?? preferredCurrency,
-              )}
+              {formatCurrency(netAmountAfterRefundsPreferred(transaction), preferredCurrency)}
             </span>
           </div>
         ) : (
-          `${transaction.type === "expense" ? "-" : "+"}${formatTxAmount(transaction, preferredCurrency)}`
+          formatSignedTransactionAmountDisplay(transaction, preferredCurrency)
         )}
       </TableCell>
       <TableCell>

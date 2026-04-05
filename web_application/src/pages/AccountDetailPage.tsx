@@ -32,6 +32,7 @@ import { accountDetailRoute } from "@/Router";
 import { useDialogStore } from "@/store/dialogStore";
 import { Account, Bank, Transaction } from "@/types";
 import { formatCurrency } from "@/utils/currency";
+import { amountPreferredOrFallback } from "@/utils/transactionDisplay";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import {
   ArrowDown,
@@ -844,10 +845,7 @@ export function AccountDetailPage() {
                           transaction.amount < 0 ? "text-destructive" : "text-success",
                         )}
                       >
-                        {formatCurrency(
-                          Math.abs(transaction.amount_preferred ?? transaction.amount),
-                          transaction.preferred_currency ?? preferredCurrency,
-                        )}
+                        {formatCurrency(amountPreferredOrFallback(transaction), preferredCurrency)}
                       </TableCell>
                     </TableRow>
                   ))

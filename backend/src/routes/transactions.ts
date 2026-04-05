@@ -10,15 +10,19 @@ import {
   tBatchUpdateBodySchema,
   tCreateTransactionSchema,
   tIdParamSchema,
+  tListResponseSchema,
+  tTransactionListItemSchema,
   tTransactionsListQuerySchema,
   tUpdateTransactionSchema,
 } from "../schemas/typebox.js";
 import * as base from "../services/base.js";
 import { attachRefundEnrichment, getRefundEnrichment } from "../services/refundEnrichment.js";
+import { attachPreferredAmountFields } from "../services/transactionPreferredAmounts.js";
 import {
   attachTransactionCurrencyEnrichment,
   getTransactionCurrencyEnrichment,
 } from "../services/transactionCurrencyEnrichment.js";
+import { getUserPreferredCurrency } from "../services/user.js";
 import {
   createBatchCreateHandler,
   createBatchDeleteHandler,
@@ -60,12 +64,14 @@ const getByIdHandler = createGetByIdHandler(TABLE, {
       to_currency: "EUR",
       currency: "EUR",
     };
-    return {
+    const merged = {
       ...row,
       ...curr,
       refund_items: ent.refund_items,
       refunded_amount: ent.refunded_amount,
-    };
+    } as Record<string, unknown>;
+    const userPref = await getUserPreferredCurrency(userId);
+    return attachPreferredAmountFields([merged], userPref)[0];
   },
 });
 const updateHandler = createUpdateHandler(TABLE, (body) => transactionAmountTransform(body));
@@ -145,12 +151,14 @@ async function listHandler(ctx: TransactionsListContext) {
       refundEnrichment,
     );
     const withCurrency = attachTransactionCurrencyEnrichment(withRefund, currencyEnrichment);
+    const userPref = await getUserPreferredCurrency(userId!);
+    const withPreferred = attachPreferredAmountFields(
+      withCurrency as unknown as Record<string, unknown>[],
+      userPref,
+    );
     return {
       ...result,
-      items: coerceNumericJsonFieldsMany(
-        withCurrency as unknown as Record<string, unknown>[],
-        "transactions",
-      ),
+      items: coerceNumericJsonFieldsMany(withPreferred, "transactions"),
     };
   }
 
@@ -302,12 +310,14 @@ async function listHandler(ctx: TransactionsListContext) {
     withRefund as Array<{ id: number }>,
     currencyEnrichment,
   );
+  const userPref = await getUserPreferredCurrency(userId!);
+  const withPreferred = attachPreferredAmountFields(
+    withCurrency as unknown as Record<string, unknown>[],
+    userPref,
+  );
 
   return {
-    items: coerceNumericJsonFieldsMany(
-      withCurrency as unknown as Record<string, unknown>[],
-      "transactions",
-    ),
+    items: coerceNumericJsonFieldsMany(withPreferred, "transactions"),
     total: totalCount,
     page,
     per_page: perPage,
@@ -320,13 +330,19 @@ export const transactionsRoutes = new Elysia({ prefix: "/transactions", tags: ["
     body: tCreateTransactionSchema,
     detail: { summary: "Create transaction" },
   })
-  .get("/", (ctx: TransactionsListContext) => listHandler(ctx), {
+  .get("/", (ctx: TransactionsListContext) => listHandler(ctx) as any, {
     query: tTransactionsListQuerySchema,
     detail: { summary: "List transactions" },
+    response: {
+      200: tListResponseSchema(tTransactionListItemSchema),
+    },
   })
-  .get("/:id", (ctx) => getByIdHandler(ctx), {
+  .get("/:id", (ctx) => getByIdHandler(ctx) as any, {
     params: tIdParamSchema,
     detail: { summary: "Get transaction by ID" },
+    response: {
+      200: tTransactionListItemSchema,
+    },
   })
   .put("/:id", (ctx) => updateHandler(ctx), {
     body: tUpdateTransactionSchema,

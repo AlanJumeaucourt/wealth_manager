@@ -9,13 +9,44 @@ function num(v: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** True for built-in `Date` and cross-realm Date objects (`instanceof` can be false there). */
+function isDateObject(value: unknown): value is Date {
+  return Object.prototype.toString.call(value) === "[object Date]";
+}
+
+/** API / parsers may hand back `Date`; `Transaction.date` is always an ISO date string. */
+function normalizeTransactionDate(value: unknown): string {
+  if (isDateObject(value)) {
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return "";
+}
+
+/** Safe for React text: Eden/validators may revive ISO strings as `Date` at runtime. */
+export function formatTransactionDateForDisplay(value: unknown): string {
+  if (value == null || value === "") {
+    return "";
+  }
+  if (isDateObject(value)) {
+    return value.toLocaleDateString();
+  }
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
+  }
+  return "";
+}
+
 /** Maps API rows to `Transaction` for display and `CreateRefundModal`. */
 export function normalizePotentialRefundTransaction(
   row: PotentialRefundTransactionRow,
 ): Transaction {
   return {
     id: row.id,
-    date: row.date,
+    date: normalizeTransactionDate(row.date),
     date_accountability: row.date_accountability ?? "",
     description: row.description,
     amount: num(row.amount),

@@ -2,7 +2,12 @@ import { fetchTransactions } from "@/app/api/bankApi";
 import { darkTheme } from "@/constants/theme";
 import { Transaction } from "@/types/transaction";
 import { findCategoryByName } from "@/utils/categoryUtils";
-import { convertAmount, formatCurrency } from "@/utils/currency";
+import { formatCurrency } from "@/utils/currency";
+import {
+  amountPreferredOrFallback,
+  formatTransactionAmountDisplay,
+} from "@/utils/transactionDisplay";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
 import { useRouter } from "expo-router";
@@ -47,6 +52,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchStats, setSearchStats] = useState<{ total: number; count: number } | null>(null);
   const [forceShowSearch, setForceShowSearch] = useState(false);
+  const [preferredCurrency, setPreferredCurrency] = useState<string | null>(null);
+
+  useEffect(() => {
+    void AsyncStorage.getItem("preferredCurrency").then((v) => {
+      if (v) setPreferredCurrency(v.toUpperCase());
+    });
+  }, []);
 
   // Fetch transactions when the component mounts or when the page or search query changes
   useEffect(() => {
@@ -107,72 +119,27 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
     );
   }, [filteredTransactions]);
 
-  const formatTransactionAmount = (t: Transaction) => {
-    const preferredCurrency = (t.preferred_currency || "EUR").toUpperCase();
-    const fromCurrency = (t.from_currency || t.currency || "EUR").toUpperCase();
-    const toCurrency = (t.to_currency || "EUR").toUpperCase();
-
-    const signedPreferred =
-      t.type === "expense" ? -(t.amount_preferred ?? t.amount) : (t.amount_preferred ?? t.amount);
-
-    // Cross-currency transfers: show both sent and received
-    if (t.type === "transfer" && t.to_amount != null && fromCurrency !== toCurrency) {
-      const sent = formatCurrency(t.amount, fromCurrency);
-      const received = formatCurrency(t.to_amount, toCurrency);
-      return `${formatCurrency(signedPreferred, preferredCurrency)} (${sent} → ${received})`;
-    }
-
-    // Default: show preferred, plus original in parentheses if different currency
-    const originalCurrency = t.type === "income" ? toCurrency : fromCurrency;
-    const originalAmount = t.type === "income" ? (t.to_amount ?? t.amount) : t.amount;
-    const signedOriginal = t.type === "expense" ? -originalAmount : originalAmount;
-
-    const preferredText = formatCurrency(signedPreferred, preferredCurrency);
-    if (preferredCurrency === originalCurrency) return preferredText;
-
-    return `${preferredText} (${formatCurrency(signedOriginal, originalCurrency)})`;
-  };
-
   const formatDate = (dateString: string) => {
     const date = parseISO(dateString);
     return format(date, "EEEE, d MMMM yyyy");
   };
 
   const calculateDayTotal = (transactions: Transaction[]) => {
+    if (!preferredCurrency) return 0;
     return transactions.reduce((total, transaction) => {
-      const preferredCurrency = (transaction.preferred_currency || "EUR").toUpperCase();
-      const fromCurrency = (
-        transaction.from_currency ||
-        transaction.currency ||
-        "EUR"
-      ).toUpperCase();
-      const toCurrency = (transaction.to_currency || "EUR").toUpperCase();
-
       if (transaction.type === "expense") {
-        return (
-          total -
-          (transaction.amount_preferred ??
-            convertAmount(transaction.amount, fromCurrency, preferredCurrency))
-        );
+        return total - amountPreferredOrFallback(transaction);
       }
       if (transaction.type === "income") {
-        const credited = transaction.to_amount ?? transaction.amount;
-        const pref =
-          transaction.amount_preferred ?? convertAmount(credited, toCurrency, preferredCurrency);
-        return total + pref;
+        return total + amountPreferredOrFallback(transaction);
       }
-      if (transaction.type === "transfer") {
-        if (accountId) {
-          if (transaction.from_account_id === accountId) {
-            const pref =
-              transaction.amount_preferred ??
-              convertAmount(transaction.amount, fromCurrency, preferredCurrency);
-            return total - pref;
-          } else if (transaction.to_account_id === accountId) {
-            const credited = transaction.to_amount ?? transaction.amount;
-            const pref = convertAmount(credited, toCurrency, preferredCurrency);
-            return total + pref;
-          }
+      if (transaction.type === "transfer" && accountId) {
+        if (transaction.amount_preferred == null) return total;
+        if (transaction.from_account_id === accountId) {
+          return total - transaction.amount_preferred;
+        }
+        if (transaction.to_account_id === accountId) {
+          return total + transaction.amount_preferred;
         }
       }
       return total;
@@ -210,7 +177,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
   const renderSearchStats = () => {
     if (!searchStats || !searchQuery) return null;
 
-    const preferredCurrency = (transactions?.[0]?.preferred_currency || "EUR").toUpperCase();
+    if (!preferredCurrency) return null;
 
     return (
       <View style={styles.searchStatsContainer}>
@@ -279,7 +246,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
               {item.description}
             </Text>
             <Text style={[styles.transactionAmount, { color: getTransactionColor(item.type) }]}>
-              {formatTransactionAmount(item)}
+              {preferredCurrency ? formatTransactionAmountDisplay(item, preferredCurrency) : "—"}
             </Text>
           </View>
 
@@ -356,7 +323,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
         style={{ flex: 1, paddingBottom: 150 }}
         renderItem={({ item: [date, transactions] }) => {
           const dayTotal = calculateDayTotal(transactions);
-          const preferredCurrency = (transactions?.[0]?.preferred_currency || "EUR").toUpperCase();
           return (
             <View key={date} style={styles.dateGroup}>
               <View style={styles.dateHeader}>
@@ -367,7 +333,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ accountId }) => {
                     dayTotal >= 0 ? styles.positiveTotal : styles.negativeTotal,
                   ]}
                 >
-                  {formatCurrency(dayTotal, preferredCurrency)}
+                  {preferredCurrency ? formatCurrency(dayTotal, preferredCurrency) : "—"}
                 </Text>
               </View>
               <View style={styles.transactionsContainer}>

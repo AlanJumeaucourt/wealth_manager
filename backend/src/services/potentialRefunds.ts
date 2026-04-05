@@ -256,3 +256,9 @@ export async function dismissPotentialRefund(
     throw e;
   }
 }
+
+/** Remove all dismissed-potential-refund rows for this user so suggestions can reappear. */
+export async function clearDismissedPotentialRefunds(userId: number): Promise<void> {
+  const database = db();
+  await database.deleteFrom("dismissed_potential_refunds").where("user_id", "=", userId).execute();
+}
