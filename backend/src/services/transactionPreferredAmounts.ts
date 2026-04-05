@@ -6,6 +6,15 @@ type CurrencyRow = {
   currency: string;
 };
 
+function stringFromUnknown(value: unknown, fallback: string): string {
+  if (value == null) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return fallback;
+}
+
 /**
  * Computes preferred-currency amounts for API responses. No `preferred_currency` field is added;
  * only numeric fields in the user's preferred unit.
@@ -22,7 +31,7 @@ export function computePreferredAmountFields(
   const pref = userPreferred.toUpperCase();
   const fromCur = curr.from_currency;
   const toCur = curr.to_currency;
-  const type = String(row.type ?? "");
+  const type = stringFromUnknown(row.type, "");
   const amount = Math.abs(Number(row.amount ?? 0));
   const toAmountRaw = row.to_amount;
   const toAmount = toAmountRaw != null && toAmountRaw !== "" ? Math.abs(Number(toAmountRaw)) : null;
@@ -71,9 +80,9 @@ export function attachPreferredAmountFields<T extends Record<string, unknown>>(
 })[] {
   return items.map((row) => {
     const curr: CurrencyRow = {
-      from_currency: String(row.from_currency ?? "EUR").toUpperCase(),
-      to_currency: String(row.to_currency ?? "EUR").toUpperCase(),
-      currency: String(row.currency ?? "EUR").toUpperCase(),
+      from_currency: stringFromUnknown(row.from_currency, "EUR").toUpperCase(),
+      to_currency: stringFromUnknown(row.to_currency, "EUR").toUpperCase(),
+      currency: stringFromUnknown(row.currency, "EUR").toUpperCase(),
     };
     const fields = computePreferredAmountFields(row, userPreferred, curr);
     const next = { ...row, ...fields } as T & {

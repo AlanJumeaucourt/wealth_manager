@@ -13,6 +13,7 @@ import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useCommandPalette } from "@/hooks/useCommandPalette";
 import type { Transaction } from "@/types";
 import type { LiabilityFilters } from "@/types/liability";
+import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import { formatTransactionAmountDisplay } from "@/utils/transactionDisplay";
 import { useRouter } from "@tanstack/react-router";
 import {
@@ -98,6 +99,10 @@ export function CommandPalette() {
 
   // Skip list requests until the user is actually searching (per_page: 0 still hit the API)
   const searchListParams = { search, per_page: 10, page: 1 } as const;
+  const transactionSearchParams = {
+    ...searchListParams,
+    ...transactionsThroughTodayRange(),
+  };
   const { data: accountsData, isLoading: accountsLoading } = useAccounts(searchListParams, {
     enabled: shouldSearch,
   });
@@ -107,7 +112,7 @@ export function CommandPalette() {
   });
 
   const { data: transactionsData, isLoading: transactionsLoading } = useTransactions(
-    searchListParams,
+    transactionSearchParams,
     { enabled: shouldSearch },
   );
 

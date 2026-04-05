@@ -40,6 +40,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useDialogStore } from "@/store/dialogStore";
 import { Account, Transaction, TransactionField, TransactionType } from "@/types";
 import { formatCurrency } from "@/utils/currency";
+import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import {
   formatSignedTransactionAmountDisplay,
   formatTransactionAmountDisplay,
@@ -1044,10 +1045,7 @@ export function TransactionsPage({ defaultType = "all" }: TransactionsPageProps)
   const getDateRange = () => {
     if (!dateRangeFilter) {
       // No date range filter - use today as toDate and beginning of time as fromDate
-      return {
-        from_date: "1970-01-01",
-        to_date: new Date().toISOString().split("T")[0],
-      };
+      return transactionsThroughTodayRange();
     }
 
     const now = new Date();

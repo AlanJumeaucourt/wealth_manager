@@ -27,6 +27,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ACCOUNT_TYPE_ICONS, ACCOUNT_TYPE_LABELS } from "@/constants";
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
+import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import { cn } from "@/lib/utils";
 import { accountDetailRoute } from "@/Router";
 import { useDialogStore } from "@/store/dialogStore";
@@ -101,6 +102,7 @@ export function AccountDetailPage() {
     per_page: 5,
     sort_by: "date",
     sort_order: "desc",
+    ...transactionsThroughTodayRange(),
   });
   const recentTransactions = useMemo(
     () => transactionsResponse?.items ?? [],

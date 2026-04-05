@@ -19,6 +19,7 @@ import { WelcomeHeader } from "@/components/welcome/WelcomeHeader";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useToast } from "@/hooks/use-toast";
 import { Transaction } from "@/types";
+import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import { userStorage } from "@/utils/user-storage";
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -75,6 +76,7 @@ export function Welcome() {
     per_page: 5,
     sort_by: "date",
     sort_order: "desc",
+    ...transactionsThroughTodayRange(),
   });
 
   const { data: wealthData, isLoading: isLoadingWealth, error: wealthError } = useWealthOverTime();

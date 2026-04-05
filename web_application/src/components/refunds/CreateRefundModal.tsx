@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Transaction } from "@/types";
+import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
@@ -81,6 +82,7 @@ export function CreateRefundModal({
     sort_order: "desc",
     search: debouncedIncomeSearch || undefined,
     search_fields: debouncedIncomeSearch ? ["description"] : undefined,
+    ...transactionsThroughTodayRange(),
   });
 
   const { data: expenseTransactions, isLoading: isLoadingExpenses } = useTransactions({
@@ -91,6 +93,7 @@ export function CreateRefundModal({
     sort_order: "desc",
     search: debouncedExpenseSearch || undefined,
     search_fields: debouncedExpenseSearch ? ["description"] : undefined,
+    ...transactionsThroughTodayRange(),
   });
 
   // Track all loaded transactions

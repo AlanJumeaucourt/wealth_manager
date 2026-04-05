@@ -18,6 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import { z } from "zod";
 
 // Define the form schema with Zod
@@ -68,6 +69,7 @@ export function RecordPaymentDialog({
     sort_by: "date",
     sort_order: "desc",
     account_id: liability.account_id,
+    ...transactionsThroughTodayRange(),
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
