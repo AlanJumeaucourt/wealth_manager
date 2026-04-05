@@ -15,9 +15,11 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { Transaction } from "@/types";
 import { currencySymbol, formatCurrency } from "@/utils/currency";
 import {
-  amountPreferredOrFallback,
-  netAmountAfterRefundsPreferred,
-  refundedAmountPreferred,
+  formatNetAfterRefundsDisplay,
+  formatRefundedAmountDisplay,
+  formatSignedTransactionAmountDisplay,
+  formatTransactionAmountDisplay,
+  transactionOriginalCurrency,
 } from "@/utils/transactionDisplay";
 import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
@@ -57,7 +59,6 @@ export function CreateRefundModal({
   const { toast } = useToast();
   const { preferredCurrency } = usePreferredCurrency();
   const pref = preferredCurrency || "EUR";
-  const currencyPrefix = currencySymbol(pref);
   const [step, setStep] = useState<Step>("expenses");
   const [selectedIncomes, setSelectedIncomes] = useState<Transaction[]>([]);
   const [selectedExpenses, setSelectedExpenses] = useState<Transaction[]>([]);
@@ -109,6 +110,28 @@ export function CreateRefundModal({
   const [allIncomeTransactions, setAllIncomeTransactions] = useState<Transaction[]>([]);
   const [allExpenseTransactions, setAllExpenseTransactions] = useState<Transaction[]>([]);
 
+  /**
+   * When the debounced search string changes, reset page and accumulated rows during render so
+   * `useTransactions` never requests the wrong page for a new query, and so the sync effect below
+   * runs after lists are cleared (fixes cached queries being wiped by a later reset effect).
+   */
+  const [prevDebouncedIncomeSearch, setPrevDebouncedIncomeSearch] = useState(debouncedIncomeSearch);
+  const [prevDebouncedExpenseSearch, setPrevDebouncedExpenseSearch] =
+    useState(debouncedExpenseSearch);
+
+  if (debouncedIncomeSearch !== prevDebouncedIncomeSearch) {
+    setPrevDebouncedIncomeSearch(debouncedIncomeSearch);
+    setIncomePage(1);
+    setAllIncomeTransactions([]);
+    setHasMoreIncomes(true);
+  }
+  if (debouncedExpenseSearch !== prevDebouncedExpenseSearch) {
+    setPrevDebouncedExpenseSearch(debouncedExpenseSearch);
+    setExpensePage(1);
+    setAllExpenseTransactions([]);
+    setHasMoreExpenses(true);
+  }
+
   // Update all transactions when new data arrives
   useEffect(() => {
     if (incomeTransactions?.items) {
@@ -133,19 +156,6 @@ export function CreateRefundModal({
       setIsLoadingMoreExpenses(false);
     }
   }, [expenseTransactions, expensePage]);
-
-  // Reset pagination when search changes
-  useEffect(() => {
-    setIncomePage(1);
-    setAllIncomeTransactions([]);
-    setHasMoreIncomes(true);
-  }, [debouncedIncomeSearch]);
-
-  useEffect(() => {
-    setExpensePage(1);
-    setAllExpenseTransactions([]);
-    setHasMoreExpenses(true);
-  }, [debouncedExpenseSearch]);
 
   // Intersection observer setup
   useEffect(() => {
@@ -656,22 +666,17 @@ export function CreateRefundModal({
                                 </div>
                               )}
                             </div>
-                            <div className="text-lg font-semibold text-red-600 shrink-0 flex flex-col items-end">
+                            <div className="text-lg font-semibold text-red-600 shrink-0 flex flex-col items-end text-right">
                               {transaction.refunded_amount > 0 ? (
                                 <>
                                   <span className="line-through text-gray-500 text-sm">
-                                    {formatCurrency(amountPreferredOrFallback(transaction), pref)}
+                                    {formatTransactionAmountDisplay(transaction, pref)}
                                   </span>
-                                  <span>
-                                    {formatCurrency(
-                                      netAmountAfterRefundsPreferred(transaction),
-                                      pref,
-                                    )}
-                                  </span>
+                                  <span>{formatNetAfterRefundsDisplay(transaction, pref)}</span>
                                 </>
                               ) : (
                                 <span>
-                                  {formatCurrency(amountPreferredOrFallback(transaction), pref)}
+                                  {formatSignedTransactionAmountDisplay(transaction, pref)}
                                 </span>
                               )}
                             </div>
@@ -776,8 +781,8 @@ export function CreateRefundModal({
                                 </div>
                               )}
                             </div>
-                            <div className="text-lg font-semibold text-green-600 shrink-0">
-                              {formatCurrency(amountPreferredOrFallback(transaction), pref)}
+                            <div className="text-lg font-semibold text-green-600 shrink-0 text-right">
+                              {formatSignedTransactionAmountDisplay(transaction, pref)}
                             </div>
                           </div>
                         </div>
@@ -828,21 +833,21 @@ export function CreateRefundModal({
                       </div>
                       {expense.refunded_amount > 0 && (
                         <div className="text-xs text-amber-600 mt-1">
-                          Already has {formatCurrency(refundedAmountPreferred(expense), pref)} in
-                          existing refunds
+                          Already has {formatRefundedAmountDisplay(expense, pref)} in existing
+                          refunds
                         </div>
                       )}
                     </div>
-                    <div className="text-lg font-semibold text-red-600">
+                    <div className="text-lg font-semibold text-red-600 text-right">
                       {expense.refunded_amount > 0 ? (
                         <>
                           <span className="line-through text-gray-500 text-sm mr-2">
-                            {formatCurrency(amountPreferredOrFallback(expense), pref)}
+                            {formatTransactionAmountDisplay(expense, pref)}
                           </span>
-                          {formatCurrency(netAmountAfterRefundsPreferred(expense), pref)}
+                          {formatNetAfterRefundsDisplay(expense, pref)}
                         </>
                       ) : (
-                        <>{formatCurrency(amountPreferredOrFallback(expense), pref)}</>
+                        <>{formatSignedTransactionAmountDisplay(expense, pref)}</>
                       )}
                     </div>
                   </div>
@@ -853,6 +858,9 @@ export function CreateRefundModal({
                       );
                       if (!allocation) return null;
 
+                      const expenseCurrency = transactionOriginalCurrency(expense) || pref;
+                      const allocationInputPrefix = currencySymbol(expenseCurrency);
+
                       return (
                         <div
                           key={`${income.id}-${index}`}
@@ -860,8 +868,8 @@ export function CreateRefundModal({
                         >
                           <div className="flex items-center justify-between text-sm">
                             <div className="font-medium">{income.description}</div>
-                            <div className="text-green-600">
-                              {formatCurrency(amountPreferredOrFallback(income), pref)}
+                            <div className="text-green-600 text-right">
+                              {formatSignedTransactionAmountDisplay(income, pref)}
                             </div>
                           </div>
                           <div className="space-y-2">
@@ -870,7 +878,7 @@ export function CreateRefundModal({
                               <div className="flex items-center gap-2">
                                 <div className="relative">
                                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500">
-                                    {currencyPrefix}
+                                    {allocationInputPrefix}
                                   </span>
                                   <input
                                     type="number"
@@ -892,7 +900,7 @@ export function CreateRefundModal({
                                   />
                                 </div>
                                 <span className="text-gray-400">
-                                  of {formatCurrency(allocation.maxAmount, pref)}
+                                  of {formatCurrency(allocation.maxAmount, expenseCurrency)}
                                 </span>
                               </div>
                             </div>
@@ -930,8 +938,8 @@ export function CreateRefundModal({
                               }
                             />
                             <div className="flex justify-between text-xs text-gray-400">
-                              <span>{formatCurrency(0, pref)}</span>
-                              <span>{formatCurrency(allocation.maxAmount, pref)}</span>
+                              <span>{formatCurrency(0, expenseCurrency)}</span>
+                              <span>{formatCurrency(allocation.maxAmount, expenseCurrency)}</span>
                             </div>
                           </div>
                         </div>
@@ -1049,8 +1057,8 @@ export function CreateRefundModal({
                         {expense.refunded_amount > 0 &&
                           expense.refunded_amount !== totalRefunded && (
                             <div className="text-xs text-amber-600">
-                              Already has {formatCurrency(refundedAmountPreferred(expense), pref)}{" "}
-                              in other refunds
+                              Already has {formatRefundedAmountDisplay(expense, pref)} in other
+                              refunds
                             </div>
                           )}
                       </div>
@@ -1060,21 +1068,29 @@ export function CreateRefundModal({
                           <>
                             <div className="text-lg font-semibold text-red-600">
                               <span className="line-through text-gray-500 text-sm mr-2">
-                                {formatCurrency(amountPreferredOrFallback(expense), pref)}
+                                {formatTransactionAmountDisplay(expense, pref)}
                               </span>
-                              {formatCurrency(netAmountAfterRefundsPreferred(expense), pref)}
+                              {formatNetAfterRefundsDisplay(expense, pref)}
                             </div>
                             <div className="text-sm text-green-600">
-                              {formatCurrency(totalRefunded, pref)} new refund
+                              {formatCurrency(
+                                totalRefunded,
+                                transactionOriginalCurrency(expense) || pref,
+                              )}{" "}
+                              new refund
                             </div>
                           </>
                         ) : (
                           <>
                             <div className="text-lg font-semibold text-red-600">
-                              {formatCurrency(amountPreferredOrFallback(expense), pref)}
+                              {formatSignedTransactionAmountDisplay(expense, pref)}
                             </div>
                             <div className="text-sm text-green-600">
-                              {formatCurrency(totalRefunded, pref)} refunded
+                              {formatCurrency(
+                                totalRefunded,
+                                transactionOriginalCurrency(expense) || pref,
+                              )}{" "}
+                              refunded
                             </div>
                           </>
                         )}
@@ -1090,7 +1106,10 @@ export function CreateRefundModal({
                           <ArrowRight className="w-4 h-4 text-gray-400" />
                           <span className="text-gray-600">{income.description}:</span>
                           <span className="font-medium">
-                            {formatCurrency(allocation.amount, pref)}
+                            {formatCurrency(
+                              allocation.amount,
+                              transactionOriginalCurrency(expense) || pref,
+                            )}
                           </span>
                           <span className="text-gray-400">
                             ({((allocation.amount / Math.abs(expense.amount)) * 100).toFixed(1)}

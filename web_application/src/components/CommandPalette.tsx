@@ -11,7 +11,7 @@ import {
 import { DialogTitle } from "@/components/ui/dialog";
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useCommandPalette } from "@/hooks/useCommandPalette";
-import type { Transaction } from "@/types";
+import { formatTransactionDateForDisplay, type Transaction } from "@/types";
 import type { LiabilityFilters } from "@/types/liability";
 import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import { formatTransactionAmountDisplay } from "@/utils/transactionDisplay";
@@ -152,7 +152,7 @@ export function CommandPalette() {
   const transactionItems = (transactionsData?.items || []).map((tx) => ({
     id: tx.id,
     name: tx.description || "Unnamed Transaction",
-    description: `${tx.category || "Uncategorized"} • ${formatTransactionAmount(tx)} • ${tx.date || "No date"}`,
+    description: `${tx.category || "Uncategorized"} • ${formatTransactionAmount(tx)} • ${formatTransactionDateForDisplay(tx.date) || "No date"}`,
     path: `/transactions/${tx.id}`,
     type: "transaction",
     icon: <FileText className="mr-2" />,

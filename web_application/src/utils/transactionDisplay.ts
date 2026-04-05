@@ -71,3 +71,38 @@ export function netAmountAfterRefundsPreferred(t: Transaction): number {
   if (t.net_amount_preferred != null) return t.net_amount_preferred;
   return Math.abs(t.amount - t.refunded_amount);
 }
+
+/**
+ * Total already refunded: preferred primary, native in parentheses when the account currency
+ * differs from the user's preferred (same idea as `formatTransactionAmountDisplay`).
+ */
+export function formatRefundedAmountDisplay(t: Transaction, userPreferred: string): string {
+  const pref = userPreferred.toUpperCase();
+  const orig = transactionOriginalCurrency(t) || pref;
+  const rp = refundedAmountPreferred(t);
+  const rn = Math.abs(Number(t.refunded_amount ?? 0));
+  if (orig !== pref) {
+    return formatDualCurrency(rp, pref, rn, orig);
+  }
+  return formatCurrency(rp, pref);
+}
+
+/**
+ * Net after refunds for list/refund UI: same rules as `formatTransactionAmountDisplay` (Intl sign for
+ * single-currency expenses; dual-currency uses `formatDualCurrency` magnitudes, no extra prefix).
+ * Avoids mixing Unicode − with Intl’s minus so strikethrough vs net lines match.
+ */
+export function formatNetAfterRefundsDisplay(t: Transaction, userPreferred: string): string {
+  const pref = userPreferred.toUpperCase();
+  const orig = transactionOriginalCurrency(t) || pref;
+  const netPref = netAmountAfterRefundsPreferred(t);
+  const netNative = Math.abs(Number(t.amount) - Number(t.refunded_amount ?? 0));
+
+  if (orig !== pref) {
+    return formatDualCurrency(netPref, pref, netNative, orig);
+  }
+  if (t.type === "income") {
+    return `+${formatCurrency(netPref, pref)}`;
+  }
+  return formatCurrency(-netPref, pref);
+}

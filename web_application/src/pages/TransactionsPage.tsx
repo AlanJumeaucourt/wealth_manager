@@ -42,11 +42,10 @@ import { Account, Transaction, TransactionField, TransactionType } from "@/types
 import { formatCurrency } from "@/utils/currency";
 import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import {
+  formatNetAfterRefundsDisplay,
+  formatRefundedAmountDisplay,
   formatSignedTransactionAmountDisplay,
   formatTransactionAmountDisplay,
-  netAmountAfterRefundsPreferred,
-  refundedAmountPreferred,
-  transactionOriginalCurrency,
 } from "@/utils/transactionDisplay";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
@@ -230,10 +229,7 @@ const MobileTransactionCard = memo(function MobileTransactionCard({
               {transaction.type === "transfer"
                 ? formatTransactionAmountDisplay(transaction, preferredCurrency)
                 : transaction.refunded_amount > 0
-                  ? `${transaction.type === "expense" ? "−" : "+"}${formatCurrency(
-                      netAmountAfterRefundsPreferred(transaction),
-                      preferredCurrency,
-                    )}`
+                  ? formatNetAfterRefundsDisplay(transaction, preferredCurrency)
                   : formatSignedTransactionAmountDisplay(transaction, preferredCurrency)}
             </span>
           </div>
@@ -272,7 +268,7 @@ const MobileTransactionCard = memo(function MobileTransactionCard({
           {transaction.refunded_amount > 0 && (
             <div className="mt-1 flex items-center text-xs text-amber-600">
               <RotateCcw className="h-3 w-3 mr-1 shrink-0" />
-              Refunded: {formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}
+              Refunded: {formatRefundedAmountDisplay(transaction, preferredCurrency)}
             </div>
           )}
         </div>
@@ -402,15 +398,15 @@ const TransactionRow = memo(function TransactionRow({
                   <div className="inline-flex items-center text-amber-600">
                     <RotateCcw className="h-4 w-4 mr-1" />
                     <span className="text-xs">
-                      {formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}
+                      {formatRefundedAmountDisplay(transaction, preferredCurrency)}
                     </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-sm">
                     {transaction.type === "expense"
-                      ? `Refunded amount: ${formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}`
-                      : `Used in refund(s): ${formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}`}
+                      ? `Refunded amount: ${formatRefundedAmountDisplay(transaction, preferredCurrency)}`
+                      : `Used in refund(s): ${formatRefundedAmountDisplay(transaction, preferredCurrency)}`}
                   </p>
                   {transaction.refund_items && (
                     <p className="text-xs text-muted-foreground mt-1">
@@ -563,16 +559,9 @@ const TransactionRow = memo(function TransactionRow({
         ) : transaction.refunded_amount > 0 ? (
           <div className="flex flex-col items-end">
             <span className="line-through text-gray-500 text-sm">
-              {transaction.type === "expense" ? "−" : "+"}
-              {formatCurrency(
-                Math.abs(transaction.amount),
-                transactionOriginalCurrency(transaction),
-              )}
+              {formatTransactionAmountDisplay(transaction, preferredCurrency)}
             </span>
-            <span>
-              {transaction.type === "expense" ? "−" : "+"}
-              {formatCurrency(netAmountAfterRefundsPreferred(transaction), preferredCurrency)}
-            </span>
+            <span>{formatNetAfterRefundsDisplay(transaction, preferredCurrency)}</span>
           </div>
         ) : (
           formatSignedTransactionAmountDisplay(transaction, preferredCurrency)
