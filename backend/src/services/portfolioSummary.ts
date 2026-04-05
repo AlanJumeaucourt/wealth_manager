@@ -1,4 +1,5 @@
 import { db } from "../db/client.js";
+import { round2, round4 } from "../utils/money.js";
 import * as market from "./market.js";
 
 /** Matches frontend AssetSummary (types/portfolio.ts). */
@@ -56,14 +57,6 @@ const ZERO_DIVIDEND_METRICS: DividendMetrics = {
   previous_year_dividends: 0,
   total_dividends_received: 0,
 };
-
-function round2(v: number): number {
-  return Math.round(v * 100) / 100;
-}
-
-function round4(v: number): number {
-  return Math.round(v * 10000) / 10000;
-}
 
 /**
  * Build portfolio summary for the frontend.

@@ -1,4 +1,5 @@
 import { db } from "../db/client.js";
+import { round2, round4 } from "../utils/money.js";
 import * as market from "./market.js";
 
 export interface PerformanceDataPoint {
@@ -17,14 +18,6 @@ export interface PerformanceDataPoint {
 
 export interface PortfolioPerformanceResult {
   data_points: PerformanceDataPoint[];
-}
-
-function round2(v: number): number {
-  return Math.round(v * 100) / 100;
-}
-
-function round4(v: number): number {
-  return Math.round(v * 10000) / 10000;
 }
 
 /** Binary search: index of largest element <= target, or -1 if none. */

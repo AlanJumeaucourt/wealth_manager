@@ -1,3 +1,17 @@
+/** Symbol or short currency label for inline prefixes (e.g. number inputs). */
+export function currencySymbol(currency: string = "EUR", locale?: string): string {
+  const code = (currency || "EUR").toUpperCase();
+  try {
+    const parts = new Intl.NumberFormat(locale ?? undefined, {
+      style: "currency",
+      currency: code,
+    }).formatToParts(0);
+    return parts.find((p) => p.type === "currency")?.value ?? code;
+  } catch {
+    return code;
+  }
+}
+
 export function formatCurrency(amount: number, currency: string = "EUR", locale?: string): string {
   const code = (currency || "EUR").toUpperCase();
   try {

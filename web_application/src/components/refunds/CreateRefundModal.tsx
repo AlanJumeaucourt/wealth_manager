@@ -9,9 +9,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Transaction } from "@/types";
+import { currencySymbol, formatCurrency } from "@/utils/currency";
+import {
+  amountPreferredOrFallback,
+  netAmountAfterRefundsPreferred,
+  refundedAmountPreferred,
+} from "@/utils/transactionDisplay";
 import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -47,8 +54,10 @@ export function CreateRefundModal({
   prefillPair = null,
   editMode,
 }: CreateRefundModalProps) {
-  console.log("CreateRefundModal render", { isOpen, editMode, prefillPair });
   const { toast } = useToast();
+  const { preferredCurrency } = usePreferredCurrency();
+  const pref = preferredCurrency || "EUR";
+  const currencyPrefix = currencySymbol(pref);
   const [step, setStep] = useState<Step>("expenses");
   const [selectedIncomes, setSelectedIncomes] = useState<Transaction[]>([]);
   const [selectedExpenses, setSelectedExpenses] = useState<Transaction[]>([]);
@@ -144,7 +153,6 @@ export function CreateRefundModal({
       (entries) => {
         const first = entries[0];
         if (first.isIntersecting && hasMoreIncomes && !isLoadingMoreIncomes && step === "incomes") {
-          console.log("Loading more incomes");
           setIsLoadingMoreIncomes(true);
           setIncomePage((prev) => prev + 1);
         }
@@ -161,7 +169,6 @@ export function CreateRefundModal({
           !isLoadingMoreExpenses &&
           step === "expenses"
         ) {
-          console.log("Loading more expenses");
           setIsLoadingMoreExpenses(true);
           setExpensePage((prev) => prev + 1);
         }
@@ -240,7 +247,6 @@ export function CreateRefundModal({
 
   // Update allocations based on selections
   const updateAllocations = (expenses: Transaction[], incomes: Transaction[]) => {
-    console.log("updateAllocations called", { expenses, incomes });
     if (!expenses.length || !incomes.length) {
       setAllocations([]);
       return;
@@ -257,7 +263,6 @@ export function CreateRefundModal({
         });
       });
     });
-    console.log("Setting new allocations", newAllocations);
     setAllocations(newAllocations);
   };
 
@@ -423,7 +428,7 @@ export function CreateRefundModal({
         // Generate a default description if none provided
         const defaultDescription = `Refund group for ${uniqueExpenseIds.size} expense(s) and ${
           uniqueIncomeIds.size
-        } income(s) totaling $${totalAmount.toFixed(2)}`;
+        } income(s) totaling ${formatCurrency(totalAmount, pref)}`;
 
         const finalDescription = groupDescription || defaultDescription;
 
@@ -577,7 +582,6 @@ export function CreateRefundModal({
     return allocations.reduce((sum, a) => sum + a.amount, 0);
   };
 
-  console.log("allocations", allocations);
   const getStepContent = () => {
     switch (step) {
       case "expenses":
@@ -656,17 +660,19 @@ export function CreateRefundModal({
                               {transaction.refunded_amount > 0 ? (
                                 <>
                                   <span className="line-through text-gray-500 text-sm">
-                                    ${Math.abs(transaction.amount).toFixed(2)}
+                                    {formatCurrency(amountPreferredOrFallback(transaction), pref)}
                                   </span>
                                   <span>
-                                    $
-                                    {Math.abs(
-                                      transaction.amount - transaction.refunded_amount,
-                                    ).toFixed(2)}
+                                    {formatCurrency(
+                                      netAmountAfterRefundsPreferred(transaction),
+                                      pref,
+                                    )}
                                   </span>
                                 </>
                               ) : (
-                                <span>${Math.abs(transaction.amount).toFixed(2)}</span>
+                                <span>
+                                  {formatCurrency(amountPreferredOrFallback(transaction), pref)}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -771,7 +777,7 @@ export function CreateRefundModal({
                               )}
                             </div>
                             <div className="text-lg font-semibold text-green-600 shrink-0">
-                              ${transaction.amount.toFixed(2)}
+                              {formatCurrency(amountPreferredOrFallback(transaction), pref)}
                             </div>
                           </div>
                         </div>
@@ -822,7 +828,8 @@ export function CreateRefundModal({
                       </div>
                       {expense.refunded_amount > 0 && (
                         <div className="text-xs text-amber-600 mt-1">
-                          Already has ${expense.refunded_amount.toFixed(2)} in existing refunds
+                          Already has {formatCurrency(refundedAmountPreferred(expense), pref)} in
+                          existing refunds
                         </div>
                       )}
                     </div>
@@ -830,12 +837,12 @@ export function CreateRefundModal({
                       {expense.refunded_amount > 0 ? (
                         <>
                           <span className="line-through text-gray-500 text-sm mr-2">
-                            ${Math.abs(expense.amount).toFixed(2)}
+                            {formatCurrency(amountPreferredOrFallback(expense), pref)}
                           </span>
-                          ${Math.abs(expense.amount - expense.refunded_amount).toFixed(2)}
+                          {formatCurrency(netAmountAfterRefundsPreferred(expense), pref)}
                         </>
                       ) : (
-                        <>${Math.abs(expense.amount).toFixed(2)}</>
+                        <>{formatCurrency(amountPreferredOrFallback(expense), pref)}</>
                       )}
                     </div>
                   </div>
@@ -853,7 +860,9 @@ export function CreateRefundModal({
                         >
                           <div className="flex items-center justify-between text-sm">
                             <div className="font-medium">{income.description}</div>
-                            <div className="text-green-600">${income.amount.toFixed(2)}</div>
+                            <div className="text-green-600">
+                              {formatCurrency(amountPreferredOrFallback(income), pref)}
+                            </div>
                           </div>
                           <div className="space-y-2">
                             <div className="flex justify-between items-center text-sm">
@@ -861,7 +870,7 @@ export function CreateRefundModal({
                               <div className="flex items-center gap-2">
                                 <div className="relative">
                                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500">
-                                    $
+                                    {currencyPrefix}
                                   </span>
                                   <input
                                     type="number"
@@ -879,11 +888,11 @@ export function CreateRefundModal({
                                         );
                                       }
                                     }}
-                                    className="w-24 pl-6 h-7 rounded-md border border-gray-200 text-right text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    className="w-28 pl-8 h-7 rounded-md border border-gray-200 text-right text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                                   />
                                 </div>
                                 <span className="text-gray-400">
-                                  of ${allocation.maxAmount.toFixed(2)}
+                                  of {formatCurrency(allocation.maxAmount, pref)}
                                 </span>
                               </div>
                             </div>
@@ -921,8 +930,8 @@ export function CreateRefundModal({
                               }
                             />
                             <div className="flex justify-between text-xs text-gray-400">
-                              <span>$0</span>
-                              <span>${allocation.maxAmount.toFixed(2)}</span>
+                              <span>{formatCurrency(0, pref)}</span>
+                              <span>{formatCurrency(allocation.maxAmount, pref)}</span>
                             </div>
                           </div>
                         </div>
@@ -998,13 +1007,16 @@ export function CreateRefundModal({
                   <div className="space-y-1">
                     <div className="text-sm text-gray-500">Total Expenses</div>
                     <div className="text-lg font-semibold text-red-600">
-                      ${selectedExpenses.reduce((sum, e) => sum + Math.abs(e.amount), 0).toFixed(2)}
+                      {formatCurrency(
+                        selectedExpenses.reduce((sum, e) => sum + Math.abs(e.amount), 0),
+                        pref,
+                      )}
                     </div>
                   </div>
                   <div className="space-y-1">
                     <div className="text-sm text-gray-500">Total Refunds</div>
                     <div className="text-lg font-semibold text-green-600">
-                      ${getTotalRefundAmount().toFixed(2)}
+                      {formatCurrency(getTotalRefundAmount(), pref)}
                     </div>
                   </div>
                   <div className="space-y-1">
@@ -1037,7 +1049,8 @@ export function CreateRefundModal({
                         {expense.refunded_amount > 0 &&
                           expense.refunded_amount !== totalRefunded && (
                             <div className="text-xs text-amber-600">
-                              Already has ${expense.refunded_amount.toFixed(2)} in other refunds
+                              Already has {formatCurrency(refundedAmountPreferred(expense), pref)}{" "}
+                              in other refunds
                             </div>
                           )}
                       </div>
@@ -1047,21 +1060,21 @@ export function CreateRefundModal({
                           <>
                             <div className="text-lg font-semibold text-red-600">
                               <span className="line-through text-gray-500 text-sm mr-2">
-                                ${Math.abs(expense.amount).toFixed(2)}
+                                {formatCurrency(amountPreferredOrFallback(expense), pref)}
                               </span>
-                              ${Math.abs(expense.amount - expense.refunded_amount).toFixed(2)}
+                              {formatCurrency(netAmountAfterRefundsPreferred(expense), pref)}
                             </div>
                             <div className="text-sm text-green-600">
-                              ${totalRefunded.toFixed(2)} new refund
+                              {formatCurrency(totalRefunded, pref)} new refund
                             </div>
                           </>
                         ) : (
                           <>
                             <div className="text-lg font-semibold text-red-600">
-                              ${Math.abs(expense.amount).toFixed(2)}
+                              {formatCurrency(amountPreferredOrFallback(expense), pref)}
                             </div>
                             <div className="text-sm text-green-600">
-                              ${totalRefunded.toFixed(2)} refunded
+                              {formatCurrency(totalRefunded, pref)} refunded
                             </div>
                           </>
                         )}
@@ -1076,7 +1089,9 @@ export function CreateRefundModal({
                         >
                           <ArrowRight className="w-4 h-4 text-gray-400" />
                           <span className="text-gray-600">{income.description}:</span>
-                          <span className="font-medium">${allocation.amount.toFixed(2)}</span>
+                          <span className="font-medium">
+                            {formatCurrency(allocation.amount, pref)}
+                          </span>
                           <span className="text-gray-400">
                             ({((allocation.amount / Math.abs(expense.amount)) * 100).toFixed(1)}
                             %)
@@ -1134,20 +1149,6 @@ export function CreateRefundModal({
 
   const dialogTitle = editMode ? "Edit Refund" : "Create Refund";
 
-  // Add useEffect to log state changes
-  useEffect(() => {
-    console.log("State updated", {
-      step,
-      selectedIncomes: selectedIncomes.map((i) => i.id),
-      selectedExpenses: selectedExpenses.map((e) => e.id),
-      allocations: allocations.map((a) => ({
-        expenseId: a.expenseId,
-        incomeId: a.incomeId,
-        amount: a.amount,
-      })),
-    });
-  }, [step, selectedIncomes, selectedExpenses, allocations]);
-
   // Generate a default group name based on selected transactions
   useEffect(() => {
     // Don't update if the user has manually entered a name or if we're in edit mode
@@ -1170,10 +1171,10 @@ export function CreateRefundModal({
 
       setGroupDescription(
         `Refund group for ${selectedExpenses.length} expense(s) ` +
-          `totaling $${totalExpenseAmount.toFixed(2)}`,
+          `totaling ${formatCurrency(totalExpenseAmount, pref)}`,
       );
     }
-  }, [selectedExpenses, groupName, editMode?.refundGroupId, isInitialized]);
+  }, [selectedExpenses, groupName, editMode?.refundGroupId, isInitialized, pref]);
 
   return (
     <Dialog
