@@ -16,6 +16,7 @@ SELECT
       )
       FROM transactions
       WHERE (from_account_id = a.id OR to_account_id = a.id)
+        AND date <= date('now')
     ), 0
   ) AS current_balance
 FROM accounts a

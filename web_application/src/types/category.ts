@@ -24,31 +24,63 @@ export interface CategoryMetadata {
 }
 
 export interface CategorySummary {
+  preferred_currency?: string;
   count: number;
   net_amount: number;
   original_amount: number;
+  by_currency?: Record<
+    string,
+    {
+      net_amount: number;
+      original_amount: number;
+    }
+  >;
   transactions: Transaction[];
 }
 
 export interface CategorySummaryResponse {
   income: {
     total: {
+      preferred_currency?: string;
       net: number;
       original: number;
+      by_currency?: Record<
+        string,
+        {
+          net: number;
+          original: number;
+        }
+      >;
     };
     by_category: Record<string, CategorySummary>;
   };
   expense: {
     total: {
+      preferred_currency?: string;
       net: number;
       original: number;
+      by_currency?: Record<
+        string,
+        {
+          net: number;
+          original: number;
+        }
+      >;
     };
     by_category: Record<string, CategorySummary>;
   };
   transfer: {
     total: {
+      preferred_currency?: string;
       net: number;
       original: number;
+      by_currency?: Record<
+        string,
+        {
+          net: number;
+          original: number;
+        }
+      >;
     };
     by_category: Record<string, CategorySummary>;
   };

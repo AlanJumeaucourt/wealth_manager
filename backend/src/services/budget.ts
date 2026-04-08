@@ -1,5 +1,5 @@
 import { db } from "../db/client.js";
-import { convert } from "../utils/currency.js";
+import { getExchangeRateAtDate } from "../utils/currency.js";
 import { round2 } from "../utils/money.js";
 import { getPreferredCurrency } from "./account.js";
 
@@ -55,6 +55,11 @@ export interface TransactionSummaryTx {
   date: string;
   date_accountability: string;
   description: string;
+  currency?: string;
+  amount_original?: number;
+  net_amount_original?: number;
+  amount_preferred?: number;
+  net_amount_preferred?: number;
   amount: number;
   net_amount: number;
   refunded_amount: number;
@@ -65,14 +70,24 @@ export interface TransactionSummaryTx {
 }
 
 export interface TransactionSummary {
+  preferred_currency?: string;
   net_amount: number;
   original_amount: number;
+  by_currency?: Record<
+    string,
+    {
+      net_amount: number;
+      original_amount: number;
+    }
+  >;
   count: number;
   transactions: TransactionSummaryTx[];
 }
 
 interface BudgetTxRow {
   id: number;
+  date: string;
+  date_accountability: string;
   type: "income" | "expense" | "transfer";
   category: string;
   subcategory: string | null;
@@ -101,10 +116,28 @@ interface BudgetImpactResult {
   baseCurrency: string;
 }
 
+async function convertAtDate(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  dateStr: string,
+): Promise<number> {
+  const from = fromCurrency.toUpperCase();
+  const to = toCurrency.toUpperCase();
+  if (from === to) return round2(amount);
+  const rate = await getExchangeRateAtDate(from, to, dateStr);
+  return round2(amount * rate);
+}
+
 function computeBudgetImpact(input: BudgetImpactInput): BudgetImpactResult {
   const { tx, fromAccount, toAccount, refunded } = input;
   if (tx.type === "expense" && fromAccount?.type === "loan") {
-    return { include: false, originalAmount: 0, netAmount: 0, baseCurrency: "EUR" };
+    return {
+      include: false,
+      originalAmount: 0,
+      netAmount: 0,
+      baseCurrency: "EUR",
+    };
   }
 
   const fromCurrency = fromAccount?.currency ?? "EUR";
@@ -150,6 +183,8 @@ async function loadBudgetBaseData(
     .selectFrom("transactions")
     .select([
       "transactions.id",
+      "transactions.date",
+      "transactions.date_accountability",
       "transactions.type",
       "transactions.category",
       "transactions.subcategory",
@@ -265,21 +300,45 @@ export async function getTransactionsByCategories(
     const category = row.category;
     if (!categorized[category]) {
       categorized[category] = {
+        preferred_currency: preferred,
         net_amount: 0,
         original_amount: 0,
+        by_currency: {},
         count: 0,
         transactions: [],
       };
     }
     const cat = categorized[category];
 
-    const originalPref = await convert(impact.originalAmount, impact.baseCurrency, preferred);
-    const netPref = await convert(impact.netAmount, impact.baseCurrency, preferred);
-    const refundedPref = await convert(
+    const accountingDate = String(row.date_accountability ?? row.date).slice(0, 10);
+    const originalPref = await convertAtDate(
+      impact.originalAmount,
+      impact.baseCurrency,
+      preferred,
+      accountingDate,
+    );
+    const netPref = await convertAtDate(
+      impact.netAmount,
+      impact.baseCurrency,
+      preferred,
+      accountingDate,
+    );
+    const refundedPref = await convertAtDate(
       Math.max(0, impact.originalAmount - impact.netAmount),
       impact.baseCurrency,
       preferred,
+      accountingDate,
     );
+    const byCurrency = cat.by_currency ?? {};
+    if (!byCurrency[impact.baseCurrency]) {
+      byCurrency[impact.baseCurrency] = {
+        net_amount: 0,
+        original_amount: 0,
+      };
+    }
+    byCurrency[impact.baseCurrency]!.net_amount += impact.netAmount;
+    byCurrency[impact.baseCurrency]!.original_amount += impact.originalAmount;
+    cat.by_currency = byCurrency;
 
     cat.net_amount += netPref;
     cat.original_amount += originalPref;
@@ -289,6 +348,11 @@ export async function getTransactionsByCategories(
       date: String(row.date),
       date_accountability: String(row.date_accountability),
       description: row.description ?? "",
+      currency: impact.baseCurrency,
+      amount_original: round2(impact.originalAmount),
+      net_amount_original: round2(impact.netAmount),
+      amount_preferred: originalPref,
+      net_amount_preferred: netPref,
       amount: originalPref,
       net_amount: netPref,
       refunded_amount: refundedPref,
@@ -302,6 +366,15 @@ export async function getTransactionsByCategories(
   for (const c of Object.values(categorized)) {
     c.net_amount = round2(c.net_amount);
     c.original_amount = round2(c.original_amount);
+    const byCurrency = c.by_currency;
+    if (byCurrency) {
+      for (const [currency, values] of Object.entries(byCurrency)) {
+        byCurrency[currency] = {
+          net_amount: round2(values.net_amount),
+          original_amount: round2(values.original_amount),
+        };
+      }
+    }
   }
   return categorized;
 }
@@ -352,8 +425,19 @@ export async function getBudgetSummary(
     }
     const sub = byCategory[category][subcategory];
 
-    sub.original += await convert(impact.originalAmount, impact.baseCurrency, preferred);
-    sub.net += await convert(impact.netAmount, impact.baseCurrency, preferred);
+    const accountingDate = String(row.date_accountability ?? row.date).slice(0, 10);
+    sub.original += await convertAtDate(
+      impact.originalAmount,
+      impact.baseCurrency,
+      preferred,
+      accountingDate,
+    );
+    sub.net += await convertAtDate(
+      impact.netAmount,
+      impact.baseCurrency,
+      preferred,
+      accountingDate,
+    );
     sub.txIds.push(String(row.id));
   }
 

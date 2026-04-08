@@ -22,11 +22,33 @@ export interface PeriodSummaryData {
   start_date: string;
   end_date: string;
   income: {
-    total: number;
+    total: {
+      preferred_currency?: string;
+      net: number;
+      original: number;
+      by_currency?: Record<
+        string,
+        {
+          net: number;
+          original: number;
+        }
+      >;
+    };
     by_category: Record<string, CategorySummary>;
   };
   expense: {
-    total: number;
+    total: {
+      preferred_currency?: string;
+      net: number;
+      original: number;
+      by_currency?: Record<
+        string,
+        {
+          net: number;
+          original: number;
+        }
+      >;
+    };
     by_category: Record<string, CategorySummary>;
   };
 }

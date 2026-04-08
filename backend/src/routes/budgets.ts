@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
-import { authDerivePlugin, requireAuth } from "../middleware/auth.js";
+import { categoriesByType } from "../categories.js";
 import { db } from "../db/client.js";
+import { authDerivePlugin, requireAuth } from "../middleware/auth.js";
 import {
   tBaseListQuerySchema,
   tBudgetsCompareQuerySchema,
@@ -11,11 +12,7 @@ import {
   tBudgetUpdateSchema,
   tBudgetUpsertSchema,
 } from "../schemas/typebox.js";
-import { parseDateRangeOr400, parseYearMonthQuery, withDateRange } from "../utils/query.js";
-import { round2 } from "../utils/money.js";
-import { stringifyUnknown } from "../utils/stringifyUnknown.js";
 import * as budget from "../services/budget.js";
-import { categoriesByType } from "../categories.js";
 import {
   createCreateHandler,
   createDeleteByIdHandler,
@@ -23,6 +20,9 @@ import {
   createListHandler,
   createUpdateHandler,
 } from "../utils/crudHandlers.js";
+import { round2 } from "../utils/money.js";
+import { parseDateRangeOr400, parseYearMonthQuery, withDateRange } from "../utils/query.js";
+import { stringifyUnknown } from "../utils/stringifyUnknown.js";
 
 const TABLE = "budgets" as const;
 const VALID_CATEGORY_TYPES = ["expense", "income", "transfer"] as const;
@@ -32,7 +32,9 @@ type PeriodType = (typeof VALID_PERIODS)[number];
 
 function validateCategoryType(value: string): { error: string } | null {
   if (VALID_CATEGORY_TYPES.includes(value as CategoryType)) return null;
-  return { error: "Invalid category type. Must be one of: expense, income, transfer" };
+  return {
+    error: "Invalid category type. Must be one of: expense, income, transfer",
+  };
 }
 
 function budgetCreateTransform(body: Record<string, unknown>, userId: number) {
@@ -48,13 +50,39 @@ function budgetCreateTransform(body: Record<string, unknown>, userId: number) {
 const SEARCH_FIELDS = ["category"];
 
 function budgetUpdateTransform(body: Record<string, unknown>) {
-  return { ...body, amount: body.amount != null ? stringifyUnknown(body.amount) : undefined };
+  return {
+    ...body,
+    amount: body.amount != null ? stringifyUnknown(body.amount) : undefined,
+  };
 }
 
 function sumTransactionSummary(data: Record<string, budget.TransactionSummary>) {
+  const byCurrency: Record<string, { net: number; original: number }> = {};
+  let preferredCurrency = "EUR";
+  for (const cat of Object.values(data)) {
+    if (cat.preferred_currency) preferredCurrency = cat.preferred_currency;
+    const categoryByCurrency = cat.by_currency ?? {};
+    for (const [currency, totals] of Object.entries(categoryByCurrency)) {
+      if (!byCurrency[currency]) {
+        byCurrency[currency] = { net: 0, original: 0 };
+      }
+      byCurrency[currency]!.net += Number(totals.net_amount ?? 0);
+      byCurrency[currency]!.original += Number(totals.original_amount ?? 0);
+    }
+  }
   return {
+    preferred_currency: preferredCurrency,
     net: Object.values(data).reduce((sum, cat) => sum + Number(cat.net_amount ?? 0), 0),
     original: Object.values(data).reduce((sum, cat) => sum + Number(cat.original_amount ?? 0), 0),
+    by_currency: Object.fromEntries(
+      Object.entries(byCurrency).map(([currency, totals]) => [
+        currency,
+        {
+          net: round2(totals.net),
+          original: round2(totals.original),
+        },
+      ]),
+    ),
   };
 }
 
@@ -164,7 +192,10 @@ async function compareLegacyBudgets(
   return result;
 }
 
-export const budgetsRoutes = new Elysia({ prefix: "/budgets", tags: ["budgets"] })
+export const budgetsRoutes = new Elysia({
+  prefix: "/budgets",
+  tags: ["budgets"],
+})
   .use(authDerivePlugin)
   // Category metadata endpoints – match legacy Python API shape
   .get("/categories", () => categoriesByType)

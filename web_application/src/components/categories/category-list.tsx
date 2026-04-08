@@ -28,8 +28,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDateRange } from "@/contexts/date-range-context";
 import { useCategories } from "@/hooks/use-categories";
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
-import { CategoryMetadata } from "@/types/category";
 import type { Transaction as ApiTransaction } from "@/types";
+import { CategoryMetadata } from "@/types/category";
 import { formatCurrency } from "@/utils/currency";
 import {
   amountPreferredOrFallback,

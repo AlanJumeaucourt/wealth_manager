@@ -219,10 +219,9 @@ export const TransactionForm = memo(function TransactionForm({
       amount: parseFloat(apiData.amount),
       from_account_id: apiData.from_account_id,
       to_account_id: apiData.to_account_id,
+      to_amount:
+        apiData.to_amount && apiData.to_amount.trim() !== "" ? parseFloat(apiData.to_amount) : null,
     };
-    if (apiData.to_amount && apiData.to_amount.trim() !== "") {
-      submitPayload.to_amount = parseFloat(apiData.to_amount);
-    }
 
     if (isEditMode && transaction) {
       console.log("Submitting edit data to API:", submitPayload);
