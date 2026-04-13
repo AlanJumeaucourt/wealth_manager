@@ -16,6 +16,10 @@ services:
         generateValue: true
       - key: LOG_JSON
         value: "1"
+      - key: DEMO_MODE
+        value: "true"
+      - key: DEMO_SIMULATION_YEARS
+        value: "10"
 
   - type: web
     env: static

@@ -1,6 +1,8 @@
 import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
+import { config } from "./config.js";
+import { getDemoSeededStatus } from "./demo/demoSeedStatus.js";
 import { authDerivePlugin } from "./middleware/auth";
 import { errorHandler } from "./middleware/error";
 import { logRequest, logResponse } from "./middleware/log";
@@ -54,9 +56,17 @@ export const app = new Elysia()
       logResponse({ request, status, durationMs, reason, userId });
     },
   )
-  .get("/health", () => ({ status: "ok" }), {
-    detail: { tags: ["Health"], summary: "Health check" },
-  })
+  .get(
+    "/health",
+    () => ({
+      status: "ok",
+      demo_mode: config.demoMode,
+      demo_seeded: config.demoMode ? getDemoSeededStatus() : false,
+    }),
+    {
+      detail: { tags: ["Health"], summary: "Health check" },
+    },
+  )
   .use(usersRoutes)
   .use(banksRoutes)
   .use(accountsRoutes)

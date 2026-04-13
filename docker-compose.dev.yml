@@ -20,6 +20,7 @@ services:
       - PORT=5000
       - SQLITE_DB_PATH=/app/data/wealth.db
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-}
+      - DEMO_MODE=true
     ports:
       - "5000:5000"
     networks:
@@ -40,6 +41,7 @@ services:
       # Default empty → same-origin `/api` via Vite proxy (works with Tailscale HTTPS and localhost).
       # Set when needed, e.g. VITE_API_URL=http://100.x.x.x:5000 for direct API from another host.
       - VITE_API_URL=${VITE_API_URL:-}
+      - DEMO_MODE=true
     ports:
       - "5173:5173"
     depends_on:

@@ -1,4 +1,5 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { API_URL } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Icons } from "@/components/ui/icons";
@@ -13,11 +14,72 @@ export function Landing() {
   const [password, setPassword] = useState("test123");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [backendStatusMessage, setBackendStatusMessage] = useState<string | null>(
+    "Backend is waking up on Render. This can take about a minute.",
+  );
   const navigate = useNavigate();
 
   useEffect(() => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const checkBackendHealth = async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      try {
+        const response = await fetch(`${API_URL}/health`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          if (!disposed) {
+            setBackendStatusMessage("Backend is initializing. Please wait a moment and try again.");
+          }
+          return;
+        }
+
+        const health = (await response.json()) as {
+          status?: string;
+          demo_mode?: boolean;
+          demo_seeded?: boolean | null;
+        };
+
+        if (disposed) return;
+
+        if (health.status !== "ok") {
+          setBackendStatusMessage("Backend is initializing. Please wait a moment and try again.");
+          return;
+        }
+
+        if (health.demo_mode && health.demo_seeded !== true) {
+          setBackendStatusMessage("Backend is preparing demo data. This can take up to a minute.");
+          return;
+        }
+
+        setBackendStatusMessage(null);
+      } catch {
+        if (!disposed) {
+          setBackendStatusMessage("Backend is waking up on Render. This can take about a minute.");
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
+    void checkBackendHealth();
+    intervalId = setInterval(() => {
+      void checkBackendHealth();
+    }, 8000);
+
+    return () => {
+      disposed = true;
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -64,6 +126,11 @@ export function Landing() {
             <h2 className="text-2xl font-semibold text-center">Welcome back</h2>
           </CardHeader>
           <CardContent>
+            {backendStatusMessage && (
+              <Alert className="mb-4">
+                <AlertDescription>{backendStatusMessage}</AlertDescription>
+              </Alert>
+            )}
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertDescription>{error}</AlertDescription>

@@ -4,12 +4,13 @@ import type { User } from "../types/index.js";
 import { errorMessage, ConflictError, NotFoundError } from "../utils/error.js";
 
 export async function createUser(name: string, email: string, passwordHash: string): Promise<User> {
+  const normalizedEmail = email.trim().toLowerCase();
   try {
     const row = await db()
       .insertInto("users")
       .values({
         name,
-        email,
+        email: normalizedEmail,
         password: passwordHash,
         preferred_currency: "EUR",
         last_login: null,
@@ -67,10 +68,11 @@ export async function getUserById(userId: number): Promise<User | null> {
 }
 
 export async function getUserByEmail(email: string): Promise<(User & { password: string }) | null> {
+  const normalizedEmail = email.trim().toLowerCase();
   const row = await db()
     .selectFrom("users")
     .selectAll()
-    .where("email", "=", email)
+    .where("email", "=", normalizedEmail)
     .executeTakeFirst();
   if (!row) return null;
   return { ...rowToUser(row), password: row.password };
