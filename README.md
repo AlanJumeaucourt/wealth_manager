@@ -64,7 +64,8 @@ A Render Blueprint is included at `render.yaml` to deploy both services:
 
 ### Notes
 
-- The backend uses a persistent disk mounted at `/app/data` and stores SQLite at `/app/data/wealth.db`.
+- Free-tier blueprint uses an ephemeral SQLite path at `/tmp/wealth.db` because free Render web services do not support persistent disks.
+- On free tier, backend data is reset on restarts/redeploys/idle spin-down. For persistent data, upgrade backend to a paid plan and attach a persistent disk.
 - `JWT_SECRET_KEY` is generated automatically by Render from the blueprint.
 - Backend health check path is `/health`.
 - If your backend URL changes, update `VITE_API_URL` and redeploy the static site.
