@@ -10,6 +10,9 @@ on:
       - "bun.lockb"
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
@@ -25,11 +28,11 @@ jobs:
   deploy-web-app:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}/app/
+      url: ${{ steps.deployment.outputs.page_url }}app/
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -47,16 +50,16 @@ jobs:
         run: bun run --filter wealth-web-application build
 
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: "./web_application/dist"
           name: "app"
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         with:
           artifact_name: "app"
