@@ -834,13 +834,14 @@ export function useUpdatePreferredCurrency() {
     mutationFn: (preferred_currency: string) =>
       unwrapEden(
         wealthApi.users.preferred_currency.put({
-          body: {
-            preferred_currency: preferred_currency.toUpperCase(),
-          } as never,
+          preferred_currency: preferred_currency.toUpperCase(),
         } as never),
       ) as unknown as Promise<{ preferred_currency: string }>,
     onSuccess: (_, preferred_currency) => {
       void queryClient.invalidateQueries({ queryKey: QueryKeys.user });
+      void queryClient.invalidateQueries({
+        queryKey: QueryKeys.userPreferredCurrencyOptions,
+      });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.accounts });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.wealthOverTime });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.transactions });
@@ -856,6 +857,16 @@ export function useUpdatePreferredCurrency() {
         }
       }
     },
+  });
+}
+
+export function usePreferredCurrencyOptions() {
+  return useCreateQuery<{ currencies: string[] }>({
+    queryKey: QueryKeys.userPreferredCurrencyOptions,
+    queryFn: () =>
+      unwrapEden(wealthApi.users.preferred_currency.options.get()) as unknown as Promise<{
+        currencies: string[];
+      }>,
   });
 }
 // #endregion

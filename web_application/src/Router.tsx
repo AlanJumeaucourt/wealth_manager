@@ -1,5 +1,5 @@
-import { AuthenticatedLayout } from "@/components/router/AuthenticatedLayout";
 import { AppRoot } from "@/components/router/AppRoot";
+import { AuthenticatedLayout } from "@/components/router/AuthenticatedLayout";
 import { AccountDetailPage } from "@/pages/AccountDetailPage";
 import { AccountsPage } from "@/pages/AccountsPage";
 import BudgetSetup from "@/pages/BudgetSetup";
@@ -20,6 +20,7 @@ import { InvestmentsTransactionPage } from "./pages/InvestmentsTransactionPage";
 import { Landing } from "./pages/Landing";
 import { PotentialRefundsPage } from "./pages/PotentialRefundsPage";
 import { RefundsPage } from "./pages/RefundsPage";
+import { SettingsPage } from "./pages/Settings";
 import { Signup } from "./pages/Signup";
 import { TransactionDetailPage } from "./pages/TransactionDetailPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
@@ -279,12 +280,7 @@ const connectBankRoute = new Route({
 const settingsRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/settings",
-  component: () => (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-4">Settings</h1>
-      <p>Settings page content will go here.</p>
-    </div>
-  ),
+  component: SettingsPage,
 });
 
 const gocardlessAccountsRoute = new Route({

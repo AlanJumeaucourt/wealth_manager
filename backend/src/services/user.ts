@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { db } from "../db/client.js";
 import type { User } from "../types/index.js";
 import { errorMessage, ConflictError, NotFoundError } from "../utils/error.js";
@@ -117,4 +118,33 @@ export async function deleteUser(userId: number): Promise<void> {
   if (deleted === 0) {
     throw new NotFoundError("Delete user: no rows deleted (user may not exist)");
   }
+}
+
+/**
+ * Returns unique effective currencies used by the user's transactions.
+ * - income   -> destination account currency
+ * - expense  -> source account currency
+ * - transfer -> source account currency
+ */
+export async function getUserTransactionCurrencies(userId: number): Promise<string[]> {
+  const rows = await db()
+    .selectFrom("transactions as t")
+    .innerJoin("accounts as from_acc", "from_acc.id", "t.from_account_id")
+    .innerJoin("accounts as to_acc", "to_acc.id", "t.to_account_id")
+    .select((eb) => [
+      sql<string>`UPPER(
+        CASE
+          WHEN ${eb.ref("t.type")} = 'income' THEN COALESCE(${eb.ref("to_acc.currency")}, 'EUR')
+          ELSE COALESCE(${eb.ref("from_acc.currency")}, 'EUR')
+        END
+      )`.as("currency"),
+    ])
+    .where("t.user_id", "=", userId)
+    .distinct()
+    .execute();
+
+  return rows
+    .map((row) => row.currency)
+    .filter((currency): currency is string => typeof currency === "string" && currency.length > 0)
+    .sort((a, b) => a.localeCompare(b));
 }

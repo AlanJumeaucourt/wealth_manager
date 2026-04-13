@@ -11,6 +11,7 @@ import {
   PieChart,
   Receipt,
   RefreshCw,
+  Settings,
   Wallet,
 } from "lucide-react";
 import * as React from "react";
@@ -177,6 +178,11 @@ const STATIC_DATA = {
       title: "Import / Export",
       url: "/export-import",
       icon: FileJson,
+    },
+    {
+      title: "Settings",
+      url: "/settings",
+      icon: Settings,
     },
   ] as NavItem[],
 };

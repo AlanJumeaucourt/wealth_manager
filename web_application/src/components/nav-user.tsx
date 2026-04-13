@@ -3,7 +3,15 @@
 import { authService } from "@/services/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, Sparkles } from "lucide-react";
+import {
+  BadgeCheck,
+  Bell,
+  ChevronsUpDown,
+  CreditCard,
+  LogOut,
+  Settings,
+  Sparkles,
+} from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -106,6 +114,10 @@ export function NavUser({
               <DropdownMenuItem>
                 <BadgeCheck />
                 Account
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void navigate({ to: "/settings" })}>
+                <Settings />
+                Settings
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCard />

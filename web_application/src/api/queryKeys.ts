@@ -25,6 +25,7 @@ export type QueryKeyArray = readonly (string | number | undefined)[];
 
 export const QueryKeys = {
   user: ["user"] as QueryKeyArray,
+  userPreferredCurrencyOptions: ["user", "preferred_currency", "options"] as QueryKeyArray,
   banks: ["banks"] as QueryKeyArray,
   accounts: ["accounts"] as QueryKeyArray,
   accountById: (id: number) => ["accounts", id] as QueryKeyArray,

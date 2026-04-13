@@ -45,6 +45,14 @@ export async function getExchangeRate(fromCurrency: string, toCurrency: string):
   const key = `rate:latest:${from}:${to}`;
   const cached = rateCache.get(key);
   if (cached != null) return cached;
+  // Prefer Frankfurter for consistency with historical/range conversions used elsewhere.
+  // This avoids provider discrepancies for pair direction (e.g. RON -> EUR).
+  const today = new Date().toISOString().slice(0, 10);
+  const frankfurterRate = await fetchFrankfurterRate(from, to, today);
+  if (frankfurterRate != null) {
+    rateCache.set(key, frankfurterRate);
+    return frankfurterRate;
+  }
   const result = await currencyx.convert({
     amount: 1,
     from,

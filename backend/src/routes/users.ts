@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import {
   authDerivePlugin,
   createAccessToken,
@@ -164,15 +164,32 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["users"] })
     async ({ body, userId, set }) => {
       requireAuth({ userId });
       const preferred_currency = body.preferred_currency.toUpperCase();
-      if (!["EUR", "RON"].includes(preferred_currency)) {
+      const supported = await userService.getUserTransactionCurrencies(userId!);
+      if (!supported.includes(preferred_currency)) {
         set.status = 400;
-        return { error: "Unsupported preferred_currency", supported: ["EUR", "RON"] };
+        return { error: "Unsupported preferred_currency", supported };
       }
       const user = await userService.updateUser(userId!, { preferred_currency });
       invalidatePreferredCurrencyCache(userId!);
       return userToJson(user);
     },
     { body: tPreferredCurrencySchema },
+  )
+  .get(
+    "/preferred_currency/options",
+    async ({ userId }) => {
+      requireAuth({ userId });
+      const currencies = await userService.getUserTransactionCurrencies(userId!);
+      return { currencies };
+    },
+    {
+      response: {
+        200: t.Object({
+          currencies: t.Array(t.String()),
+        }),
+      },
+      detail: { summary: "List unique currencies used by the user's transactions" },
+    },
   )
   .delete(
     "/:id",

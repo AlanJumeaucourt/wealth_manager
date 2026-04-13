@@ -1,4 +1,9 @@
-import { useAccounts, useBanks, useDeleteAccount } from "@/api/queries";
+import {
+  useAccounts,
+  useBanks,
+  useDeleteAccount,
+  usePreferredCurrencyOptions,
+} from "@/api/queries";
 import { AccountForm } from "@/components/accounts/AccountForm";
 import { AddBankDialog } from "@/components/accounts/AddBankDialog";
 import { DeleteAccountDialog } from "@/components/accounts/DeleteAccountDialog";
@@ -146,6 +151,7 @@ interface AccountsPageProps {
 
 export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
   const { preferredCurrency, updatePreferredCurrency, isUpdating } = usePreferredCurrency();
+  const { data: preferredCurrencyOptions } = usePreferredCurrencyOptions();
   const [activeTab, setActiveTab] = useState<FilterTab>(
     defaultType === "new" || defaultType === "link" ? "all" : (defaultType as FilterTab),
   );
@@ -353,14 +359,17 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
                   description: `Amounts shown in ${val}.`,
                 });
               }}
-              disabled={isUpdating}
+              disabled={isUpdating || !(preferredCurrencyOptions?.currencies?.length ?? 0)}
             >
               <SelectTrigger className="w-20 h-9 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="EUR">EUR</SelectItem>
-                <SelectItem value="RON">RON</SelectItem>
+                {(preferredCurrencyOptions?.currencies ?? []).map((currency) => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={() => setIsAddingBank(true)}>
