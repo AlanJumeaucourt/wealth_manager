@@ -21,7 +21,8 @@ services:
       - key: LOG_JSON
         value: "1"
 
-  - type: static
+  - type: web
+    env: static
     name: wealth-web-application
     rootDir: .
     buildCommand: >
