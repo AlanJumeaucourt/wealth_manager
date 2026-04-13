@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: wealth-backend
+    runtime: docker
+    plan: starter
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile.prod
+    autoDeploy: true
+    healthCheckPath: /health
+    disk:
+      name: wealth-backend-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: "5000"
+      - key: SQLITE_DB_PATH
+        value: /app/data/wealth.db
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: LOG_JSON
+        value: "1"
+
+  - type: static
+    name: wealth-web-application
+    rootDir: .
+    buildCommand: >
+      curl -fsSL https://bun.sh/install | bash &&
+      export BUN_INSTALL="$HOME/.bun" &&
+      export PATH="$BUN_INSTALL/bin:$PATH" &&
+      bun install &&
+      cd web_application &&
+      bun run build
+    staticPublishPath: ./web_application/dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_URL
+        sync: false

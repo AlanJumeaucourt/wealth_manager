@@ -47,6 +47,28 @@ API_URL=https://api.example.com docker compose -f docker-compose.prod.yml up --b
 - **Backend (host):** http://localhost:5001 (container listens on 5000)
 - **Web app (host):** http://localhost:80
 
+## Render Deployment
+
+A Render Blueprint is included at `render.yaml` to deploy both services:
+
+- `wealth-backend` as a Docker web service (Bun + Elysia API)
+- `wealth-web-application` as a static site (Vite build output from `web_application/dist`)
+
+### One-time setup
+
+1. In Render, create a **Blueprint** service from this repository.
+2. Let Render create both services from `render.yaml`.
+3. Open the backend service URL (for example `https://wealth-backend.onrender.com`).
+4. In the static site service, set `VITE_API_URL` to that backend URL.
+5. Trigger a redeploy of the static site so the frontend is rebuilt with the API URL.
+
+### Notes
+
+- The backend uses a persistent disk mounted at `/app/data` and stores SQLite at `/app/data/wealth.db`.
+- `JWT_SECRET_KEY` is generated automatically by Render from the blueprint.
+- Backend health check path is `/health`.
+- If your backend URL changes, update `VITE_API_URL` and redeploy the static site.
+
 ### Environment Variables
 
 - **`API_URL`** — Public URL of the backend used when **building** the production web image (`VITE_API_URL`). Defaults to `/api` if unset (suitable when the app and API share an origin behind a reverse proxy).
