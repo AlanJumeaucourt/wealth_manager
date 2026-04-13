@@ -4,6 +4,12 @@ Marketing and feature overview for the mobile app: **React 18**, **TypeScript**,
 
 Hosted on **Render** as a static site.
 
+## Try it now
+
+Test the app directly on Render: **[Open WealthManager](https://wealth-web-application.onrender.com)**.
+
+![WealthManager preview](./public/showcase-render-preview.png)
+
 The app currently builds with `vite.config.ts` → `base: "/wealth_manager/"`.
 If you host this showcase at the domain root on Render, set `base: "/"` before building.
 

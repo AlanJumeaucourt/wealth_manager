@@ -10,6 +10,8 @@ A comprehensive personal finance management platform available as a mobile app a
 🎯 **[View Mobile App Showcase](https://alanjumeaucourt.github.io/wealth_manager)** |
 🐳 **[Quick Start with Docker](#-docker-setup)**
 
+![WealthManager preview](showcase_website/public/showcase-render-preview.png)
+
 ## 🐳 Docker Setup
 
 ### Prerequisites
