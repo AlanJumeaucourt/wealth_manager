@@ -6,7 +6,7 @@
 
 A comprehensive personal finance management platform available as a mobile app and web application, designed to help users take control of their financial lives with powerful features and an intuitive interface.
 
-🌐 **[Try Web App](https://alanjumeaucourt.github.io/wealth_manager/app)** |
+🌐 **[Try Web App](https://wealth-web-application.onrender.com/)** |
 🎯 **[View Mobile App Showcase](https://alanjumeaucourt.github.io/wealth_manager)** |
 🐳 **[Quick Start with Docker](#-docker-setup)**
 

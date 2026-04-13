@@ -2,9 +2,10 @@
 
 Marketing and feature overview for the mobile app: **React 18**, **TypeScript**, **Tailwind CSS**, **Lucide** icons, bundled with **[vite-plus](https://voidzero.dev/)** (Vite-compatible CLI: **`vp`**).
 
-🌐 **[Live site](https://alanjumeaucourt.github.io/wealth_manager/)**
+Hosted on **Render** as a static site.
 
-The site is built for hosting under the **`/wealth_manager/`** base path (`vite.config.ts` → `base: "/wealth_manager/"`), matching GitHub Pages project-site URLs.
+The app currently builds with `vite.config.ts` → `base: "/wealth_manager/"`.
+If you host this showcase at the domain root on Render, set `base: "/"` before building.
 
 ## Prerequisites
 
@@ -26,7 +27,20 @@ bun install
 bun run dev
 ```
 
-Dev server URL (typical): **http://localhost:5173/wealth_manager/** — paths are relative to `base`.
+Dev server URL (typical): **http://localhost:5173/wealth_manager/** — paths are relative to the configured `base`.
+
+## Render deployment
+
+This package should be deployed as a **Static Site** on Render.
+
+Example settings:
+
+- **Root Directory:** `showcase_website`
+- **Build Command:** `bun install && bun run build`
+- **Publish Directory:** `dist`
+
+If you keep `base: "/wealth_manager/"`, the app is expected to be served under `/wealth_manager/`.
+For root-domain hosting (for example `https://your-site.onrender.com/`), switch to `base: "/"`.
 
 ## Scripts
 
@@ -47,4 +61,4 @@ Dev server URL (typical): **http://localhost:5173/wealth_manager/** — paths ar
 ## Related
 
 - [Root README](../README.md) — full monorepo and Docker
-- [Web application](../web_application/README.md) — full PWA at `/app` on Pages
+- [Web application](../web_application/README.md) — full PWA client app
