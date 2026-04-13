@@ -154,4 +154,7 @@ psd
 thumb
 sketch
 
+# Process core dumps (e.g. bun/node crash; often written as ./core)
+/core
+
 # End of https://www.toptal.com/developers/gitignore/api/node,react

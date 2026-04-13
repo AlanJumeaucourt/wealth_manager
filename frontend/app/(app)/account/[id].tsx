@@ -1,64 +1,68 @@
-import { fetchAccounts } from '@/actions/accountActions';
-import { deleteAccount, getAccountBalance } from '@/app/api/bankApi';
-import { BackButton } from '@/app/components/BackButton';
-import TransactionList from '@/app/components/TransactionList'; // import the TransactionList component
-import { darkTheme } from '@/constants/theme';
-import { sharedStyles } from '@/styles/sharedStyles';
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Alert, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
-import { LineChart } from 'react-native-gifted-charts';
-import { ActivityIndicator, Menu } from 'react-native-paper';
-import { useDispatch } from 'react-redux';
+import { fetchAccounts } from "@/actions/accountActions";
+import { deleteAccount, getAccountBalance } from "@/app/api/bankApi";
+import { BackButton } from "@/app/components/BackButton";
+import TransactionList from "@/app/components/TransactionList"; // import the TransactionList component
+import { darkTheme } from "@/constants/theme";
+import { sharedStyles } from "@/styles/sharedStyles";
+import {
+  convertAmount,
+  formatCompactCurrency,
+  formatCurrency,
+  formatDualCurrency,
+} from "@/utils/currency";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Alert, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+import { LineChart } from "react-native-gifted-charts";
+import { ActivityIndicator, Menu } from "react-native-paper";
+import { useAppDispatch } from "@/store/hooks";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function TransactionsScreen() {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const params = useLocalSearchParams();
   const router = useRouter();
   const account = params.account ? JSON.parse(params.account as string) : undefined;
   const [visible, setVisible] = useState(false);
   const [balanceData, setBalanceData] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 40);
+  const [chartWidth, setChartWidth] = useState(Dimensions.get("window").width - 40);
+  const [preferredCurrency, setPreferredCurrency] = useState("EUR");
 
   const openMenu = () => setVisible(true);
   const closeMenu = () => setVisible(false);
 
   const handleEditAccount = () => {
     router.push({
-      pathname: '/add-account',
-      params: { account: JSON.stringify(account) }
+      pathname: "/(app)/add-account",
+      params: { account: JSON.stringify(account) },
     });
     closeMenu();
   };
 
   const handleDeleteAccount = async () => {
     try {
-      Alert.alert(
-        'Delete Account',
-        'Are you sure you want to delete this account?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
+      Alert.alert("Delete Account", "Are you sure you want to delete this account?", [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteAccount(account.id, () => {
+              void dispatch(fetchAccounts());
+              router.back();
+              Alert.alert("Success", "Account deleted successfully.");
+            });
           },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              await deleteAccount(account.id, () => {
-                dispatch(fetchAccounts());
-                router.back();
-                Alert.alert('Success', 'Account deleted successfully.');
-              });
-            },
-          },
-        ]
-      );
+        },
+      ]);
     } catch (error) {
-      console.error('Error deleting account:', error);
-      Alert.alert('Error', 'There was an error deleting the account.');
+      console.error("Error deleting account:", error);
+      Alert.alert("Error", "There was an error deleting the account.");
     }
   };
 
@@ -72,37 +76,44 @@ export default function TransactionsScreen() {
         }
         setIsLoading(false);
       } catch (error) {
-        console.error('Error fetching account balance data:', error);
+        console.error("Error fetching account balance data:", error);
         setIsLoading(false);
       }
     };
 
-    fetchBalanceData();
+    void fetchBalanceData();
 
     const handleResize = () => {
-      setChartWidth(Dimensions.get('window').width - 40);
+      setChartWidth(Dimensions.get("window").width - 40);
     };
 
-    const subscription = Dimensions.addEventListener('change', handleResize);
+    const subscription = Dimensions.addEventListener("change", handleResize);
     return () => {
       subscription?.remove();
     };
   }, [account.id]);
 
+  useEffect(() => {
+    AsyncStorage.getItem("preferredCurrency")
+      .then((v) => {
+        if (v) setPreferredCurrency(v.toUpperCase());
+      })
+      .catch(() => {});
+  }, []);
+
   const formatCompactNumber = (number: number) => {
-    if (number >= 1_000_000) {
-      return (number / 1_000_000).toFixed(2) + 'M';
-    } else if (number >= 1_000) {
-      return (number / 1_000).toFixed(2) + 'k';
-    }
-    return number.toFixed(2);
+    return formatCompactCurrency(number, preferredCurrency);
   };
 
   const formatData = () => {
+    const accountCurrency = (account?.currency || "EUR").toUpperCase();
     return Object.entries(balanceData)
       .map(([date, value]) => ({
-        value: typeof value === 'number' ? value : parseFloat(String(value)),
-        date
+        value:
+          typeof value === "number"
+            ? convertAmount(value, accountCurrency, preferredCurrency)
+            : convertAmount(parseFloat(String(value)), accountCurrency, preferredCurrency),
+        date,
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
@@ -110,10 +121,7 @@ export default function TransactionsScreen() {
   const calculateSpacing = (width: number, dataLength: number): number => {
     const minSpacing = 0.1;
     const maxSpacing = 100;
-    return Math.max(
-      minSpacing,
-      Math.min(maxSpacing, (width - 30) / (dataLength + 1))
-    );
+    return Math.max(minSpacing, Math.min(maxSpacing, (width - 30) / (dataLength + 1)));
   };
 
   return (
@@ -127,7 +135,6 @@ export default function TransactionsScreen() {
             <Pressable style={styles.menuButton} onPress={openMenu}>
               <Ionicons name="ellipsis-vertical" size={24} color={darkTheme.colors.text} />
             </Pressable>
-
           }
         >
           <Menu.Item onPress={handleEditAccount} title="Edit Account" />
@@ -138,7 +145,12 @@ export default function TransactionsScreen() {
         <View style={styles.accountHeader}>
           <Text style={styles.accountName}>{account.name}</Text>
           <Text style={styles.accountBalance}>
-            {account.balance.toLocaleString()} €
+            {formatDualCurrency(
+              convertAmount(account.balance, account.currency || "EUR", preferredCurrency),
+              preferredCurrency,
+              account.balance,
+              account.currency || "EUR",
+            )}
           </Text>
         </View>
 
@@ -165,13 +177,13 @@ export default function TransactionsScreen() {
               noOfSections={2}
               yAxisColor="transparent"
               xAxisColor="transparent"
-              formatYLabel={(value) => formatCompactNumber(Number(value)) + '€'}
+              formatYLabel={(value) => formatCompactNumber(Number(value))}
               yAxisTextStyle={{ color: darkTheme.colors.textTertiary }}
               hideRules
               hideDataPoints
               showVerticalLines={false}
               yAxisTextNumberOfLines={1}
-              yAxisLabelSuffix="€"
+              yAxisLabelSuffix={` ${preferredCurrency}`}
               curved
               animateOnDataChange
               animationDuration={1000}
@@ -179,7 +191,7 @@ export default function TransactionsScreen() {
                 showPointerStrip: true,
                 pointerStripWidth: 2,
                 pointerStripUptoDataPoint: true,
-                pointerStripColor: 'rgba(0, 0, 0, 0.5)',
+                pointerStripColor: "rgba(0, 0, 0, 0.5)",
                 width: 10,
                 height: 10,
                 radius: 6,
@@ -191,7 +203,9 @@ export default function TransactionsScreen() {
                   const item = items[0];
                   return (
                     <View style={styles.tooltipContainer}>
-                      <Text style={styles.tooltipValue}>{item.value.toFixed(0)} €</Text>
+                      <Text style={styles.tooltipValue}>
+                        {formatCurrency(item.value, preferredCurrency)}
+                      </Text>
                       <Text style={styles.tooltipDate}>{new Date(item.date).toDateString()}</Text>
                     </View>
                   );
@@ -211,9 +225,9 @@ export default function TransactionsScreen() {
 
 const styles = StyleSheet.create({
   accountHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginVertical: darkTheme.spacing.s,
     padding: darkTheme.spacing.m,
     borderRadius: darkTheme.borderRadius.l,
@@ -224,13 +238,13 @@ const styles = StyleSheet.create({
   },
   accountName: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: darkTheme.colors.text,
   },
   accountBalance: {
     fontSize: 20,
     color: darkTheme.colors.primary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   transactionsContainer: {
     flex: 1,
@@ -244,8 +258,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     height: 150,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   tooltipContainer: {
     backgroundColor: darkTheme.colors.surface,
@@ -253,7 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: darkTheme.borderRadius.m,
     borderWidth: 1,
     borderColor: darkTheme.colors.primary,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -261,14 +275,14 @@ const styles = StyleSheet.create({
   },
   tooltipValue: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: darkTheme.colors.primary,
-    textAlign: 'center',
+    textAlign: "center",
   },
   tooltipDate: {
     fontSize: 12,
     color: darkTheme.colors.textSecondary,
     marginTop: darkTheme.spacing.xs,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

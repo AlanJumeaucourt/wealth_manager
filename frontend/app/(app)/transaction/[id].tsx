@@ -1,40 +1,37 @@
-import { deleteTransaction } from '@/app/api/bankApi';
-import { BackButton } from '@/app/components/BackButton';
-import { expenseCategories, incomeCategories } from '@/constants/categories';
-import { colors } from '@/constants/colors';
-import { darkTheme } from '@/constants/theme';
-import { sharedStyles } from '@/styles/sharedStyles';
-import { Account } from '@/types/account';
-import { Ionicons } from '@expo/vector-icons';
-import { format, parseISO } from 'date-fns';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Icon, Text } from 'react-native-elements';
-import { Menu } from 'react-native-paper';
-import { useDispatch, useSelector } from 'react-redux';
-
-const formatAmount = (amount: number, type: string) => {
-  const formattedAmount = amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return type === 'expense' ? `-${formattedAmount} €` : `${formattedAmount} €`;
-};
+import { deleteTransaction } from "@/app/api/bankApi";
+import { BackButton } from "@/app/components/BackButton";
+import { expenseCategories, incomeCategories } from "@/constants/categories";
+import { colors } from "@/constants/colors";
+import { darkTheme } from "@/constants/theme";
+import { sharedStyles } from "@/styles/sharedStyles";
+import { Account } from "@/types/account";
+import { formatTransactionAmountDisplay } from "@/utils/transactionDisplay";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { format, parseISO } from "date-fns";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Icon, Text } from "react-native-elements";
+import { Menu } from "react-native-paper";
+import { useSelector } from "react-redux";
 
 const accountNameFromId = (accountId: number, accounts: Account[] | undefined) => {
   if (!accounts || !Array.isArray(accounts)) {
     return accountId.toString();
   }
-  const account = accounts.find(a => a.id === accountId);
+  const account = accounts.find((a) => a.id === accountId);
   return account ? account.name : accountId.toString();
 };
 
 function findCategoryIcon(categoryName: string, subcategoryName?: string) {
   const allCategories = [...expenseCategories, ...incomeCategories];
-  const category = allCategories.find(cat => cat.name === categoryName);
-  console.log('category in findCategoryIcon : ', category);
+  const category = allCategories.find((cat) => cat.name === categoryName);
+  console.log("category in findCategoryIcon : ", category);
   if (!category) return null;
 
   if (subcategoryName) {
-    const subCategory = category.subCategories?.find(sub => sub.name === subcategoryName);
+    const subCategory = category.subCategories?.find((sub) => sub.name === subcategoryName);
     return subCategory ? { iconName: subCategory.iconName, iconSet: subCategory.iconSet } : null;
   }
 
@@ -44,24 +41,28 @@ function findCategoryIcon(categoryName: string, subcategoryName?: string) {
 // Implement findCategoryByName function
 function findCategoryByName(categoryName: string) {
   const allCategories = [...expenseCategories, ...incomeCategories];
-  return allCategories.find(cat => cat.name === categoryName);
+  return allCategories.find((cat) => cat.name === categoryName);
 }
 
 export default function TransactionDetailsScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const transaction = params.transaction ? JSON.parse(params.transaction as string) : undefined;
+  const [preferredCurrency, setPreferredCurrency] = React.useState<string | null>(null);
 
-  const dispatch = useDispatch();
+  React.useEffect(() => {
+    void AsyncStorage.getItem("preferredCurrency").then((v) => {
+      if (v) setPreferredCurrency(v.toUpperCase());
+    });
+  }, []);
+
   const { accounts, error: accountsError } = useSelector((state: any) => state.accounts || {});
 
-  const [NewTransaction, setNewTransaction] = useState(transaction);
-
   const handleEdit = () => {
-    console.log('transaction in handleEdit : ', transaction);
+    console.log("transaction in handleEdit : ", transaction);
     router.push({
-      pathname: '/add-transaction',
-      params: { transaction: JSON.stringify(transaction) }
+      pathname: "/(app)/add-transaction",
+      params: { transaction: JSON.stringify(transaction) },
     });
     closeMenu();
   };
@@ -69,7 +70,10 @@ export default function TransactionDetailsScreen() {
   if (accountsError) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Error loading accounts: {accountsError instanceof Error ? accountsError.message : String(accountsError)}</Text>
+        <Text style={styles.errorText}>
+          Error loading accounts:{" "}
+          {accountsError instanceof Error ? accountsError.message : String(accountsError)}
+        </Text>
       </View>
     );
   }
@@ -88,14 +92,14 @@ export default function TransactionDetailsScreen() {
 
   const handleDeleteTransaction = async () => {
     try {
-      Alert.alert('Are you sure you want to delete this transaction?', '', [
+      Alert.alert("Are you sure you want to delete this transaction?", "", [
         {
-          text: 'Cancel',
-          style: 'cancel',
+          text: "Cancel",
+          style: "cancel",
         },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
             await deleteTransaction(transaction.id);
             router.back();
@@ -103,7 +107,7 @@ export default function TransactionDetailsScreen() {
         },
       ]);
     } catch (error) {
-      console.error('Error deleting account:', error);
+      console.error("Error deleting account:", error);
     }
   };
 
@@ -129,7 +133,12 @@ export default function TransactionDetailsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <View style={styles.headerContainer}>
-            <View style={[styles.iconContainer, { backgroundColor: getIconBackgroundColor(transaction.type) }]}>
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: getIconBackgroundColor(transaction.type) },
+              ]}
+            >
               <Icon
                 name={getIconName(transaction.type)}
                 type="font-awesome"
@@ -139,17 +148,24 @@ export default function TransactionDetailsScreen() {
             </View>
             <View style={styles.headerTextContainer}>
               <Text style={styles.title}>{transaction.description}</Text>
-              <Text style={styles.date}>{format(parseISO(transaction.date), 'dd MMMM yyyy')}</Text>
+              <Text style={styles.date}>{format(parseISO(transaction.date), "dd MMMM yyyy")}</Text>
             </View>
           </View>
           <Text style={[styles.amount, { color: getAmountColor(transaction.type) }]}>
-            {formatAmount(transaction.amount, transaction.type)}
+            {preferredCurrency
+              ? formatTransactionAmountDisplay(transaction, preferredCurrency)
+              : "—"}
           </Text>
 
           <View style={styles.categoryContainer}>
             {categoryIcon && (
-              <View style={[styles.iconCircle, { backgroundColor: findCategoryByName(transaction.category)?.color }]}>
-                {categoryIcon.iconSet === 'Ionicons' && (
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: findCategoryByName(transaction.category)?.color },
+                ]}
+              >
+                {categoryIcon.iconSet === "Ionicons" && (
                   <Ionicons name={categoryIcon.iconName as any} size={16} color="white" />
                 )}
               </View>
@@ -164,18 +180,50 @@ export default function TransactionDetailsScreen() {
           <View style={styles.divider} />
 
           <View style={styles.detailsContainer}>
-            <DetailRow icon="exchange" label="Type" value={capitalizeFirstLetter(transaction.type)} />
-            <Pressable onPress={() => router.push({
-              pathname: '/account/[id]',
-              params: { account: JSON.stringify(accounts.find((account: Account) => account.id === transaction.from_account_id)) }
-            })}>
-              <DetailRow icon="arrow-right" label="From" value={accountNameFromId(transaction.from_account_id, accounts)} />
+            <DetailRow
+              icon="exchange"
+              label="Type"
+              value={capitalizeFirstLetter(transaction.type)}
+            />
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/account/[id]",
+                  params: {
+                    id: String(transaction.from_account_id),
+                    account: JSON.stringify(
+                      accounts.find(
+                        (account: Account) => account.id === transaction.from_account_id,
+                      ),
+                    ),
+                  },
+                })
+              }
+            >
+              <DetailRow
+                icon="arrow-right"
+                label="From"
+                value={accountNameFromId(transaction.from_account_id, accounts)}
+              />
             </Pressable>
-            <Pressable onPress={() => router.push({
-              pathname: '/account/[id]',
-              params: { account: JSON.stringify(accounts.find((account: Account) => account.id === transaction.to_account_id)) }
-            })}>
-              <DetailRow icon="arrow-left" label="To" value={accountNameFromId(transaction.to_account_id, accounts)} />
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/account/[id]",
+                  params: {
+                    id: String(transaction.to_account_id),
+                    account: JSON.stringify(
+                      accounts.find((account: Account) => account.id === transaction.to_account_id),
+                    ),
+                  },
+                })
+              }
+            >
+              <DetailRow
+                icon="arrow-left"
+                label="To"
+                value={accountNameFromId(transaction.to_account_id, accounts)}
+              />
             </Pressable>
           </View>
         </View>
@@ -202,34 +250,34 @@ const DetailRow: React.FC<DetailRowProps> = ({ icon, label, value }) => (
 
 const getIconName = (type: string) => {
   switch (type) {
-    case 'income':
-      return 'arrow-down';
-    case 'expense':
-      return 'arrow-up';
+    case "income":
+      return "arrow-down";
+    case "expense":
+      return "arrow-up";
     default:
-      return 'exchange';
+      return "exchange";
   }
 };
 
 const getIconBackgroundColor = (type: string) => {
   switch (type) {
-    case 'income':
-      return '#4CAF50';
-    case 'expense':
-      return '#F44336';
+    case "income":
+      return "#4CAF50";
+    case "expense":
+      return "#F44336";
     default:
-      return '#2196F3';
+      return "#2196F3";
   }
 };
 
 const getAmountColor = (type: string) => {
   switch (type) {
-    case 'income':
-      return '#4CAF50';
-    case 'expense':
-      return '#F44336';
+    case "income":
+      return "#4CAF50";
+    case "expense":
+      return "#F44336";
     default:
-      return '#2196F3';
+      return "#2196F3";
   }
 };
 
@@ -246,15 +294,15 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginLeft: 16,
   },
   scrollContent: {
@@ -268,8 +316,8 @@ const styles = StyleSheet.create({
     ...darkTheme.shadows.medium,
   },
   headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: darkTheme.spacing.m,
   },
   iconContainer: {
@@ -282,23 +330,23 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: darkTheme.colors.text,
     marginBottom: darkTheme.spacing.xs,
   },
   amount: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: darkTheme.spacing.m,
-    textAlign: 'center',
+    textAlign: "center",
   },
   date: {
     fontSize: 16,
     color: darkTheme.colors.textSecondary,
   },
   categoryContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: darkTheme.spacing.m,
   },
   category: {
@@ -315,8 +363,8 @@ const styles = StyleSheet.create({
     marginBottom: darkTheme.spacing.m,
   },
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: darkTheme.spacing.m,
   },
   detailTextContainer: {
@@ -333,8 +381,8 @@ const styles = StyleSheet.create({
     color: darkTheme.colors.text,
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   editButton: {
     backgroundColor: darkTheme.colors.success,
@@ -352,12 +400,12 @@ const styles = StyleSheet.create({
   },
   buttonTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginLeft: 5,
   },
   errorText: {
     fontSize: 18,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 50,
     color: darkTheme.colors.textSecondary,
   },
@@ -367,14 +415,14 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   legendLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   legendLabel: {
     fontSize: 16,
     color: darkTheme.colors.text,
     flex: 1,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   subCategoryLabel: {
     fontSize: 14,

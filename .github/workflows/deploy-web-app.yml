@@ -5,6 +5,9 @@ on:
     branches: ["main"]
     paths:
       - "web_application/**"
+      - "backend/**"
+      - "package.json"
+      - "bun.lockb"
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -28,18 +31,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Install dependencies
-        working-directory: ./web_application
-        run: bun install
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
 
-      - name: Build
-        working-directory: ./web_application
-        run: bun run build
+      - name: Install workspace (monorepo root)
+        run: bun install --frozen-lockfile
+
+      - name: Build web application
+        run: bun run --filter wealth-web-application build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

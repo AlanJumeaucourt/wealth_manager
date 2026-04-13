@@ -1,6 +1,6 @@
-import { ArrowRight, Calendar, Clock, Menu, PieChart, Wallet, X } from 'lucide-react';
-import { useState } from 'react';
-import { ThemeToggle } from './components/ThemeToggle';
+import { ArrowRight, Calendar, Clock, Menu, PieChart, Wallet, X } from "lucide-react";
+import { useState } from "react";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 const App = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -8,36 +8,43 @@ const App = () => {
   const features = [
     {
       title: "Account Tracking",
-      description: "Monitor balances and transactions across multiple bank accounts and investment portfolios in one place.",
+      description:
+        "Monitor balances and transactions across multiple bank accounts and investment portfolios in one place.",
       icon: <Wallet className="w-6 h-6 mb-4 text-blue-600 dark:text-blue-400" />,
       image: "/wealth_manager/homescreen-portrait.png",
-      status: "In Development"
+      status: "In Development",
     },
     {
       title: "Investment Management",
-      description: "View and analyze investment performance, asset allocation, and stock positions with detailed insights.",
+      description:
+        "View and analyze investment performance, asset allocation, and stock positions with detailed insights.",
       icon: <PieChart className="w-6 h-6 mb-4 text-blue-600 dark:text-blue-400" />,
-      image: "/wealth_manager/investments_1-portrait.png"
+      image: "/wealth_manager/investments_1-portrait.png",
     },
     {
       title: "Smart Budgeting",
-      description: "Set and track budgets for different expense categories, helping you manage spending effectively.",
+      description:
+        "Set and track budgets for different expense categories, helping you manage spending effectively.",
       icon: <Calendar className="w-6 h-6 mb-4 text-blue-600 dark:text-blue-400" />,
-      image: "/wealth_manager/budget_expense-portrait.png"
+      image: "/wealth_manager/budget_expense-portrait.png",
     },
     {
       title: "Transaction History",
-      description: "Access detailed view of all financial transactions, categorized and easily searchable.",
+      description:
+        "Access detailed view of all financial transactions, categorized and easily searchable.",
       icon: <Clock className="w-6 h-6 mb-4 text-blue-600 dark:text-blue-400" />,
-      image: "/wealth_manager/transactions-portrait.png"
-    }
+      image: "/wealth_manager/transactions-portrait.png",
+    },
   ];
 
   const showcaseImages = [
     { src: "/wealth_manager/stock_details_1-portrait.png", title: "Stock Details" },
     { src: "/wealth_manager/investments_2-portrait.png", title: "Portfolio Overview" },
     { src: "/wealth_manager/budget_income-portrait.png", title: "Income Tracking" },
-    { src: "/wealth_manager/add-investment-transaction-portrait.png", title: "Easy Investment Management" }
+    {
+      src: "/wealth_manager/add-investment-transaction-portrait.png",
+      title: "Easy Investment Management",
+    },
   ];
 
   return (
@@ -54,13 +61,22 @@ const App = () => {
                 className="h-8 w-8 mr-2"
               />
               <span className="text-2xl font-bold text-blue-600">WealthManager</span>
-              <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Beta</span>
+              <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                Beta
+              </span>
             </div>
 
             <div className="hidden md:flex items-center space-x-8">
               <ThemeToggle />
-              <a href="#features" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition">Features</a>
-              <a href="#showcase" className="text-gray-600 hover:text-blue-600 transition">Showcase</a>
+              <a
+                href="#features"
+                className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition"
+              >
+                Features
+              </a>
+              <a href="#showcase" className="text-gray-600 hover:text-blue-600 transition">
+                Showcase
+              </a>
               <a
                 href="https://github.com/AlanJumeaucourt/wealth_manager"
                 target="_blank"
@@ -68,7 +84,7 @@ const App = () => {
                 className="flex items-center text-gray-600 hover:text-blue-600 transition"
               >
                 <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                 </svg>
                 GitHub
               </a>
@@ -88,10 +104,16 @@ const App = () => {
         {isMenuOpen && (
           <div className="md:hidden bg-white dark:bg-gray-900 border-t dark:border-gray-800">
             <div className="px-4 pt-2 pb-3 space-y-1">
-              <a href="#features" className="block px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition">
+              <a
+                href="#features"
+                className="block px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition"
+              >
                 Features
               </a>
-              <a href="#showcase" className="block px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition">
+              <a
+                href="#showcase"
+                className="block px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition"
+              >
                 Showcase
               </a>
               <a
@@ -122,8 +144,8 @@ const App = () => {
                 <span className="text-blue-600"> Wealth Management</span>
               </h1>
               <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-                A free and open source platform to manage your wealth, track investments, and achieve your financial goals.
-                Currently in active development.
+                A free and open source platform to manage your wealth, track investments, and
+                achieve your financial goals. Currently in active development.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <a
@@ -157,7 +179,9 @@ const App = () => {
       <section id="features" className="py-16 bg-white dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Powerful Features</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              Powerful Features
+            </h2>
             <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Everything you need to manage your finances effectively in one place.
             </p>
@@ -233,7 +257,7 @@ const App = () => {
                   className="text-gray-400 hover:text-white transition"
                 >
                   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                   </svg>
                 </a>
               </div>
@@ -242,13 +266,28 @@ const App = () => {
               <h4 className="text-lg font-semibold mb-4">Features</h4>
               <ul className="space-y-2">
                 <li>
-                  <a href="#features" className="text-gray-400 hover:text-white transition flex items-center">
+                  <a
+                    href="#features"
+                    className="text-gray-400 hover:text-white transition flex items-center"
+                  >
                     Account Tracking
                   </a>
                 </li>
-                <li><a href="#features" className="text-gray-400 hover:text-white transition">Investment Management</a></li>
-                <li><a href="#features" className="text-gray-400 hover:text-white transition">Smart Budgeting</a></li>
-                <li><a href="#features" className="text-gray-400 hover:text-white transition">Transaction History</a></li>
+                <li>
+                  <a href="#features" className="text-gray-400 hover:text-white transition">
+                    Investment Management
+                  </a>
+                </li>
+                <li>
+                  <a href="#features" className="text-gray-400 hover:text-white transition">
+                    Smart Budgeting
+                  </a>
+                </li>
+                <li>
+                  <a href="#features" className="text-gray-400 hover:text-white transition">
+                    Transaction History
+                  </a>
+                </li>
               </ul>
             </div>
             <div>

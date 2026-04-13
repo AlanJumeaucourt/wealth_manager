@@ -1,32 +1,50 @@
 # WealthManager Showcase Website
 
-This is the showcase website for the WealthManager app, built with React + Vite + TypeScript and TailwindCSS.
+Marketing and feature overview for the mobile app: **React 18**, **TypeScript**, **Tailwind CSS**, **Lucide** icons, bundled with **[vite-plus](https://voidzero.dev/)** (Vite-compatible CLI: **`vp`**).
 
-🌐 **[View Live Website](https://alanjumeaucourt.github.io/wealth_manager/)**
+🌐 **[Live site](https://alanjumeaucourt.github.io/wealth_manager/)**
 
-## Quick Start
+The site is built for hosting under the **`/wealth_manager/`** base path (`vite.config.ts` → `base: "/wealth_manager/"`), matching GitHub Pages project-site URLs.
+
+## Prerequisites
+
+- **Bun** `1.1.33+` (see repo root `packageManager`)
+
+## Quick start
+
+From the **repository root** (recommended—workspace install):
 
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
+bun install
+bun run --filter wealth-manager-website dev
 ```
 
-The development server will start at `http://localhost:5173/wealth_manager/`
+Or from this directory:
 
-## Available Scripts
+```bash
+bun install
+bun run dev
+```
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
+Dev server URL (typical): **http://localhost:5173/wealth_manager/** — paths are relative to `base`.
 
-## Tech Stack
+## Scripts
 
-- React 18
-- TypeScript
-- Vite
-- TailwindCSS
-- Lucide Icons
+| Command           | Description                          |
+| ----------------- | ------------------------------------ |
+| `bun run dev`     | `vp dev` — local dev server          |
+| `bun run build`   | `tsc && vp build` — production build |
+| `bun run preview` | `vp preview` — preview the build     |
+| `bun run lint`    | ESLint                               |
+
+## Tech stack
+
+- React 18 + TypeScript
+- Vite via **vite-plus** (`vite` → `@voidzero-dev/vite-plus-core`)
+- Tailwind CSS v3
+- `@vitejs/plugin-react`
+
+## Related
+
+- [Root README](../README.md) — full monorepo and Docker
+- [Web application](../web_application/README.md) — full PWA at `/app` on Pages

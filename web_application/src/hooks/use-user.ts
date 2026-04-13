@@ -1,39 +1,24 @@
-import { useQuery } from "@tanstack/react-query"
-import { API_URL } from "@/api/queries"
-import { userStorage } from "@/utils/user-storage"
-import { handleTokenExpiration } from "@/utils/auth"
-import { User } from "@/types/user"
+import { unwrapEden } from "@/api/edenUnwrap";
+import { wealthApi } from "@/api/wealthApi";
+import { User } from "@/types/user";
+import { userStorage } from "@/utils/user-storage";
+import { useQuery } from "@tanstack/react-query";
 
 async function fetchUser(): Promise<User> {
-  const token = userStorage.getToken()
+  const token = userStorage.getToken();
 
   if (!token) {
-    throw new Error("No token found")
+    throw new Error("No token found");
   }
 
-  const response = await fetch(`${API_URL}/users/`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    if (handleTokenExpiration(error)) {
-      throw new Error("Token expired")
-    }
-    throw new Error("Failed to fetch user data")
-  }
-
-  const userData = await response.json()
-  userStorage.setUser(userData)
-  userStorage.updateLastFetch()
-  return userData
+  const userData = await unwrapEden<User>(wealthApi.users.get() as Promise<unknown>);
+  userStorage.setUser(userData);
+  userStorage.updateLastFetch();
+  return userData;
 }
 
 export function useUser() {
-  const storedUser = userStorage.getUser()
+  const storedUser = userStorage.getUser();
   const {
     data: user,
     isLoading,
@@ -49,11 +34,11 @@ export function useUser() {
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     refetchOnReconnect: true,
-  })
+  });
 
   return {
     user,
     isLoading: isLoading && !!userStorage.getToken(),
     error,
-  }
+  };
 }

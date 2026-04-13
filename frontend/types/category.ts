@@ -3,5 +3,5 @@ export interface Category {
   color: string;
   iconName: string;
   iconSet: string;
-  subCategories?: { name: string, iconName: string, iconSet: string }[];
+  subCategories?: { name: string; iconName: string; iconSet: string }[];
 }

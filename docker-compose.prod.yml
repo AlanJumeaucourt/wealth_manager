@@ -1,3 +1,5 @@
+name: wealth_manager_prod
+
 services:
   backend:
     build:
@@ -6,24 +8,24 @@ services:
     volumes:
       - backend_data:/app/data
     environment:
-      - FLASK_ENV=production
-      - FLASK_APP=run.py
+      - NODE_ENV=production
+      - PORT=5000
       - SQLITE_DB_PATH=/app/data/wealth.db
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - DEMO_MODE=true
     ports:
       - "5001:5000"
     networks:
       - wealth-network
     env_file:
-      - backend/.env
+      - path: backend/.env
+        required: false
 
   web_application:
     build:
-      context: ./web_application
-      dockerfile: Dockerfile.prod
+      context: .
+      dockerfile: web_application/Dockerfile.prod
       args:
-      - VITE_API_URL=${API_URL:-/api}
+        VITE_API_URL: ${VITE_API_URL:-/api}
     ports:
       - "80:80"
     depends_on:

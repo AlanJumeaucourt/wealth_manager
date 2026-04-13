@@ -1,17 +1,17 @@
-import { expenseCategories, incomeCategories } from '@/constants/categories';
-import { Category } from '@/types/category';
+import { expenseCategories, incomeCategories } from "@/constants/categories";
+import { Category } from "@/types/category";
 
 export function findCategoryByName(categoryName: string): Category | null {
   const lowerCaseName = categoryName.toLowerCase();
 
   // Search in expense categories
-  let category = expenseCategories.find(cat => cat.name.toLowerCase() === lowerCaseName);
+  let category = expenseCategories.find((cat) => cat.name.toLowerCase() === lowerCaseName);
   if (category) {
     return category;
   }
 
   // Search in income categories
-  category = incomeCategories.find(cat => cat.name.toLowerCase() === lowerCaseName);
+  category = incomeCategories.find((cat) => cat.name.toLowerCase() === lowerCaseName);
   if (category) {
     return category;
   }

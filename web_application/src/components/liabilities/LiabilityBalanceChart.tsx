@@ -1,78 +1,64 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { format, parseISO } from "date-fns"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { format, parseISO } from "date-fns";
+import type { AmortizationScheduleItem } from "@/types/liability";
 import {
   Area,
   AreaChart,
   CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts"
-
-interface AmortizationScheduleItem {
-  payment_number: number
-  payment_date: string
-  payment_amount: number
-  principal_amount: number
-  interest_amount: number
-  remaining_principal: number
-  status: 'scheduled' | 'paid' | 'missed' | 'partial'
-  extra_payment?: number
-  is_deferred: boolean
-}
+} from "recharts";
 
 interface LiabilityBalanceChartProps {
-  schedule: AmortizationScheduleItem[]
-  title?: string
-  description?: string
+  schedule: AmortizationScheduleItem[];
+  title?: string;
+  description?: string;
 }
 
 export function LiabilityBalanceChart({
   schedule,
   title = "Balance Over Time",
-  description = "Remaining balance throughout the loan term"
+  description = "Remaining balance throughout the loan term",
 }: LiabilityBalanceChartProps) {
-
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: "EUR",
       notation: "compact",
       maximumFractionDigits: 1,
-    }).format(value)
-  }
+    }).format(value);
+  };
 
   const formatDate = (dateStr: string) => {
     try {
-      return format(parseISO(dateStr), "MMM yyyy")
-    } catch (e) {
-      return dateStr
+      return format(parseISO(dateStr), "MMM yyyy");
+    } catch {
+      return dateStr;
     }
-  }
+  };
 
   // Prepare chart data
-  const chartData = schedule.map(item => ({
+  const chartData = schedule.map((item) => ({
     date: item.payment_date,
     balance: item.remaining_principal,
     payment_number: item.payment_number,
-    is_deferred: item.is_deferred
-  }))
+    is_deferred: item.is_deferred,
+  }));
 
   // Calculate metrics
-  const initialBalance = schedule.length > 0 ? schedule[0].remaining_principal + schedule[0].principal_amount : 0
-  const currentBalance = schedule.length > 0 ? schedule[0].remaining_principal : 0
-  const totalPaid = initialBalance - currentBalance
-  const percentagePaid = (totalPaid / initialBalance) * 100
+  const initialBalance =
+    schedule.length > 0 ? schedule[0].remaining_principal + schedule[0].principal_amount : 0;
+  const currentBalance = schedule.length > 0 ? schedule[0].remaining_principal : 0;
+  const totalPaid = initialBalance - currentBalance;
+  const percentagePaid = (totalPaid / initialBalance) * 100;
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null
+    if (!active || !payload?.length) return null;
 
-    const paymentItem = payload[0].payload
+    const paymentItem = payload[0].payload;
 
     return (
       <div className="rounded-lg border bg-background p-2 shadow-sm">
@@ -81,39 +67,31 @@ export function LiabilityBalanceChart({
             <span className="text-[0.70rem] uppercase text-muted-foreground">
               Payment #{paymentItem.payment_number}
             </span>
-            <span className="font-bold text-muted-foreground">
-              {formatDate(label)}
-            </span>
+            <span className="font-bold text-muted-foreground">{formatDate(label)}</span>
           </div>
           <div className="h-px bg-border" />
           <div className="flex justify-between gap-4">
             <span className="text-[0.70rem] uppercase text-muted-foreground">
               Remaining Balance
             </span>
-            <span className="font-bold text-primary">
-              {formatCurrency(paymentItem.balance)}
-            </span>
+            <span className="font-bold text-primary">{formatCurrency(paymentItem.balance)}</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-[0.70rem] uppercase text-muted-foreground">
-              Paid Off
-            </span>
+            <span className="text-[0.70rem] uppercase text-muted-foreground">Paid Off</span>
             <span className="font-bold text-success">
               {formatCurrency(initialBalance - paymentItem.balance)}
             </span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-[0.70rem] uppercase text-muted-foreground">
-              Percentage Paid
-            </span>
+            <span className="text-[0.70rem] uppercase text-muted-foreground">Percentage Paid</span>
             <span className="font-bold text-success">
               {(((initialBalance - paymentItem.balance) / initialBalance) * 100).toFixed(1)}%
             </span>
           </div>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <Card>
@@ -125,29 +103,19 @@ export function LiabilityBalanceChart({
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="rounded-lg border bg-card p-4">
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">
-              Initial Balance
-            </h4>
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">Initial Balance</h4>
             <div className="text-2xl font-bold">{formatCurrency(initialBalance)}</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              Total loan amount
-            </div>
+            <div className="text-sm text-muted-foreground mt-1">Total loan amount</div>
           </div>
 
           <div className="rounded-lg border bg-card p-4">
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">
-              Current Balance
-            </h4>
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">Current Balance</h4>
             <div className="text-2xl font-bold">{formatCurrency(currentBalance)}</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              Remaining to be paid
-            </div>
+            <div className="text-sm text-muted-foreground mt-1">Remaining to be paid</div>
           </div>
 
           <div className="rounded-lg border bg-card p-4">
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">
-              Paid Off
-            </h4>
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">Paid Off</h4>
             <div className="text-2xl font-bold">{formatCurrency(totalPaid)}</div>
             <div className="text-sm text-muted-foreground mt-1">
               {percentagePaid.toFixed(1)}% of total loan
@@ -181,12 +149,7 @@ export function LiabilityBalanceChart({
                 tickLine={false}
                 axisLine={false}
               />
-              <YAxis
-                tickFormatter={formatCurrency}
-                width={80}
-                tickLine={false}
-                axisLine={false}
-              />
+              <YAxis tickFormatter={formatCurrency} width={80} tickLine={false} axisLine={false} />
               <Tooltip content={<CustomTooltip />} />
               <Area
                 type="monotone"
@@ -202,5 +165,5 @@ export function LiabilityBalanceChart({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

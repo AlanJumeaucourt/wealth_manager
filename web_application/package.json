@@ -1,15 +1,18 @@
 {
-  "name": "vite-react-template",
+  "name": "wealth-web-application",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
-    "typecheck": "tsc"
+    "pretypecheck": "bun --cwd ../backend run build:types",
+    "dev": "vp dev",
+    "build": "vp build",
+    "lint": "eslint src --ext js,jsx,ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vp preview",
+    "typecheck": "tsc",
+    "knip": "knip"
   },
   "dependencies": {
+    "@elysiajs/eden": "^1.4.9",
     "@hookform/resolvers": "^3.9.1",
     "@nivo/sankey": "^0.88.0",
     "@radix-ui/react-accordion": "^1.2.4",
@@ -33,24 +36,21 @@
     "@radix-ui/react-tooltip": "^1.1.4",
     "@tanstack/react-query": "^5.8.4",
     "@tanstack/react-router": "beta",
-    "@tanstack/react-table": "^8.20.5",
+    "@tanstack/react-virtual": "^3.13.23",
     "@tremor/react": "^3.18.4",
-    "@types/jszip": "^3.4.1",
     "@types/papaparse": "^5.3.15",
-    "@vitejs/plugin-react": "^4.1.1",
-    "chart.js": "^4.4.6",
+    "@vitejs/plugin-react": "^5.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "elysia": "^1.4.28",
     "framer-motion": "^11.11.17",
-    "ionicons": "^7.4.0",
     "jszip": "^3.10.1",
+    "knip": "^6.2.0",
     "lucide-react": "^0.462.0",
     "papaparse": "^5.5.2",
     "react": "^18.2.0",
-    "react-bubble-ui": "^1.1.2",
-    "react-chartjs-2": "^5.2.0",
     "react-day-picker": "8.10.1",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.53.2",
@@ -58,28 +58,41 @@
     "recharts": "^2.13.3",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
-    "vite": "^4.5.0",
+    "wealth-backend-typescript": "workspace:*",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8",
     "zustand": "^5.0.1"
   },
   "devDependencies": {
+    "@headlessui/tailwindcss": "^0.2.2",
+    "@tanstack/devtools-vite": "^0.5.0",
     "@tanstack/react-query-devtools": "^5.8.4",
-    "@tanstack/router-devtools": "beta",
-    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
-    "@types/node": "^22.9.3",
+    "@types/node": "^25.5.0",
     "@types/react": "^18.2.38",
     "@types/react-dom": "^18.2.17",
     "@typescript-eslint/eslint-plugin": "^6.12.0",
     "@typescript-eslint/parser": "^6.12.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.53.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.4",
     "postcss": "^8.4.49",
-    "prettier": "^3.1.0",
     "tailwindcss": "^3.4.15",
-    "typescript": "^5.3.2"
+    "typescript": "^6.0.2",
+    "vite-plugin-pwa": "^1.2.0",
+    "vite-plus": "0.1.15",
+    "workbox-window": "^7.4.0"
+  },
+  "packageManager": "bun@1.1.33",
+  "knip": {
+    "ignore": [
+      "src/components/ui/**",
+      ".prettierrc.cjs"
+    ],
+    "entry": [
+      "src/api/queries.ts"
+    ]
   }
 }

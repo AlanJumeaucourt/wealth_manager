@@ -1,5 +1,5 @@
-import { Moon, Sun } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export const ThemeToggle = () => {
   const [isDark, setIsDark] = useState(false);
@@ -8,37 +8,37 @@ export const ThemeToggle = () => {
     const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
     if (favicon) {
       favicon.href = isDark
-        ? '/assets/images/logo-removebg-white.png'
-        : '/assets/images/logo-removebg-preview.png';
+        ? "/assets/images/logo-removebg-white.png"
+        : "/assets/images/logo-removebg-preview.png";
     }
   };
 
   useEffect(() => {
     // Check if user has OS-level dark mode preference
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
     // Set initial state based on system preference
     setIsDark(mediaQuery.matches);
     if (mediaQuery.matches) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add("dark");
       updateFavicon(true);
     }
 
     // Listen for changes in system dark mode preference
     const listener = (e: MediaQueryListEvent) => {
       setIsDark(e.matches);
-      document.documentElement.classList.toggle('dark', e.matches);
+      document.documentElement.classList.toggle("dark", e.matches);
       updateFavicon(e.matches);
     };
 
-    mediaQuery.addEventListener('change', listener);
-    return () => mediaQuery.removeEventListener('change', listener);
+    mediaQuery.addEventListener("change", listener);
+    return () => mediaQuery.removeEventListener("change", listener);
   }, []);
 
   const toggleTheme = () => {
     const newIsDark = !isDark;
     setIsDark(newIsDark);
-    document.documentElement.classList.toggle('dark');
+    document.documentElement.classList.toggle("dark");
     updateFavicon(newIsDark);
   };
 

@@ -1,43 +1,46 @@
 import { useBanks, useCreateAccount, useUpdateAccount } from "@/api/queries";
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { ACCOUNT_TYPE_LABELS, AccountType } from "@/constants";
 import { useToast } from "@/hooks/use-toast";
-import { Account, Bank } from "@/types";
+import { Account, AccountCreateBody, Bank } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { DeleteBankDialog } from "./DeleteBankDialog";
 import { EditBankDialog } from "./EditBankDialog";
 
+const CURRENCIES = ["EUR", "RON"] as const;
+
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(Object.keys(ACCOUNT_TYPE_LABELS) as [AccountType, ...AccountType[]]),
   bank_id: z.number().optional().nullable(),
+  currency: z.enum(CURRENCIES).default("EUR"),
 });
 
 type AccountFormValues = z.infer<typeof formSchema>;
@@ -48,11 +51,7 @@ interface AccountFormProps {
   account?: Account; // If account is provided, it's an edit operation
 }
 
-export function AccountForm({
-  open,
-  onOpenChange,
-  account,
-}: AccountFormProps) {
+export function AccountForm({ open, onOpenChange, account }: AccountFormProps) {
   const { toast } = useToast();
   const isEditMode = !!account;
 
@@ -65,7 +64,7 @@ export function AccountForm({
   const createAccountMutation = useCreateAccount();
   const updateAccountMutation = useUpdateAccount();
 
-  const banks = banksResponse?.items || [];
+  const banks = useMemo(() => banksResponse?.items ?? [], [banksResponse]);
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(formSchema),
@@ -73,6 +72,7 @@ export function AccountForm({
       name: "",
       type: undefined, // Default to undefined, let placeholder show
       bank_id: undefined,
+      currency: "EUR",
     },
   });
 
@@ -80,31 +80,31 @@ export function AccountForm({
     if (account) {
       form.reset({
         name: account.name,
-        type: account.type,
+        type: account.type as AccountType,
         bank_id: account.bank_id,
+        currency: (account.currency ?? "EUR").toUpperCase() as "EUR" | "RON",
       });
     } else {
-      form.reset({ // Reset for add mode
+      form.reset({
+        // Reset for add mode
         name: "",
         type: undefined,
         bank_id: undefined,
+        currency: "EUR",
       });
     }
   }, [account, form, open]); // Reset form when dialog opens or account changes
-
 
   useEffect(() => {
     function handleKeyPress(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
       const isInput =
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable;
+        target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
 
       if (isInput) return;
       if (!selectedBankId) return;
 
-      const currentSelectedBank = banks.find(b => b.id === selectedBankId);
+      const currentSelectedBank = banks.find((b) => b.id === selectedBankId);
       if (!currentSelectedBank) return;
 
       if (event.key === "e") {
@@ -125,7 +125,11 @@ export function AccountForm({
   const onSubmit = async (values: AccountFormValues) => {
     const payload = {
       ...values,
-      bank_id: values.bank_id === null || values.bank_id === undefined || values.bank_id === 0 ? undefined : Number(values.bank_id),
+      bank_id:
+        values.bank_id === null || values.bank_id === undefined || values.bank_id === 0
+          ? undefined
+          : Number(values.bank_id),
+      currency: (values.currency ?? "EUR").toUpperCase() as "EUR" | "RON",
     };
 
     if (isEditMode && account) {
@@ -146,28 +150,25 @@ export function AccountForm({
               variant: "destructive",
             });
           },
-        }
+        },
       );
     } else {
-      createAccountMutation.mutate(
-        payload,
-        {
-          onSuccess: () => {
-            toast({
-              title: "🎉 Account Created!",
-              description: "Your new money home is ready to go!",
-            });
-            onOpenChange(false);
-          },
-          onError: (error: any) => {
-            toast({
-              title: "😅 Oops!",
-              description: error?.message || "The account creation hit a snag. Let's try that again!",
-              variant: "destructive",
-            });
-          },
-        }
-      );
+      createAccountMutation.mutate(payload as AccountCreateBody, {
+        onSuccess: () => {
+          toast({
+            title: "🎉 Account Created!",
+            description: "Your new money home is ready to go!",
+          });
+          onOpenChange(false);
+        },
+        onError: (error: any) => {
+          toast({
+            title: "😅 Oops!",
+            description: error?.message || "The account creation hit a snag. Let's try that again!",
+            variant: "destructive",
+          });
+        },
+      });
     }
   };
 
@@ -208,23 +209,42 @@ export function AccountForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Account Type</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select account type" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Object.entries(ACCOUNT_TYPE_LABELS).map(
-                        ([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        )
-                      )}
+                      {Object.entries(ACCOUNT_TYPE_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Currency</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Currency" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -238,8 +258,16 @@ export function AccountForm({
                 <FormItem>
                   <FormLabel>Bank (optional)</FormLabel>
                   <Select
-                     onValueChange={value => field.onChange(value === "none" ? null : parseInt(value))}
-                     value={field.value?.toString() === "0" || field.value === null || field.value === undefined ? "none" : field.value?.toString()}
+                    onValueChange={(value) =>
+                      field.onChange(value === "none" ? null : parseInt(value))
+                    }
+                    value={
+                      field.value?.toString() === "0" ||
+                      field.value === null ||
+                      field.value === undefined
+                        ? "none"
+                        : field.value?.toString()
+                    }
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -248,7 +276,7 @@ export function AccountForm({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="none">No Bank</SelectItem>
-                      {banks.map(bank => (
+                      {banks.map((bank) => (
                         <SelectItem
                           key={bank.id}
                           value={bank.id.toString()}
@@ -264,7 +292,7 @@ export function AccountForm({
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={e => {
+                              onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setEditingBank(bank);
@@ -276,7 +304,7 @@ export function AccountForm({
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={e => {
+                              onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setDeletingBank(bank);
@@ -294,11 +322,7 @@ export function AccountForm({
               )}
             />
             <DialogFooter className="mt-6">
-               <Button
-                variant="outline"
-                type="button"
-                onClick={() => onOpenChange(false)}
-              >
+              <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
@@ -313,7 +337,7 @@ export function AccountForm({
         <DeleteBankDialog
           bank={deletingBank}
           open={!!deletingBank}
-          onOpenChange={openDialog => !openDialog && setDeletingBank(null)}
+          onOpenChange={(openDialog) => !openDialog && setDeletingBank(null)}
         />
       )}
 
@@ -321,7 +345,7 @@ export function AccountForm({
         <EditBankDialog
           bank={editingBank}
           open={!!editingBank}
-          onOpenChange={openDialog => !openDialog && setEditingBank(null)}
+          onOpenChange={(openDialog) => !openDialog && setEditingBank(null)}
         />
       )}
     </Dialog>

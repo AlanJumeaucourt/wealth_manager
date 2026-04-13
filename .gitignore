@@ -1,6 +1,8 @@
 *.csv
 *.env
 *__pycache__*
+.pytest_cache/
+.ruff_cache/
 .db
 nohup.out
 backend/app/wealthmanager.db
@@ -9,4 +11,10 @@ node_modules
 *.log
 *.db
 backend/logs/*
-.env
+.DS_Store
+coverage/
+.nyc_output/
+*.tsbuildinfo
+dist/
+**/dist/
+.turbo/

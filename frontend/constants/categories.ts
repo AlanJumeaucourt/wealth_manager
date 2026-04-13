@@ -1,4 +1,4 @@
-import { Category } from '@/types/category';
+import { Category } from "@/types/category";
 
 export const expenseCategories: Category[] = [
   {
@@ -11,8 +11,8 @@ export const expenseCategories: Category[] = [
       { name: "Câble / Satellite", iconName: "tv-outline", iconSet: "Ionicons" },
       { name: "Internet", iconName: "globe-outline", iconSet: "Ionicons" },
       { name: "Téléphone fixe", iconName: "call-outline", iconSet: "Ionicons" },
-      { name: "Téléphonie mobile", iconName: "phone-portrait-outline", iconSet: "Ionicons" }
-    ]
+      { name: "Téléphonie mobile", iconName: "phone-portrait-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Achats & Shopping",
@@ -28,8 +28,8 @@ export const expenseCategories: Category[] = [
       { name: "Licences", iconName: "key-outline", iconSet: "Ionicons" },
       { name: "Livres", iconName: "book-outline", iconSet: "Ionicons" },
       { name: "Musique", iconName: "musical-notes-outline", iconSet: "Ionicons" },
-      { name: "Vêtements/Chaussures", iconName: "shirt-outline", iconSet: "Ionicons" }
-    ]
+      { name: "Vêtements/Chaussures", iconName: "shirt-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Alimentation & Restauration",
@@ -37,12 +37,16 @@ export const expenseCategories: Category[] = [
     iconName: "restaurant-outline",
     iconSet: "Ionicons",
     subCategories: [
-      { name: "Alimentation & Restauration - Autres", iconName: "ellipsis-horizontal", iconSet: "Ionicons" },
+      {
+        name: "Alimentation & Restauration - Autres",
+        iconName: "ellipsis-horizontal",
+        iconSet: "Ionicons",
+      },
       { name: "Café", iconName: "cafe-outline", iconSet: "Ionicons" },
       { name: "Fast foods", iconName: "fast-food-outline", iconSet: "Ionicons" },
       { name: "Restaurants", iconName: "restaurant-outline", iconSet: "Ionicons" },
-      { name: "Supermarché / Epicerie", iconName: "cart-outline", iconSet: "Ionicons" }
-    ]
+      { name: "Supermarché / Epicerie", iconName: "cart-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Auto & Transports",
@@ -59,8 +63,8 @@ export const expenseCategories: Category[] = [
       { name: "Location de véhicule", iconName: "car-outline", iconSet: "Ionicons" },
       { name: "Péage", iconName: "cash-outline", iconSet: "Ionicons" },
       { name: "Stationnement", iconName: "car-outline", iconSet: "Ionicons" },
-      { name: "Transports en commun", iconName: "bus-outline", iconSet: "Ionicons" }
-    ]
+      { name: "Transports en commun", iconName: "bus-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Banque",
@@ -74,8 +78,8 @@ export const expenseCategories: Category[] = [
       { name: "Frais bancaires", iconName: "card-outline", iconSet: "Ionicons" },
       { name: "Hypothèque", iconName: "home-outline", iconSet: "Ionicons" },
       { name: "Incidents de paiement", iconName: "alert-circle-outline", iconSet: "Ionicons" },
-      { name: "Services Bancaires", iconName: "card-outline", iconSet: "Ionicons" }
-    ]
+      { name: "Services Bancaires", iconName: "card-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Divers",
@@ -88,8 +92,8 @@ export const expenseCategories: Category[] = [
       { name: "Autres dépenses", iconName: "ellipsis-horizontal", iconSet: "Ionicons" },
       { name: "Dons", iconName: "heart-outline", iconSet: "Ionicons" },
       { name: "Pressing", iconName: "print-outline", iconSet: "Ionicons" },
-      { name: "Tabac", iconName: "logo-no-smoking", iconSet: "Ionicons" }
-    ]
+      { name: "Tabac", iconName: "logo-no-smoking", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Esthétique & Soins",
@@ -101,8 +105,8 @@ export const expenseCategories: Category[] = [
       { name: "Cosmétique", iconName: "color-palette-outline", iconSet: "Ionicons" },
       { name: "Esthétique", iconName: "flower-outline", iconSet: "Ionicons" },
       { name: "Esthétique & Soins - Autres", iconName: "ellipsis-horizontal", iconSet: "Ionicons" },
-      { name: "Spa & Massage", iconName: "water-outline", iconSet: "Ionicons" }
-    ]
+      { name: "Spa & Massage", iconName: "water-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Impôts & Taxes",
@@ -115,8 +119,8 @@ export const expenseCategories: Category[] = [
       { name: "Impôts fonciers", iconName: "home-outline", iconSet: "Ionicons" },
       { name: "Impôts sur le revenu", iconName: "cash-outline", iconSet: "Ionicons" },
       { name: "Taxes", iconName: "receipt-outline", iconSet: "Ionicons" },
-      { name: "TVA", iconName: "pricetag-outline", iconSet: "Ionicons" }
-    ]
+      { name: "TVA", iconName: "pricetag-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Logement",
@@ -133,8 +137,8 @@ export const expenseCategories: Category[] = [
       { name: "Extérieur et jardin", iconName: "leaf-outline", iconSet: "Ionicons" },
       { name: "Gaz", iconName: "flame-outline", iconSet: "Ionicons" },
       { name: "Logement - Autres", iconName: "ellipsis-horizontal", iconSet: "Ionicons" },
-      { name: "Loyer", iconName: "cash-outline", iconSet: "Ionicons" }
-    ]
+      { name: "Loyer", iconName: "cash-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Loisirs & Sorties",
@@ -152,8 +156,8 @@ export const expenseCategories: Category[] = [
       { name: "Sorties culturelles", iconName: "musical-notes-outline", iconSet: "Ionicons" },
       { name: "Sport", iconName: "fitness-outline", iconSet: "Ionicons" },
       { name: "Sports d'hiver", iconName: "snow-outline", iconSet: "Ionicons" },
-      { name: "Voyages / Vacances", iconName: "airplane-outline", iconSet: "Ionicons" }
-    ]
+      { name: "Voyages / Vacances", iconName: "airplane-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Retraits, Chq. et Vir.",
@@ -164,8 +168,8 @@ export const expenseCategories: Category[] = [
       { name: "Chèques", iconName: "document-outline", iconSet: "Ionicons" },
       { name: "Retraits", iconName: "cash-outline", iconSet: "Ionicons" },
       { name: "Virements", iconName: "swap-horizontal-outline", iconSet: "Ionicons" },
-      { name: "Virements internes", iconName: "swap-horizontal-outline", iconSet: "Ionicons" }
-    ]
+      { name: "Virements internes", iconName: "swap-horizontal-outline", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Santé",
@@ -178,8 +182,8 @@ export const expenseCategories: Category[] = [
       { name: "Mutuelle", iconName: "medkit-outline", iconSet: "Ionicons" },
       { name: "Opticien / Ophtalmo.", iconName: "glasses-outline", iconSet: "Ionicons" },
       { name: "Pharmacie", iconName: "medkit-outline", iconSet: "Ionicons" },
-      { name: "Santé - Autres", iconName: "ellipsis-horizontal", iconSet: "Ionicons" }
-    ]
+      { name: "Santé - Autres", iconName: "ellipsis-horizontal", iconSet: "Ionicons" },
+    ],
   },
   {
     name: "Scolarité & Enfants",
@@ -194,21 +198,40 @@ export const expenseCategories: Category[] = [
       { name: "Logement étudiant", iconName: "home-outline", iconSet: "Ionicons" },
       { name: "Pensions", iconName: "cash-outline", iconSet: "Ionicons" },
       { name: "Prêt étudiant", iconName: "card-outline", iconSet: "Ionicons" },
-      { name: "Scolarité & Enfants - Autres", iconName: "ellipsis-horizontal", iconSet: "Ionicons" }
-    ]
+      {
+        name: "Scolarité & Enfants - Autres",
+        iconName: "ellipsis-horizontal",
+        iconSet: "Ionicons",
+      },
+    ],
   },
 ];
 
 export const incomeCategories: Category[] = [
-  { name: "Allocations et pensions", color: "#4FA81C", iconName: "cash-outline", iconSet: "Ionicons" },
+  {
+    name: "Allocations et pensions",
+    color: "#4FA81C",
+    iconName: "cash-outline",
+    iconSet: "Ionicons",
+  },
   { name: "Autres rentrées", color: "#4FA81C", iconName: "cash-outline", iconSet: "Ionicons" },
   { name: "Dépôt d'argent", color: "#4FA81C", iconName: "cash-outline", iconSet: "Ionicons" },
   { name: "Loyers reçus", color: "#4FA81C", iconName: "home-outline", iconSet: "Ionicons" },
-  { name: "Remboursements", color: "#4FA81C", iconName: "swap-horizontal-outline", iconSet: "Ionicons" },
+  {
+    name: "Remboursements",
+    color: "#4FA81C",
+    iconName: "swap-horizontal-outline",
+    iconSet: "Ionicons",
+  },
   { name: "Retraite", color: "#4FA81C", iconName: "medkit-outline", iconSet: "Ionicons" },
   { name: "Salaires", color: "#4FA81C", iconName: "cash-outline", iconSet: "Ionicons" },
   { name: "Services", color: "#4FA81C", iconName: "briefcase-outline", iconSet: "Ionicons" },
   { name: "Subventions", color: "#4FA81C", iconName: "cash-outline", iconSet: "Ionicons" },
   { name: "Ventes", color: "#4FA81C", iconName: "cart-outline", iconSet: "Ionicons" },
-  { name: "Virements internes", color: "#2196F3", iconName: "swap-horizontal-outline", iconSet: "Ionicons" }
+  {
+    name: "Virements internes",
+    color: "#2196F3",
+    iconName: "swap-horizontal-outline",
+    iconSet: "Ionicons",
+  },
 ];

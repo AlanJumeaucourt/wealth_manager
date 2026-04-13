@@ -1,121 +1,132 @@
-import { useLiabilityPaymentsByLiability } from '@/api/queries'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { AmortizationScheduleItem, LiabilityPayment } from '@/types/liability'
-import { formatCurrency } from '@/utils/format'
-import { format, parseISO } from 'date-fns'
-import { ChevronLeftIcon, ChevronRightIcon, InfoIcon, SearchIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useLiabilityPaymentsByLiability } from "@/api/queries";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { AmortizationScheduleItem, LiabilityPayment } from "@/types/liability";
+import { formatCurrency } from "@/utils/currency";
+import { format, parseISO } from "date-fns";
+import { ChevronLeftIcon, ChevronRightIcon, InfoIcon, SearchIcon } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 interface AmortizationTableProps {
-  schedule: AmortizationScheduleItem[]
-  onRecordPayment?: (payment: AmortizationScheduleItem) => void
-  liabilityId: number
-  onViewPaymentDetails?: (payment: LiabilityPayment) => void
+  schedule: AmortizationScheduleItem[];
+  onRecordPayment?: (payment: AmortizationScheduleItem) => void;
+  liabilityId: number;
+  onViewPaymentDetails?: (payment: LiabilityPayment) => void;
 }
 
 export function AmortizationTable({
   schedule,
   onRecordPayment,
   liabilityId,
-  onViewPaymentDetails
+  onViewPaymentDetails,
 }: AmortizationTableProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState('')
-  const itemsPerPage = 10
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const itemsPerPage = 10;
 
   // Fetch actual payment records
-  const { data: paymentsData } = useLiabilityPaymentsByLiability(liabilityId)
+  const { data: paymentsData } = useLiabilityPaymentsByLiability(liabilityId);
 
   // Filter schedule based on search term
   const filteredSchedule = searchTerm
-    ? schedule.filter(item =>
-        item.payment_number.toString().includes(searchTerm) ||
-        item.payment_date.includes(searchTerm)
+    ? schedule.filter(
+        (item) =>
+          item.payment_number.toString().includes(searchTerm) ||
+          item.payment_date.includes(searchTerm),
       )
-    : schedule
+    : schedule;
 
   // Calculate pagination
-  const totalPages = Math.ceil(filteredSchedule.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedSchedule = filteredSchedule.slice(startIndex, startIndex + itemsPerPage)
+  const totalPages = Math.ceil(filteredSchedule.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedSchedule = filteredSchedule.slice(startIndex, startIndex + itemsPerPage);
 
   // Handle pagination
-  const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
-  }
+  const goToPage = useCallback(
+    (page: number) => {
+      setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    },
+    [totalPages],
+  );
 
   // Add keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' && currentPage > 1) {
-        goToPage(currentPage - 1)
-      } else if (e.key === 'ArrowRight' && currentPage < totalPages) {
-        goToPage(currentPage + 1)
+      if (e.key === "ArrowLeft" && currentPage > 1) {
+        goToPage(currentPage - 1);
+      } else if (e.key === "ArrowRight" && currentPage < totalPages) {
+        goToPage(currentPage + 1);
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentPage, totalPages])
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentPage, totalPages, goToPage]);
 
   // Get status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-800'
-      case 'missed':
-        return 'bg-red-100 text-red-800'
-      case 'scheduled':
-        return 'bg-gray-100 text-gray-800'
-      case 'deferred':
-        return 'bg-blue-100 text-blue-800'
+      case "paid":
+        return "bg-green-100 text-green-800";
+      case "missed":
+        return "bg-red-100 text-red-800";
+      case "scheduled":
+        return "bg-gray-100 text-gray-800";
+      case "deferred":
+        return "bg-blue-100 text-blue-800";
       default:
-        return 'bg-gray-100 text-gray-800'
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   // Calculate status based on transaction_id, payment date, and deferral status
   const calculateStatus = (item: AmortizationScheduleItem) => {
     if (item.transaction_id) {
-      return 'paid'
+      return "paid";
     }
 
     // Check if this is a deferred payment
     if (item.is_deferred) {
-      return 'deferred'
+      return "deferred";
     }
 
-    const paymentDate = new Date(item.payment_date)
-    const today = new Date()
+    const paymentDate = new Date(item.payment_date);
+    const today = new Date();
 
     // Handle $0.00 payments (typically from deferred periods)
     if (item.payment_amount === 0) {
       // If date is in the past, it's a "missed" payment only if it's not deferred
       if (paymentDate < today && !item.is_deferred) {
-        return 'missed'
+        return "missed";
       }
       // Otherwise it's scheduled or skipped due to deferral
-      return 'scheduled'
+      return "scheduled";
     }
 
     if (paymentDate > today) {
-      return 'scheduled'
+      return "scheduled";
     }
 
-    return 'missed'
-  }
+    return "missed";
+  };
 
   // Format display elements based on payment type
   const formatPaymentAmount = (item: AmortizationScheduleItem) => {
-    if (item.is_deferred && item.deferral_type === 'total') {
+    if (item.is_deferred && item.deferral_type === "total") {
       return item.capitalized_interest > 0
         ? `${formatCurrency(0)} (${formatCurrency(item.capitalized_interest)} capitalized)`
-        : formatCurrency(0)
+        : formatCurrency(0);
     }
-    return formatCurrency(item.payment_amount)
-  }
+    return formatCurrency(item.payment_amount);
+  };
 
   return (
     <div className="space-y-4">
@@ -151,17 +162,17 @@ export function AmortizationTable({
               paginatedSchedule.map((item) => {
                 // Find the corresponding payment record if it exists
                 const paymentRecord = paymentsData?.items?.find(
-                  p => p.payment_date.split('T')[0] === item.payment_date.split('T')[0]
+                  (p) => p.payment_date.split("T")[0] === item.payment_date.split("T")[0],
                 );
 
-                const status = calculateStatus(item)
-                const isDeferred = item.is_deferred
+                const status = calculateStatus(item);
+                const isDeferred = item.is_deferred;
 
                 return (
                   <TableRow
                     key={item.payment_number}
-                    className={`${item.transaction_id ? 'cursor-pointer hover:bg-muted/50' : ''} ${
-                      isDeferred ? 'bg-blue-50/30' : ''
+                    className={`${item.transaction_id ? "cursor-pointer hover:bg-muted/50" : ""} ${
+                      isDeferred ? "bg-blue-50/30" : ""
                     }`}
                     onClick={() => {
                       if (item.transaction_id && paymentRecord && onViewPaymentDetails) {
@@ -171,12 +182,14 @@ export function AmortizationTable({
                   >
                     <TableCell>{item.payment_number}</TableCell>
                     <TableCell>
-                      {format(parseISO(item.payment_date), 'MMM d, yyyy')}
-                      {item.date_shifted && item.scheduled_date && item.scheduled_date !== item.payment_date && (
-                        <div className="text-xs text-muted-foreground">
-                          (Scheduled: {format(parseISO(item.scheduled_date), 'MMM d')})
-                        </div>
-                      )}
+                      {format(parseISO(item.payment_date), "MMM d, yyyy")}
+                      {item.date_shifted &&
+                        item.scheduled_date &&
+                        item.scheduled_date !== item.payment_date && (
+                          <div className="text-xs text-muted-foreground">
+                            (Scheduled: {format(parseISO(item.scheduled_date), "MMM d")})
+                          </div>
+                        )}
                     </TableCell>
                     <TableCell>{formatPaymentAmount(item)}</TableCell>
                     <TableCell>{formatCurrency(item.principal_amount)}</TableCell>
@@ -195,11 +208,13 @@ export function AmortizationTable({
                     <TableCell>{formatCurrency(item.remaining_principal)}</TableCell>
                     <TableCell>
                       <div className="flex items-center">
-                        <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(status)}`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${getStatusColor(status)}`}
+                        >
                           {status.charAt(0).toUpperCase() + status.slice(1)}
                           {isDeferred && item.deferral_type && (
                             <span className="ml-1 text-[10px]">
-                              ({item.deferral_type === 'total' ? 'Total' : 'Partial'})
+                              ({item.deferral_type === "total" ? "Total" : "Partial"})
                             </span>
                           )}
                         </span>
@@ -207,14 +222,12 @@ export function AmortizationTable({
                           <InfoIcon className="h-4 w-4 ml-2 text-muted-foreground" />
                         )}
                         {item.is_final_balloon_payment && (
-                          <span className="ml-2 text-xs text-amber-600 font-medium">
-                            Balloon
-                          </span>
+                          <span className="ml-2 text-xs text-amber-600 font-medium">Balloon</span>
                         )}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      {status !== 'paid' && onRecordPayment && !isDeferred ? (
+                      {status !== "paid" && onRecordPayment && !isDeferred ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -256,7 +269,8 @@ export function AmortizationTable({
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredSchedule.length)} of {filteredSchedule.length} payments
+            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredSchedule.length)}{" "}
+            of {filteredSchedule.length} payments
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -282,5 +296,5 @@ export function AmortizationTable({
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,0 +1,22 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      PORT: "5000"
+      # DB file inside container (use volume to persist)
+      SQLITE_DB_PATH: /data/wealth.sqlite
+    volumes:
+      # Mount source so code changes trigger --watch reload
+      - ./src:/app/src
+      # Persist SQLite DB between restarts
+      - api_data:/data
+    # Run migrations then start API with watch (migrations are idempotent)
+    command: sh -c "bun run migrate && exec bun run dev:watch"
+
+volumes:
+  api_data:

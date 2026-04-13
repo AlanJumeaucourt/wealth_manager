@@ -1,20 +1,20 @@
-import { fetchTransactions } from '@/actions/transactionActions';
-import TransactionList from '@/app/components/TransactionList';
-import { darkTheme } from '@/constants/theme';
-import { sharedStyles } from '@/styles/sharedStyles';
-import React, { useEffect } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
-import { useDispatch, useSelector } from 'react-redux';
+import { fetchTransactions } from "@/actions/transactionActions";
+import TransactionList from "@/app/components/TransactionList";
+import { darkTheme } from "@/constants/theme";
+import { sharedStyles } from "@/styles/sharedStyles";
+import React, { useEffect } from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator } from "react-native-paper";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 
 const TransactionContent = ({
   transactions,
   transactionsLoading,
-  transactionsError
+  transactionsError,
 }: {
-  transactions: any[],
-  transactionsLoading: boolean,
-  transactionsError: string | null
+  transactions: any[];
+  transactionsLoading: boolean;
+  transactionsError: string | null;
 }) => {
   if (transactionsLoading) {
     return (
@@ -30,24 +30,28 @@ const TransactionContent = ({
 
   return (
     <View style={[sharedStyles.body, { paddingTop: darkTheme.spacing.m }]}>
-      {transactions && <TransactionList transactions={transactions} accountId="" />}
+      {transactions && <TransactionList />}
     </View>
   );
 };
 
 export default function TransactionsScreen() {
-  const dispatch = useDispatch();
-  const { transactions, transactionsLoading, transactionsError } = useSelector((state) => state.transactions);
+  const dispatch = useAppDispatch();
+  const {
+    transactions,
+    loading: transactionsLoading,
+    error: transactionsError,
+  } = useAppSelector((state) => state.transactions);
 
   useEffect(() => {
-    dispatch(fetchTransactions());
+    void dispatch(fetchTransactions());
   }, []);
 
   return (
     <View style={[sharedStyles.container]}>
       <View style={sharedStyles.header}>
         <Image
-          source={require('@/assets/images/logo-removebg-white.png')}
+          source={require("@/assets/images/logo-removebg-white.png")}
           style={{ width: 30, height: 30 }}
           resizeMode="contain"
         />
@@ -69,18 +73,18 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   screenTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: darkTheme.spacing.m,
     color: darkTheme.colors.text,
   },
   errorText: {
     color: darkTheme.colors.error,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: darkTheme.spacing.l,
   },
 });

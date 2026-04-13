@@ -1,5 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { format, parseISO } from "date-fns"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { format, parseISO } from "date-fns";
 import {
   CartesianGrid,
   Legend,
@@ -10,79 +10,54 @@ import {
   TooltipProps,
   XAxis,
   YAxis,
-} from "recharts"
-import {
-  NameType,
-  ValueType,
-} from "recharts/types/component/DefaultTooltipContent"
-
-interface AmortizationScheduleItem {
-  payment_number: number
-  payment_date: string
-  payment_amount: number
-  principal_amount: number
-  interest_amount: number
-  remaining_principal: number
-  status: 'scheduled' | 'paid' | 'missed' | 'partial'
-  extra_payment?: number
-  is_deferred: boolean
-  deferral_type: string
-  capitalized_interest?: number
-}
+} from "recharts";
+import type { AmortizationScheduleItem } from "@/types/liability";
+import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 interface LiabilityPaymentChartProps {
-  schedule: AmortizationScheduleItem[]
-  title?: string
-  description?: string
+  schedule: AmortizationScheduleItem[];
+  title?: string;
+  description?: string;
 }
 
 export function LiabilityPaymentChart({
   schedule,
   title = "Principal vs Interest Over Time",
-  description = "Breakdown of payments over the loan term"
+  description = "Breakdown of payments over the loan term",
 }: LiabilityPaymentChartProps) {
-
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: "EUR",
       notation: "compact",
       maximumFractionDigits: 1,
-    }).format(value)
-  }
+    }).format(value);
+  };
 
   const formatDate = (dateStr: string) => {
     try {
-      return format(parseISO(dateStr), "MMM yyyy")
-    } catch (e) {
-      return dateStr
+      return format(parseISO(dateStr), "MMM yyyy");
+    } catch {
+      return dateStr;
     }
-  }
+  };
 
   // Prepare chart data - filter out zero payments
-  const chartData = schedule.filter(item => item.payment_amount > 0).map(item => ({
-    date: item.payment_date,
-    principal: item.principal_amount,
-    interest: item.interest_amount,
-    payment_number: item.payment_number,
-    is_deferred: item.is_deferred,
-    deferral_type: item.deferral_type
-  }))
+  const chartData = schedule
+    .filter((item) => item.payment_amount > 0)
+    .map((item) => ({
+      date: item.payment_date,
+      principal: item.principal_amount,
+      interest: item.interest_amount,
+      payment_number: item.payment_number,
+      is_deferred: item.is_deferred,
+      deferral_type: item.deferral_type,
+    }));
 
-  // Calculate metrics
-  const totalPrincipal = schedule.reduce((sum, item) => sum + item.principal_amount, 0)
-  const totalInterest = schedule.reduce((sum, item) => sum + item.interest_amount, 0)
-  const totalCapitalizedInterest = schedule.reduce((sum, item) => sum + (item.capitalized_interest || 0), 0)
-  const totalPayments = totalPrincipal + totalInterest
+  const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
+    if (!active || !payload?.length) return null;
 
-  const CustomTooltip = ({
-    active,
-    payload,
-    label,
-  }: TooltipProps<ValueType, NameType>) => {
-    if (!active || !payload?.length) return null
-
-    const paymentItem = payload[0].payload
+    const paymentItem = payload[0].payload;
 
     return (
       <div className="rounded-lg border bg-background p-2 shadow-sm">
@@ -91,37 +66,28 @@ export function LiabilityPaymentChart({
             <span className="text-[0.70rem] uppercase text-muted-foreground">
               Payment #{paymentItem.payment_number}
             </span>
-            <span className="font-bold text-muted-foreground">
-              {formatDate(label)}
-            </span>
+            <span className="font-bold text-muted-foreground">{formatDate(label)}</span>
           </div>
           <div className="h-px bg-border" />
           {payload.map((entry) => (
             <div key={entry.name} className="flex justify-between gap-4">
-              <span className="text-[0.70rem] uppercase text-muted-foreground">
-                {entry.name}
-              </span>
-              <span
-                className="font-bold"
-                style={{ color: entry.color }}
-              >
+              <span className="text-[0.70rem] uppercase text-muted-foreground">{entry.name}</span>
+              <span className="font-bold" style={{ color: entry.color }}>
                 {formatCurrency(entry.value as number)}
               </span>
             </div>
           ))}
           <div className="h-px bg-border" />
           <div className="flex justify-between gap-4">
-            <span className="text-[0.70rem] uppercase text-muted-foreground">
-              Total Payment
-            </span>
+            <span className="text-[0.70rem] uppercase text-muted-foreground">Total Payment</span>
             <span className="font-bold">
               {formatCurrency(paymentItem.principal + paymentItem.interest)}
             </span>
           </div>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <Card>
@@ -149,12 +115,7 @@ export function LiabilityPaymentChart({
                 tickLine={false}
                 axisLine={false}
               />
-              <YAxis
-                tickFormatter={formatCurrency}
-                width={80}
-                tickLine={false}
-                axisLine={false}
-              />
+              <YAxis tickFormatter={formatCurrency} width={80} tickLine={false} axisLine={false} />
               <Tooltip content={<CustomTooltip />} />
               <Legend />
               <Line
@@ -177,5 +138,5 @@ export function LiabilityPaymentChart({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -1,19 +1,21 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite-plus";
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/wealth_manager/',
+  base: "/wealth_manager/",
   build: {
     sourcemap: true,
-    assetsDir: 'assets',
+    assetsDir: "assets",
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
+        manualChunks(id) {
+          if (id.includes("/node_modules/react/") || id.includes("/node_modules/react-dom/")) {
+            return "react-vendor";
+          }
         },
       },
     },
   },
-})
+});

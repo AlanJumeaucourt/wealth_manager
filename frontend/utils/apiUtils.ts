@@ -1,13 +1,13 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError } from "axios";
 
 export class ApiError extends Error {
   constructor(
     message: string,
     public status?: number,
-    public code?: string
+    public code?: string,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
@@ -24,5 +24,5 @@ export const handleApiError = (error: unknown): never => {
     throw new ApiError(error.message);
   }
 
-  throw new ApiError('An unexpected error occurred');
+  throw new ApiError("An unexpected error occurred");
 };

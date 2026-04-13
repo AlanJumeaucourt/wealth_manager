@@ -1,0 +1,18 @@
+# Build context for `web_application/Dockerfile.prod` is the repo root.
+# Exclude host node_modules so `COPY web_application` does not merge with
+# paths already created by `bun install` in the image (avoids "cannot replace
+# directory with file" overlay errors).
+node_modules
+**/node_modules
+
+.git
+**/.git
+
+dist
+**/dist
+
+.env
+**/.env
+*.log
+
+**/*.sqlite

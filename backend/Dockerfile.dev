@@ -1,18 +1,18 @@
-FROM python:3.12-slim
+# Dev image: run the API with --watch for hot reload
+FROM oven/bun:1
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libsqlite3-dev \
-    cron \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install deps (cached unless package.json changes). Context is `backend/` only, so no root bun.lockb here.
+COPY package.json ./
+RUN bun install && test -d node_modules/@elysiajs/cors
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Source is mounted at runtime; copy only for standalone build
+COPY . .
 
-# Development stage command with hot reload
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload"]
+ENV NODE_ENV=development
+EXPOSE 5000
+
+# Bind-mount hides image `node_modules`; named volume at /app/node_modules starts empty.
+# Re-install on every start so the volume matches mounted package.json.
+CMD ["sh", "-c", "cd /app && bun install && test -d node_modules/@elysiajs/cors && exec bun run dev:watch"]

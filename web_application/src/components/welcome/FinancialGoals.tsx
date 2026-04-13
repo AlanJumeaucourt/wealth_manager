@@ -1,32 +1,32 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Account } from "@/types"
-import { Home, Plane, Target, Umbrella } from "lucide-react"
-import { useMemo } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Account } from "@/types";
+import { Home, Plane, Target, Umbrella } from "lucide-react";
+import { useMemo } from "react";
 
 interface GoalType {
-  name: string
-  target: number
-  current: number
-  icon: React.ReactNode
-  color: string
-  accountType: string
+  name: string;
+  target: number;
+  current: number;
+  icon: React.ReactNode;
+  color: string;
+  accountType: string;
 }
 
 interface FinancialGoalsProps {
-  accounts: Account[]
-  onAccountClick?: (accountId: number) => void
-  isLoading?: boolean
+  accounts: Account[];
+  onAccountClick?: (accountId: number) => void;
+  isLoading?: boolean;
 }
 
 export function FinancialGoals({ accounts, onAccountClick, isLoading }: FinancialGoalsProps) {
   // Calculate savings amount
   const savingsTotal = useMemo(() => {
     return accounts
-      .filter(account => account.type === "savings")
-      .reduce((sum, account) => sum + account.balance, 0)
-  }, [accounts])
+      .filter((account) => account.type === "savings")
+      .reduce((sum, account) => sum + account.balance, 0);
+  }, [accounts]);
 
   // Example goals (in a real app, these would come from a database)
   const goals: GoalType[] = [
@@ -36,7 +36,7 @@ export function FinancialGoals({ accounts, onAccountClick, isLoading }: Financia
       current: Math.min(savingsTotal * 0.5, 10000), // 50% of savings up to target
       icon: <Umbrella className="h-4 w-4" />,
       color: "bg-blue-500",
-      accountType: "savings"
+      accountType: "savings",
     },
     {
       name: "Vacation",
@@ -44,7 +44,7 @@ export function FinancialGoals({ accounts, onAccountClick, isLoading }: Financia
       current: Math.min(savingsTotal * 0.2, 3000), // 20% of savings up to target
       icon: <Plane className="h-4 w-4" />,
       color: "bg-green-500",
-      accountType: "savings"
+      accountType: "savings",
     },
     {
       name: "Home Down Payment",
@@ -52,33 +52,33 @@ export function FinancialGoals({ accounts, onAccountClick, isLoading }: Financia
       current: Math.min(savingsTotal * 0.3, 50000), // 30% of savings up to target
       icon: <Home className="h-4 w-4" />,
       color: "bg-purple-500",
-      accountType: "savings"
-    }
-  ]
+      accountType: "savings",
+    },
+  ];
 
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: "EUR",
-    }).format(amount)
-  }
+    }).format(amount);
+  };
 
   // Get first account by type for navigation
   const getFirstAccountByType = (type: string) => {
-    const account = accounts.find(a => a.type === type)
-    return account ? account.id : null
-  }
+    const account = accounts.find((a) => a.type === type);
+    return account ? account.id : null;
+  };
 
   // Handler for goal click
   const handleGoalClick = (accountType: string) => {
-    if (!onAccountClick) return
+    if (!onAccountClick) return;
 
-    const accountId = getFirstAccountByType(accountType)
+    const accountId = getFirstAccountByType(accountType);
     if (accountId) {
-      onAccountClick(accountId)
+      onAccountClick(accountId);
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -109,7 +109,7 @@ export function FinancialGoals({ accounts, onAccountClick, isLoading }: Financia
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -123,7 +123,7 @@ export function FinancialGoals({ accounts, onAccountClick, isLoading }: Financia
       <CardContent>
         <div className="space-y-4">
           {goals.map((goal) => {
-            const progressPercent = Math.min(Math.round((goal.current / goal.target) * 100), 100)
+            const progressPercent = Math.min(Math.round((goal.current / goal.target) * 100), 100);
 
             return (
               <div
@@ -135,7 +135,9 @@ export function FinancialGoals({ accounts, onAccountClick, isLoading }: Financia
               >
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-full ${goal.color.replace('bg-', 'bg-opacity-20 ')}`}>
+                    <div
+                      className={`p-1.5 rounded-full ${goal.color.replace("bg-", "bg-opacity-20 ")}`}
+                    >
                       {goal.icon}
                     </div>
                     <span>{goal.name}</span>
@@ -151,10 +153,10 @@ export function FinancialGoals({ accounts, onAccountClick, isLoading }: Financia
                   </span>
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

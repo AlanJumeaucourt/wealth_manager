@@ -1,18 +1,19 @@
-"use client"
+"use client";
 
-import { useNavigate } from "@tanstack/react-router"
+import { authService } from "@/services/auth";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   BadgeCheck,
   Bell,
   ChevronsUpDown,
   CreditCard,
   LogOut,
+  Settings,
   Sparkles,
-} from "lucide-react"
-import { useQueryClient } from "@tanstack/react-query"
-import { authService } from "@/services/auth"
+} from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,41 +22,41 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 export function NavUser({
   user,
 }: {
   user: {
-    name: string
-    email: string
-    avatar?: string
-  }
+    name: string;
+    email: string;
+    avatar?: string;
+  };
 }) {
-  const { isMobile } = useSidebar()
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const { isMobile } = useSidebar();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
-    authService.logout(queryClient)
-    navigate({ to: "/" })
-  }
+    authService.logout(queryClient);
+    void navigate({ to: "/" });
+  };
 
   // Get initials for avatar fallback
   const getInitials = (name: string) => {
     return name
       .split(" ")
-      .map(n => n[0])
+      .map((n) => n[0])
       .join("")
       .toUpperCase()
-      .slice(0, 2)
-  }
+      .slice(0, 2);
+  };
 
   return (
     <SidebarMenu>
@@ -70,9 +71,7 @@ export function NavUser({
                 {user.avatar ? (
                   <AvatarImage src={user.avatar} alt={user.name} />
                 ) : (
-                  <AvatarFallback className="rounded-lg">
-                    {getInitials(user.name)}
-                  </AvatarFallback>
+                  <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
                 )}
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -94,9 +93,7 @@ export function NavUser({
                   {user.avatar ? (
                     <AvatarImage src={user.avatar} alt={user.name} />
                   ) : (
-                    <AvatarFallback className="rounded-lg">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
+                    <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
                   )}
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -117,6 +114,10 @@ export function NavUser({
               <DropdownMenuItem>
                 <BadgeCheck />
                 Account
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void navigate({ to: "/settings" })}>
+                <Settings />
+                Settings
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCard />
@@ -139,5 +140,5 @@ export function NavUser({
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }

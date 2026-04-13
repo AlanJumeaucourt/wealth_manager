@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -6,10 +6,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
-import { useEffect, useState } from "react"
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 // Match the backend response format
 interface BatchDeleteResponse {
@@ -22,12 +22,12 @@ interface BatchDeleteResponse {
   total_failed: number;
 }
 
-export interface BatchDeleteDialogProps<T> {
+interface BatchDeleteDialogProps<T extends object> {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
-  itemsToDelete: T[];
+  itemsToDelete: readonly T[];
   itemDisplayField?: keyof T;
   itemIdField?: keyof T;
   deleteMutation: {
@@ -40,7 +40,7 @@ export interface BatchDeleteDialogProps<T> {
   onSuccess?: (result: BatchDeleteResponse) => void;
 }
 
-export function BatchDeleteDialog<T extends { id?: number }>({
+export function BatchDeleteDialog<T extends object>({
   open,
   onOpenChange,
   title,
@@ -121,15 +121,23 @@ export function BatchDeleteDialog<T extends { id?: number }>({
         }
       }
     }
-  }, [deleteMutation.isPending, deleteMutation.isError, deleteMutation.data, isDeleting, toast, onOpenChange, onSuccess, itemsToDelete.length]);
+  }, [
+    deleteMutation.isPending,
+    deleteMutation.isError,
+    deleteMutation.error,
+    deleteMutation.data,
+    isDeleting,
+    toast,
+    onOpenChange,
+    onSuccess,
+    itemsToDelete.length,
+  ]);
 
   const handleDelete = () => {
     if (isDeleting || deleteMutation.isPending) return;
 
     // Extract IDs from items
-    const ids = itemsToDelete
-      .map(item => Number(item[itemIdField]))
-      .filter(id => !isNaN(id));
+    const ids = itemsToDelete.map((item) => Number(item[itemIdField])).filter((id) => !isNaN(id));
 
     if (ids.length === 0) {
       toast({
@@ -146,25 +154,19 @@ export function BatchDeleteDialog<T extends { id?: number }>({
 
   const itemCount = itemsToDelete.length;
   const itemNames = itemsToDelete
-    .map(item => String(item[itemDisplayField] || `Item ${item[itemIdField]}`))
+    .map((item) => String(item[itemDisplayField] ?? `Item ${String(item[itemIdField])}`))
     .slice(0, 3)
     .join(", ");
 
-  const displayNames = itemCount <= 3
-    ? itemNames
-    : `${itemNames}, and ${itemCount - 3} more`;
+  const displayNames = itemCount <= 3 ? itemNames : `${itemNames}, and ${itemCount - 3} more`;
 
   return (
     <Dialog open={open} onOpenChange={isDeleting ? undefined : onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-red-500">
-            🗑️ {title}
-          </DialogTitle>
+          <DialogTitle className="text-red-500">🗑️ {title}</DialogTitle>
           <DialogDescription className="pt-4">
-            <div className="text-red-500 font-medium mb-2">
-              {description}
-            </div>
+            <div className="text-red-500 font-medium mb-2">{description}</div>
             {itemCount > 0 && (
               <div className="text-sm text-muted-foreground mb-2">
                 Items to delete: {displayNames}
@@ -173,11 +175,7 @@ export function BatchDeleteDialog<T extends { id?: number }>({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isDeleting}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isDeleting}>
             Cancel
           </Button>
           <Button
@@ -191,7 +189,7 @@ export function BatchDeleteDialog<T extends { id?: number }>({
                 Deleting...
               </>
             ) : (
-              `Delete ${itemCount} ${itemCount === 1 ? 'Item' : 'Items'}`
+              `Delete ${itemCount} ${itemCount === 1 ? "Item" : "Items"}`
             )}
           </Button>
         </DialogFooter>

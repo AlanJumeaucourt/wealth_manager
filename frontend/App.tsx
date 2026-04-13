@@ -1,14 +1,13 @@
-import { darkTheme } from '@/constants/theme';
-import { AuthProvider, useAuth } from '@/context/AuthContext';
-import store from '@/store';
-import { SplashScreen, Stack } from 'expo-router';
-import { useEffect } from 'react';
-import { PaperProvider } from 'react-native-paper';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider } from 'react-redux';
+import { AuthProvider, useAuth } from "@/context/AuthContext";
+import store from "@/store";
+import { SplashScreen, Stack } from "expo-router";
+import { useEffect } from "react";
+import { MD3DarkTheme, PaperProvider } from "react-native-paper";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Provider } from "react-redux";
 
 // Keep the splash screen visible while we fetch resources
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
   const { isLoading, checkAuthStatus } = useAuth();
@@ -18,14 +17,14 @@ function RootLayoutNav() {
       try {
         await checkAuthStatus();
       } catch (error) {
-        console.error('Error checking auth status:', error);
+        console.error("Error checking auth status:", error);
       } finally {
         // Hide splash screen once we're done checking auth
         await SplashScreen.hideAsync();
       }
     };
 
-    initializeApp();
+    void initializeApp();
   }, []);
 
   // Show splash screen while checking auth
@@ -44,7 +43,7 @@ function RootLayoutNav() {
 export default function App() {
   return (
     <Provider store={store}>
-      <PaperProvider theme={darkTheme}>
+      <PaperProvider theme={MD3DarkTheme}>
         <SafeAreaProvider>
           <AuthProvider>
             <RootLayoutNav />

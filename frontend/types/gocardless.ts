@@ -8,7 +8,7 @@ export interface GoCardlessInstitution {
 export interface GoCardlessRequisition {
   id: string;
   created: string;
-  status: 'CR' | 'LN' | 'EX' | 'RJ' | 'SA' | 'GA' | 'UA' | 'FA';
+  status: "CR" | "LN" | "EX" | "RJ" | "SA" | "GA" | "UA" | "FA";
   institution_id: string;
   link: string;
   reference: string;

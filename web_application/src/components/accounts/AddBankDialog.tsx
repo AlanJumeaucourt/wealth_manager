@@ -1,45 +1,45 @@
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
-import { useState } from "react"
-import { useCreateBank } from "../../api/queries"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { useCreateBank } from "../../api/queries";
 
 interface AddBankDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export function AddBankDialog({ open, onOpenChange }: AddBankDialogProps) {
-  const [name, setName] = useState("")
-  const [website, setWebsite] = useState("")
-  const { toast } = useToast()
+  const [name, setName] = useState("");
+  const [website, setWebsite] = useState("");
+  const { toast } = useToast();
 
-  const createBankMutation = useCreateBank()
+  const createBankMutation = useCreateBank();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!name) {
       toast({
         title: "📝 Hey There!",
         description: "We need a name for your bank!",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     createBankMutation.mutate(
       {
         name,
-        website: website || undefined,
+        website: website.trim() ? website : null,
       },
       {
         onSuccess: () => {
@@ -47,21 +47,21 @@ export function AddBankDialog({ open, onOpenChange }: AddBankDialogProps) {
             title: "🏦 Bank Added!",
             description: "Your new bank is ready for business!",
             variant: "default",
-          })
-          setName("")
-          setWebsite("")
-          onOpenChange(false)
+          });
+          setName("");
+          setWebsite("");
+          onOpenChange(false);
         },
         onError: () => {
           toast({
             title: "💸 Oops!",
             description: "The bank didn't make it to the vault. Try again?",
             variant: "destructive",
-          })
+          });
         },
-      }
-    )
-  }
+      },
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -76,7 +76,7 @@ export function AddBankDialog({ open, onOpenChange }: AddBankDialogProps) {
               <Input
                 id="name"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="Enter bank name"
                 required
               />
@@ -86,7 +86,7 @@ export function AddBankDialog({ open, onOpenChange }: AddBankDialogProps) {
               <Input
                 id="website"
                 value={website}
-                onChange={e => setWebsite(e.target.value)}
+                onChange={(e) => setWebsite(e.target.value)}
                 placeholder="Enter bank website"
                 type="url"
               />
@@ -100,5 +100,5 @@ export function AddBankDialog({ open, onOpenChange }: AddBankDialogProps) {
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

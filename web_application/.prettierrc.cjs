@@ -15,4 +15,4 @@ module.exports = {
   importOrderBuiltinModulesToTop: true,
   importOrderSeparation: true,
   importOrderSortSpecifiers: true,
-}
+};

@@ -1,68 +1,57 @@
-"use client"
+"use client";
 
-import { useAllCategories, useCategorySummary } from "@/api/queries"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useDateRange } from "@/contexts/date-range-context"
-import { useCategories } from "@/hooks/use-categories"
-import { formatCurrency } from "@/lib/utils"
-import { formatDate } from "date-fns"
-import { PiggyBank, Wallet } from "lucide-react"
-import * as React from "react"
-import { Label, Pie, PieChart, ResponsiveContainer } from "recharts"
+import { useAllCategories, useCategorySummary } from "@/api/queries";
+import { ChartContainer } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDateRange } from "@/contexts/date-range-context";
+import { useCategories } from "@/hooks/use-categories";
+import { formatCurrency } from "@/lib/utils";
+import { formatDate } from "date-fns";
+import { PiggyBank, Wallet } from "lucide-react";
+import * as React from "react";
+import { Label, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 interface Category {
-  color: string
-  iconName: string
-  iconSet: string
+  color: string;
+  iconName: string;
+  iconSet: string;
   name: {
-    en: string
-    fr: string
-  }
-}
-
-interface ChartData {
-  category: string
-  value: number
-  originalValue: number
-  fill: string
+    en: string;
+    fr: string;
+  };
 }
 
 export function CategoryChart() {
-  const { type } = useCategories()
-  const { dateRange } = useDateRange()
-  const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd")
-  const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd")
+  const { type } = useCategories();
+  const { dateRange } = useDateRange();
+  const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd");
+  const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd");
 
   const {
     data: allCategories,
     isLoading: isLoadingCategories,
     error: categoriesError,
-  } = useAllCategories()
+  } = useAllCategories();
   const {
     data: summaryData,
     isLoading: isLoadingSummary,
     error: summaryError,
-  } = useCategorySummary(startDate, endDate)
+  } = useCategorySummary(startDate, endDate);
 
-  const isLoading = isLoadingCategories || isLoadingSummary
-  const error = categoriesError || summaryError
+  const isLoading = isLoadingCategories || isLoadingSummary;
+  const error = categoriesError || summaryError;
 
   // Transform data when dependencies change
   const { chartData, totalAmount } = React.useMemo(() => {
     if (!allCategories || !summaryData) {
-      return { chartData: [], totalAmount: 0 }
+      return { chartData: [], totalAmount: 0 };
     }
 
-    const categoryMapFr: Record<string, Category> = {}
-    const categories = allCategories[type] as unknown as Category[]
+    const categoryMapFr: Record<string, Category> = {};
+    const categories = allCategories[type] as unknown as Category[];
     categories.forEach((category: Category) => {
-      categoryMapFr[category.name.fr] = category
-    })
+      categoryMapFr[category.name.fr] = category;
+    });
 
     // Transform and sort the data by amount
     const transformedData = Object.entries(summaryData[type].by_category)
@@ -70,41 +59,42 @@ export function CategoryChart() {
         const categoryInfo = categoryMapFr[name] || {
           color: "#808080",
           name: { en: name, fr: name },
-        }
+        };
 
         return {
           category: categoryInfo.name.fr,
           value: Math.abs(details.net_amount),
           originalValue: Math.abs(details.original_amount),
           fill: categoryInfo.color,
-        }
+        };
       })
-      .filter(item => item.value > 0) // Only show categories with spending
-      .sort((a, b) => b.value - a.value) // Sort by value in descending order
+      .filter((item) => item.value > 0) // Only show categories with spending
+      .sort((a, b) => b.value - a.value); // Sort by value in descending order
 
-    const total = transformedData.reduce((acc, curr) => acc + curr.value, 0)
+    const total = transformedData.reduce((acc, curr) => acc + curr.value, 0);
 
-    return { chartData: transformedData, totalAmount: total }
-  }, [allCategories, summaryData, type])
+    return { chartData: transformedData, totalAmount: total };
+  }, [allCategories, summaryData, type]);
 
   if (error) {
-    return <div className="text-red-500">Failed to load category data</div>
+    return <div className="text-red-500">Failed to load category data</div>;
   }
 
   const chartConfig = {
     value: {
       label: type === "expense" ? "Total Spending" : "Total Income",
+      color: "hsl(var(--chart-1))",
     },
     ...Object.fromEntries(
-      chartData.map(item => [
+      chartData.map((item) => [
         item.category,
         {
           label: item.category,
           color: item.fill,
         },
-      ])
+      ]),
     ),
-  }
+  };
 
   const EmptyState = () => (
     <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -113,9 +103,9 @@ export function CategoryChart() {
           <PiggyBank className="h-16 w-16 mb-4" />
           <p className="text-lg font-medium mb-2">No expenses yet!</p>
           <p className="text-sm text-center">
-            Looks like you're either really good at saving
+            {"Looks like you're either really good at saving"}
             <br />
-            or haven't tracked any expenses yet.
+            {"or haven't tracked any expenses yet."}
           </p>
         </>
       ) : (
@@ -130,7 +120,7 @@ export function CategoryChart() {
         </>
       )}
     </div>
-  )
+  );
 
   return (
     <div className="h-[300px]">
@@ -151,38 +141,36 @@ export function CategoryChart() {
         <EmptyState />
       ) : (
         <>
-          <ChartContainer
-            config={chartConfig}
-            className="mx-auto aspect-square h-[300px]"
-          >
-            <ResponsiveContainer
-              width="100%"
-              height="100%"
-              style={{ overflowY: "hidden" }}
-            >
+          <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[300px]">
+            <ResponsiveContainer width="100%" height="100%" style={{ overflowY: "hidden" }}>
               <PieChart>
-                <ChartTooltip
+                <Tooltip
                   cursor={false}
-                  content={<ChartTooltipContent hideLabel />}
-                  tooltip={({ datum }) => (
-                    <div className="bg-background border rounded-lg shadow-lg p-2">
-                      <strong>{datum.label}</strong>
-                      <div>
-                        {datum.originalValue !== datum.value ? (
-                          <>
-                            <span className="line-through text-muted-foreground">
-                              {formatCurrency(datum.originalValue)}
-                            </span>
-                            <span className="ml-2">
-                              {formatCurrency(datum.value)}
-                            </span>
-                          </>
-                        ) : (
-                          formatCurrency(datum.value)
-                        )}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const datum = payload[0].payload as {
+                      category: string;
+                      value: number;
+                      originalValue: number;
+                    };
+                    return (
+                      <div className="bg-background border rounded-lg shadow-lg p-2">
+                        <strong>{datum.category}</strong>
+                        <div>
+                          {datum.originalValue !== datum.value ? (
+                            <>
+                              <span className="line-through text-muted-foreground">
+                                {formatCurrency(datum.originalValue)}
+                              </span>
+                              <span className="ml-2">{formatCurrency(datum.value)}</span>
+                            </>
+                          ) : (
+                            formatCurrency(datum.value)
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  }}
                 />
                 <Pie
                   data={chartData}
@@ -213,12 +201,10 @@ export function CategoryChart() {
                               y={(viewBox.cy || 0) + 20}
                               className="fill-muted-foreground text-xs"
                             >
-                              {type === "expense"
-                                ? "Total Spending"
-                                : "Total Income"}
+                              {type === "expense" ? "Total Spending" : "Total Income"}
                             </tspan>
                           </text>
-                        )
+                        );
                       }
                     }}
                   />
@@ -227,17 +213,12 @@ export function CategoryChart() {
             </ResponsiveContainer>
           </ChartContainer>
           <div className="flex flex-wrap gap-2 mt-4 justify-center">
-            {chartData.map(item => (
+            {chartData.map((item) => (
               <div key={item.category} className="flex items-center gap-1.5">
-                <div
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: item.fill }}
-                />
+                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
                 <span className="text-xs text-muted-foreground">
                   {item.category}
-                  <span className="ml-1 text-muted-foreground">
-                    {formatCurrency(item.value)}
-                  </span>
+                  <span className="ml-1 text-muted-foreground">{formatCurrency(item.value)}</span>
                 </span>
               </div>
             ))}
@@ -245,5 +226,5 @@ export function CategoryChart() {
         </>
       )}
     </div>
-  )
+  );
 }

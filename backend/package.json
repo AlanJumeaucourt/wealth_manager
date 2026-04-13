@@ -1,0 +1,52 @@
+{
+  "name": "wealth-backend-typescript",
+  "version": "0.1.0",
+  "type": "module",
+  "types": "./dist/app.d.ts",
+  "exports": {
+    "./app": {
+      "types": "./src/app.ts",
+      "default": "./src/app.ts"
+    },
+    "./services/portfolioSummary": {
+      "types": "./src/services/portfolioSummary.ts",
+      "default": "./src/services/portfolioSummary.ts"
+    },
+    "./services/portfolioPerformance": {
+      "types": "./src/services/portfolioPerformance.ts",
+      "default": "./src/services/portfolioPerformance.ts"
+    },
+    "./services/liability": {
+      "types": "./src/services/liability.ts",
+      "default": "./src/services/liability.ts"
+    }
+  },
+  "scripts": {
+    "build:types": "cd .. && bunx tsc -p backend/tsconfig.build.json",
+    "dev": "bun run src/index.ts",
+    "dev:watch": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "migrate": "bun run src/db/migrate.ts",
+    "codegen": "bun run scripts/codegen-from-manifest.ts",
+    "test": "bun test",
+    "lint": "bunx eslint \"src/**/*.{ts,tsx}\"",
+    "benchmark": "bun run scripts/benchmark.ts"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.1",
+    "@elysiajs/openapi": "^1.4.14",
+    "@mixxtor/currencyx-js": "^2.2.6",
+    "elysia": "^1.4.27",
+    "jose": "^5.10.0",
+    "kysely": "^0.27.6",
+    "kysely-bun-sqlite": "^0.4.0",
+    "yahoo-finance2": "^3.13.2"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "bun-types": "latest",
+    "eslint": "^8.57.1",
+    "typescript": "^6.0.2"
+  }
+}

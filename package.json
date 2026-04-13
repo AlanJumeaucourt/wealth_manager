@@ -1,0 +1,17 @@
+{
+  "name": "wealth",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "web_application",
+    "showcase_website"
+  ],
+  "type": "module",
+  "scripts": {
+    "prepare": "vp config"
+  },
+  "devDependencies": {
+    "vite-plus": "0.1.15"
+  },
+  "packageManager": "bun@1.1.33"
+}

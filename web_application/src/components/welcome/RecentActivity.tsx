@@ -1,15 +1,20 @@
-import { Account, Transaction } from "@/types"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { ArrowUpRight, Clock } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
+import { Account, Transaction } from "@/types";
+import { formatCurrency } from "@/utils/currency";
+import { amountPreferredOrFallback } from "@/utils/transactionDisplay";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Clock } from "lucide-react";
 
 interface RecentActivityProps {
-  transactions: Transaction[]
-  accounts: Account[]
-  navigate: (to: string) => void
-  onAccountClick?: (accountId: number) => void
-  onTransactionClick?: (transactionId: number) => void
-  onTransactionSelect?: (transaction: Transaction) => void
+  transactions: Transaction[];
+  accounts: Account[];
+  navigate: (to: string) => void;
+  onAccountClick?: (accountId: number) => void;
+  onTransactionClick?: (transactionId: number) => void;
+  onTransactionSelect?: (transaction: Transaction) => void;
+  isLoading?: boolean;
 }
 
 export function RecentActivity({
@@ -18,8 +23,25 @@ export function RecentActivity({
   navigate,
   onAccountClick,
   onTransactionClick,
-  onTransactionSelect
+  onTransactionSelect,
+  isLoading,
 }: RecentActivityProps) {
+  const { preferredCurrency } = usePreferredCurrency();
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
   if (!transactions || transactions.length === 0) {
     return (
       <Card>
@@ -32,51 +54,46 @@ export function RecentActivity({
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   // Get account names for display
   const getAccountName = (id: number) => {
-    const account = accounts.find(a => a.id === id)
-    return account ? account.name : "Unknown Account"
-  }
+    const account = accounts.find((a) => a.id === id);
+    return account ? account.name : "Unknown Account";
+  };
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: "EUR",
-    }).format(Math.abs(amount))
-  }
+  const formatAmount = (t: Transaction) =>
+    formatCurrency(amountPreferredOrFallback(t), preferredCurrency);
 
   // Format date
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
+    const date = new Date(dateStr);
     return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   // Get icon and color based on transaction type
   const getTransactionDetails = (transaction: Transaction) => {
     const colors = {
       expense: "text-red-500 bg-red-100 dark:bg-red-950",
       income: "text-green-500 bg-green-100 dark:bg-green-950",
-      transfer: "text-blue-500 bg-blue-100 dark:bg-blue-950"
-    }
+      transfer: "text-blue-500 bg-blue-100 dark:bg-blue-950",
+    };
 
     const icons = {
       expense: "↓",
       income: "↑",
-      transfer: "↔"
-    }
+      transfer: "↔",
+    };
 
     return {
       color: colors[transaction.type],
-      icon: icons[transaction.type]
-    }
-  }
+      icon: icons[transaction.type],
+    };
+  };
 
   // Handle transaction click
   const handleTransactionClick = (transaction: Transaction) => {
@@ -89,7 +106,7 @@ export function RecentActivity({
     } else {
       navigate(`/transactions/${transaction.id}`);
     }
-  }
+  };
 
   // Handle account click
   const handleAccountClick = (accountId: number, event: React.MouseEvent) => {
@@ -100,7 +117,7 @@ export function RecentActivity({
     } else {
       navigate(`/accounts/${accountId}`);
     }
-  }
+  };
 
   return (
     <Card>
@@ -109,8 +126,8 @@ export function RecentActivity({
       </CardHeader>
       <CardContent className="px-2">
         <div className="space-y-4">
-          {transactions.map(transaction => {
-            const { color, icon } = getTransactionDetails(transaction)
+          {transactions.map((transaction) => {
+            const { color, icon } = getTransactionDetails(transaction);
 
             return (
               <div
@@ -130,7 +147,7 @@ export function RecentActivity({
                       <Clock className="h-3 w-3 mr-1" />
                       {formatDate(transaction.date)}
                       <span className="mx-1">•</span>
-                      {transaction.type === 'transfer' ? (
+                      {transaction.type === "transfer" ? (
                         <>
                           <span
                             className="hover:underline cursor-pointer"
@@ -146,7 +163,7 @@ export function RecentActivity({
                             {getAccountName(transaction.to_account_id)}
                           </span>
                         </>
-                      ) : transaction.type === 'expense' ? (
+                      ) : transaction.type === "expense" ? (
                         <span
                           className="hover:underline cursor-pointer"
                           onClick={(e) => handleAccountClick(transaction.from_account_id, e)}
@@ -173,22 +190,18 @@ export function RecentActivity({
                         : "text-blue-500"
                   }`}
                 >
-                  {formatCurrency(transaction.amount)}
+                  {formatAmount(transaction)}
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       </CardContent>
       <CardFooter className="pt-2">
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => navigate("/transactions/all")}
-        >
+        <Button variant="outline" className="w-full" onClick={() => navigate("/transactions/all")}>
           <Clock className="mr-2 h-4 w-4" /> View All Transactions
         </Button>
       </CardFooter>
     </Card>
-  )
+  );
 }

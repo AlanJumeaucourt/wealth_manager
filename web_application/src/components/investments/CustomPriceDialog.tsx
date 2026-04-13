@@ -1,74 +1,68 @@
-import { useAddCustomPrice, useBatchAddCustomPrices, useBatchDeleteCustomPrices, useCustomPrices, useDeleteCustomPrice } from "@/api/queries"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { DatePicker } from "@/components/ui/datePicker"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+  useAddCustomPrice,
+  useBatchDeleteCustomPrices,
+  useCustomPrices,
+  useDeleteCustomPrice,
+} from "@/api/queries";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/datePicker";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { toast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
-import { useQueryClient } from "@tanstack/react-query"
-import { format } from "date-fns"
-import { AlertTriangle, Download, Plus, Save, Trash, Upload, X } from "lucide-react"
-import { useEffect, useState } from "react"
-
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { AlertTriangle, Download, Plus, Save, Trash, Upload, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface CustomPriceDialogProps {
-  symbol: string
-  currency?: string
-  isOpen?: boolean
-  onOpenChange?: (open: boolean) => void
+  symbol: string;
+  currency?: string;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface PriceRow {
-  id: string
-  date: Date
-  close: string
-  open: string
-  high: string
-  low: string
-  volume: string
-  isNew: boolean
-  isEdited: boolean
-  selected?: boolean
+  id: string;
+  date: Date;
+  close: string;
+  open: string;
+  high: string;
+  low: string;
+  volume: string;
+  isNew: boolean;
+  isEdited: boolean;
+  selected?: boolean;
 }
 
-export function CustomPriceDialog({
-  symbol,
-  currency = "USD",
-  isOpen,
-  onOpenChange,
-}: CustomPriceDialogProps) {
-  const [rows, setRows] = useState<PriceRow[]>([])
-  const [dialogOpen, setDialogOpen] = useState(isOpen || false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [selectedCount, setSelectedCount] = useState(0)
-  const [selectAll, setSelectAll] = useState(false)
+export function CustomPriceDialog({ symbol, isOpen, onOpenChange }: CustomPriceDialogProps) {
+  const [rows, setRows] = useState<PriceRow[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(isOpen || false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedCount, setSelectedCount] = useState(0);
+  const [selectAll, setSelectAll] = useState(false);
 
   // Query for existing data
-  const { data: customPrices, isLoading } = useCustomPrices(symbol)
-  const addPrice = useAddCustomPrice()
-  const batchAddPrices = useBatchAddCustomPrices()
-  const deletePrice = useDeleteCustomPrice()
-  const batchDeletePrices = useBatchDeleteCustomPrices()
-  const queryClient = useQueryClient()
+  const { data: customPrices, isLoading } = useCustomPrices(symbol);
+  const addPrice = useAddCustomPrice();
+  const deletePrice = useDeleteCustomPrice();
+  const batchDeletePrices = useBatchDeleteCustomPrices();
+  const queryClient = useQueryClient();
 
   // Initialize rows from customPrices
   useEffect(() => {
-    if (customPrices && customPrices.length > 0) {
-      const formattedRows = customPrices
+    const prices = customPrices as unknown[] | undefined;
+    if (prices && prices.length > 0) {
+      const formattedRows = prices
         .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .map((price: any) => ({
           id: price.date,
@@ -80,7 +74,7 @@ export function CustomPriceDialog({
           volume: price.volume.toString(),
           isNew: false,
           isEdited: false,
-          selected: false
+          selected: false,
         }));
       setRows(formattedRows);
     }
@@ -88,7 +82,7 @@ export function CustomPriceDialog({
 
   // Update selected count when rows change
   useEffect(() => {
-    const count = rows.filter(row => row.selected).length;
+    const count = rows.filter((row) => row.selected).length;
     setSelectedCount(count);
     setSelectAll(count > 0 && count === rows.length);
   }, [rows]);
@@ -96,12 +90,12 @@ export function CustomPriceDialog({
   // Handle dialog open/close
   useEffect(() => {
     if (isOpen !== undefined) {
-      setDialogOpen(isOpen)
+      setDialogOpen(isOpen);
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   const addNewRow = () => {
-    const today = new Date()
+    const today = new Date();
     const newRow: PriceRow = {
       id: `new-${Date.now()}`,
       date: today,
@@ -112,103 +106,107 @@ export function CustomPriceDialog({
       volume: "0",
       isNew: true,
       isEdited: false,
-      selected: false
-    }
-    setRows(prev => [newRow, ...prev])
-    setIsEditing(true)
-  }
+      selected: false,
+    };
+    setRows((prev) => [newRow, ...prev]);
+    setIsEditing(true);
+  };
 
   const updateRow = (id: string, field: keyof PriceRow, value: any) => {
-    setRows(prev =>
-      prev.map(row => {
+    setRows((prev) =>
+      prev.map((row) => {
         if (row.id === id) {
           const updatedRow = {
             ...row,
             [field]: value,
-            isEdited: field !== 'selected' && !row.isNew // Only mark as edited if it's not a new row and not toggling selection
-          }
+            isEdited: field !== "selected" && !row.isNew, // Only mark as edited if it's not a new row and not toggling selection
+          };
 
           // Auto-fill other price fields with close price if they're empty
-          if (field === 'close' && value !== "") {
-            if (row.open === "") updatedRow.open = value
-            if (row.high === "") updatedRow.high = value
-            if (row.low === "") updatedRow.low = value
+          if (field === "close" && value !== "") {
+            if (row.open === "") updatedRow.open = value;
+            if (row.high === "") updatedRow.high = value;
+            if (row.low === "") updatedRow.low = value;
           }
 
-          return updatedRow
+          return updatedRow;
         }
-        return row
-      })
-    )
+        return row;
+      }),
+    );
 
     // Only set isEditing if we're changing data fields, not selection status
-    if (field !== 'selected') {
-      setIsEditing(true)
+    if (field !== "selected") {
+      setIsEditing(true);
     }
-  }
+  };
 
   const toggleSelectAll = (checked: boolean) => {
     setSelectAll(checked);
-    setRows(prev =>
-      prev.map(row => ({ ...row, selected: checked }))
-    );
-  }
+    setRows((prev) => prev.map((row) => ({ ...row, selected: checked })));
+  };
 
   const toggleRowSelection = (id: string, checked: boolean) => {
-    updateRow(id, 'selected', checked);
-  }
+    updateRow(id, "selected", checked);
+  };
 
   const deleteSelectedRows = () => {
-    const selectedRows = rows.filter(row => row.selected);
+    const selectedRows = rows.filter((row) => row.selected);
     if (selectedRows.length === 0) return;
 
-    if (!confirm(`Are you sure you want to delete ${selectedRows.length} selected price entries?`)) {
+    if (
+      !confirm(`Are you sure you want to delete ${selectedRows.length} selected price entries?`)
+    ) {
       return;
     }
 
     // Delete new rows immediately from state
-    const newSelectedRows = selectedRows.filter(row => row.isNew);
+    const newSelectedRows = selectedRows.filter((row) => row.isNew);
     if (newSelectedRows.length > 0) {
-      setRows(prev => prev.filter(row => !(row.isNew && row.selected)));
+      setRows((prev) => prev.filter((row) => !(row.isNew && row.selected)));
     }
 
     // Delete existing rows via API using batch operation
-    const existingSelectedRows = selectedRows.filter(row => !row.isNew);
+    const existingSelectedRows = selectedRows.filter((row) => !row.isNew);
     if (existingSelectedRows.length === 0) return;
 
     // Extract dates for batch deletion
-    const dates = existingSelectedRows.map(row => format(row.date, "yyyy-MM-dd"));
+    const dates = existingSelectedRows.map((row) => format(row.date, "yyyy-MM-dd"));
 
     batchDeletePrices.mutate(
       {
         symbol,
-        dates
+        dates,
       },
       {
         onSuccess: (response) => {
           // If we have specific information about successful deletions, use it
           if (response.details?.successful && Array.isArray(response.details.successful)) {
             // Remove specific rows that were successfully deleted
-            setRows(prev => prev.filter(row => {
-              const formattedDate = format(row.date, "yyyy-MM-dd");
-              // Keep the row if it's not in the successful deletion list
-              return !response.details.successful.includes(formattedDate);
-            }));
+            setRows((prev) =>
+              prev.filter((row) => {
+                const formattedDate = format(row.date, "yyyy-MM-dd");
+                // Keep the row if it's not in the successful deletion list
+                return !response.details.successful.includes(formattedDate);
+              }),
+            );
           } else {
             // Fallback: just remove all selected rows
-            setRows(prev => prev.filter(row => !row.selected));
+            setRows((prev) => prev.filter((row) => !row.selected));
           }
 
           toast({
             title: "Success",
-            description: response.message || `Deleted ${response.details?.total_successful || selectedRows.length} price entries`
+            description:
+              response.message ||
+              `Deleted ${response.details?.total_successful || selectedRows.length} price entries`,
           });
 
           if (response.details?.total_failed > 0) {
             toast({
               title: "Warning",
               description: `Failed to delete ${response.details.total_failed} price entries`,
-              variant: "destructive"
+              variant: "destructive",
             });
           }
         },
@@ -216,37 +214,41 @@ export function CustomPriceDialog({
           toast({
             title: "Error",
             description: error instanceof Error ? error.message : "Failed to delete price entries",
-            variant: "destructive"
+            variant: "destructive",
           });
-        }
-      }
+        },
+      },
     );
-  }
+  };
 
   const deleteAllRows = () => {
     if (rows.length === 0) return;
 
-    if (!confirm(`Are you sure you want to delete ALL price entries for ${symbol}? This cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete ALL price entries for ${symbol}? This cannot be undone.`,
+      )
+    ) {
       return;
     }
 
     // Delete new rows immediately from state
-    const newRows = rows.filter(row => row.isNew);
+    const newRows = rows.filter((row) => row.isNew);
     if (newRows.length > 0) {
-      setRows(prev => prev.filter(row => !row.isNew));
+      setRows((prev) => prev.filter((row) => !row.isNew));
     }
 
     // Delete existing rows via API using batch operation
-    const existingRows = rows.filter(row => !row.isNew);
+    const existingRows = rows.filter((row) => !row.isNew);
     if (existingRows.length === 0) return;
 
     // Extract dates for batch deletion
-    const dates = existingRows.map(row => format(row.date, "yyyy-MM-dd"));
+    const dates = existingRows.map((row) => format(row.date, "yyyy-MM-dd"));
 
     batchDeletePrices.mutate(
       {
         symbol,
-        dates
+        dates,
       },
       {
         onSuccess: (response) => {
@@ -255,14 +257,14 @@ export function CustomPriceDialog({
 
           toast({
             title: "Success",
-            description: response.message || `Deleted all price entries for ${symbol}`
+            description: response.message || `Deleted all price entries for ${symbol}`,
           });
 
           if (response.details?.total_failed > 0) {
             toast({
               title: "Warning",
               description: `Failed to delete ${response.details.total_failed} price entries`,
-              variant: "destructive"
+              variant: "destructive",
             });
           }
         },
@@ -270,58 +272,64 @@ export function CustomPriceDialog({
           toast({
             title: "Error",
             description: error instanceof Error ? error.message : "Failed to delete price entries",
-            variant: "destructive"
+            variant: "destructive",
           });
-        }
-      }
+        },
+      },
     );
-  }
+  };
 
   const deleteRow = (id: string) => {
     // If it's a new row, just remove it from state
-    const rowToDelete = rows.find(row => row.id === id)
+    const rowToDelete = rows.find((row) => row.id === id);
     if (rowToDelete?.isNew) {
-      setRows(prev => prev.filter(row => row.id !== id))
-      return
+      setRows((prev) => prev.filter((row) => row.id !== id));
+      return;
     }
 
     // Otherwise, call API to delete
     deletePrice.mutate(
       {
         symbol,
-        date: format(rowToDelete?.date || new Date(), "yyyy-MM-dd")
+        date: format(rowToDelete?.date || new Date(), "yyyy-MM-dd"),
       },
       {
         onSuccess: () => {
           toast({
             title: "Success",
-            description: "Custom price deleted successfully"
-          })
-          setRows(prev => prev.filter(row => row.id !== id))
+            description: "Custom price deleted successfully",
+          });
+          setRows((prev) => prev.filter((row) => row.id !== id));
         },
         onError: (error) => {
           toast({
             title: "Error",
             description: `Failed to delete custom price: ${error instanceof Error ? error.message : "Unknown error"}`,
-            variant: "destructive"
-          })
-        }
-      }
-    )
-  }
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
 
   const saveChanges = async () => {
     // Validate all rows to be saved
-    const invalidRows = rows.filter(row => {
-      return !row.date || isNaN(parseFloat(row.close)) || isNaN(parseFloat(row.open)) ||
-             isNaN(parseFloat(row.high)) || isNaN(parseFloat(row.low)) || isNaN(parseFloat(row.volume));
+    const invalidRows = rows.filter((row) => {
+      return (
+        !row.date ||
+        isNaN(parseFloat(row.close)) ||
+        isNaN(parseFloat(row.open)) ||
+        isNaN(parseFloat(row.high)) ||
+        isNaN(parseFloat(row.low)) ||
+        isNaN(parseFloat(row.volume))
+      );
     });
 
     if (invalidRows.length > 0) {
       toast({
         variant: "destructive",
         title: "Validation Error",
-        description: "Some rows have invalid data. Please correct them before saving."
+        description: "Some rows have invalid data. Please correct them before saving.",
       });
       return;
     }
@@ -330,10 +338,10 @@ export function CustomPriceDialog({
 
     try {
       // Handle new rows
-      const newRows = rows.filter(row => row.isNew);
+      const newRows = rows.filter((row) => row.isNew);
       if (newRows.length > 0) {
         const newRowsPromises = newRows.map(async (row) => {
-          const formattedDate = new Date(row.date).toISOString().split('T')[0];
+          const formattedDate = new Date(row.date).toISOString().split("T")[0];
 
           await addPrice.mutateAsync({
             symbol,
@@ -343,8 +351,8 @@ export function CustomPriceDialog({
               high: parseFloat(row.high),
               low: parseFloat(row.low),
               close: parseFloat(row.close),
-              volume: parseFloat(row.volume)
-            }
+              volume: parseFloat(row.volume),
+            },
           });
         });
 
@@ -352,14 +360,14 @@ export function CustomPriceDialog({
       }
 
       // Handle edited rows
-      const editedRows = rows.filter(row => row.isEdited);
+      const editedRows = rows.filter((row) => row.isEdited);
       if (editedRows.length > 0) {
         const editRowsPromises = editedRows.map(async (row) => {
-          const formattedDate = new Date(row.date).toISOString().split('T')[0];
+          const formattedDate = new Date(row.date).toISOString().split("T")[0];
 
           await deletePrice.mutateAsync({
             symbol,
-            date: formattedDate
+            date: formattedDate,
           });
 
           await addPrice.mutateAsync({
@@ -370,8 +378,8 @@ export function CustomPriceDialog({
               high: parseFloat(row.high),
               low: parseFloat(row.low),
               close: parseFloat(row.close),
-              volume: parseFloat(row.volume)
-            }
+              volume: parseFloat(row.volume),
+            },
           });
         });
 
@@ -379,22 +387,21 @@ export function CustomPriceDialog({
       }
 
       // Refresh data
-      queryClient.invalidateQueries({ queryKey: ['customPrices', symbol] });
+      void queryClient.invalidateQueries({ queryKey: ["customPrices", symbol] });
 
       // Reset states
-      setRows(prev => prev.map(row => ({ ...row, isNew: false, isEdited: false })));
+      setRows((prev) => prev.map((row) => ({ ...row, isNew: false, isEdited: false })));
 
       toast({
         title: "Success",
         description: "Custom prices saved successfully.",
       });
-
     } catch (error) {
       console.error("Error saving custom prices:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to save custom prices. Please try again."
+        description: "Failed to save custom prices. Please try again.",
       });
     } finally {
       setIsEditing(false);
@@ -405,126 +412,128 @@ export function CustomPriceDialog({
     if (rows.length === 0) {
       toast({
         title: "Info",
-        description: "No data to export"
-      })
-      return
+        description: "No data to export",
+      });
+      return;
     }
 
     // Create CSV content
-    const headers = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+    const headers = ["Date", "Open", "High", "Low", "Close", "Volume"];
     const csvContent = [
-      headers.join(','),
-      ...rows.map(row => [
-        format(row.date, 'yyyy-MM-dd'),
-        row.open,
-        row.high,
-        row.low,
-        row.close,
-        row.volume
-      ].join(','))
-    ].join('\n')
+      headers.join(","),
+      ...rows.map((row) =>
+        [format(row.date, "yyyy-MM-dd"), row.open, row.high, row.low, row.close, row.volume].join(
+          ",",
+        ),
+      ),
+    ].join("\n");
 
     // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.setAttribute('href', url)
-    link.setAttribute('download', `${symbol}_prices.csv`)
-    link.style.visibility = 'hidden'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${symbol}_prices.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
     toast({
       title: "Success",
-      description: "Data exported to CSV"
-    })
-  }
+      description: "Data exported to CSV",
+    });
+  };
 
   const importFromCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const csvText = event.target?.result as string
-        const lines = csvText.split('\n')
+        const csvText = event.target?.result as string;
+        const lines = csvText.split("\n");
 
         // Skip header row if present - check for both English and French headers
-        const hasHeaders = lines[0].toLowerCase().includes('date') ||
-          lines[0].toLowerCase().includes('ouv') ||
-          lines[0].toLowerCase().includes('haut') ||
-          lines[0].toLowerCase().includes('bas') ||
-          lines[0].toLowerCase().includes('clot')
+        const hasHeaders =
+          lines[0].toLowerCase().includes("date") ||
+          lines[0].toLowerCase().includes("ouv") ||
+          lines[0].toLowerCase().includes("haut") ||
+          lines[0].toLowerCase().includes("bas") ||
+          lines[0].toLowerCase().includes("clot");
 
-        const startRow = hasHeaders ? 1 : 0
+        const startRow = hasHeaders ? 1 : 0;
 
-        const newRows: PriceRow[] = []
+        const newRows: PriceRow[] = [];
         for (let i = startRow; i < lines.length; i++) {
-          const line = lines[i].trim()
-          if (!line) continue
+          const line = lines[i].trim();
+          if (!line) continue;
 
           // Split by tab or comma (to support both formats)
-          const values = line.includes('\t') ? line.split('\t') : line.split(',')
-          if (values.length < 2) continue // Need at least date and close
+          const values = line.includes("\t") ? line.split("\t") : line.split(",");
+          if (values.length < 2) continue; // Need at least date and close
 
-          const dateStr = values[0].trim()
-          let date: Date
+          const dateStr = values[0].trim();
+          let date: Date;
           try {
             // Support both DD/MM/YYYY and YYYY-MM-DD formats
-            if (dateStr.includes('/')) {
+            if (dateStr.includes("/")) {
               // Handle French date format (DD/MM/YYYY)
-              const parts = dateStr.split(' ')[0].split('/')
+              const parts = dateStr.split(" ")[0].split("/");
               if (parts.length === 3) {
-                const day = parseInt(parts[0])
-                const month = parseInt(parts[1]) - 1 // JS months are 0-indexed
-                const year = parseInt(parts[2])
-                date = new Date(year, month, day)
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1; // JS months are 0-indexed
+                const year = parseInt(parts[2]);
+                date = new Date(year, month, day);
               } else {
-                continue // Invalid date format
+                continue; // Invalid date format
               }
             } else {
               // Standard ISO format
-              date = new Date(dateStr)
+              date = new Date(dateStr);
             }
 
-            if (isNaN(date.getTime())) continue // Skip invalid dates
+            if (isNaN(date.getTime())) continue; // Skip invalid dates
           } catch {
-            continue // Skip invalid dates
+            continue; // Skip invalid dates
           }
 
           // Map CSV values to row based on detected format
-          let open = "", high = "", low = "", close = "", volume = "0"
+          let open = "",
+            high = "",
+            low = "",
+            close = "",
+            volume = "0";
 
           // Check for French format (date, ouv, haut, bas, clot, vol)
-          if (lines[0].toLowerCase().includes('ouv') && values.length >= 5) {
+          if (lines[0].toLowerCase().includes("ouv") && values.length >= 5) {
             // Parse French format
-            open = values[1].trim().replace(',', '.')   // Convert comma to decimal point
-            high = values[2].trim().replace(',', '.')
-            low = values[3].trim().replace(',', '.')
-            close = values[4].trim().replace(',', '.')
-            volume = values.length > 5 ? values[5].trim().replace(',', '.') : "0"
+            open = values[1].trim().replace(",", "."); // Convert comma to decimal point
+            high = values[2].trim().replace(",", ".");
+            low = values[3].trim().replace(",", ".");
+            close = values[4].trim().replace(",", ".");
+            volume = values.length > 5 ? values[5].trim().replace(",", ".") : "0";
           }
           // Check for English format (date, open, high, low, close, volume)
           else if (values.length >= 5) {
             // Standard OHLCV format
-            open = values[1].trim().replace(',', '.')
-            high = values[2].trim().replace(',', '.')
-            low = values[3].trim().replace(',', '.')
-            close = values[4].trim().replace(',', '.')
-            volume = values.length > 5 ? values[5].trim().replace(',', '.') : "0"
+            open = values[1].trim().replace(",", ".");
+            high = values[2].trim().replace(",", ".");
+            low = values[3].trim().replace(",", ".");
+            close = values[4].trim().replace(",", ".");
+            volume = values.length > 5 ? values[5].trim().replace(",", ".") : "0";
           }
           // Simple date,price format
           else if (values.length >= 2) {
-            close = values[1].trim().replace(',', '.')
-            open = close
-            high = close
-            low = close
+            close = values[1].trim().replace(",", ".");
+            open = close;
+            high = close;
+            low = close;
           }
 
           // Ensure all values are valid numbers
-          if (!close || isNaN(parseFloat(close))) continue
+          if (!close || isNaN(parseFloat(close))) continue;
 
           newRows.push({
             id: `import-${Date.now()}-${i}`,
@@ -536,53 +545,53 @@ export function CustomPriceDialog({
             volume,
             isNew: true,
             isEdited: false,
-            selected: false
-          })
+            selected: false,
+          });
         }
 
         if (newRows.length > 0) {
           // Sort by date descending and add to existing rows
-          newRows.sort((a, b) => b.date.getTime() - a.date.getTime())
-          setRows(prev => [...newRows, ...prev])
-          setIsEditing(true)
+          newRows.sort((a, b) => b.date.getTime() - a.date.getTime());
+          setRows((prev) => [...newRows, ...prev]);
+          setIsEditing(true);
 
           toast({
             title: "Success",
-            description: `Imported ${newRows.length} price entries`
-          })
+            description: `Imported ${newRows.length} price entries`,
+          });
         } else {
           toast({
             title: "Warning",
             description: "No valid data found in CSV file",
-            variant: "destructive"
-          })
+            variant: "destructive",
+          });
         }
-      } catch (error) {
+      } catch {
         toast({
           title: "Error",
           description: "Failed to parse CSV file",
-          variant: "destructive"
-        })
+          variant: "destructive",
+        });
       }
-    }
-    reader.readAsText(file)
+    };
+    reader.readAsText(file);
 
     // Reset file input
-    e.target.value = ''
-  }
+    e.target.value = "";
+  };
 
   const handleOpenChange = (open: boolean) => {
     if (!open && isEditing) {
       // Show warning if closing with unsaved changes
       if (confirm("You have unsaved changes. Are you sure you want to close?")) {
-        setDialogOpen(false)
-        if (onOpenChange) onOpenChange(false)
+        setDialogOpen(false);
+        if (onOpenChange) onOpenChange(false);
       }
     } else {
-      setDialogOpen(open)
-      if (onOpenChange) onOpenChange(open)
+      setDialogOpen(open);
+      if (onOpenChange) onOpenChange(open);
     }
-  }
+  };
 
   return (
     <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
@@ -600,12 +609,7 @@ export function CustomPriceDialog({
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-2 py-2">
           <div className="flex items-center gap-2">
-            <Button
-              onClick={addNewRow}
-              variant="outline"
-              size="sm"
-              className="gap-1 h-8"
-            >
+            <Button onClick={addNewRow} variant="outline" size="sm" className="gap-1 h-8">
               <Plus className="h-4 w-4" /> Add Row
             </Button>
 
@@ -633,12 +637,7 @@ export function CustomPriceDialog({
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={exportToCsv}
-              variant="outline"
-              size="sm"
-              className="gap-1 h-8"
-            >
+            <Button onClick={exportToCsv} variant="outline" size="sm" className="gap-1 h-8">
               <Download className="h-4 w-4" /> Export
             </Button>
 
@@ -647,7 +646,7 @@ export function CustomPriceDialog({
                 variant="outline"
                 size="sm"
                 className="gap-1 h-8"
-                onClick={() => document.getElementById('csv-upload')?.click()}
+                onClick={() => document.getElementById("csv-upload")?.click()}
               >
                 <Upload className="h-4 w-4" /> Import
               </Button>
@@ -708,7 +707,9 @@ export function CustomPriceDialog({
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-4 text-muted-foreground">Loading prices...</td>
+                  <td colSpan={8} className="text-center py-4 text-muted-foreground">
+                    Loading prices...
+                  </td>
                 </tr>
               ) : rows.length > 0 ? (
                 rows.map((row) => (
@@ -717,7 +718,7 @@ export function CustomPriceDialog({
                     className={cn(
                       "border-b hover:bg-muted/30 transition-colors",
                       (row.isNew || row.isEdited) && "bg-muted/20",
-                      row.selected && "bg-primary/10"
+                      row.selected && "bg-primary/10",
                     )}
                   >
                     <td className="p-2 text-center">
@@ -730,7 +731,7 @@ export function CustomPriceDialog({
                     <td className="p-2">
                       <DatePicker
                         selectedDate={row.date}
-                        onDateChange={(date) => updateRow(row.id, 'date', date || new Date())}
+                        onDateChange={(date) => updateRow(row.id, "date", date || new Date())}
                         minDate={new Date(2000, 0, 1)}
                         maxDate={new Date()}
                       />
@@ -740,7 +741,7 @@ export function CustomPriceDialog({
                         type="number"
                         step="0.0001"
                         value={row.open}
-                        onChange={(e) => updateRow(row.id, 'open', e.target.value)}
+                        onChange={(e) => updateRow(row.id, "open", e.target.value)}
                         placeholder="Same as close"
                         className="border-none focus-visible:ring-1 h-8 py-1"
                       />
@@ -750,7 +751,7 @@ export function CustomPriceDialog({
                         type="number"
                         step="0.0001"
                         value={row.high}
-                        onChange={(e) => updateRow(row.id, 'high', e.target.value)}
+                        onChange={(e) => updateRow(row.id, "high", e.target.value)}
                         placeholder="Same as close"
                         className="border-none focus-visible:ring-1 h-8 py-1"
                       />
@@ -760,7 +761,7 @@ export function CustomPriceDialog({
                         type="number"
                         step="0.0001"
                         value={row.low}
-                        onChange={(e) => updateRow(row.id, 'low', e.target.value)}
+                        onChange={(e) => updateRow(row.id, "low", e.target.value)}
                         placeholder="Same as close"
                         className="border-none focus-visible:ring-1 h-8 py-1"
                       />
@@ -770,7 +771,7 @@ export function CustomPriceDialog({
                         type="number"
                         step="0.0001"
                         value={row.close}
-                        onChange={(e) => updateRow(row.id, 'close', e.target.value)}
+                        onChange={(e) => updateRow(row.id, "close", e.target.value)}
                         placeholder="Required"
                         className="border-none focus-visible:ring-1 h-8 py-1 font-medium"
                         required
@@ -781,7 +782,7 @@ export function CustomPriceDialog({
                         type="number"
                         step="1"
                         value={row.volume}
-                        onChange={(e) => updateRow(row.id, 'volume', e.target.value)}
+                        onChange={(e) => updateRow(row.id, "volume", e.target.value)}
                         placeholder="0"
                         className="border-none focus-visible:ring-1 h-8 py-1"
                       />
@@ -803,11 +804,7 @@ export function CustomPriceDialog({
                   <td colSpan={8} className="text-center py-4 text-muted-foreground">
                     No custom prices defined for this asset yet.
                     <div className="mt-2">
-                      <Button
-                        onClick={addNewRow}
-                        variant="outline"
-                        size="sm"
-                      >
+                      <Button onClick={addNewRow} variant="outline" size="sm">
                         <Plus className="h-4 w-4 mr-1" /> Add a price entry
                       </Button>
                     </div>
@@ -819,12 +816,10 @@ export function CustomPriceDialog({
         </div>
 
         <div className="text-xs text-muted-foreground mt-2">
-          * Close price is required for all entries. Other fields will use the close price if left empty.
+          * Close price is required for all entries. Other fields will use the close price if left
+          empty.
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-
-
-

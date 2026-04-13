@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
-import React, { createContext, useContext, useState } from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router, type Href } from "expo-router";
+import React, { createContext, useContext, useState } from "react";
 
 interface AuthContextType {
   isLoggedIn: boolean;
@@ -19,10 +19,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkAuthStatus = async () => {
     try {
       setIsLoading(true);
-      const token = await AsyncStorage.getItem('accessToken');
+      const token = await AsyncStorage.getItem("accessToken");
       setIsLoggedIn(!!token);
     } catch (error) {
-      console.error('Error checking auth status:', error);
+      console.error("Error checking auth status:", error);
       setIsLoggedIn(false);
     } finally {
       setIsLoading(false);
@@ -31,22 +31,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (token: string) => {
     try {
-      await AsyncStorage.setItem('accessToken', token);
+      await AsyncStorage.setItem("accessToken", token);
       setIsLoggedIn(true);
-      router.replace('/(app)');
+      router.replace("/(app)/(tabs)/wealth" as Href);
     } catch (error) {
-      console.error('Error during login:', error);
+      console.error("Error during login:", error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem("accessToken");
       setIsLoggedIn(false);
-      router.replace('/(auth)/login');
+      router.replace("/(auth)/login");
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error("Error during logout:", error);
       throw error;
     }
   };
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

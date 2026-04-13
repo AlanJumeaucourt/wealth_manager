@@ -1,10 +1,14 @@
-import { GoCardlessAccount, GoCardlessInstitution, GoCardlessRequisition } from '@/types/gocardless';
-import { handleApiError } from '@/utils/apiUtils';
-  import apiClient from './axiosConfig';
+import {
+  GoCardlessAccount,
+  GoCardlessInstitution,
+  GoCardlessRequisition,
+} from "@/types/gocardless";
+import { handleApiError } from "@/utils/apiUtils";
+import apiClient from "./axiosConfig";
 
 export const fetchInstitutions = async (): Promise<GoCardlessInstitution[]> => {
   try {
-    const response = await apiClient.get('/gocardless/institutions');
+    const response = await apiClient.get("/gocardless/institutions");
     return response.data;
   } catch (error) {
     throw handleApiError(error);
@@ -13,7 +17,7 @@ export const fetchInstitutions = async (): Promise<GoCardlessInstitution[]> => {
 
 export const createRequisition = async (institutionId: string): Promise<GoCardlessRequisition> => {
   try {
-    const response = await apiClient.post('/gocardless/requisitions', {
+    const response = await apiClient.post("/gocardless/requisitions", {
       institution_id: institutionId,
     });
     return response.data;
@@ -22,7 +26,9 @@ export const createRequisition = async (institutionId: string): Promise<GoCardle
   }
 };
 
-export const getRequisitionStatus = async (requisitionId: string): Promise<GoCardlessRequisition> => {
+export const getRequisitionStatus = async (
+  requisitionId: string,
+): Promise<GoCardlessRequisition> => {
   try {
     const response = await apiClient.get(`/gocardless/requisitions/${requisitionId}`);
     return response.data;
@@ -40,9 +46,12 @@ export const getAccounts = async (requisitionId: string): Promise<GoCardlessAcco
   }
 };
 
-export const linkAccountsToUser = async (requisitionId: string, accountIds: string[]): Promise<void> => {
+export const linkAccountsToUser = async (
+  requisitionId: string,
+  accountIds: string[],
+): Promise<void> => {
   try {
-    await apiClient.post('/gocardless/link-accounts', {
+    await apiClient.post("/gocardless/link-accounts", {
       requisition_id: requisitionId,
       account_ids: accountIds,
     });

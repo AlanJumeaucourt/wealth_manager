@@ -4,48 +4,46 @@ import {
   getAccountTransactions,
   getUserAccounts,
   RateLimitError,
-} from "@/api/gocardlessApi"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/api/gocardlessApi";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   GoCardlessAccount,
   GoCardlessAccountBalance,
   GoCardlessAccountDetail,
   GoCardlessAccountTransactions,
-} from "@/types/gocardless"
-import { formatCurrency } from "@/utils/format"
-import { AlertCircle } from "lucide-react"
-import { useEffect, useState } from "react"
+} from "@/types/gocardless";
+import { formatCurrency } from "@/utils/currency";
+import { AlertCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface AccountInfo {
-  account: GoCardlessAccount
-  details: GoCardlessAccountDetail
-  balances: GoCardlessAccountBalance
-  transactions: GoCardlessAccountTransactions
+  account: GoCardlessAccount;
+  details: GoCardlessAccountDetail;
+  balances: GoCardlessAccountBalance;
+  transactions: GoCardlessAccountTransactions;
 }
 
 interface RateLimitState {
-  message: string
-  retryAfter: number
-  accountId: string
+  message: string;
+  retryAfter: number;
+  accountId: string;
 }
 
 export default function GoCardlessAccounts() {
-  const [accounts, setAccounts] = useState<AccountInfo[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [rateLimitError, setRateLimitError] = useState<RateLimitState | null>(
-    null
-  )
+  const [accounts, setAccounts] = useState<AccountInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rateLimitError, setRateLimitError] = useState<RateLimitState | null>(null);
 
   const formatTimeRemaining = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const remainingSeconds = seconds % 60
-    return `${hours}h ${minutes}m ${remainingSeconds}s`
-  }
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    return `${hours}h ${minutes}m ${remainingSeconds}s`;
+  };
 
   const fetchAccountInfo = async (accountId: string) => {
     try {
@@ -53,7 +51,7 @@ export default function GoCardlessAccounts() {
         getAccountDetails(accountId),
         getAccountBalances(accountId),
         getAccountTransactions(accountId),
-      ])
+      ]);
 
       return {
         account: {
@@ -63,18 +61,18 @@ export default function GoCardlessAccounts() {
         details,
         balances,
         transactions,
-      }
+      };
     } catch (err) {
       if (err instanceof RateLimitError) {
         setRateLimitError({
           message: err.message,
           retryAfter: err.retryAfter,
           accountId,
-        })
+        });
       }
-      throw err
+      throw err;
     }
-  }
+  };
 
   const refreshAccountData = async (accountId: string) => {
     try {
@@ -82,58 +80,56 @@ export default function GoCardlessAccounts() {
         getAccountDetails(accountId, true),
         getAccountBalances(accountId, true),
         getAccountTransactions(accountId, undefined, undefined, true),
-      ])
+      ]);
 
-      setAccounts(prevAccounts =>
-        prevAccounts.map(acc =>
-          acc.account.id === accountId
-            ? { ...acc, details, balances, transactions }
-            : acc
-        )
-      )
+      setAccounts((prevAccounts) =>
+        prevAccounts.map((acc) =>
+          acc.account.id === accountId ? { ...acc, details, balances, transactions } : acc,
+        ),
+      );
     } catch (err) {
       if (err instanceof RateLimitError) {
         setRateLimitError({
           message: err.message,
           retryAfter: err.retryAfter,
           accountId,
-        })
+        });
       } else {
-        console.error(`Error refreshing data for account ${accountId}:`, err)
-        setError("Failed to refresh account data")
+        console.error(`Error refreshing data for account ${accountId}:`, err);
+        setError("Failed to refresh account data");
       }
     }
-  }
+  };
 
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const accounts = await getUserAccounts()
+        const accounts = await getUserAccounts();
         const accountInfos = await Promise.all(
-          accounts.map(account => fetchAccountInfo(account.id))
-        )
-        setAccounts(accountInfos)
+          accounts.map((account) => fetchAccountInfo(account.id)),
+        );
+        setAccounts(accountInfos);
       } catch (err) {
         if (err instanceof RateLimitError) {
           setRateLimitError({
             message: err.message,
             retryAfter: err.retryAfter,
             accountId: "all",
-          })
+          });
         } else {
-          console.error("Error fetching accounts:", err)
-          setError("Failed to fetch account information")
+          console.error("Error fetching accounts:", err);
+          setError("Failed to fetch account information");
         }
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchAccounts()
-  }, [])
+    void fetchAccounts();
+  }, []);
 
   if (loading) {
-    return <div className="p-4">Loading accounts...</div>
+    return <div className="p-4">Loading accounts...</div>;
   }
 
   if (rateLimitError) {
@@ -158,14 +154,12 @@ export default function GoCardlessAccounts() {
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-amber-800">
-                Data Sync Limit Reached
-              </h3>
+              <h3 className="text-lg font-semibold text-amber-800">Data Sync Limit Reached</h3>
               <div className="mt-2 text-amber-700">
                 <p className="mb-2">
-                  The bank provider's API limits the number of data syncs per
-                  day. This isn't an error with our app, but rather a
-                  restriction from the bank's side.
+                  The bank provider&apos;s API limits the number of data syncs per day. This
+                  isn&apos;t an error with our app, but rather a restriction from the bank&apos;s
+                  side.
                 </p>
                 <p className="font-medium">
                   {rateLimitError.accountId === "all"
@@ -179,8 +173,7 @@ export default function GoCardlessAccounts() {
                   </div>
                 </div>
                 <p className="text-sm">
-                  You can still view the cached data while waiting for the next
-                  sync window.
+                  You can still view the cached data while waiting for the next sync window.
                   {rateLimitError.message && (
                     <span className="block mt-1 text-xs text-amber-600">
                       {rateLimitError.message}
@@ -200,7 +193,7 @@ export default function GoCardlessAccounts() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -212,7 +205,7 @@ export default function GoCardlessAccounts() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       </div>
-    )
+    );
   }
 
   return (
@@ -223,14 +216,8 @@ export default function GoCardlessAccounts() {
         {accounts.map(({ account, details, balances, transactions }) => (
           <Card key={account.id} className="mb-4">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>
-                {details.account?.ownerName || "Unknown Account"}
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refreshAccountData(account.id)}
-              >
+              <CardTitle>{details.account?.ownerName || "Unknown Account"}</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => refreshAccountData(account.id)}>
                 Refresh Data
               </Button>
             </CardHeader>
@@ -268,17 +255,15 @@ export default function GoCardlessAccounts() {
                         <p>
                           Amount:{" "}
                           {formatCurrency(
-                            balance.balanceAmount.amount,
-                            balance.balanceAmount.currency
+                            Number(balance.balanceAmount.amount),
+                            balance.balanceAmount.currency,
                           )}
                         </p>
                         <p>Type: {balance.balanceType}</p>
                         <p>
                           Date:{" "}
                           {balance.referenceDate
-                            ? new Date(
-                                balance.referenceDate
-                              ).toLocaleDateString()
+                            ? new Date(balance.referenceDate).toLocaleDateString()
                             : "N/A"}
                         </p>
                       </div>
@@ -288,75 +273,54 @@ export default function GoCardlessAccounts() {
 
                 <TabsContent value="transactions">
                   <div className="space-y-4">
-                    {transactions.transactions?.booked?.map(
-                      (transaction, index) => (
-                        <div key={index} className="border rounded p-4">
-                          <div className="flex justify-between">
-                            <div className="flex-1">
-                              <p className="font-semibold">
-                                {transaction.remittanceInformationUnstructured ||
-                                  (transaction.remittanceInformationUnstructuredArray &&
-                                    transaction.remittanceInformationUnstructuredArray.join(
-                                      ", "
-                                    ))}
+                    {transactions.transactions?.booked?.map((transaction, index) => (
+                      <div key={index} className="border rounded p-4">
+                        <div className="flex justify-between">
+                          <div className="flex-1">
+                            <p className="font-semibold">
+                              {transaction.remittanceInformationUnstructured ||
+                                (transaction.remittanceInformationUnstructuredArray &&
+                                  transaction.remittanceInformationUnstructuredArray.join(", "))}
+                            </p>
+                            <div className="flex gap-3 text-sm text-gray-500">
+                              <p>
+                                {transaction.bookingDate
+                                  ? new Date(transaction.bookingDate).toLocaleDateString()
+                                  : "N/A"}
                               </p>
-                              <div className="flex gap-3 text-sm text-gray-500">
-                                <p>
-                                  {transaction.bookingDate
-                                    ? new Date(
-                                        transaction.bookingDate
-                                      ).toLocaleDateString()
-                                    : "N/A"}
-                                </p>
-                                {transaction.transactionId && (
-                                  <p>Ref: {transaction.transactionId}</p>
-                                )}
-                              </div>
-                              {(transaction.creditorName ||
-                                transaction.debtorName) && (
-                                <p className="text-sm mt-1">
-                                  {transaction.transactionAmount.amount.startsWith(
-                                    "-"
-                                  )
-                                    ? `To: ${
-                                        transaction.creditorName ||
-                                        "Unknown recipient"
-                                      }`
-                                    : `From: ${
-                                        transaction.debtorName ||
-                                        "Unknown sender"
-                                      }`}
-                                </p>
+                              {transaction.transactionId && <p>Ref: {transaction.transactionId}</p>}
+                            </div>
+                            {(transaction.creditorName || transaction.debtorName) && (
+                              <p className="text-sm mt-1">
+                                {transaction.transactionAmount.amount.startsWith("-")
+                                  ? `To: ${transaction.creditorName || "Unknown recipient"}`
+                                  : `From: ${transaction.debtorName || "Unknown sender"}`}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right ml-4">
+                            <p
+                              className={
+                                transaction.transactionAmount.amount.startsWith("-")
+                                  ? "text-red-500 font-semibold"
+                                  : "text-green-500 font-semibold"
+                              }
+                            >
+                              {formatCurrency(
+                                Number(transaction.transactionAmount.amount),
+                                transaction.transactionAmount.currency,
                               )}
-                            </div>
-                            <div className="text-right ml-4">
-                              <p
-                                className={
-                                  transaction.transactionAmount.amount.startsWith(
-                                    "-"
-                                  )
-                                    ? "text-red-500 font-semibold"
-                                    : "text-green-500 font-semibold"
-                                }
-                              >
-                                {formatCurrency(
-                                  transaction.transactionAmount.amount,
-                                  transaction.transactionAmount.currency
-                                )}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {transaction.valueDate
-                                  ? "Value date: " +
-                                    new Date(
-                                      transaction.valueDate
-                                    ).toLocaleDateString()
-                                  : ""}
-                              </p>
-                            </div>
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {transaction.valueDate
+                                ? "Value date: " +
+                                  new Date(transaction.valueDate).toLocaleDateString()
+                                : ""}
+                            </p>
                           </div>
                         </div>
-                      )
-                    )}
+                      </div>
+                    ))}
                   </div>
                 </TabsContent>
               </Tabs>
@@ -365,5 +329,5 @@ export default function GoCardlessAccounts() {
         ))}
       </div>
     </div>
-  )
+  );
 }

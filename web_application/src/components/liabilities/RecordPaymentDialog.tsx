@@ -1,39 +1,47 @@
-import { useState, useEffect } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { AmortizationScheduleItem, Liability, LiabilityPayment } from '@/types'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { DatePicker } from '@/components/ui/date-picker'
-import { format } from 'date-fns'
-import { useLiabilityPaymentsByLiability, useTransactions } from '@/api/queries'
-import { ComboboxInput, Option } from '@/components/ui/comboboxInput'
-import { useDebounce } from '@/hooks/useDebounce'
+import { useLiabilityPaymentsByLiability, useTransactions } from "@/api/queries";
+import { Button } from "@/components/ui/button";
+import { ComboboxInput, Option } from "@/components/ui/comboboxInput";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useDebounce } from "@/hooks/useDebounce";
+import { AmortizationScheduleItem, Liability, LiabilityPayment } from "@/types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { transactionsThroughTodayRange } from "@/utils/transactionsListDateBounds";
+import { z } from "zod";
 
 // Define the form schema with Zod
 const paymentFormSchema = z.object({
-  payment_date: z.string().min(1, 'Payment date is required'),
-  amount: z.number().min(0.01, 'Amount must be greater than 0'),
-  principal_amount: z.number().min(0, 'Principal amount must be positive'),
-  interest_amount: z.number().min(0, 'Interest amount must be positive'),
-  extra_payment: z.number().min(0, 'Extra payment must be positive'),
+  payment_date: z.string().min(1, "Payment date is required"),
+  amount: z.number().min(0.01, "Amount must be greater than 0"),
+  principal_amount: z.number().min(0, "Principal amount must be positive"),
+  interest_amount: z.number().min(0, "Interest amount must be positive"),
+  extra_payment: z.number().min(0, "Extra payment must be positive"),
   transaction_id: z.number({
     required_error: "Transaction is required",
-    invalid_type_error: "Transaction must be selected"
+    invalid_type_error: "Transaction must be selected",
   }),
-})
+});
 
-type PaymentFormData = z.infer<typeof paymentFormSchema>
+type PaymentFormData = z.infer<typeof paymentFormSchema>;
 
 interface RecordPaymentDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (data: Omit<LiabilityPayment, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void
-  liability: Liability
-  scheduledPayment?: AmortizationScheduleItem
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: Omit<LiabilityPayment, "id" | "user_id" | "created_at" | "updated_at">) => void;
+  liability: Liability;
+  scheduledPayment?: AmortizationScheduleItem;
 }
 
 export function RecordPaymentDialog({
@@ -41,16 +49,17 @@ export function RecordPaymentDialog({
   onClose,
   onSubmit,
   liability,
-  scheduledPayment
+  scheduledPayment,
 }: RecordPaymentDialogProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const debouncedSearchQuery = useDebounce(searchQuery, 300) // 300ms debounce
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300); // 300ms debounce
 
   // Fetch existing payments for this liability
-  const { data: existingPayments } = useLiabilityPaymentsByLiability(liability.id)
+  const { data: existingPayments } = useLiabilityPaymentsByLiability(liability.id);
 
   // Get a list of transaction IDs that are already linked to payments
-  const linkedTransactionIds = existingPayments?.items?.map(payment => payment.transaction_id) || []
+  const linkedTransactionIds =
+    existingPayments?.items?.map((payment) => payment.transaction_id) || [];
 
   // Fetch transactions, filtering out those already linked to payments
   const { data: transactionsData } = useTransactions({
@@ -59,9 +68,10 @@ export function RecordPaymentDialog({
     per_page: 999,
     sort_by: "date",
     sort_order: "desc",
-    account_id: liability.account_id
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+    account_id: liability.account_id,
+    ...transactionsThroughTodayRange(),
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Handle dialog close
   const handleClose = () => {
@@ -70,20 +80,27 @@ export function RecordPaymentDialog({
 
     // Call the provided onClose function
     onClose();
-  }
+  };
 
   // Set up form with default values from scheduled payment
-  const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<PaymentFormData>({
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<PaymentFormData>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
-      payment_date: format(new Date(), 'yyyy-MM-dd'),
+      payment_date: format(new Date(), "yyyy-MM-dd"),
       amount: 0.01, // Minimum valid amount
       principal_amount: 0,
       interest_amount: 0.01, // Minimum valid interest amount
       extra_payment: 0,
       // transaction_id is required and must be selected by the user
-    }
-  })
+    },
+  });
 
   // Update form values when scheduledPayment changes or dialog opens
   useEffect(() => {
@@ -105,29 +122,29 @@ export function RecordPaymentDialog({
   }, [isOpen, scheduledPayment, reset]);
 
   // Watch for changes to calculate total
-  const principal = watch('principal_amount')
-  const interest = watch('interest_amount')
-  const extra = watch('extra_payment')
+  const principal = watch("principal_amount");
+  const interest = watch("interest_amount");
+  const extra = watch("extra_payment");
 
   // Update amount when components change
   const updateAmount = () => {
-    setValue('amount', principal + interest + extra)
-  }
+    setValue("amount", principal + interest + extra);
+  };
 
   // Handle form submission
   const handleFormSubmit = (data: PaymentFormData) => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     // Prepare data for submission
     const paymentData = {
       ...data,
       liability_id: liability.id,
-    }
+    };
 
-    onSubmit(paymentData)
-    setIsSubmitting(false)
-    handleClose()
-  }
+    onSubmit(paymentData);
+    setIsSubmitting(false);
+    handleClose();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -135,7 +152,9 @@ export function RecordPaymentDialog({
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
           <DialogDescription>
-            Record a payment for {liability.name}. A transaction must be selected to record a payment. Only transactions that haven't been used for other payments will be available.
+            Record a payment for {liability.name}. A transaction must be selected to record a
+            payment. Only transactions that haven&apos;t been used for other payments will be
+            available.
           </DialogDescription>
         </DialogHeader>
 
@@ -152,7 +171,7 @@ export function RecordPaymentDialog({
                   render={({ field }) => (
                     <DatePicker
                       value={field.value ? new Date(field.value) : undefined}
-                      onChange={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                      onChange={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
                     />
                   )}
                 />
@@ -176,8 +195,8 @@ export function RecordPaymentDialog({
                       type="number"
                       step="0.01"
                       onChange={(e) => {
-                        field.onChange(parseFloat(e.target.value))
-                        setTimeout(updateAmount, 0)
+                        field.onChange(parseFloat(e.target.value));
+                        setTimeout(updateAmount, 0);
                       }}
                       value={field.value}
                     />
@@ -203,8 +222,8 @@ export function RecordPaymentDialog({
                       type="number"
                       step="0.01"
                       onChange={(e) => {
-                        field.onChange(parseFloat(e.target.value))
-                        setTimeout(updateAmount, 0)
+                        field.onChange(parseFloat(e.target.value));
+                        setTimeout(updateAmount, 0);
                       }}
                       value={field.value}
                     />
@@ -230,8 +249,8 @@ export function RecordPaymentDialog({
                       type="number"
                       step="0.01"
                       onChange={(e) => {
-                        field.onChange(parseFloat(e.target.value))
-                        setTimeout(updateAmount, 0)
+                        field.onChange(parseFloat(e.target.value));
+                        setTimeout(updateAmount, 0);
                       }}
                       value={field.value}
                     />
@@ -279,25 +298,27 @@ export function RecordPaymentDialog({
                   render={({ field }) => {
                     // Filter out transactions that are already linked to payments
                     const filteredTransactions = (transactionsData?.items || []).filter(
-                      transaction => !linkedTransactionIds.includes(transaction.id)
+                      (transaction) => !linkedTransactionIds.includes(transaction.id),
                     );
 
                     // Convert transactions to options format
-                    const transactionOptions: Option[] = filteredTransactions.map(transaction => ({
-                      value: transaction.id.toString(),
-                      label: `${transaction.description} ($${transaction.amount.toFixed(2)})`,
-                      date: transaction.date
-                    }));
+                    const transactionOptions: Option[] = filteredTransactions.map(
+                      (transaction) => ({
+                        value: transaction.id.toString(),
+                        label: `${transaction.description} ($${transaction.amount.toFixed(2)})`,
+                        date: transaction.date,
+                      }),
+                    );
 
                     // Find the selected transaction
-                    let selectedValue = '';
+                    let selectedValue = "";
                     if (field.value !== undefined && field.value !== null) {
                       selectedValue = field.value.toString();
                     }
 
                     // Find the selected transaction or return undefined if none selected
                     const selectedTransaction = selectedValue
-                      ? transactionOptions.find(option => option.value === selectedValue)
+                      ? transactionOptions.find((option) => option.value === selectedValue)
                       : undefined;
 
                     return (
@@ -307,22 +328,23 @@ export function RecordPaymentDialog({
                           value={selectedTransaction}
                           onValueChange={(option) => {
                             // Set the transaction ID or undefined if no option is selected
-                            field.onChange(option ? parseInt(option.value) : undefined)
+                            field.onChange(option ? parseInt(option.value) : undefined);
                             // Clear search query when an option is selected
-                            setSearchQuery("")
+                            setSearchQuery("");
                           }}
                           placeholder="Search for a transaction..."
                           emptyMessage="No transactions found"
                           isLoading={false}
                           // This is a custom prop we're adding to handle input changes
                           // The ComboboxInput component will call this when the input value changes
-                          // @ts-ignore - We're adding a custom prop
                           onInputChange={(value: string) => {
-                            setSearchQuery(value)
+                            setSearchQuery(value);
                           }}
                         />
                         {errors.transaction_id && (
-                          <p className="text-red-500 text-sm mt-1">{errors.transaction_id.message}</p>
+                          <p className="text-red-500 text-sm mt-1">
+                            {errors.transaction_id.message}
+                          </p>
                         )}
                       </>
                     );
@@ -336,15 +358,12 @@ export function RecordPaymentDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || !watch('transaction_id')}
-            >
-              {isSubmitting ? 'Saving...' : 'Save Payment'}
+            <Button type="submit" disabled={isSubmitting || !watch("transaction_id")}>
+              {isSubmitting ? "Saving..." : "Save Payment"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
