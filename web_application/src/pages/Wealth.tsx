@@ -522,6 +522,20 @@ function WealthSkeleton() {
 
 // --- Main Page ---
 
+function hasSummaryActivity(summary: any): boolean {
+  const incomeTotal = Number(summary?.income?.total?.net ?? summary?.income?.total ?? 0);
+  const expenseTotal = Number(summary?.expense?.total?.net ?? summary?.expense?.total ?? 0);
+  if (incomeTotal !== 0 || expenseTotal !== 0) return true;
+
+  const incomeCategories = Object.values(summary?.income?.by_category ?? {}) as Array<{
+    count?: number;
+  }>;
+  const expenseCategories = Object.values(summary?.expense?.by_category ?? {}) as Array<{
+    count?: number;
+  }>;
+  return [...incomeCategories, ...expenseCategories].some((c) => Number(c?.count ?? 0) > 0);
+}
+
 export function Wealth() {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("month");
   const [dateOffset, setDateOffset] = useState(0);
@@ -609,14 +623,35 @@ export function Wealth() {
       ? rawPeriodData.summaries.slice(startIndex, endIndexExclusive)
       : [];
 
+  const trimmedVisibleSummaries = useMemo(() => {
+    if (visibleSummaries.length === 0) return visibleSummaries;
+
+    const firstWithData = visibleSummaries.findIndex(hasSummaryActivity);
+    if (firstWithData < 0) return visibleSummaries;
+
+    let lastWithData = -1;
+    for (let i = visibleSummaries.length - 1; i >= 0; i -= 1) {
+      if (hasSummaryActivity(visibleSummaries[i])) {
+        lastWithData = i;
+        break;
+      }
+    }
+
+    return visibleSummaries.slice(firstWithData, lastWithData + 1);
+  }, [visibleSummaries]);
+
   const displayStartDate =
-    visibleSummaries.length > 0 ? new Date(visibleSummaries[0].start_date) : startDate;
+    trimmedVisibleSummaries.length > 0
+      ? new Date(trimmedVisibleSummaries[0].start_date)
+      : startDate;
   const displayEndDate =
-    visibleSummaries.length > 0
-      ? new Date(visibleSummaries[visibleSummaries.length - 1].end_date)
+    trimmedVisibleSummaries.length > 0
+      ? new Date(trimmedVisibleSummaries[trimmedVisibleSummaries.length - 1].end_date)
       : endDate;
 
-  const periodData = rawPeriodData ? { ...rawPeriodData, summaries: visibleSummaries } : undefined;
+  const periodData = rawPeriodData
+    ? { ...rawPeriodData, summaries: trimmedVisibleSummaries }
+    : undefined;
 
   // --- Export & Share handlers ---
 
@@ -763,7 +798,7 @@ export function Wealth() {
           <WealthKPIs
             startDate={displayStartDate}
             endDate={displayEndDate}
-            visibleSummaries={visibleSummaries}
+            visibleSummaries={trimmedVisibleSummaries}
             wealthData={wealthData}
             includeDebt={wealthIncludeDebt}
           />
