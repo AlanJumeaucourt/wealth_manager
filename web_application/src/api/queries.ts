@@ -3,6 +3,7 @@ import {
   Account,
   AccountCreateBody,
   AccountQueryParams,
+  WealthSummary,
   AddCustomPriceResponse,
   AmortizationScheduleItem,
   Asset,
@@ -106,7 +107,7 @@ export const useBanks = createPaginatedQuery<Bank, BankQueryParams>(
 // #region Account Operations and Queries
 const accountOperations = createCrudOperations<Account, AccountCreateBody>({
   resource: "accounts",
-  queryKeysToInvalidate: ["accounts", "wealthOverTime"],
+  queryKeysToInvalidate: ["accounts", "wealthOverTime", "wealthSummary"],
 });
 
 export const {
@@ -120,7 +121,7 @@ export function useBatchCreateAccounts() {
   const queryClient = useQueryClient();
   return useBatchCreateMutation<Account, AccountCreateBody>(
     "accounts",
-    ["accounts", "wealthOverTime"],
+    ["accounts", "wealthOverTime", "wealthSummary"],
     queryClient,
   );
 }
@@ -198,6 +199,13 @@ export function useWealthOverTime() {
   });
 }
 
+export function useWealthSummary() {
+  return useCreateQuery<WealthSummary>({
+    queryKey: QueryKeys.wealthSummary,
+    queryFn: () => fetchWithAuth<WealthSummary>("accounts/wealth/summary"),
+  });
+}
+
 export function useWealthOverTimeWithGains(options?: { includeDebt?: boolean }) {
   const includeDebt = options?.includeDebt ?? true;
   return useQuery<BalanceHistoryResponse>({
@@ -231,6 +239,7 @@ const transactionOperations = createCrudOperations<Transaction, TransactionCreat
     "transactions",
     "accounts",
     "wealthOverTime",
+    "wealthSummary",
     "recentTransactions",
     "budgetSummary",
     "categories",
@@ -252,6 +261,7 @@ export function useBatchCreateTransactions() {
       "transactions",
       "accounts",
       "wealthOverTime",
+      "wealthSummary",
       "recentTransactions",
       "budgetSummary",
       "categories",
@@ -278,7 +288,13 @@ export const useTransactions = createPaginatedQuery<
 // #region Investment Operations and Queries
 const investmentOperations = createCrudOperations<Investment & { id?: number }>({
   resource: "investments",
-  queryKeysToInvalidate: ["investments", "accounts", "portfolioSummary", "portfolioPerformance"],
+  queryKeysToInvalidate: [
+    "investments",
+    "accounts",
+    "portfolioSummary",
+    "portfolioPerformance",
+    "wealthSummary",
+  ],
 });
 
 export const {
@@ -292,7 +308,7 @@ export function useBatchCreateInvestments() {
   const queryClient = useQueryClient();
   return useBatchCreateMutation<Investment & { id?: number }>(
     "investments",
-    ["investments", "accounts", "portfolioSummary", "portfolioPerformance"],
+    ["investments", "accounts", "portfolioSummary", "portfolioPerformance", "wealthSummary"],
     queryClient,
   );
 }
@@ -844,6 +860,7 @@ export function useUpdatePreferredCurrency() {
       });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.accounts });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.wealthOverTime });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.wealthSummary });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.transactions });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.budgetSummary });
       const userStr = localStorage.getItem("user");

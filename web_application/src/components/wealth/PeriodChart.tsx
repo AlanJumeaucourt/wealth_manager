@@ -87,6 +87,13 @@ interface CashFlowPoint {
   expenseByCurrency?: Record<string, { net: number; original: number }>;
 }
 
+interface CategoryChartPoint {
+  period: string;
+  totalExpense: number;
+  expenseMovingAvg6: number | null;
+  [category: string]: string | number | null;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -463,13 +470,26 @@ export function PeriodChart({
         .map(([cat]) => cat);
 
       const chartRows = activeSummaries.map((s) => {
-        const row: Record<string, unknown> = { period: s.start_date };
+        const row: CategoryChartPoint = {
+          period: s.start_date,
+          totalExpense: 0,
+          expenseMovingAvg6: null,
+        };
         for (const cat of cats) {
           const cd = s.expense.by_category[cat];
-          row[cat] = cd ? Math.abs(cd.net_amount) : 0;
+          const amount = cd ? Math.abs(cd.net_amount) : 0;
+          row[cat] = amount;
+          row.totalExpense += amount;
         }
         return row;
       });
+
+      for (let i = 0; i < chartRows.length; i += 1) {
+        const windowStart = Math.max(0, i - 5);
+        const window = chartRows.slice(windowStart, i + 1);
+        const windowTotal = window.reduce((sum, point) => sum + point.totalExpense, 0);
+        chartRows[i].expenseMovingAvg6 = windowTotal / window.length;
+      }
 
       const colors: Record<string, string> = {};
       if (allCategories?.expense) {
@@ -660,11 +680,15 @@ export function PeriodChart({
 
   const CategoryRiverTooltip = ({ payload, label, active }: TooltipProps<ValueType, NameType>) => {
     if (!active || !payload?.length) return null;
-    const sorted = [...payload].sort((a, b) => {
-      const iA = expenseCategories.indexOf(a.name as string);
-      const iB = expenseCategories.indexOf(b.name as string);
-      return iA - iB;
-    });
+    const movingAverageEntry = payload.find((entry) => entry.dataKey === "expenseMovingAvg6");
+    const sorted = payload
+      .filter((entry) => typeof entry.name === "string")
+      .filter((entry) => expenseCategories.includes(entry.name as string))
+      .sort((a, b) => {
+        const iA = expenseCategories.indexOf(a.name as string);
+        const iB = expenseCategories.indexOf(b.name as string);
+        return iA - iB;
+      });
     const total = sorted.reduce((s, e) => s + (Number(e.value) || 0), 0);
     const labelKey = toDateKey(label);
     const summary = activeSummaries.find((s) => toDateKey(s.start_date) === labelKey);
@@ -676,6 +700,15 @@ export function PeriodChart({
           {formatPeriodLabel(label)}
         </div>
         <div className="space-y-1">
+          <div className="flex justify-between text-xs pb-1">
+            <span className="text-muted-foreground">6-period avg</span>
+            <span className="font-semibold text-blue-600 dark:text-blue-400">
+              {movingAverageEntry?.value != null
+                ? fmtCurrency(Number(movingAverageEntry.value))
+                : "—"}
+            </span>
+          </div>
+          <div className="h-px bg-border mb-1" />
           {sorted.map((entry) => (
             <div key={entry.name} className="flex justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
@@ -959,7 +992,7 @@ export function PeriodChart({
 
         <div className="h-[260px] sm:h-[360px] md:h-[420px] px-2">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
+            <ComposedChart
               data={categoryChartData}
               margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
             >
@@ -992,12 +1025,40 @@ export function PeriodChart({
                   isAnimationActive={false}
                 />
               ))}
-            </AreaChart>
+              <Line
+                type="monotone"
+                dataKey="expenseMovingAvg6"
+                stroke={accentBlue}
+                strokeWidth={2.5}
+                strokeDasharray="6 4"
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+                name="6-period avg"
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
 
         <div className="px-6 pb-5 pt-3">
           <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs">
+              <div className="flex items-center gap-1 shrink-0">
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: accentBlue }}
+                />
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: accentBlue }}
+                />
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: accentBlue }}
+                />
+              </div>
+              <span className="text-muted-foreground uppercase text-[0.65rem]">6-period avg</span>
+            </div>
             {expenseCategories.map((cat) => (
               <div key={cat} className="flex items-center gap-1.5 text-xs">
                 <div

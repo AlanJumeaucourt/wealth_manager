@@ -22,6 +22,7 @@ import {
   resolveBodyCurrency,
   sumAccountsBalancesOverDays,
 } from "../services/account.js";
+import { getWealthSummary } from "../services/wealthSummary.js";
 import {
   createBatchCreateHandler,
   createBatchDeleteHandler,
@@ -115,6 +116,40 @@ const accountsBase = new Elysia({ prefix: "/accounts", tags: ["accounts"] })
     totals.loan_balance = round2(totals.loan_balance);
     return totals;
   })
+  .get(
+    "/wealth/summary",
+    async ({ userId }) => {
+      requireAuth({ userId });
+      return getWealthSummary(userId!);
+    },
+    {
+      response: {
+        200: t.Object({
+          preferred_currency: t.String(),
+          book: t.Object({
+            net_with_debt: t.Number(),
+            net_without_debt: t.Number(),
+            gross_with_debt: t.Number(),
+            gross_without_debt: t.Number(),
+          }),
+          market: t.Object({
+            net_with_debt: t.Number(),
+            net_without_debt: t.Number(),
+            gross_with_debt: t.Number(),
+            gross_without_debt: t.Number(),
+          }),
+          breakdown: t.Object({
+            checking: t.Number(),
+            savings: t.Number(),
+            loans: t.Number(),
+            investments_book_value: t.Number(),
+            investments_market_value: t.Number(),
+            investments_unrealized_pl: t.Number(),
+          }),
+        }),
+      },
+    },
+  )
   .get("/:id/balance", ({ params, userId, set }) =>
     withIdParamAndGetById({ params, userId, set }, TABLE, (id) =>
       getAccountBalanceHistory(userId!, id),

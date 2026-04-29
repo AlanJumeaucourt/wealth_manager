@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
-import { Account } from "@/types";
+import { Account, WealthSummary } from "@/types";
 import { formatCurrency } from "@/utils/currency";
 import { ArrowDownRight, ArrowUpRight, CreditCard, PiggyBank, TrendingUp } from "lucide-react";
 import { useMemo } from "react";
@@ -10,6 +10,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 interface FinancialSummaryProps {
   accounts: Account[];
   wealthData: Array<{ date: string; value: number }>;
+  wealthSummary?: WealthSummary;
   onAccountClick?: (accountId: number) => void;
   isLoading?: boolean;
 }
@@ -17,6 +18,7 @@ interface FinancialSummaryProps {
 export function FinancialSummary({
   accounts,
   wealthData,
+  wealthSummary,
   onAccountClick,
   isLoading,
 }: FinancialSummaryProps) {
@@ -29,6 +31,7 @@ export function FinancialSummary({
     investmentBalance,
     loanBalance,
     investmentMarketValue,
+    investmentDelta,
     monthlyChange,
     percentChange,
     hasMarketValueInvestments,
@@ -102,6 +105,19 @@ export function FinancialSummary({
       percentChange = monthAgoValue ? (monthlyChange / monthAgoValue) * 100 : 0;
     }
 
+    if (wealthSummary) {
+      baseNetWorth = wealthSummary.book.net_with_debt;
+      netWorthWithMarket = wealthSummary.market.net_with_debt;
+      checkingBalance = wealthSummary.breakdown.checking;
+      savingsBalance = wealthSummary.breakdown.savings;
+      investmentBalance = wealthSummary.breakdown.investments_book_value;
+      loanBalance = wealthSummary.breakdown.loans;
+      investmentMarketValue = wealthSummary.breakdown.investments_market_value;
+      hasMarketValueInvestments = true;
+    }
+
+    const investmentDelta = investmentMarketValue - investmentBalance;
+
     return {
       baseNetWorth,
       netWorthWithMarket,
@@ -109,12 +125,13 @@ export function FinancialSummary({
       savingsBalance,
       investmentBalance,
       investmentMarketValue,
+      investmentDelta,
       loanBalance,
       monthlyChange,
       percentChange,
       hasMarketValueInvestments,
     };
-  }, [accounts, wealthData]);
+  }, [accounts, wealthData, wealthSummary]);
 
   // Format miniature chart data for the past 3 months
   const sparklineData = useMemo(() => {
@@ -295,10 +312,10 @@ export function FinancialSummary({
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-sm font-medium">{formatAmount(investmentBalance)}</p>
                   <p
-                    className={`text-xs ${investmentMarketValue > investmentBalance ? "text-green-500" : "text-red-500"}`}
+                    className={`text-xs ${investmentDelta > 0 ? "text-green-500" : "text-red-500"}`}
                   >
-                    {investmentMarketValue > investmentBalance ? "+" : ""}
-                    {formatAmount(investmentMarketValue - investmentBalance)}
+                    {investmentDelta > 0 ? "+" : ""}
+                    {formatAmount(investmentDelta)}
                   </p>
                 </div>
               </div>

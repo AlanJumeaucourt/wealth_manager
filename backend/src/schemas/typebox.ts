@@ -142,6 +142,8 @@ export const tPotentialRefundTransactionRow = t.Object(
     amount: t.Union([t.String(), t.Number()]),
     to_amount: t.Union([t.String(), t.Null()]),
     to_currency: t.Union([t.String(), t.Null()]),
+    from_currency: t.Optional(t.Union([t.String(), t.Null()])),
+    currency: t.Optional(t.Union([t.String(), t.Null()])),
     from_account_id: t.Number(),
     to_account_id: t.Number(),
     category: t.String(),

@@ -59,6 +59,8 @@ export function normalizePotentialRefundTransaction(
     investment_id: row.investment_id ?? null,
     to_amount: row.to_amount != null ? num(row.to_amount) : null,
     to_currency: row.to_currency ?? undefined,
+    from_currency: row.from_currency ?? undefined,
+    currency: row.currency ?? undefined,
   };
 }
 

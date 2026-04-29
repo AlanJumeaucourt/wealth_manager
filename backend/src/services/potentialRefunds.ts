@@ -1,4 +1,7 @@
 import { db } from "../db/client.js";
+import { convertAmount } from "../utils/currencyConversion.js";
+import { getUserPreferredCurrency } from "./user.js";
+import { getTransactionCurrencyEnrichment } from "./transactionCurrencyEnrichment.js";
 
 /**
  * Keywords/phrases that often appear in refund/credit transaction descriptions
@@ -24,6 +27,38 @@ const REFUND_DESCRIPTION_PATTERNS = [
   "rebate",
 ];
 
+const NORMAL_EXPENSE_LOOKBACK_DAYS = 365;
+const RARE_REFUND_BEFORE_EXPENSE_DAYS = 45;
+const FX_AMOUNT_TOLERANCE_RATIO = 0.03;
+const FX_AMOUNT_TOLERANCE_ABSOLUTE = 0.5;
+
+function toFiniteNumber(value: string | number | null | undefined): number {
+  if (value == null) return 0;
+  const parsed = typeof value === "number" ? value : parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function amountInPreferredCurrency(
+  tx: TransactionRow,
+  preferredCurrency: string,
+  txCurrency: {
+    from_currency: string;
+    to_currency: string;
+    currency: string;
+  },
+): number {
+  if (tx.type === "income") {
+    const incomeNative =
+      tx.to_amount != null ? toFiniteNumber(tx.to_amount) : toFiniteNumber(tx.amount);
+    return convertAmount(Math.abs(incomeNative), txCurrency.to_currency, preferredCurrency);
+  }
+  return convertAmount(
+    Math.abs(toFiniteNumber(tx.amount)),
+    txCurrency.from_currency,
+    preferredCurrency,
+  );
+}
+
 function looksLikeRefundDescription(description: string): boolean {
   const lower = (description ?? "").toLowerCase().trim();
   if (!lower) return false;
@@ -41,16 +76,22 @@ function scoreExpenseMatch(
   expenseAmount: number,
   expenseDate: string,
   expenseFromAccountId: number,
+  isCrossCurrency: boolean,
 ): number {
   let score = 0;
   const expenseAbs = Math.abs(expenseAmount);
-  const amountMatch = Math.abs(incomeAmount - expenseAbs) < 0.02;
+  const amountDelta = Math.abs(incomeAmount - expenseAbs);
+  const tolerance = isCrossCurrency
+    ? Math.max(FX_AMOUNT_TOLERANCE_ABSOLUTE, incomeAmount * FX_AMOUNT_TOLERANCE_RATIO)
+    : 0.02;
+  const amountMatch = amountDelta <= tolerance;
   if (amountMatch) score += 50;
-  else if (incomeAmount <= expenseAbs && expenseAbs > 0) {
-    const ratio = incomeAmount / expenseAbs;
-    if (ratio >= 0.9) score += 40;
-    else if (ratio >= 0.5) score += 25;
-    else score += 10;
+  else if (incomeAmount > 0 && expenseAbs > 0) {
+    const ratio = Math.min(incomeAmount, expenseAbs) / Math.max(incomeAmount, expenseAbs);
+    if (ratio >= 0.98) score += 45;
+    else if (ratio >= 0.95) score += 35;
+    else if (ratio >= 0.9) score += 25;
+    else if (ratio >= 0.75) score += 10;
   }
 
   const incomeD = new Date(incomeDate).getTime();
@@ -60,6 +101,9 @@ function scoreExpenseMatch(
     if (daysDiff <= 7) score += 30;
     else if (daysDiff <= 30) score += 20;
     else if (daysDiff <= 90) score += 10;
+  } else if (daysDiff < 0 && daysDiff >= -RARE_REFUND_BEFORE_EXPENSE_DAYS) {
+    // Rare edge case: refund booked before the expense settles.
+    score += 5;
   }
 
   if (incomeToAccountId === expenseFromAccountId) score += 20;
@@ -75,6 +119,8 @@ export interface TransactionRow {
   amount: string;
   to_amount: string | null;
   to_currency: string | null;
+  from_currency?: string | null;
+  currency?: string | null;
   from_account_id: number;
   to_account_id: number;
   category: string;
@@ -106,6 +152,7 @@ export async function getPotentialRefunds(
   limit: number = 100,
 ): Promise<PotentialRefund[]> {
   const database = db();
+  const preferredCurrency = await getUserPreferredCurrency(userId);
 
   // Incomes that are already linked as the "refund" side of a refund_item → not potential
   const alreadyHasRefundIncomeIds = await database
@@ -147,9 +194,6 @@ export async function getPotentialRefunds(
   );
 
   if (candidateIncomes.length === 0) return [];
-  const incomeAmounts = new Map(
-    candidateIncomes.map((t) => [t.id, parseFloat(t.amount)] as [number, number]),
-  );
   const incomeDates = new Map(candidateIncomes.map((t) => [t.id, t.date] as [number, string]));
   const incomeToAccounts = new Map(
     candidateIncomes.map((t) => [t.id, t.to_account_id] as [number, number]),
@@ -167,10 +211,15 @@ export async function getPotentialRefunds(
     );
 
   const minDateByIncome = new Map<number, string>();
+  const maxDateByIncome = new Map<number, string>();
   for (const t of candidateIncomes) {
-    const d = new Date(t.date);
-    d.setDate(d.getDate() - 365);
-    minDateByIncome.set(t.id, d.toISOString().slice(0, 10));
+    const minDate = new Date(t.date);
+    minDate.setDate(minDate.getDate() - NORMAL_EXPENSE_LOOKBACK_DAYS);
+    minDateByIncome.set(t.id, minDate.toISOString().slice(0, 10));
+
+    const maxDate = new Date(t.date);
+    maxDate.setDate(maxDate.getDate() + RARE_REFUND_BEFORE_EXPENSE_DAYS);
+    maxDateByIncome.set(t.id, maxDate.toISOString().slice(0, 10));
   }
 
   const expenses = (await database
@@ -180,31 +229,47 @@ export async function getPotentialRefunds(
     .where("type", "=", "expense")
     .execute()) as TransactionRow[];
 
+  const allTransactionIds = [...candidateIncomes.map((t) => t.id), ...expenses.map((t) => t.id)];
+  const currencyByTransactionId = await getTransactionCurrencyEnrichment(allTransactionIds, userId);
+
   const result: PotentialRefund[] = [];
 
   for (const income of candidateIncomes.slice(0, limit)) {
     const minDate = minDateByIncome.get(income.id) ?? income.date;
-    const incomeAmt = incomeAmounts.get(income.id) ?? parseFloat(income.amount);
+    const maxDate = maxDateByIncome.get(income.id) ?? income.date;
+    const incomeCurrency = currencyByTransactionId.get(income.id) ?? {
+      from_currency: "EUR",
+      to_currency: "EUR",
+      currency: "EUR",
+    };
+    const incomeAmt = amountInPreferredCurrency(income, preferredCurrency, incomeCurrency);
     const incomeDate = incomeDates.get(income.id) ?? income.date;
     const toAcc = incomeToAccounts.get(income.id) ?? income.to_account_id;
 
     const candidates = expenses.filter((e) => {
       if (expensesUsedAsRefund.has(e.id)) return false;
       const ed = e.date;
-      if (ed > income.date) return false;
       if (ed < minDate) return false;
+      if (ed > maxDate) return false;
       return true;
     });
 
     const suggested: SuggestedExpense[] = candidates
       .map((exp) => {
+        const expenseCurrency = currencyByTransactionId.get(exp.id) ?? {
+          from_currency: "EUR",
+          to_currency: "EUR",
+          currency: "EUR",
+        };
+        const isCrossCurrency = incomeCurrency.to_currency !== expenseCurrency.from_currency;
         const score = scoreExpenseMatch(
           incomeAmt,
           incomeDate,
           toAcc,
-          parseFloat(exp.amount),
+          amountInPreferredCurrency(exp, preferredCurrency, expenseCurrency),
           exp.date,
           exp.from_account_id,
+          isCrossCurrency,
         );
         return { transaction: exp, score };
       })
@@ -212,9 +277,32 @@ export async function getPotentialRefunds(
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
 
+    const enrichedIncome: TransactionRow = incomeCurrency
+      ? {
+          ...income,
+          from_currency: incomeCurrency.from_currency,
+          to_currency: incomeCurrency.to_currency,
+          currency: incomeCurrency.currency,
+        }
+      : income;
+
+    const enrichedSuggested: SuggestedExpense[] = suggested.map((s) => {
+      const txCurrency = currencyByTransactionId.get(s.transaction.id);
+      if (!txCurrency) return s;
+      return {
+        ...s,
+        transaction: {
+          ...s.transaction,
+          from_currency: txCurrency.from_currency,
+          to_currency: txCurrency.to_currency,
+          currency: txCurrency.currency,
+        },
+      };
+    });
+
     result.push({
-      incomeTransaction: income,
-      suggestedExpenses: suggested,
+      incomeTransaction: enrichedIncome,
+      suggestedExpenses: enrichedSuggested,
       matchReason: suggested.length
         ? "Description looks like refund; suggested expenses by amount/date/account"
         : "Description looks like refund; no matching expenses found",

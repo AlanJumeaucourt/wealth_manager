@@ -30,6 +30,7 @@ export const QueryKeys = {
   accounts: ["accounts"] as QueryKeyArray,
   accountById: (id: number) => ["accounts", id] as QueryKeyArray,
   wealthOverTime: ["wealthOverTime"] as QueryKeyArray,
+  wealthSummary: ["wealthSummary"] as QueryKeyArray,
   recentTransactions: ["transactions", "recent"] as QueryKeyArray,
   transactions: ["transactions"] as QueryKeyArray,
   transactionById: (id: number) => ["transactions", id] as QueryKeyArray,

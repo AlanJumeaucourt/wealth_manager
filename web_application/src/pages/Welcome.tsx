@@ -4,6 +4,7 @@ import {
   usePortfolioPerformance,
   usePortfolioSummary,
   useTransactions,
+  useWealthSummary,
   useWealthOverTime,
 } from "@/api/queries";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -81,6 +82,11 @@ export function Welcome() {
 
   const { data: wealthData, isLoading: isLoadingWealth, error: wealthError } = useWealthOverTime();
   const {
+    data: wealthSummary,
+    isLoading: isLoadingWealthSummary,
+    error: wealthSummaryError,
+  } = useWealthSummary();
+  const {
     data: portfolioSummary,
     isLoading: isLoadingPortfolio,
     error: portfolioError,
@@ -96,6 +102,7 @@ export function Welcome() {
     isLoadingBanks ||
     isLoadingTransactions ||
     isLoadingWealth ||
+    isLoadingWealthSummary ||
     isLoadingPortfolio ||
     isLoadingPerformance;
 
@@ -104,6 +111,7 @@ export function Welcome() {
     banksError ||
     transactionsError ||
     wealthError ||
+    wealthSummaryError ||
     portfolioError ||
     performanceError;
 
@@ -257,6 +265,7 @@ export function Welcome() {
                   account.type == "loan",
               )}
               wealthData={wealthData || []}
+              wealthSummary={wealthSummary}
               onAccountClick={handleAccountSelection}
               isLoading={isLoading}
             />

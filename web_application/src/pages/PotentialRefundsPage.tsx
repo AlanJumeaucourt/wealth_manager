@@ -20,7 +20,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatTransactionDateForDisplay, type PotentialRefund } from "@/types";
+import type { Transaction } from "@/types";
 import { formatCurrency } from "@/utils/currency";
+import { transactionOriginalCurrency } from "@/utils/transactionDisplay";
 import { Link } from "@tanstack/react-router";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { ExternalLink, Loader2, RotateCcw, Sparkles } from "lucide-react";
@@ -37,8 +39,8 @@ import {
 /** Exit transition duration — must run before optimistic cache removal. */
 const DISMISS_EXIT_MS = 320;
 
-function txCurrency(tx: { to_currency?: string | null }) {
-  return (tx.to_currency && String(tx.to_currency)) || "EUR";
+function txCurrency(tx: Transaction) {
+  return transactionOriginalCurrency(tx) || "EUR";
 }
 
 export function PotentialRefundsPage() {
