@@ -154,44 +154,39 @@ export async function getPotentialRefunds(
   const database = db();
   const preferredCurrency = await getUserPreferredCurrency(userId);
 
-  // Incomes that are already linked as the "refund" side of a refund_item → not potential
-  const alreadyHasRefundIncomeIds = await database
-    .selectFrom("refund_items")
-    .select("income_transaction_id")
-    .where("user_id", "=", userId)
-    .distinct()
-    .execute()
-    .then(
-      (rows: { income_transaction_id: number }[]) =>
-        new Set(rows.map((r) => Number(r.income_transaction_id))),
-    );
-
-  const dismissedIncomeIds = await database
-    .selectFrom("dismissed_potential_refunds")
-    .select("income_transaction_id")
-    .where("user_id", "=", userId)
-    .execute()
-    .then(
-      (rows: { income_transaction_id: number }[]) =>
-        new Set(rows.map((r) => Number(r.income_transaction_id))),
-    );
-
   const incomeQuery = database
     .selectFrom("transactions")
     .selectAll()
     .where("user_id", "=", userId)
     .where("type", "=", "income")
+    .where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("refund_items")
+            .select("refund_items.id")
+            .whereRef("refund_items.income_transaction_id", "=", "transactions.id")
+            .where("refund_items.user_id", "=", userId),
+        ),
+      ),
+    )
+    .where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("dismissed_potential_refunds")
+            .select("dismissed_potential_refunds.income_transaction_id")
+            .whereRef("dismissed_potential_refunds.income_transaction_id", "=", "transactions.id")
+            .where("dismissed_potential_refunds.user_id", "=", userId),
+        ),
+      ),
+    )
     .orderBy("date", "desc")
     .limit(limit * 3);
 
   const allIncomes = (await incomeQuery.execute()) as TransactionRow[];
 
-  const candidateIncomes = allIncomes.filter(
-    (t) =>
-      !alreadyHasRefundIncomeIds.has(Number(t.id)) &&
-      !dismissedIncomeIds.has(Number(t.id)) &&
-      looksLikeRefundDescription(t.description),
-  );
+  const candidateIncomes = allIncomes.filter((t) => looksLikeRefundDescription(t.description));
 
   if (candidateIncomes.length === 0) return [];
   const incomeDates = new Map(candidateIncomes.map((t) => [t.id, t.date] as [number, string]));

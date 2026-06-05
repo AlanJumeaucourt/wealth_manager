@@ -56,7 +56,7 @@ const ASSETS_LIST_CONFIG: {
   allowedFilters: ["symbol"],
 };
 
-const assetsListHandler = createListHandler(ASSETS_TABLE, {
+export const assetsListHandler = createListHandler(ASSETS_TABLE, {
   ...ASSETS_LIST_CONFIG,
   useValidatedQuery: true as const,
   filterTransform: (_q, filters) =>

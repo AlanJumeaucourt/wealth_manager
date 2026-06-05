@@ -4,7 +4,10 @@ export default defineConfig({
   fmt: {
     ignorePatterns: [".github/workflows/cd.yml"],
   },
-  lint: { options: { typeAware: true, typeCheck: true } },
+  lint: {
+    ignorePatterns: ["**/*.test.ts", "**/*.test.tsx"],
+    options: { typeAware: true, typeCheck: true },
+  },
   staged: {
     "*": "vp check --fix",
   },

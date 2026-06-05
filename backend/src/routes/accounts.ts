@@ -195,7 +195,7 @@ const ACCOUNTS_LIST_CONFIG: {
   allowedFilters: ["id", "type", "bank_id"],
 };
 
-const accountsListHandler = createListHandler(ACCOUNTS_TABLE, {
+export const accountsListHandler = createListHandler(ACCOUNTS_TABLE, {
   ...ACCOUNTS_LIST_CONFIG,
   useValidatedQuery: true as const,
   enrichItems: (items, userId) => enrichAccountsBatch(items, userId),

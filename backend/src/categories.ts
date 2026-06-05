@@ -29,7 +29,7 @@ export const categoriesByType: Record<string, Category[]> = {
   transfer,
 };
 
-/** English names only (for backward compatibility / by_category keys) */
-export const expenseCategories: string[] = expense.map((c) => c.name.en);
-export const incomeCategories: string[] = income.map((c) => c.name.en);
-export const transferCategories: string[] = transfer.map((c) => c.name.en);
+/** French names from categories-data.json for actual compatibility */
+export const expenseCategories: string[] = expense.map((c) => c.name.fr);
+export const incomeCategories: string[] = income.map((c) => c.name.fr);
+export const transferCategories: string[] = transfer.map((c) => c.name.fr);

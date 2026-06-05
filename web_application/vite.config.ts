@@ -166,7 +166,17 @@ export default defineConfig({
       "/api": {
         target: "http://backend:5000/",
         changeOrigin: true,
+        timeout: 0,
+        proxyTimeout: 0,
         rewrite: (path) => path.replace(/^\/api/, ""),
+        configure: (proxy) => {
+          proxy.on("proxyRes", (proxyRes) => {
+            if (proxyRes.headers["content-type"]?.includes("text/event-stream")) {
+              proxyRes.headers["cache-control"] = "no-cache, no-transform";
+              proxyRes.headers["x-accel-buffering"] = "no";
+            }
+          });
+        },
       },
     },
   },

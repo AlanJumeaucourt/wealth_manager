@@ -35,12 +35,16 @@
   "dependencies": {
     "@elysiajs/cors": "^1.4.1",
     "@elysiajs/openapi": "^1.4.14",
+    "@google/adk": "^1.1.0",
     "@mixxtor/currencyx-js": "^2.2.6",
+    "@sinclair/typebox": "^0.34.49",
+    "adk-llm-bridge": "^0.5.0",
     "elysia": "^1.4.27",
     "jose": "^5.10.0",
     "kysely": "^0.27.6",
     "kysely-bun-sqlite": "^0.4.0",
-    "yahoo-finance2": "^3.13.2"
+    "yahoo-finance2": "^3.13.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.18.0",

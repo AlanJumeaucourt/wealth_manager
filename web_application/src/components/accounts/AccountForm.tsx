@@ -27,7 +27,7 @@ import {
 import { ACCOUNT_TYPE_LABELS, AccountType } from "@/constants";
 import { useToast } from "@/hooks/use-toast";
 import { Account, AccountCreateBody, Bank } from "@/types";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { formZodResolver } from "@/lib/formZodResolver";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -67,7 +67,7 @@ export function AccountForm({ open, onOpenChange, account }: AccountFormProps) {
   const banks = useMemo(() => banksResponse?.items ?? [], [banksResponse]);
 
   const form = useForm<AccountFormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: formZodResolver(formSchema),
     defaultValues: {
       name: "",
       type: undefined, // Default to undefined, let placeholder show

@@ -12,6 +12,8 @@ export interface BalanceHistoryPoint {
   balance: number;
   balance_by_currency?: Record<string, number>;
   investment_gain: number;
+  investment_gain_unrealized?: number;
+  investment_gain_realized?: number;
 }
 
 export interface WealthSummary {

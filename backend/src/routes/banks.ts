@@ -49,7 +49,7 @@ const BANKS_LIST_CONFIG: {
   allowedFilters: ["id"],
 };
 
-const banksListHandler = createListHandler(BANKS_TABLE, {
+export const banksListHandler = createListHandler(BANKS_TABLE, {
   ...BANKS_LIST_CONFIG,
   useValidatedQuery: true as const,
 });

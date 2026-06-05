@@ -1202,3 +1202,179 @@ export const TABLE_LIST_DEFAULTS: Readonly<Record<string, ListDefaults>> = Objec
     t.listDefaults as ListDefaults,
   ]),
 );
+
+/** Agent list-tool registry metadata (codegen + runtime). */
+export type AgentListExecutorKind =
+  | "handler_export"
+  | "budgets_legacy"
+  | "liability_payments"
+  | "potential_refunds"
+  | "investments"
+  | "liabilities_payment_status"
+  | "liabilities_schedule_payments";
+
+export interface AgentListEndpointDef {
+  toolName: string;
+  querySchemaExport: string;
+  openApiPath: string;
+  executorKind: AgentListExecutorKind;
+  /** For handler_export: named export in agentListHandlers */
+  handlerExport?: string;
+  searchFields: readonly string[];
+  allowedFilters: readonly string[];
+}
+
+function listFiltersFromTable(tableName: string): readonly string[] {
+  const ld = TABLE_LIST_DEFAULTS[tableName];
+  if (!ld) return [];
+  return [...new Set([...(ld.defaultFilters ?? []), ...(ld.listQueryExtraKeys ?? [])])].sort();
+}
+
+export const AGENT_LIST_ENDPOINTS: readonly AgentListEndpointDef[] = [
+  {
+    toolName: "list_banks",
+    querySchemaExport: "tBanksListQuerySchema",
+    openApiPath: "GET /banks",
+    executorKind: "handler_export",
+    handlerExport: "banksListHandler",
+    searchFields: TABLE_LIST_DEFAULTS.banks?.defaultSearchFields ?? ["name"],
+    allowedFilters: listFiltersFromTable("banks"),
+  },
+  {
+    toolName: "list_accounts",
+    querySchemaExport: "tAccountsListQuerySchema",
+    openApiPath: "GET /accounts",
+    executorKind: "handler_export",
+    handlerExport: "accountsListHandler",
+    searchFields: TABLE_LIST_DEFAULTS.accounts?.defaultSearchFields ?? ["name"],
+    allowedFilters: listFiltersFromTable("accounts"),
+  },
+  {
+    toolName: "list_assets",
+    querySchemaExport: "tAssetsListQuerySchema",
+    openApiPath: "GET /assets",
+    executorKind: "handler_export",
+    handlerExport: "assetsListHandler",
+    searchFields: TABLE_LIST_DEFAULTS.assets?.defaultSearchFields ?? ["name", "symbol"],
+    allowedFilters: listFiltersFromTable("assets"),
+  },
+  {
+    toolName: "list_refund_groups",
+    querySchemaExport: "tRefundGroupsListQuerySchema",
+    openApiPath: "GET /refund_groups",
+    executorKind: "handler_export",
+    handlerExport: "refundGroupsListHandler",
+    searchFields: TABLE_LIST_DEFAULTS.refund_groups?.defaultSearchFields ?? ["name"],
+    allowedFilters: listFiltersFromTable("refund_groups"),
+  },
+  {
+    toolName: "list_refund_items",
+    querySchemaExport: "tRefundItemsListQuerySchema",
+    openApiPath: "GET /refund_items",
+    executorKind: "handler_export",
+    handlerExport: "refundItemsListHandler",
+    searchFields: TABLE_LIST_DEFAULTS.refund_items?.defaultSearchFields ?? [],
+    allowedFilters: listFiltersFromTable("refund_items"),
+  },
+  {
+    toolName: "list_transactions",
+    querySchemaExport: "tTransactionsListQuerySchema",
+    openApiPath: "GET /transactions",
+    executorKind: "handler_export",
+    handlerExport: "listTransactionsHandler",
+    searchFields: TABLE_LIST_DEFAULTS.transactions?.defaultSearchFields ?? ["description"],
+    allowedFilters: listFiltersFromTable("transactions"),
+  },
+  {
+    toolName: "list_liabilities",
+    querySchemaExport: "tLiabilitiesListQuerySchema",
+    openApiPath: "GET /liabilities",
+    executorKind: "handler_export",
+    handlerExport: "liabilitiesListHandler",
+    searchFields: TABLE_LIST_DEFAULTS.liabilities?.defaultSearchFields ?? ["name"],
+    allowedFilters: listFiltersFromTable("liabilities"),
+  },
+  {
+    toolName: "list_liability_payments",
+    querySchemaExport: "tLiabilityPaymentsListQuerySchema",
+    openApiPath: "GET /liability_payments",
+    executorKind: "liability_payments",
+    searchFields: [],
+    allowedFilters: [
+      "id",
+      "liability_id",
+      "payment_date",
+      "amount",
+      "principal_amount",
+      "interest_amount",
+      "extra_payment",
+      "transaction_id",
+    ],
+  },
+  {
+    toolName: "list_budgets",
+    querySchemaExport: "tBaseListQuerySchema",
+    openApiPath: "GET /budgets",
+    executorKind: "handler_export",
+    handlerExport: "budgetsListHandler",
+    searchFields: ["category"],
+    allowedFilters: [],
+  },
+  {
+    toolName: "list_budgets_legacy",
+    querySchemaExport: "tBudgetsLegacyListQuerySchema",
+    openApiPath: "GET /budgets/budgets",
+    executorKind: "budgets_legacy",
+    searchFields: [],
+    allowedFilters: ["year", "month"],
+  },
+  {
+    toolName: "list_investments",
+    querySchemaExport: "tBaseListQuerySchema",
+    openApiPath: "GET /investments",
+    executorKind: "investments",
+    searchFields: [],
+    allowedFilters: [],
+  },
+  {
+    toolName: "list_potential_refunds",
+    querySchemaExport: "tPotentialRefundsListQuerySchema",
+    openApiPath: "GET /potential_refunds",
+    executorKind: "potential_refunds",
+    searchFields: [],
+    allowedFilters: ["limit"],
+  },
+  {
+    toolName: "list_liabilities_payment_status",
+    querySchemaExport: "tLiabilitiesPaymentStatusQuerySchema",
+    openApiPath: "GET /liabilities/payment-status",
+    executorKind: "liabilities_payment_status",
+    searchFields: [],
+    allowedFilters: [
+      "status",
+      "liability_id",
+      "account_id",
+      "days_ahead",
+      "from_date",
+      "to_date",
+      "direction",
+      "liability_type",
+    ],
+  },
+  {
+    toolName: "list_liabilities_schedule_payments",
+    querySchemaExport: "tLiabilitiesSchedulePaymentsQuerySchema",
+    openApiPath: "GET /liabilities/upcoming-payments",
+    executorKind: "liabilities_schedule_payments",
+    searchFields: [],
+    allowedFilters: [
+      "liability_id",
+      "account_id",
+      "days_ahead",
+      "from_date",
+      "to_date",
+      "direction",
+      "liability_type",
+    ],
+  },
+];

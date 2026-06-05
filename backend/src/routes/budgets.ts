@@ -49,6 +49,12 @@ function budgetCreateTransform(body: Record<string, unknown>, userId: number) {
 
 const SEARCH_FIELDS = ["category"];
 
+export const budgetsListHandler = createListHandler(TABLE, {
+  searchFields: SEARCH_FIELDS,
+  allowedFilters: [],
+  useValidatedQuery: true,
+});
+
 function budgetUpdateTransform(body: Record<string, unknown>) {
   return {
     ...body,
@@ -93,7 +99,7 @@ function buildCategoryBlock(data: Record<string, budget.TransactionSummary>) {
   };
 }
 
-async function getLegacyCategorySummary(startDate: string, endDate: string, userId: number) {
+export async function getLegacyCategorySummary(startDate: string, endDate: string, userId: number) {
   const [incomeData, expenseData, transferData] = await Promise.all([
     budget.getTransactionsByCategories(startDate, endDate, userId, "income"),
     budget.getTransactionsByCategories(startDate, endDate, userId, "expense"),
@@ -106,7 +112,7 @@ async function getLegacyCategorySummary(startDate: string, endDate: string, user
   };
 }
 
-async function listLegacyBudgets(
+export async function listLegacyBudgets(
   query: Record<string, unknown>,
   userId: number,
   set: { status?: number | string },
@@ -330,17 +336,9 @@ export const budgetsRoutes = new Elysia({
     }
     return categoriesByType[params.category_type as CategoryType];
   })
-  .get(
-    "/",
-    createListHandler(TABLE, {
-      searchFields: SEARCH_FIELDS,
-      allowedFilters: [],
-      useValidatedQuery: true,
-    }),
-    {
-      query: tBaseListQuerySchema,
-    },
-  )
+  .get("/", budgetsListHandler, {
+    query: tBaseListQuerySchema,
+  })
   .post("/", createCreateHandler(TABLE, budgetCreateTransform), {
     body: tBudgetUpsertSchema,
   })

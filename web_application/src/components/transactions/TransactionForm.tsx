@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useDialogStore } from "@/store/dialogStore";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { formZodResolver } from "@/lib/formZodResolver";
 import { memo, useCallback, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -67,7 +67,7 @@ export const TransactionForm = memo(function TransactionForm({
   const isEditMode = !!transaction;
 
   const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+    resolver: formZodResolver(formSchema),
   });
 
   const watchType = form.watch("type");

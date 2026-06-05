@@ -35,6 +35,12 @@ function isRefundGroupConflictError(error: unknown): boolean {
   return message.includes("Transaction already belongs to another refund group");
 }
 
+export const refundItemsListHandler = createListHandler(TABLE, {
+  searchFields: SEARCH_FIELDS,
+  allowedFilters: ["id", "refund_group_id", "income_transaction_id", "expense_transaction_id"],
+  useValidatedQuery: true,
+});
+
 export const refundItemsRoutes = new Elysia({ prefix: "/refund_items", tags: ["refunds"] })
   .use(authDerivePlugin)
   .post("/", async ({ body, userId, set }) => {
@@ -72,15 +78,7 @@ export const refundItemsRoutes = new Elysia({ prefix: "/refund_items", tags: ["r
       throw error;
     }
   })
-  .get(
-    "/",
-    createListHandler(TABLE, {
-      searchFields: SEARCH_FIELDS,
-      allowedFilters: ["id", "refund_group_id", "income_transaction_id", "expense_transaction_id"],
-      useValidatedQuery: true,
-    }),
-    { query: tRefundItemsListQuerySchema },
-  )
+  .get("/", refundItemsListHandler, { query: tRefundItemsListQuerySchema })
   .get("/:id", createGetByIdHandler(TABLE))
   .put("/:id", ({ params, body, userId, set }) =>
     withIdParam({ params, userId, set }, async (id) => {

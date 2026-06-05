@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDebounce } from "@/hooks/useDebounce";
 import { AmortizationScheduleItem, Liability, LiabilityPayment } from "@/types";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { formZodResolver } from "@/lib/formZodResolver";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -91,7 +91,7 @@ export function RecordPaymentDialog({
     reset,
     formState: { errors },
   } = useForm<PaymentFormData>({
-    resolver: zodResolver(paymentFormSchema),
+    resolver: formZodResolver(paymentFormSchema),
     defaultValues: {
       payment_date: format(new Date(), "yyyy-MM-dd"),
       amount: 0.01, // Minimum valid amount

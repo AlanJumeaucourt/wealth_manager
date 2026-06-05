@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Investment } from "@/types";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { formZodResolver } from "@/lib/formZodResolver";
 import { ArrowDownIcon, ArrowUpIcon, PlusCircle, TrendingDown, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -118,7 +118,7 @@ export function AddInvestmentDialog({ open, onOpenChange, investment }: AddInves
   const assetOptions = assetsToOptions(assetsResponse?.items || []);
 
   const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: formZodResolver(formSchema),
     defaultValues: {
       investment_type: investment?.investment_type || ("Buy" as const),
       asset_id: investment?.asset_id || 0,
@@ -530,7 +530,7 @@ function AddAssetDialog({
   const { data: searchResults = [], isLoading: isSearching } = useStockSearch(searchQuery);
 
   const form = useForm<AssetFormData>({
-    resolver: zodResolver(assetFormSchema),
+    resolver: formZodResolver(assetFormSchema),
     defaultValues: {
       symbol: "",
       name: "",

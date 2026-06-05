@@ -19,6 +19,7 @@ import { refundGroupsRoutes } from "./routes/refund_groups";
 import { refundItemsRoutes } from "./routes/refund_items";
 import { stocksRoutes } from "./routes/stocks";
 import { transactionsRoutes } from "./routes/transactions";
+import { aiRoutes } from "./routes/ai.js";
 import { usersRoutes } from "./routes/users";
 
 export const app = new Elysia()
@@ -68,6 +69,7 @@ export const app = new Elysia()
     },
   )
   .use(usersRoutes)
+  .use(aiRoutes)
   .use(banksRoutes)
   .use(accountsRoutes)
   .use(transactionsRoutes)
@@ -100,6 +102,7 @@ export const app = new Elysia()
           { name: "investments", description: "Investments and portfolio" },
           { name: "liabilities", description: "Liabilities and payments" },
           { name: "refunds", description: "Refund groups and items" },
+          { name: "ai", description: "AI finance agent" },
         ],
         components: {
           securitySchemes: {

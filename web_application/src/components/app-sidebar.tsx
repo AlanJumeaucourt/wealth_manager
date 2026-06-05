@@ -1,6 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
+  Bot,
   Briefcase,
   Command,
   CreditCard,
@@ -138,6 +139,11 @@ const STATIC_DATA = {
       title: "Investments",
       url: "/investments",
       icon: Briefcase,
+    },
+    {
+      title: "Assistant",
+      url: "/assistant",
+      icon: Bot,
     },
     {
       title: "Categories",

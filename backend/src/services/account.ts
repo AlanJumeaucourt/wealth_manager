@@ -177,8 +177,76 @@ export async function getAccountBalanceHistory(
 export type BalanceOverTimePoint = {
   balance: number;
   balance_by_currency: Record<string, number>;
+  /** Book + paper gain on open holdings (aligns with Accounts market value). */
+  market_value: number;
+  /** Total portfolio return (unrealized + realized incl. dividends). */
   investment_gain: number;
+  /** Paper gain on open positions. */
+  investment_gain_unrealized: number;
+  /** Locked-in: realized sells + dividends (total − unrealized). */
+  investment_gain_realized: number;
 };
+
+type InvestmentGainByDate = {
+  total: number;
+  unrealized: number;
+  realized: number;
+};
+
+function investmentGainFromPerfPoint(point: {
+  total_gains?: number;
+  absolute_gain?: number;
+  unrealized_gain?: number;
+  realized_gain?: number;
+}): InvestmentGainByDate {
+  const total = Number(point.total_gains ?? point.absolute_gain ?? 0);
+  const unrealized = Number(point.unrealized_gain ?? total);
+  const realized = Number(point.realized_gain ?? total - unrealized);
+  return { total, unrealized, realized };
+}
+
+/** Balance of an account on `dateKey` (last known on or before that date). */
+export function balanceOnOrBefore(history: Record<string, number>, dateKey: string): number {
+  let last = 0;
+  for (const d of Object.keys(history).sort()) {
+    if (d > dateKey) break;
+    last = history[d] ?? last;
+  }
+  return last;
+}
+
+export function balancePointGains(
+  gainByDate: Record<string, InvestmentGainByDate>,
+  dateKey: string,
+): Pick<
+  BalanceOverTimePoint,
+  "investment_gain" | "investment_gain_unrealized" | "investment_gain_realized"
+> {
+  const g = gainByDate[dateKey];
+  const total = g?.total ?? 0;
+  const unrealized = g?.unrealized ?? total;
+  const realized = g?.realized ?? total - unrealized;
+  return {
+    investment_gain: Math.round(total * 100) / 100,
+    investment_gain_unrealized: Math.round(unrealized * 100) / 100,
+    investment_gain_realized: Math.round(realized * 100) / 100,
+  };
+}
+
+function buildBalanceOverTimePoint(
+  balance: number,
+  balanceByCurrency: Record<string, number>,
+  gainByDate: Record<string, InvestmentGainByDate>,
+  dateKey: string,
+): BalanceOverTimePoint {
+  const gains = balancePointGains(gainByDate, dateKey);
+  return {
+    balance,
+    balance_by_currency: balanceByCurrency,
+    ...gains,
+    market_value: Math.round((balance + gains.investment_gain_unrealized) * 100) / 100,
+  };
+}
 
 /**
  * Balance over time: date (YYYY-MM-DD) -> { balance, balance_by_currency, investment_gain }.
@@ -275,12 +343,12 @@ export async function sumAccountsBalancesOverDays(
     const ratesPromise = getExchangeRatesInRange(accountCurrency, preferred, rangeStart, rangeEnd);
     const [rates, perf] = await Promise.all([ratesPromise, perfPromise]);
 
-    const investmentGainByDate: Record<string, number> = {};
+    const investmentGainByDate: Record<string, InvestmentGainByDate> = {};
     if (perf) {
       for (const point of perf.data_points ?? []) {
         const d = String(point.date ?? "").slice(0, 10);
         if (d >= rangeStart && d <= rangeEnd) {
-          investmentGainByDate[d] = Number(point.total_gains ?? point.absolute_gain ?? 0);
+          investmentGainByDate[d] = investmentGainFromPerfPoint(point);
         }
       }
     }
@@ -304,13 +372,12 @@ export async function sumAccountsBalancesOverDays(
       const rate = rates[key] ?? rates[rangeStart] ?? rates[rangeEnd] ?? 1;
       const balancePref = signedBalance * rate;
 
-      output[key] = {
-        balance: Math.round(balancePref * 100) / 100,
-        balance_by_currency: {
-          [accountCurrency]: Math.round(signedBalance * 100) / 100,
-        },
-        investment_gain: Math.round((investmentGainByDate[key] ?? 0) * 100) / 100,
-      };
+      output[key] = buildBalanceOverTimePoint(
+        Math.round(balancePref * 100) / 100,
+        { [accountCurrency]: Math.round(signedBalance * 100) / 100 },
+        investmentGainByDate,
+        key,
+      );
     }
 
     return output;
@@ -322,195 +389,98 @@ export async function sumAccountsBalancesOverDays(
       ? ["checking", "savings", "investment", "loan"]
       : ["checking", "savings", "investment"],
   );
-  const preferredPromise = getPreferredCurrency(userId);
-  const accountsPromise = database
+
+  const preferred = await getPreferredCurrency(userId);
+  const accounts = await database
     .selectFrom("accounts")
     .select(["id", "type", "currency"])
     .where("user_id", "=", userId)
     .execute();
-  type TxRow = {
-    date: string;
-    type: string;
-    amount: string;
-    to_amount: string | null;
-    from_account_id: number;
-    to_account_id: number;
-  };
 
-  const accountFilter =
-    accountId != null
-      ? sql`and (from_account_id = ${accountId} or to_account_id = ${accountId})`
-      : sql``;
+  const wealthAccounts = accounts.filter((a) => includedTypes.has(a.type));
+  if (wealthAccounts.length === 0) return {};
 
-  const wealthAccountTypesFilter = includeDebt
-    ? sql`and type in ('checking','savings','investment','loan')`
-    : sql`and type in ('checking','savings','investment')`;
-
-  const txRowsPromise = sql<TxRow>`
-    with wa_ids(id) as (
-      select id from accounts
-      where user_id = ${userId}
-        ${wealthAccountTypesFilter}
-    )
-    select
-      date,
-      type,
-      cast(sum(cast(amount as real)) as text) as amount,
-      cast(sum(cast(coalesce(to_amount, amount) as real)) as text) as to_amount,
-      from_account_id,
-      to_account_id
-    from transactions
-    where user_id = ${userId}
-      and date <= ${endDate}
-      and (from_account_id in (select id from wa_ids)
-           or to_account_id in (select id from wa_ids))
-      ${accountFilter}
-    group by date, type, from_account_id, to_account_id
-  `
-    .execute(database)
-    .then((res) => res.rows as TxRow[]);
-  const [preferred, accounts, txRows] = await Promise.all([
-    preferredPromise,
-    accountsPromise,
-    txRowsPromise,
-  ]);
-  if (txRows.length === 0) return {};
-  let minDate = "9999-12-31";
-  let maxDate = "0000-01-01";
-  for (const row of txRows) {
-    const d = row.date;
-    if (!d) continue;
-    if (d < minDate) minDate = d;
-    if (d > maxDate) maxDate = d;
-  }
-  if (minDate > maxDate) return {};
-  const accountMap = new Map(
-    accounts.map((a) => [a.id, { type: a.type, currency: (a.currency ?? "EUR").toUpperCase() }]),
-  );
-
-  const rangeStart = minDate > startDate ? minDate : startDate;
-  const rangeEnd = maxDate < endDate ? maxDate : endDate;
-  const currenciesNeeded = new Set<string>();
-  for (const a of accounts) {
-    if (includedTypes.has(a.type)) {
-      const c = (a.currency ?? "EUR").toUpperCase();
-      currenciesNeeded.add(c);
-    }
-  }
-  const hasInvestmentAccounts = accounts.some(
-    (a) => includedTypes.has(a.type) && a.type === "investment",
-  );
-  const perfPromise = hasInvestmentAccounts
-    ? getPortfolioPerformance(userId, undefined, accountId).catch(() => null)
-    : Promise.resolve(null);
-  const rateByDateAndCurrency: Record<string, Record<string, number>> = {};
-  await Promise.all(
-    [...currenciesNeeded].map(async (c) => {
-      const rates = await getExchangeRatesInRange(c, preferred, rangeStart, rangeEnd);
-      rateByDateAndCurrency[c] = rates;
+  const accountHistories = await Promise.all(
+    wealthAccounts.map(async (a) => {
+      const history = await getAccountBalanceHistory(userId, a.id);
+      if (Object.keys(history).length === 0) {
+        const snapshot = await calculateBalance(a.id);
+        if (snapshot !== 0) {
+          history[endDate] = snapshot;
+        }
+      }
+      return {
+        id: a.id,
+        currency: (a.currency ?? preferred).toUpperCase(),
+        history,
+      };
     }),
   );
 
-  const dailyDeltasByCurrency: Record<string, Record<string, number>> = {};
-  const dailyDeltasPref: Record<string, number> = {};
-  const investmentGainByDate: Record<string, number> = {};
+  const snapshotBalances = await Promise.all(wealthAccounts.map((a) => calculateBalance(a.id)));
 
-  for (const row of txRows) {
-    const d = String(row.date).slice(0, 10);
-    const tType = row.type;
-    const fromAcc = accountMap.get(row.from_account_id);
-    const toAcc = accountMap.get(row.to_account_id);
-    const fromType = fromAcc?.type ?? "";
-    const toType = toAcc?.type ?? "";
-    const fromCurrency = (fromAcc?.currency ?? "EUR").toUpperCase();
-    const toCurrency = (toAcc?.currency ?? "EUR").toUpperCase();
-    const amountVal = Number(row.amount ?? 0);
-    const creditedVal = Number(row.to_amount ?? row.amount ?? 0);
-    const ratesFrom = rateByDateAndCurrency[fromCurrency];
-    const ratesTo = rateByDateAndCurrency[toCurrency];
-    const rateFrom = ratesFrom?.[d] ?? ratesFrom?.[rangeStart] ?? ratesFrom?.[rangeEnd] ?? 1;
-    const rateTo = ratesTo?.[d] ?? ratesTo?.[rangeStart] ?? ratesTo?.[rangeEnd] ?? 1;
-
-    if (!dailyDeltasByCurrency[d]) dailyDeltasByCurrency[d] = {};
-    const byCurr = dailyDeltasByCurrency[d];
-
-    let deltaPref = 0;
-    if (tType === "income") {
-      if (includedTypes.has(toType)) {
-        deltaPref = creditedVal * rateTo;
-        byCurr[toCurrency] = (byCurr[toCurrency] ?? 0) + creditedVal;
-      }
-    } else if (tType === "expense") {
-      if (includedTypes.has(fromType)) {
-        deltaPref = -amountVal * rateFrom;
-        byCurr[fromCurrency] = (byCurr[fromCurrency] ?? 0) - amountVal;
-      }
-    } else if (tType === "transfer") {
-      const fromIn = includedTypes.has(fromType);
-      const toIn = includedTypes.has(toType);
-      if (toIn && !fromIn) {
-        deltaPref = creditedVal * rateTo;
-        byCurr[toCurrency] = (byCurr[toCurrency] ?? 0) + creditedVal;
-      } else if (fromIn && !toIn) {
-        deltaPref = -amountVal * rateFrom;
-        byCurr[fromCurrency] = (byCurr[fromCurrency] ?? 0) - amountVal;
-      } else if (fromIn && toIn) {
-        byCurr[fromCurrency] = (byCurr[fromCurrency] ?? 0) - amountVal;
-        byCurr[toCurrency] = (byCurr[toCurrency] ?? 0) + creditedVal;
-      }
+  let minDate = endDate;
+  let maxDate = startDate;
+  for (const { history } of accountHistories) {
+    for (const d of Object.keys(history)) {
+      if (d < minDate) minDate = d;
+      if (d > maxDate) maxDate = d;
     }
-    dailyDeltasPref[d] = (dailyDeltasPref[d] ?? 0) + deltaPref;
   }
+  if (minDate > maxDate) return {};
 
+  const rangeStart = minDate > startDate ? minDate : startDate;
+  const rangeEnd = maxDate < endDate ? maxDate : endDate;
+
+  const currenciesNeeded = new Set(accountHistories.map((h) => h.currency));
+  const hasInvestmentAccounts = wealthAccounts.some((a) => a.type === "investment");
+  const perfPromise = hasInvestmentAccounts
+    ? getPortfolioPerformance(userId, undefined, accountId).catch(() => null)
+    : Promise.resolve(null);
+
+  const rateByDateAndCurrency: Record<string, Record<string, number>> = {};
+  await Promise.all(
+    [...currenciesNeeded].map(async (c) => {
+      rateByDateAndCurrency[c] = await getExchangeRatesInRange(c, preferred, rangeStart, rangeEnd);
+    }),
+  );
+
+  const investmentGainByDate: Record<string, InvestmentGainByDate> = {};
   const perf = await perfPromise;
   if (perf) {
     for (const point of perf.data_points ?? []) {
       const d = String(point.date ?? "").slice(0, 10);
       if (d >= rangeStart && d <= rangeEnd) {
-        investmentGainByDate[d] = Number(point.total_gains ?? point.absolute_gain ?? 0);
+        investmentGainByDate[d] = investmentGainFromPerfPoint(point);
       }
     }
   }
 
   const output: Record<string, BalanceOverTimePoint> = {};
-  let cumulativePref = 0;
-  const cumulativeByCurrency: Record<string, number> = {};
+  const allDateKeys = generateDateRange(rangeStart, rangeEnd);
 
-  const allDateKeys = generateDateRange(minDate, rangeEnd);
-  const rangeStartIdx = allDateKeys.indexOf(rangeStart);
-  const preRangeEnd = rangeStartIdx > 0 ? rangeStartIdx : 0;
-
-  for (let i = 0; i < preRangeEnd; i++) {
-    const key = allDateKeys[i]!;
-    const dayCurr = dailyDeltasByCurrency[key];
-    if (dayCurr) {
-      for (const c in dayCurr) {
-        cumulativeByCurrency[c] = (cumulativeByCurrency[c] ?? 0) + dayCurr[c]!;
-      }
-    }
-    cumulativePref += dailyDeltasPref[key] ?? 0;
-  }
-
-  for (let i = preRangeEnd; i < allDateKeys.length; i++) {
-    const key = allDateKeys[i]!;
-    if (key > rangeEnd) break;
-    const dayCurr = dailyDeltasByCurrency[key];
-    if (dayCurr) {
-      for (const c in dayCurr) {
-        cumulativeByCurrency[c] = (cumulativeByCurrency[c] ?? 0) + dayCurr[c]!;
-      }
-    }
-    cumulativePref += dailyDeltasPref[key] ?? 0;
+  for (const key of allDateKeys) {
+    let balancePref = 0;
     const byCurrency: Record<string, number> = {};
-    for (const c in cumulativeByCurrency) {
-      byCurrency[c] = Math.round(cumulativeByCurrency[c]! * 100) / 100;
+    const useLiveSnapshots = key === rangeEnd;
+
+    for (let i = 0; i < accountHistories.length; i++) {
+      const { currency, history } = accountHistories[i]!;
+      const bal = useLiveSnapshots ? snapshotBalances[i]! : balanceOnOrBefore(history, key);
+      const rates = rateByDateAndCurrency[currency];
+      const rate = rates?.[key] ?? rates?.[rangeStart] ?? rates?.[rangeEnd] ?? 1;
+      balancePref += bal * rate;
+      byCurrency[currency] = Math.round(((byCurrency[currency] ?? 0) + bal) * 100) / 100;
     }
-    output[key] = {
-      balance: Math.round(cumulativePref * 100) / 100,
-      balance_by_currency: byCurrency,
-      investment_gain: Math.round((investmentGainByDate[key] ?? 0) * 100) / 100,
-    };
+
+    output[key] = buildBalanceOverTimePoint(
+      Math.round(balancePref * 100) / 100,
+      byCurrency,
+      investmentGainByDate,
+      key,
+    );
   }
+
   return output;
 }
 

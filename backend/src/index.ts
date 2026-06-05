@@ -1,4 +1,7 @@
+import { ensureAdkProvidersRegistered } from "./ai/adk/setup.js";
 import { config } from "./config.js";
+
+ensureAdkProvidersRegistered();
 import { app } from "./app";
 import { runMigrations } from "./db/migrate.js";
 import { ensureDemoData } from "./demo/seedDemoData.js";

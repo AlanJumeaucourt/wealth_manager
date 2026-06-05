@@ -2,10 +2,16 @@ import YahooFinance from "yahoo-finance2";
 import { createCache } from "../utils/cache.js";
 import { stringifyUnknown } from "../utils/stringifyUnknown.js";
 
-const yf = new YahooFinance();
+const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
-const quoteCache = createCache<StockInfo>({ ttlMs: 5 * 60 * 1000, maxKeys: 500 });
-const historicalCache = createCache<HistoricalPrice[]>({ ttlMs: 60 * 60 * 1000, maxKeys: 300 });
+const quoteCache = createCache<StockInfo>({
+  ttlMs: 5 * 60 * 1000,
+  maxKeys: 500,
+});
+const historicalCache = createCache<HistoricalPrice[]>({
+  ttlMs: 60 * 60 * 1000,
+  maxKeys: 300,
+});
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

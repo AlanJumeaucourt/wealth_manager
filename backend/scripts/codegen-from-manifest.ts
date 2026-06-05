@@ -13,6 +13,7 @@ import { mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import {
+  AGENT_LIST_ENDPOINTS,
   CUSTOM_LIST_QUERY_SCHEMAS,
   TABLE_MANIFEST,
   type ColumnDef,
@@ -46,7 +47,7 @@ function emitKyselyInterface(table: TableDef): string {
   const ifaceName =
     table.tableName
       .split("_")
-      .map((s) => s[0].toUpperCase() + s.slice(1))
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
       .join("") + "Table";
   lines.push(`export interface ${ifaceName} {`);
   for (const col of table.columns) {
@@ -58,7 +59,7 @@ function emitKyselyInterface(table: TableDef): string {
 }
 
 function singularizeTableName(tableName: string): string {
-  const parts = tableName.split("_").map((s) => s[0].toUpperCase() + s.slice(1));
+  const parts = tableName.split("_").map((s) => s.charAt(0).toUpperCase() + s.slice(1));
   const last = parts[parts.length - 1];
   if (last === "ies") return parts.slice(0, -1).join("") + "y";
   if (last?.endsWith("s") && last !== "ss") return parts.join("").slice(0, -1);
@@ -458,4 +459,25 @@ const migrationsPath = join(ROOT, "src/db/migrations.generated.ts");
 writeFileSync(migrationsPath, migrationsLines.join("\n") + "\n", "utf-8");
 console.log("Wrote", migrationsPath);
 
-console.log("Done. Generated Kysely schema, TypeBox schemas, SQL reference, and migrations.");
+// --- Agent list tool names (from AGENT_LIST_ENDPOINTS)
+const agentToolsDir = join(ROOT, "src/ai/tools/generated");
+mkdirSync(agentToolsDir, { recursive: true });
+const toolNames = AGENT_LIST_ENDPOINTS.map((e) => e.toolName);
+const listTypesContent = [
+  `/** Generated from AGENT_LIST_ENDPOINTS — do not edit by hand. */`,
+  `export type ListToolName =`,
+  toolNames.map((n) => `  | "${n}"`).join("\n"),
+  `;`,
+  ``,
+  `export const LIST_TOOL_NAMES = [`,
+  ...toolNames.map((n) => `  "${n}",`),
+  `] as const satisfies readonly ListToolName[];`,
+  ``,
+].join("\n");
+const listTypesPath = join(agentToolsDir, "listTools.types.ts");
+writeFileSync(listTypesPath, listTypesContent, "utf-8");
+console.log("Wrote", listTypesPath);
+
+console.log(
+  "Done. Generated Kysely schema, TypeBox schemas, SQL reference, migrations, and agent list tool types.",
+);

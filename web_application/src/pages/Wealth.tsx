@@ -1,9 +1,13 @@
-import type { BalanceHistoryResponse } from "@/api/edenDerivedTypes";
-import { usePeriodSummary, useWealthOverTimeWithGains } from "@/api/queries";
+import {
+  usePeriodSummary,
+  usePortfolioSummary,
+  useWealthOverTimeWithGains,
+  useWealthSummary,
+} from "@/api/queries";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -16,24 +20,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { PeriodChart } from "@/components/wealth/PeriodChart";
 import { WealthChart } from "@/components/wealth/WealthChart";
+import { WealthSnapshot } from "@/components/wealth/WealthSnapshot";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
-import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useToast } from "@/hooks/use-toast";
-import { formatCompactCurrency, formatCurrency } from "@/utils/currency";
+import { computeWealthBreakdown } from "@/utils/wealthBreakdown";
 import { format } from "date-fns";
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   Download,
-  Minus,
-  PiggyBank,
   Share2,
-  TrendingUp,
-  Wallet,
 } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 
@@ -202,286 +200,15 @@ const copyToClipboard = async (text: string, toast: any): Promise<boolean> => {
   return false;
 };
 
-// --- KPI Hero Cards ---
-
-interface KPICardProps {
-  label: string;
-  value: string;
-  subValue?: string;
-  trend?: "up" | "down" | "neutral";
-  trendLabel?: string;
-  icon: React.ReactNode;
-  accentClass?: string;
-}
-
-function KPICard({
-  label,
-  value,
-  subValue,
-  trend,
-  trendLabel,
-  icon,
-  accentClass = "text-foreground",
-}: KPICardProps) {
-  const TrendIcon = trend === "up" ? ArrowUpRight : trend === "down" ? ArrowDownRight : Minus;
-  const trendColor =
-    trend === "up" ? "text-green-500" : trend === "down" ? "text-red-500" : "text-muted-foreground";
-
-  return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          {label}
-        </span>
-        <div className="rounded-lg bg-muted/50 p-1.5">{icon}</div>
-      </div>
-      <div className={`text-xl sm:text-2xl font-bold tabular-nums tracking-tight ${accentClass}`}>
-        {value}
-      </div>
-      {(subValue || trendLabel) && (
-        <div className="flex items-center gap-1.5 text-xs">
-          {trend && <TrendIcon className={`h-3.5 w-3.5 ${trendColor}`} />}
-          {trendLabel && <span className={trendColor}>{trendLabel}</span>}
-          {subValue && <span className="text-muted-foreground">{subValue}</span>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface WealthKPIsProps {
-  startDate: Date;
-  endDate: Date;
-  visibleSummaries: any[];
-  wealthData: BalanceHistoryResponse | undefined;
-  includeDebt: boolean;
-}
-
-function WealthKPIs({
-  startDate,
-  endDate,
-  visibleSummaries,
-  wealthData,
-  includeDebt,
-}: WealthKPIsProps) {
-  const { preferredCurrency } = usePreferredCurrency();
-  const curr = preferredCurrency;
-
-  const kpis = useMemo(() => {
-    if (!wealthData) return null;
-
-    const entries = Object.entries(wealthData);
-    if (entries.length === 0) return null;
-
-    const visibleEntries = entries.filter(([date]) => {
-      const d = new Date(date);
-      return d >= startDate && d <= endDate;
-    });
-
-    const latestEntry = entries[entries.length - 1];
-    const currentBalance = latestEntry[1].balance;
-    const currentInvestmentGain = latestEntry[1].investment_gain;
-    const latestCurrencies = latestEntry[1].balance_by_currency;
-
-    let periodChangeAbs = 0;
-    let periodChangePct = 0;
-    let periodTrend: "up" | "down" | "neutral" = "neutral";
-
-    if (visibleEntries.length >= 2) {
-      const firstBalance = visibleEntries[0][1].balance;
-      const lastBalance = visibleEntries[visibleEntries.length - 1][1].balance;
-      periodChangeAbs = lastBalance - firstBalance;
-      periodChangePct = firstBalance !== 0 ? (periodChangeAbs / Math.abs(firstBalance)) * 100 : 0;
-      periodTrend = periodChangeAbs > 0 ? "up" : periodChangeAbs < 0 ? "down" : "neutral";
-    }
-
-    let savingsRate = 0;
-    let savingsTrend: "up" | "down" | "neutral" = "neutral";
-    if (visibleSummaries.length > 0) {
-      const totalIncome = visibleSummaries.reduce(
-        (sum: number, s: any) => sum + (s.income?.total?.net ?? s.income?.total ?? 0),
-        0,
-      );
-      const totalExpense = visibleSummaries.reduce(
-        (sum: number, s: any) => sum + Math.abs(s.expense?.total?.net ?? s.expense?.total ?? 0),
-        0,
-      );
-      savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
-      savingsTrend = savingsRate >= 20 ? "up" : savingsRate >= 0 ? "neutral" : "down";
-    }
-
-    return {
-      currentBalance,
-      currentInvestmentGain,
-      periodChangeAbs,
-      periodChangePct,
-      periodTrend,
-      savingsRate,
-      savingsTrend,
-      latestCurrencies,
-    };
-  }, [wealthData, startDate, endDate, visibleSummaries]);
-
-  if (!kpis) {
-    return (
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border bg-card p-4 shadow-sm">
-            <Skeleton className="h-3 w-20 mb-3" />
-            <Skeleton className="h-7 w-28 mb-2" />
-            <Skeleton className="h-3 w-24" />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <KPICard
-          label={includeDebt ? "Net worth" : "Gross assets"}
-          value={formatCompactCurrency(kpis.currentBalance, curr)}
-          icon={<Wallet className="h-4 w-4 text-blue-500" />}
-          accentClass="text-blue-600"
-          subValue={formatCurrency(kpis.currentBalance, curr)}
-        />
-        <KPICard
-          label="Period Change"
-          value={`${kpis.periodChangePct >= 0 ? "+" : ""}${kpis.periodChangePct.toFixed(1)}%`}
-          trend={kpis.periodTrend}
-          trendLabel={`${kpis.periodChangeAbs >= 0 ? "+" : ""}${formatCompactCurrency(kpis.periodChangeAbs, curr)}`}
-          icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
-          accentClass={
-            kpis.periodTrend === "up"
-              ? "text-green-600"
-              : kpis.periodTrend === "down"
-                ? "text-red-600"
-                : ""
-          }
-        />
-        <KPICard
-          label="Savings Rate"
-          value={`${kpis.savingsRate.toFixed(1)}%`}
-          trend={kpis.savingsTrend}
-          trendLabel={
-            kpis.savingsRate >= 20
-              ? "Healthy"
-              : kpis.savingsRate >= 10
-                ? "Moderate"
-                : kpis.savingsRate >= 0
-                  ? "Low"
-                  : "Negative"
-          }
-          icon={<PiggyBank className="h-4 w-4 text-amber-500" />}
-          accentClass={
-            kpis.savingsRate >= 20
-              ? "text-green-600"
-              : kpis.savingsRate >= 10
-                ? "text-amber-600"
-                : "text-red-600"
-          }
-        />
-        <KPICard
-          label="Investment Gain"
-          value={`${kpis.currentInvestmentGain >= 0 ? "+" : ""}${formatCompactCurrency(kpis.currentInvestmentGain, curr)}`}
-          trend={kpis.currentInvestmentGain >= 0 ? "up" : "down"}
-          trendLabel={formatCurrency(kpis.currentInvestmentGain, curr)}
-          icon={<TrendingUp className="h-4 w-4 text-purple-500" />}
-          accentClass={kpis.currentInvestmentGain >= 0 ? "text-green-600" : "text-red-600"}
-        />
-      </div>
-
-      {/* Currency Breakdown */}
-      {kpis.latestCurrencies && Object.keys(kpis.latestCurrencies).length > 1 && (
-        <CurrencyBreakdown
-          balanceByCurrency={kpis.latestCurrencies}
-          totalBalance={kpis.currentBalance}
-          preferredCurrency={curr}
-          includeDebt={includeDebt}
-        />
-      )}
-    </div>
-  );
-}
-
-// --- Currency Breakdown ---
-
-interface CurrencyBreakdownProps {
-  balanceByCurrency: Record<string, number>;
-  totalBalance: number;
-  preferredCurrency: string;
-  includeDebt: boolean;
-}
-
-function CurrencyBreakdown({
-  balanceByCurrency,
-  totalBalance,
-  preferredCurrency,
-  includeDebt,
-}: CurrencyBreakdownProps) {
-  const sorted = Object.entries(balanceByCurrency).sort(
-    ([, a], [, b]) => Math.abs(b) - Math.abs(a),
-  );
-  const absTotal = sorted.reduce((sum, [, amt]) => sum + Math.abs(amt), 0);
-
-  const colors = [
-    "bg-blue-500",
-    "bg-emerald-500",
-    "bg-amber-500",
-    "bg-purple-500",
-    "bg-rose-500",
-    "bg-cyan-500",
-    "bg-orange-500",
-    "bg-teal-500",
-  ];
-
-  return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          {includeDebt ? "Net worth by currency" : "Assets by currency"}
-        </span>
-        <span className="text-sm font-medium tabular-nums">
-          {formatCurrency(totalBalance, preferredCurrency)}
-          <span className="text-muted-foreground text-xs ml-1">(converted)</span>
-        </span>
-      </div>
-
-      {/* Stacked bar */}
-      <div className="flex h-2.5 rounded-full overflow-hidden gap-0.5 mb-3">
-        {sorted.map(([currency, amt], i) => {
-          const pct = absTotal > 0 ? (Math.abs(amt) / absTotal) * 100 : 0;
-          if (pct < 0.5) return null;
-          return (
-            <div
-              key={currency}
-              className={`${colors[i % colors.length]} rounded-full transition-all`}
-              style={{ width: `${pct}%` }}
-              title={`${currency}: ${formatCurrency(amt, currency)}`}
-            />
-          );
-        })}
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {sorted.map(([currency, amt], i) => {
-          const pct = absTotal > 0 ? (Math.abs(amt) / absTotal) * 100 : 0;
-          return (
-            <div key={currency} className="flex items-center gap-1.5 text-xs">
-              <div className={`h-2.5 w-2.5 rounded-full ${colors[i % colors.length]}`} />
-              <span className="font-medium">{currency}</span>
-              <span className="text-muted-foreground tabular-nums">
-                {formatCurrency(amt, currency)}
-              </span>
-              <span className="text-muted-foreground">({pct.toFixed(0)}%)</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+function marketValueFromPoint(point: {
+  balance: number;
+  market_value?: number;
+  investment_gain_unrealized?: number;
+  investment_gain: number;
+}) {
+  if (point.market_value != null) return point.market_value;
+  const uplift = point.investment_gain_unrealized ?? point.investment_gain;
+  return point.balance + uplift;
 }
 
 // --- Loading Skeleton ---
@@ -489,19 +216,10 @@ function CurrencyBreakdown({
 function WealthSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border bg-card p-4 shadow-sm">
-            <Skeleton className="h-3 w-20 mb-3" />
-            <Skeleton className="h-7 w-28 mb-2" />
-            <Skeleton className="h-3 w-24" />
-          </div>
-        ))}
-      </div>
+      <Skeleton className="h-[220px] w-full rounded-xl" />
       <Card>
         <CardHeader>
           <Skeleton className="h-6 w-[180px] mb-2" />
-          <Skeleton className="h-4 w-[220px]" />
         </CardHeader>
         <CardContent className="p-6">
           <Skeleton className="h-[300px] w-full" />
@@ -510,7 +228,6 @@ function WealthSkeleton() {
       <Card>
         <CardHeader>
           <Skeleton className="h-6 w-[180px] mb-2" />
-          <Skeleton className="h-4 w-[220px]" />
         </CardHeader>
         <CardContent className="p-6">
           <Skeleton className="h-[300px] w-full" />
@@ -609,6 +326,14 @@ export function Wealth() {
   const { data: wealthData, isLoading: isLoadingWealth } = useWealthOverTimeWithGains({
     includeDebt: wealthIncludeDebt,
   });
+  const { data: periodWealthData } = useWealthOverTimeWithGains({ includeDebt: true });
+  const { data: wealthSummary, isLoading: isLoadingWealthSummary } = useWealthSummary();
+  const { data: portfolioSummary, isLoading: isLoadingPortfolio } = usePortfolioSummary();
+
+  const wealthBreakdown = useMemo(
+    () => computeWealthBreakdown(wealthSummary, portfolioSummary, periodWealthData),
+    [wealthSummary, portfolioSummary, periodWealthData],
+  );
 
   // Derive the visible window from the cached full range
   const totalSummaries = rawPeriodData?.summaries?.length ?? 0;
@@ -653,6 +378,49 @@ export function Wealth() {
     ? { ...rawPeriodData, summaries: trimmedVisibleSummaries }
     : undefined;
 
+  const periodStats = useMemo(() => {
+    let periodChangeAbs = 0;
+    let periodChangePct = 0;
+    let periodTrend: "up" | "down" | "neutral" = "neutral";
+    let savingsRate = 0;
+
+    if (periodWealthData) {
+      const visibleEntries = Object.entries(periodWealthData).filter(([date]) => {
+        const d = new Date(date);
+        return d >= displayStartDate && d <= displayEndDate;
+      });
+      if (visibleEntries.length >= 2) {
+        const firstMarket = marketValueFromPoint(visibleEntries[0]![1]);
+        const lastMarket = marketValueFromPoint(visibleEntries[visibleEntries.length - 1]![1]);
+        periodChangeAbs = lastMarket - firstMarket;
+        periodChangePct = firstMarket !== 0 ? (periodChangeAbs / Math.abs(firstMarket)) * 100 : 0;
+        periodTrend = periodChangeAbs > 0 ? "up" : periodChangeAbs < 0 ? "down" : "neutral";
+      }
+    }
+
+    if (trimmedVisibleSummaries.length > 0) {
+      const totalIncome = trimmedVisibleSummaries.reduce((sum: number, s: any) => {
+        const incomeTotal = s.income?.total;
+        const net =
+          typeof incomeTotal === "object" && incomeTotal != null
+            ? (incomeTotal.net ?? incomeTotal)
+            : (incomeTotal ?? 0);
+        return sum + Number(net);
+      }, 0);
+      const totalExpense = trimmedVisibleSummaries.reduce((sum: number, s: any) => {
+        const expenseTotal = s.expense?.total;
+        const net =
+          typeof expenseTotal === "object" && expenseTotal != null
+            ? (expenseTotal.net ?? expenseTotal)
+            : (expenseTotal ?? 0);
+        return sum + Math.abs(Number(net));
+      }, 0);
+      savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
+    }
+
+    return { periodChangeAbs, periodChangePct, periodTrend, savingsRate };
+  }, [periodWealthData, displayStartDate, displayEndDate, trimmedVisibleSummaries]);
+
   // --- Export & Share handlers ---
 
   const handleExportWealth = () => {
@@ -665,10 +433,12 @@ export function Wealth() {
       return;
     }
     const csvContent = [
-      "Date,Balance,Investment Gain",
-      ...Object.entries(wealthData).map(
-        ([date, data]) => `${date},${data.balance},${data.investment_gain}`,
-      ),
+      "Date,Balance,Investment Gain Unrealized,Investment Gain Realized,Investment Gain Total",
+      ...Object.entries(wealthData).map(([date, data]) => {
+        const unrealized = data.investment_gain_unrealized ?? data.investment_gain;
+        const realized = data.investment_gain_realized ?? 0;
+        return `${date},${data.balance},${unrealized},${realized},${data.investment_gain}`;
+      }),
     ].join("\n");
     downloadCsv(
       csvContent,
@@ -748,7 +518,11 @@ export function Wealth() {
   };
 
   /** Full-page skeleton only when there is nothing to render yet; not on net↔gross refetch. */
-  const isLoading = isLoadingPeriod || (isLoadingWealth && !wealthData);
+  const isLoading =
+    isLoadingPeriod ||
+    (isLoadingWealth && !wealthData) ||
+    (isLoadingWealthSummary && !wealthSummary) ||
+    (isLoadingPortfolio && !portfolioSummary);
   const hasError = periodError;
 
   const dateSelector = (
@@ -794,29 +568,23 @@ export function Wealth() {
         <WealthSkeleton />
       ) : (
         <div className="flex flex-col gap-6">
-          {/* KPI Hero Cards + Currency Breakdown */}
-          <WealthKPIs
-            startDate={displayStartDate}
-            endDate={displayEndDate}
-            visibleSummaries={trimmedVisibleSummaries}
-            wealthData={wealthData}
-            includeDebt={wealthIncludeDebt}
+          <WealthSnapshot
+            breakdown={wealthBreakdown}
+            periodChangePct={periodStats.periodChangePct}
+            periodChangeAbs={periodStats.periodChangeAbs}
+            periodTrend={periodStats.periodTrend}
+            savingsRate={periodStats.savingsRate}
+            isLoading={isLoadingWealthSummary || isLoadingPortfolio}
           />
 
-          {/* Wealth Evolution Chart */}
           <Card className="shadow-sm">
-            <CardHeader className="pb-0">
+            <CardHeader className="pb-2">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <CardTitle>Wealth Evolution</CardTitle>
-                  <CardDescription>
-                    {wealthIncludeDebt
-                      ? "Net worth includes loan balances (full picture)."
-                      : "Gross assets: checking, savings, and investments—debt balances excluded."}
-                  </CardDescription>
+                <div>
+                  <CardTitle>Wealth evolution</CardTitle>
                 </div>
-                <div className="flex flex-col gap-3 sm:min-w-[260px] sm:items-end">
-                  <div className="flex w-full flex-wrap items-center gap-2 sm:justify-end">
+                <div className="flex flex-col gap-3 sm:items-end">
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <Label
                       htmlFor="wealth-basis"
                       className="text-xs text-muted-foreground shrink-0"
@@ -836,23 +604,26 @@ export function Wealth() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-center gap-2 sm:justify-end">
-                    <Switch
-                      id="wealth-gain-chart"
-                      checked={wealthShowInvestmentGain}
-                      onCheckedChange={setWealthShowInvestmentGain}
-                    />
-                    <Label
-                      htmlFor="wealth-gain-chart"
-                      className="text-sm font-normal cursor-pointer"
-                    >
-                      Investment gain on chart
-                    </Label>
+                  <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="wealth-gain-chart"
+                        checked={wealthShowInvestmentGain}
+                        onCheckedChange={setWealthShowInvestmentGain}
+                      />
+                      <Label
+                        htmlFor="wealth-gain-chart"
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        Investment layers
+                      </Label>
+                    </div>
+                    {exportShareButtons}
                   </div>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="pt-0 px-0 pb-0">
               <WealthChart
                 startDate={displayStartDate}
                 endDate={displayEndDate}
@@ -860,7 +631,7 @@ export function Wealth() {
                 wealthData={wealthData}
                 isLoading={isLoadingWealth && !wealthData}
                 showInvestmentGain={wealthShowInvestmentGain}
-                headerActions={exportShareButtons}
+                includeDebt={wealthIncludeDebt}
                 selectedRange={selectedDateRange}
                 onSelectedRangeChange={setSelectedDateRange}
               />
@@ -870,12 +641,7 @@ export function Wealth() {
           {/* Period Analysis */}
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <div>
-                <h2 className="text-lg font-semibold">Period Analysis</h2>
-                <p className="text-sm text-muted-foreground">
-                  Compare income and expenses across {selectedPeriod}s
-                </p>
-              </div>
+              <h2 className="text-lg font-semibold">Period Analysis</h2>
               <div className="flex gap-2">
                 <Button
                   variant="outline"

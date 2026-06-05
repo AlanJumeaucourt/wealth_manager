@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Liability } from "@/types";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { formZodResolver } from "@/lib/formZodResolver";
 import { format } from "date-fns";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -112,7 +112,7 @@ export function LiabilityForm({ liability, onSubmit, onCancel }: LiabilityFormPr
     watch,
     formState: { errors },
   } = useForm<LiabilityFormData>({
-    resolver: zodResolver(liabilityFormSchema),
+    resolver: formZodResolver(liabilityFormSchema),
     defaultValues: liability
       ? {
           ...liability,

@@ -14,6 +14,10 @@ export interface PerformanceDataPoint {
   net_invested: number;
   total_gains: number;
   total_gains_without_dividends: number;
+  /** Paper gain on open positions (market value − cost basis). */
+  unrealized_gain: number;
+  /** Locked-in return: total_gains − unrealized_gain (realized sells + dividends). */
+  realized_gain: number;
 }
 
 export interface PortfolioPerformanceResult {
@@ -188,12 +192,14 @@ export async function getPortfolioPerformance(
 
   // Step 1: process transactions chronologically to build states.
   const ownedAssets: Record<string, number> = {};
+  const costBasisBySymbol: Record<string, number> = {};
   let initialInvestment = 0;
   let totalWithdrawals = 0;
   let totalDividendsReceived = 0;
 
   type State = {
     holdings: Record<string, number>;
+    cost_basis: Record<string, number>;
     net_invested: number;
     cumulative_dividends: number;
   };
@@ -213,10 +219,16 @@ export async function getPortfolioPerformance(
 
     if (invType === "buy") {
       ownedAssets[symbol] = (ownedAssets[symbol] ?? 0) + quantity;
+      costBasisBySymbol[symbol] = (costBasisBySymbol[symbol] ?? 0) + totalPaid;
       initialInvestment += totalPaid;
     } else if (invType === "sell") {
+      const heldBefore = ownedAssets[symbol] ?? 0;
+      const basisBefore = costBasisBySymbol[symbol] ?? 0;
+      const avgCost = heldBefore > 1e-9 ? basisBefore / heldBefore : 0;
+      const soldBasis = avgCost * quantity;
       const proceeds = quantity * unitPrice - fee - tax;
-      ownedAssets[symbol] = (ownedAssets[symbol] ?? 0) - quantity;
+      ownedAssets[symbol] = heldBefore - quantity;
+      costBasisBySymbol[symbol] = Math.max(0, basisBefore - soldBasis);
       totalWithdrawals += proceeds;
     } else if (invType === "dividend") {
       totalDividendsReceived += totalPaid;
@@ -224,11 +236,13 @@ export async function getPortfolioPerformance(
 
     if ((ownedAssets[symbol] ?? 0) <= 1e-9) {
       delete ownedAssets[symbol];
+      delete costBasisBySymbol[symbol];
     }
 
     const netInvested = initialInvestment - totalWithdrawals;
     portfolioStates[txDateStr] = {
       holdings: { ...ownedAssets },
+      cost_basis: { ...costBasisBySymbol },
       net_invested: netInvested,
       cumulative_dividends: totalDividendsReceived,
     };
@@ -237,7 +251,12 @@ export async function getPortfolioPerformance(
   // Step 2: daily values.
   const dataPoints: PerformanceDataPoint[] = [];
   const stateChangeDates = Object.keys(portfolioStates).sort();
-  let lastState: State = { holdings: {}, net_invested: 0, cumulative_dividends: 0 };
+  let lastState: State = {
+    holdings: {},
+    cost_basis: {},
+    net_invested: 0,
+    cumulative_dividends: 0,
+  };
   let stateIdx = 0;
 
   const periodStart = computePeriodStart(periodParam);
@@ -253,7 +272,18 @@ export async function getPortfolioPerformance(
       stateIdx++;
     }
 
-    const { holdings, net_invested: netInvested, cumulative_dividends: cd } = lastState;
+    const {
+      holdings,
+      cost_basis: costBasis,
+      net_invested: netInvested,
+      cumulative_dividends: cd,
+    } = lastState;
+
+    let openCostBasis = 0;
+    for (const [symbol, shares] of Object.entries(holdings)) {
+      if (shares <= 1e-9) continue;
+      openCostBasis += costBasis[symbol] ?? 0;
+    }
 
     let totalValue = 0;
     const assetsData: Record<string, { shares: number; price: number; total_value: number }> = {};
@@ -283,6 +313,8 @@ export async function getPortfolioPerformance(
             net_invested: round2(netInvested),
             total_gains: round2(totalGainsZero),
             total_gains_without_dividends: round2(totalGainsNoDivZero),
+            unrealized_gain: 0,
+            realized_gain: round2(totalGainsZero),
           });
         }
       }
@@ -322,6 +354,8 @@ export async function getPortfolioPerformance(
 
     const totalGains = totalValue + cd - netInvested;
     const totalGainsNoDiv = totalValue - netInvested;
+    const unrealizedGain = totalValue - openCostBasis;
+    const realizedGain = totalGains - unrealizedGain;
 
     let performance = 0;
     let performanceNoDiv = 0;
@@ -355,6 +389,8 @@ export async function getPortfolioPerformance(
         net_invested: round2(netInvested),
         total_gains: round2(totalGains),
         total_gains_without_dividends: round2(totalGainsNoDiv),
+        unrealized_gain: round2(unrealizedGain),
+        realized_gain: round2(realizedGain),
       });
     }
   }

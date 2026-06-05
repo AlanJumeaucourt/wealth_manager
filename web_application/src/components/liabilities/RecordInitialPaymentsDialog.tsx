@@ -24,7 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Liability, LiabilityPayment, Transaction } from "@/types";
 import { formatCurrency } from "@/utils/currency";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { formZodResolver } from "@/lib/formZodResolver";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -92,7 +92,7 @@ export function RecordInitialPaymentsDialog({
   const accountName = accountData?.items?.[0]?.name || "the associated account";
 
   const form = useForm<PaymentFormData>({
-    resolver: zodResolver(paymentFormSchema),
+    resolver: formZodResolver(paymentFormSchema),
     defaultValues: {
       payment_date: today,
       amount: 0,

@@ -21,6 +21,10 @@ services:
       - SQLITE_DB_PATH=/app/data/wealth.db
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-}
       - DEMO_MODE=true
+      - AI_MODEL=openrouter/free
+      - AI_ENDPOINT=https://openrouter.ai/api/v1/chat/completions
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+
     ports:
       - "5000:5000"
     networks:

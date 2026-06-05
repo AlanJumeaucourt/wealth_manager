@@ -85,13 +85,13 @@ const batchCreateHandler = createBatchCreateHandler(TABLE, (item, userId) => ({
 const batchUpdateHandler = createBatchUpdateHandler(TABLE);
 const batchDeleteHandler = createBatchDeleteHandler(TABLE);
 
-type TransactionsListContext = AuthDerive & {
+export type TransactionsListContext = AuthDerive & {
   query: Record<string, unknown>;
   request: Request;
   set: { status?: number | string };
 };
 
-async function listHandler(ctx: TransactionsListContext) {
+export async function listTransactionsHandler(ctx: TransactionsListContext) {
   const { query, userId, set } = ctx;
   requireAuth({ userId });
   const listQuery = normalizeListQuery(query);
@@ -330,7 +330,7 @@ export const transactionsRoutes = new Elysia({ prefix: "/transactions", tags: ["
     body: tCreateTransactionSchema,
     detail: { summary: "Create transaction" },
   })
-  .get("/", (ctx: TransactionsListContext) => listHandler(ctx) as any, {
+  .get("/", (ctx: TransactionsListContext) => listTransactionsHandler(ctx) as any, {
     query: tTransactionsListQuerySchema,
     detail: { summary: "List transactions" },
     response: {

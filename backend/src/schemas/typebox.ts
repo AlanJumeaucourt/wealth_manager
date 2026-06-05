@@ -34,6 +34,79 @@ export const tPreferredCurrencySchema = t.Object({
   preferred_currency: t.String({ minLength: 1 }),
 });
 
+// --- AI agent ---
+
+export const tProposalPatchTransaction = t.Object({
+  category: t.Optional(t.String()),
+  subcategory: t.Optional(t.Union([t.String(), t.Null()])),
+  description: t.Optional(t.String()),
+});
+
+export const tProposalUpdateTransaction = t.Object({
+  kind: t.Literal("update_transaction"),
+  transactionId: t.Number(),
+  patch: tProposalPatchTransaction,
+  reason: t.String(),
+  evidence: t.Optional(t.String()),
+});
+
+export const tProposalUpdateAccount = t.Object({
+  kind: t.Literal("update_account"),
+  accountId: t.Number(),
+  patch: t.Object({ name: t.String() }),
+  reason: t.String(),
+  evidence: t.Optional(t.String()),
+});
+
+export const tProposalBatchUpdateTransactions = t.Object({
+  kind: t.Literal("batch_update_transactions"),
+  updates: t.Array(
+    t.Object({
+      id: t.Number(),
+      category: t.Optional(t.String()),
+      subcategory: t.Optional(t.Union([t.String(), t.Null()])),
+    }),
+  ),
+  reason: t.String(),
+  evidence: t.Optional(t.String()),
+});
+
+export const tProposal = t.Union([
+  tProposalUpdateTransaction,
+  tProposalUpdateAccount,
+  tProposalBatchUpdateTransactions,
+]);
+
+const tAgentEventSchema = t.Union([
+  t.Object({
+    type: t.Literal("plan_created"),
+    plan: t.Array(t.Object({ id: t.String(), description: t.String(), done: t.Boolean() })),
+  }),
+  t.Object({ type: t.Literal("step_started"), stepId: t.String(), description: t.String() }),
+  t.Object({ type: t.Literal("step_completed"), stepId: t.String() }),
+  t.Object({
+    type: t.Literal("tool_called"),
+    toolName: t.String(),
+    args: t.Record(t.String(), t.Unknown()),
+  }),
+  t.Object({ type: t.Literal("tool_result"), toolName: t.String(), summary: t.String() }),
+  t.Object({ type: t.Literal("reflection"), message: t.String() }),
+  t.Object({ type: t.Literal("proposal_added"), proposal: tProposal }),
+  t.Object({ type: t.Literal("run_completed"), finalMessage: t.String() }),
+  t.Object({ type: t.Literal("run_failed"), error: t.String() }),
+]);
+
+export const tAgentRunSnapshotSchema = t.Object({
+  id: t.String(),
+  status: t.String(),
+  goal: t.String(),
+  plan: t.Array(t.Object({ id: t.String(), description: t.String(), done: t.Boolean() })),
+  proposals: t.Array(tProposal),
+  finalMessage: t.Optional(t.String()),
+  error: t.Optional(t.String()),
+  events: t.Array(tAgentEventSchema),
+});
+
 /**
  * Dynamic list query (extra filter keys). Runtime validation matches `createListHandler`.
  * Prefer manifest-driven `t*ListQuerySchema` / `tBaseListQuerySchema` in `typebox.generated.ts`

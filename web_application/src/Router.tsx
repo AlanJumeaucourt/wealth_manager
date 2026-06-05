@@ -24,6 +24,7 @@ import { SettingsPage } from "./pages/Settings";
 import { Signup } from "./pages/Signup";
 import { TransactionDetailPage } from "./pages/TransactionDetailPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
+import { AssistantPage } from "./pages/AssistantPage";
 import { Wealth } from "./pages/Wealth";
 
 // Create a root route without search params validation
@@ -277,6 +278,12 @@ const connectBankRoute = new Route({
 });
 
 // Add this with the other routes definition (around line 395)
+const assistantRoute = new Route({
+  getParentRoute: () => authenticatedLayout,
+  path: "/assistant",
+  component: AssistantPage,
+});
+
 const settingsRoute = new Route({
   getParentRoute: () => authenticatedLayout,
   path: "/settings",
@@ -348,6 +355,7 @@ const routeTree = rootRoute.addChildren([
     // Refunds routes
     refundsPotentialRoute,
     refundsRoute,
+    assistantRoute,
     // Settings routes
     settingsRoute,
     // GoCardless routes

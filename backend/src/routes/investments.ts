@@ -90,6 +90,53 @@ const tInvestmentDetailResponseSchema = t.Object({
   ),
 });
 
+export async function listInvestmentsForUser(
+  userId: number,
+  query: Record<string, unknown>,
+): Promise<ListResponse<InvestmentListItem>> {
+  const q = normalizeListQuery(query);
+  const database = db();
+  const baseQ = database
+    .selectFrom("transactions")
+    .innerJoin("investment_details", "investment_details.transaction_id", "transactions.id")
+    .where("transactions.user_id", "=", userId);
+  const [[countResult], items] = await Promise.all([
+    baseQ.select((eb) => eb.fn.countAll().as("total")).execute(),
+    baseQ
+      .select([
+        "transactions.id",
+        "transactions.date",
+        "transactions.amount",
+        "transactions.description",
+        "transactions.from_account_id",
+        "transactions.to_account_id",
+        "investment_details.asset_id",
+        "investment_details.quantity",
+        "investment_details.unit_price",
+        "investment_details.fee",
+        "investment_details.tax",
+        "investment_details.total_paid",
+        "investment_details.investment_type as activity_type",
+        "investment_details.investment_type as investment_type",
+      ])
+      .orderBy("transactions.date", "desc")
+      .orderBy("transactions.id", "desc")
+      .limit(q.per_page)
+      .offset((q.page - 1) * q.per_page)
+      .execute(),
+  ]);
+  const total = Number(countResult?.total ?? 0);
+  return {
+    items: coerceNumericJsonFieldsMany(items as unknown as Record<string, unknown>[], [
+      "transactions",
+      "investment_details",
+    ]) as unknown as InvestmentListItem[],
+    total,
+    page: q.page,
+    per_page: q.per_page,
+  };
+}
+
 const portfolioStub = async ({ userId }: { userId: number | null }) => {
   requireAuth({ userId });
   return {};
@@ -120,47 +167,7 @@ export const investmentsRoutes = new Elysia({ prefix: "/investments", tags: ["in
     "/",
     async ({ query, userId }): Promise<ListResponse<InvestmentListItem>> => {
       requireAuth({ userId });
-      const q = normalizeListQuery(query as Record<string, unknown>);
-      const database = db();
-      const baseQ = database
-        .selectFrom("transactions")
-        .innerJoin("investment_details", "investment_details.transaction_id", "transactions.id")
-        .where("transactions.user_id", "=", userId!);
-      const [[countResult], items] = await Promise.all([
-        baseQ.select((eb) => eb.fn.countAll().as("total")).execute(),
-        baseQ
-          .select([
-            "transactions.id",
-            "transactions.date",
-            "transactions.amount",
-            "transactions.description",
-            "transactions.from_account_id",
-            "transactions.to_account_id",
-            "investment_details.asset_id",
-            "investment_details.quantity",
-            "investment_details.unit_price",
-            "investment_details.fee",
-            "investment_details.tax",
-            "investment_details.total_paid",
-            "investment_details.investment_type as activity_type",
-            "investment_details.investment_type as investment_type",
-          ])
-          .orderBy("transactions.date", "desc")
-          .orderBy("transactions.id", "desc")
-          .limit(q.per_page)
-          .offset((q.page - 1) * q.per_page)
-          .execute(),
-      ]);
-      const total = Number(countResult?.total ?? 0);
-      return {
-        items: coerceNumericJsonFieldsMany(items as unknown as Record<string, unknown>[], [
-          "transactions",
-          "investment_details",
-        ]) as unknown as InvestmentListItem[],
-        total,
-        page: q.page,
-        per_page: q.per_page,
-      };
+      return listInvestmentsForUser(userId!, query as Record<string, unknown>);
     },
     {
       query: tBaseListQuerySchema,

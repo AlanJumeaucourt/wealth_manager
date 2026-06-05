@@ -52,7 +52,7 @@ const REFUND_GROUPS_LIST_CONFIG: {
   allowedFilters: ["id"],
 };
 
-const refundGroupsListHandler = createListHandler(REFUND_GROUPS_TABLE, {
+export const refundGroupsListHandler = createListHandler(REFUND_GROUPS_TABLE, {
   ...REFUND_GROUPS_LIST_CONFIG,
   useValidatedQuery: true as const,
 });

@@ -108,7 +108,7 @@ function parsePaymentStatusQuery(
   }
 }
 
-function createPaymentStatusHandler(forcedStatus?: "upcoming" | "missed") {
+export function createPaymentStatusHandler(forcedStatus?: "upcoming" | "missed") {
   return async ({
     query,
     userId,
@@ -129,6 +129,23 @@ function createPaymentStatusHandler(forcedStatus?: "upcoming" | "missed") {
     return listLiabilityScheduleStatusItems(userId!, parsed.data);
   };
 }
+
+export const liabilitiesListHandler = createListHandler(TABLE, {
+  searchFields: SEARCH_FIELDS,
+  allowedFilters: (listDefaults?.defaultFilters ?? []) as string[],
+  useValidatedQuery: true,
+  enrichItems: (items, userId) =>
+    Promise.all(
+      items.map(async (item) => {
+        const enriched = await getLiabilityWithDetails(userId, (item as { id: number }).id);
+        return (enriched ?? item) as Record<string, unknown>;
+      }),
+    ),
+});
+
+export const liabilitiesPaymentStatusHandler = createPaymentStatusHandler(undefined);
+export const liabilitiesUpcomingPaymentsHandler = createPaymentStatusHandler("upcoming");
+export const liabilitiesMissedPaymentsHandler = createPaymentStatusHandler("missed");
 
 export const liabilitiesRoutes = new Elysia({ prefix: "/liabilities", tags: ["liabilities"] })
   .use(authDerivePlugin)
@@ -169,29 +186,14 @@ export const liabilitiesRoutes = new Elysia({ prefix: "/liabilities", tags: ["li
       },
     },
   )
-  .get(
-    "/",
-    createListHandler(TABLE, {
-      searchFields: SEARCH_FIELDS,
-      allowedFilters: (listDefaults?.defaultFilters ?? []) as string[],
-      useValidatedQuery: true,
-      enrichItems: (items, userId) =>
-        Promise.all(
-          items.map(async (item) => {
-            const enriched = await getLiabilityWithDetails(userId, (item as { id: number }).id);
-            return (enriched ?? item) as Record<string, unknown>;
-          }),
-        ),
-    }),
-    { query: tLiabilitiesListQuerySchema },
-  )
-  .get("/payment-status", createPaymentStatusHandler(undefined), {
+  .get("/", liabilitiesListHandler, { query: tLiabilitiesListQuerySchema })
+  .get("/payment-status", liabilitiesPaymentStatusHandler, {
     query: tLiabilitiesPaymentStatusQuerySchema,
   })
-  .get("/upcoming-payments", createPaymentStatusHandler("upcoming"), {
+  .get("/upcoming-payments", liabilitiesUpcomingPaymentsHandler, {
     query: tLiabilitiesSchedulePaymentsQuerySchema,
   })
-  .get("/missed-payments", createPaymentStatusHandler("missed"), {
+  .get("/missed-payments", liabilitiesMissedPaymentsHandler, {
     query: tLiabilitiesSchedulePaymentsQuerySchema,
   })
   .get(
