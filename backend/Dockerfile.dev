@@ -4,8 +4,8 @@ FROM oven/bun:1
 WORKDIR /app
 
 # Install deps (cached unless package.json changes). Context is `backend/` only, so no root bun.lockb here.
-COPY package.json ./
-RUN bun install && test -d node_modules/@elysiajs/cors
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile && test -d node_modules/@elysiajs/cors
 
 # Source is mounted at runtime; copy only for standalone build
 COPY . .
