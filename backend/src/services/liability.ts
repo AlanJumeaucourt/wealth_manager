@@ -1529,6 +1529,23 @@ async function ensureInvestmentPlExpenseAccount(userId: number): Promise<number>
   return inserted.id;
 }
 
+function interestExpenseCategoryForLiability(liabilityType: string): {
+  category: string;
+  subcategory: string;
+} {
+  switch (liabilityType) {
+    case "total_deferred_loan":
+    case "partial_deferred_loan":
+      return { category: "Scolarité & Enfants", subcategory: "Prêt étudiant" };
+    case "mortgage":
+      return { category: "Banque", subcategory: "Hypothèque" };
+    case "credit_card":
+      return { category: "Banque", subcategory: "Débit mensuel carte" };
+    default:
+      return { category: "Banque", subcategory: "Banque - Autres" };
+  }
+}
+
 export async function generateInterestExpenseTransactions(
   liabilityId: number,
   userId: number,
@@ -1538,7 +1555,11 @@ export async function generateInterestExpenseTransactions(
     return { success: false, message: "Liability not found", created: 0 };
   }
   if (!liability.account_id) {
-    return { success: false, message: "Liability has no associated account", created: 0 };
+    return {
+      success: false,
+      message: "Liability has no associated account",
+      created: 0,
+    };
   }
 
   const database = db();
@@ -1574,8 +1595,8 @@ export async function generateInterestExpenseTransactions(
         amount: String(interestRecognized),
         description,
         type: "expense",
-        category: "Interest Expense",
-        subcategory: `Loan Interest - ${liability.liability_type}`,
+        category: "Banque",
+        subcategory: "Banque - Autres",
         from_account_id: liability.account_id,
         to_account_id: expenseAccountId,
       })

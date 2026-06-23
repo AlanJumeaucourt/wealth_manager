@@ -55,6 +55,10 @@ Do **not** ask the user to run commands you can run yourself in this environment
 
 CI uses GitHub Actions; align with existing workflows when adding scripts or paths.
 
+## Investigating user-reported issues (token-efficient)
+
+Prefer **code → API → browser**, in that order. Find the UI entry (page/component under `web_application/src/pages/` or `components/`), follow its data hook to `web_application/src/api/queries.ts` / Eden client, then the matching route in `backend/src/routes/` and service logic. Reproduce with **curl** against `/api` (deployed PWA: same origin as the web URL; local: `http://localhost:5000` or OpenAPI at `/openapi`) using `POST /users/login` or a token from `localStorage.access_token` via browser CDP — avoid logging in through the UI unless you need to confirm rendering. Request **narrow** payloads (date range, single id, filters) before full lists. Compare API output to what the screen shows; if they differ, the bug is frontend — if the API is wrong, fix backend/services/DB views. Use the browser only for layout, charts, or auth flows curl cannot exercise. After backend changes, run `vp check`; use `bun test` in `backend` when you add or touch tests.
+
 ## Where to read more
 
 - [README.md](README.md) — Docker, env vars, quick start

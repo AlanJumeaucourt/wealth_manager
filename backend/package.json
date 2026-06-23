@@ -52,5 +52,8 @@
     "bun-types": "latest",
     "eslint": "^8.57.1",
     "typescript": "^6.0.2"
+  },
+  "overrides": {
+    "adk-llm-bridge": "0.5.0"
   }
 }

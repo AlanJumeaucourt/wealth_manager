@@ -8,6 +8,7 @@ import { validateProposals, type Proposal } from "../proposals.js";
 import type { OpenAiToolDefinition } from "../openrouter.js";
 import type { ListToolContext } from "./listToolDispatcher.js";
 import { parseDateRangeOr400 } from "../../utils/query.js";
+import { clampAgentDateRangeEnd } from "../../utils/transactionsListDateBounds.js";
 
 export const SUPPLEMENTAL_OPENAI_TOOLS: OpenAiToolDefinition[] = [
   {
@@ -140,7 +141,10 @@ function parseDateRange(
       error: typeof parsed.error === "object" ? JSON.stringify(parsed.error) : String(parsed.error),
     };
   }
-  return { start: parsed.start_date, end: parsed.end_date };
+  return {
+    start: parsed.start_date,
+    end: clampAgentDateRangeEnd(parsed.end_date),
+  };
 }
 
 export async function executeSupplementalTool(

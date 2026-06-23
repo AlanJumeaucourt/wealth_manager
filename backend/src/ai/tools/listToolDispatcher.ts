@@ -1,5 +1,6 @@
 import { Value } from "@sinclair/typebox/value";
 import type { ListResponse } from "../../types/index.js";
+import { clampAgentTransactionListQuery } from "../../utils/transactionsListDateBounds.js";
 import type { ListToolName } from "./generated/listTools.types.js";
 import { LIST_TOOL_REGISTRY } from "./generated/listTools.registry.js";
 import { LIST_TOOL_SCHEMA_BY_EXPORT } from "./listToolSchemas.js";
@@ -35,7 +36,10 @@ export async function executeListTool(
     };
   }
 
-  const query = Value.Decode(schema, params) as Record<string, unknown>;
+  let query = Value.Decode(schema, params) as Record<string, unknown>;
+  if (toolName === "list_transactions") {
+    query = clampAgentTransactionListQuery(query);
+  }
   const handlerCtx: ListHandlerContext = {
     query,
     request: ctx.request,

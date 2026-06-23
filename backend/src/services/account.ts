@@ -128,16 +128,9 @@ export async function getAccountBalanceHistory(
         transactions.date as d,
         sum(
           case
-            when transactions.from_account_id = ${accountId}
-              and transactions.to_account_id = ${accountId}
-              and investment_details.investment_type is not null
-            then
-              case investment_details.investment_type
-                when 'Buy' then -cast(coalesce(investment_details.total_paid, transactions.amount, '0') as real)
-                when 'Sell' then cast(coalesce(nullif(transactions.to_amount, '0'), transactions.amount, '0') as real)
-                when 'Dividend' then cast(coalesce(nullif(transactions.to_amount, '0'), transactions.amount, '0') as real)
-                else 0
-              end
+            -- Same-account investment trades (buy/sell/dividend) are book-neutral here, matching
+            -- the account_balances view. Cash flows and P/L are tracked via transfers/income txs;
+            -- portfolio performance supplies holdings value for market layers on the wealth chart.
             when transactions.from_account_id = ${accountId} and transactions.to_account_id = ${accountId}
             then 0
             when transactions.type = 'income' and transactions.to_account_id = ${accountId}

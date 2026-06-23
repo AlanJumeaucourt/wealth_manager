@@ -4,7 +4,10 @@ FROM oven/bun:1
 WORKDIR /app
 
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile && test -d node_modules/@elysiajs/cors
+RUN bun install --frozen-lockfile \
+  && test -d node_modules/@elysiajs/cors \
+  && test "$(node -p "require('./node_modules/adk-llm-bridge/package.json').version")" = "0.5.0" \
+  && head -c 6 node_modules/adk-llm-bridge/dist/index.js | grep -q '^import'
 
 COPY . .
 
