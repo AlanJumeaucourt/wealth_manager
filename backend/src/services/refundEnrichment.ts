@@ -1,4 +1,6 @@
 import { db } from "../db/client.js";
+import { convertAmount } from "../utils/currencyConversion.js";
+import { getTransactionCurrencyEnrichment } from "./transactionCurrencyEnrichment.js";
 
 export interface RefundItemView {
   id: number;
@@ -53,18 +55,31 @@ export async function getRefundEnrichment(
       (refundRows as Array<{ income_transaction_id: number }>).map((r) => r.income_transaction_id),
     ),
   ];
-  const dateByTxId = new Map<number, string>();
-  if (incomeIds.length > 0) {
-    const txRows = await database
-      .selectFrom("transactions")
-      .select(["id", "date"])
-      .where("id", "in", incomeIds)
-      .where("user_id", "=", userId)
-      .execute();
-    for (const row of txRows as Array<{ id: number; date: string }>) {
-      dateByTxId.set(row.id, row.date);
-    }
-  }
+  const expenseIds = [
+    ...new Set(
+      (refundRows as Array<{ expense_transaction_id: number }>).map(
+        (r) => r.expense_transaction_id,
+      ),
+    ),
+  ];
+  const currencyTxIds = [...new Set([...incomeIds, ...expenseIds, ...transactionIds])];
+  const [dateByTxId, currencyByTxId] = await Promise.all([
+    (async () => {
+      const dates = new Map<number, string>();
+      if (incomeIds.length === 0) return dates;
+      const txRows = await database
+        .selectFrom("transactions")
+        .select(["id", "date"])
+        .where("id", "in", incomeIds)
+        .where("user_id", "=", userId)
+        .execute();
+      for (const row of txRows as Array<{ id: number; date: string }>) {
+        dates.set(row.id, row.date);
+      }
+      return dates;
+    })(),
+    getTransactionCurrencyEnrichment(currencyTxIds, userId),
+  ]);
 
   for (const r of refundRows as Array<{
     id: number;
@@ -75,20 +90,33 @@ export async function getRefundEnrichment(
     refund_group_id: number | null;
   }>) {
     const refundDate = dateByTxId.get(r.income_transaction_id) ?? null;
+    const itemAmount = Number(r.amount);
     const item: RefundItemView = {
       id: r.id,
-      amount: Number(r.amount),
+      amount: itemAmount,
       date: refundDate,
       description: r.description,
       refund_group_id: r.refund_group_id,
     };
-    for (const tid of [r.expense_transaction_id, r.income_transaction_id]) {
-      if (idSet.has(tid)) {
-        if (!map.has(tid)) map.set(tid, { refund_items: [], refunded_amount: 0 });
-        const ent = map.get(tid)!;
-        ent.refund_items.push(item);
-        ent.refunded_amount += Number(r.amount);
-      }
+    const incomeCurrency = currencyByTxId.get(r.income_transaction_id)?.currency ?? "EUR";
+    const expenseCurrency = currencyByTxId.get(r.expense_transaction_id)?.currency ?? "EUR";
+
+    if (idSet.has(r.expense_transaction_id)) {
+      const expenseId = r.expense_transaction_id;
+      if (!map.has(expenseId)) map.set(expenseId, { refund_items: [], refunded_amount: 0 });
+      const ent = map.get(expenseId)!;
+      ent.refund_items.push(item);
+      ent.refunded_amount =
+        Math.round(
+          (ent.refunded_amount + convertAmount(itemAmount, incomeCurrency, expenseCurrency)) * 100,
+        ) / 100;
+    }
+    if (idSet.has(r.income_transaction_id)) {
+      const incomeId = r.income_transaction_id;
+      if (!map.has(incomeId)) map.set(incomeId, { refund_items: [], refunded_amount: 0 });
+      const ent = map.get(incomeId)!;
+      ent.refund_items.push(item);
+      ent.refunded_amount = Math.round((ent.refunded_amount + itemAmount) * 100) / 100;
     }
   }
 

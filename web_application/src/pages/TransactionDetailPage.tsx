@@ -22,8 +22,10 @@ import { formatCurrency } from "@/utils/currency";
 import {
   formatSignedTransactionAmountDisplay,
   formatTransactionAmountDisplay,
-  netAmountAfterRefundsPreferred,
-  refundedAmountPreferred,
+  formatNetAfterRefundsDisplay,
+  formatRefundedAmountDisplay,
+  formatRefundItemAmountDisplay,
+  refundPercentOfTransaction,
   transactionOriginalCurrency,
 } from "@/utils/transactionDisplay";
 import { useNavigate, useRouter } from "@tanstack/react-router";
@@ -657,37 +659,25 @@ export function TransactionDetailPage() {
                   </p>
                   <p className={cn("text-3xl font-semibold tracking-tight", transactionColor)}>
                     {transaction.type === "transfer"
-                      ? formatCurrency(
-                          netAmountAfterRefundsPreferred(transaction),
-                          preferredCurrency,
-                        )
-                      : `${transaction.type === "expense" ? "-" : "+"}${formatCurrency(
-                          netAmountAfterRefundsPreferred(transaction),
-                          preferredCurrency,
-                        )}`}
+                      ? formatNetAfterRefundsDisplay(transaction, preferredCurrency)
+                      : formatNetAfterRefundsDisplay(transaction, preferredCurrency)}
                   </p>
 
                   <div className="flex items-center text-amber-600 mt-1 text-sm gap-1">
                     <RefreshCw className="h-3.5 w-3.5 mr-1" />
                     <span>
                       {transaction.type === "expense" ? "Refunded: " : "Used in refunds: "}
-                      {formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}
+                      {formatRefundedAmountDisplay(transaction, preferredCurrency)}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      (
-                      {Math.round(
-                        (transaction.refunded_amount / Math.abs(transaction.amount)) * 100,
-                      )}
-                      %)
+                      ({refundPercentOfTransaction(transaction)}%)
                     </span>
                   </div>
 
                   {transaction.type === "expense" && (
                     <div className="w-full mt-3">
                       <Progress
-                        value={Math.round(
-                          (transaction.refunded_amount / Math.abs(transaction.amount)) * 100,
-                        )}
+                        value={refundPercentOfTransaction(transaction)}
                         className="h-2"
                         indicatorClassName="bg-amber-500"
                       />
@@ -809,7 +799,7 @@ export function TransactionDetailPage() {
                     <div className="space-y-1">
                       <span className="text-sm text-muted-foreground">Total Refunded</span>
                       <p className="text-lg font-medium text-emerald-600">
-                        {formatCurrency(refundedAmountPreferred(transaction), preferredCurrency)}
+                        {formatRefundedAmountDisplay(transaction, preferredCurrency)}
                       </p>
                     </div>
                   </div>
@@ -818,35 +808,19 @@ export function TransactionDetailPage() {
                     <div className="flex mb-2 items-center justify-between">
                       <div>
                         <span className="text-xs font-semibold inline-block text-emerald-600">
-                          {Math.round(
-                            (refundItems.reduce((total, item) => total + item.amount, 0) /
-                              Math.abs(transaction.amount)) *
-                              100,
-                          )}
-                          % Refunded
+                          {refundPercentOfTransaction(transaction)}% Refunded
                         </span>
                       </div>
                       <div className="text-right">
                         <span className="text-xs font-semibold inline-block text-destructive">
-                          {formatCurrency(
-                            netAmountAfterRefundsPreferred(transaction),
-                            preferredCurrency,
-                          )}{" "}
-                          remaining
+                          {formatNetAfterRefundsDisplay(transaction, preferredCurrency)} remaining
                         </span>
                       </div>
                     </div>
                     <div className="overflow-hidden h-2 text-xs flex rounded bg-muted">
                       <div
                         style={{
-                          width: `${Math.min(
-                            100,
-                            Math.round(
-                              (refundItems.reduce((total, item) => total + item.amount, 0) /
-                                Math.abs(transaction.amount)) *
-                                100,
-                            ),
-                          )}%`,
+                          width: `${refundPercentOfTransaction(transaction)}%`,
                         }}
                         className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-emerald-500"
                       ></div>
@@ -899,10 +873,16 @@ export function TransactionDetailPage() {
                               )}
                             >
                               {transaction.type === "expense" ? "+" : "-"}
-                              {formatCurrency(
-                                Math.abs(item.amount),
-                                transactionOriginalCurrency(transaction),
-                              )}
+                              {linkedTransaction
+                                ? formatRefundItemAmountDisplay(
+                                    item.amount,
+                                    linkedTransaction,
+                                    preferredCurrency,
+                                  )
+                                : formatCurrency(
+                                    Math.abs(item.amount),
+                                    transactionOriginalCurrency(transaction),
+                                  )}
                             </p>
                           </div>
 

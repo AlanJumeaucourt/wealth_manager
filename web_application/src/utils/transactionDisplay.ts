@@ -92,6 +92,41 @@ export function formatRefundedAmountDisplay(t: Transaction, userPreferred: strin
  * single-currency expenses; dual-currency uses `formatDualCurrency` magnitudes, no extra prefix).
  * Avoids mixing Unicode − with Intl’s minus so strikethrough vs net lines match.
  */
+/** Refund allocation amount in preferred currency, scaled from the linked income transaction. */
+export function refundItemAmountPreferred(itemAmount: number, linkedIncome: Transaction): number {
+  const incomeNative = transactionNativeAmountAbs(linkedIncome);
+  const incomePreferred = amountPreferredOrFallback(linkedIncome);
+  if (incomeNative === 0) return incomePreferred;
+  return Math.round((Math.abs(itemAmount) / incomeNative) * incomePreferred * 100) / 100;
+}
+
+/**
+ * Single refund allocation: income native currency primary; preferred in parentheses when different.
+ */
+export function formatRefundItemAmountDisplay(
+  itemAmount: number,
+  linkedIncome: Transaction,
+  userPreferred: string,
+): string {
+  const pref = userPreferred.toUpperCase();
+  const incomeCurr = transactionOriginalCurrency(linkedIncome) || pref;
+  const nativeAbs = Math.abs(itemAmount);
+  const preferredAmount = refundItemAmountPreferred(itemAmount, linkedIncome);
+
+  if (incomeCurr !== pref) {
+    return formatDualCurrency(preferredAmount, pref, nativeAbs, incomeCurr);
+  }
+  return formatCurrency(nativeAbs, incomeCurr);
+}
+
+/** Refunded share of the transaction (native units), capped at 100%. */
+export function refundPercentOfTransaction(t: Transaction): number {
+  const original = Math.abs(transactionNativeAmountAbs(t));
+  if (original === 0) return 0;
+  const refunded = Math.abs(Number(t.refunded_amount ?? 0));
+  return Math.min(100, Math.round((refunded / original) * 100));
+}
+
 export function formatNetAfterRefundsDisplay(t: Transaction, userPreferred: string): string {
   const pref = userPreferred.toUpperCase();
   const orig = transactionOriginalCurrency(t) || pref;
