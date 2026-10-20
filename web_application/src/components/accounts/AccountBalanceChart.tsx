@@ -27,6 +27,7 @@ import {
 
 interface Props {
   currentBalance: number;
+  currency?: string;
   balanceHistory?: Array<{
     date: string;
     value: number;
@@ -66,20 +67,30 @@ function getMainAxisFormatter(timeRange: string) {
   }
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  currency,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload?: Record<string, number> }>;
+  label?: string;
+  currency: string;
+}) {
   if (!active || !payload?.length) return null;
 
   const data = payload[0]?.payload;
   if (!data) return null;
 
-  const balance = data.balance;
-  const investmentGain = data.investment_gain_value;
-  const totalValue = data.total_value;
+  const balance = data.balance ?? 0;
+  const investmentGain = data.investment_gain_value ?? 0;
+  const totalValue = data.total_value ?? 0;
 
   return (
     <div className="rounded-lg border bg-background p-3 shadow-sm">
       <div className="text-xs text-muted-foreground mb-2">
-        {new Date(label).toLocaleDateString(undefined, {
+        {new Date(label ?? "").toLocaleDateString(undefined, {
           month: "long",
           day: "numeric",
           year: "numeric",
@@ -91,7 +102,7 @@ function CustomTooltip({ active, payload, label }: any) {
           <span className="text-blue-600">
             {new Intl.NumberFormat(undefined, {
               style: "currency",
-              currency: "EUR",
+              currency,
             }).format(totalValue)}
           </span>
         </div>
@@ -100,7 +111,7 @@ function CustomTooltip({ active, payload, label }: any) {
           <span className="text-blue-500">
             {new Intl.NumberFormat(undefined, {
               style: "currency",
-              currency: "EUR",
+              currency,
             }).format(balance)}
           </span>
         </div>
@@ -111,7 +122,7 @@ function CustomTooltip({ active, payload, label }: any) {
               {investmentGain >= 0 ? "+" : ""}
               {new Intl.NumberFormat(undefined, {
                 style: "currency",
-                currency: "EUR",
+                currency,
               }).format(investmentGain)}
             </span>
           </div>
@@ -191,7 +202,8 @@ function fillDailyPoints(points: HistoryPoint[]): HistoryPoint[] {
   return result;
 }
 
-export function AccountBalanceChart({ currentBalance, balanceHistory }: Props) {
+export function AccountBalanceChart({ currentBalance, balanceHistory, currency = "EUR" }: Props) {
+  const displayCurrency = currency || "EUR";
   const [timeRange, setTimeRange] = React.useState("3m");
 
   // Memoize all data transformations
@@ -323,7 +335,7 @@ export function AccountBalanceChart({ currentBalance, balanceHistory }: Props) {
               Balance:{" "}
               {new Intl.NumberFormat(undefined, {
                 style: "currency",
-                currency: "EUR",
+                currency: displayCurrency,
               }).format(currentBalance)}
               {" · "}
               Change:{" "}
@@ -331,7 +343,7 @@ export function AccountBalanceChart({ currentBalance, balanceHistory }: Props) {
                 {valueChange >= 0 ? "+" : ""}
                 {new Intl.NumberFormat(undefined, {
                   style: "currency",
-                  currency: "EUR",
+                  currency: displayCurrency,
                 }).format(valueChange)}
               </span>
             </div>
@@ -344,7 +356,7 @@ export function AccountBalanceChart({ currentBalance, balanceHistory }: Props) {
                   {currentInvestmentGain >= 0 ? "+" : ""}
                   {new Intl.NumberFormat(undefined, {
                     style: "currency",
-                    currency: "EUR",
+                    currency: displayCurrency,
                   }).format(currentInvestmentGain)}
                 </span>
                 {" · "}
@@ -353,7 +365,7 @@ export function AccountBalanceChart({ currentBalance, balanceHistory }: Props) {
                   {investmentGainChange >= 0 ? "+" : ""}
                   {new Intl.NumberFormat(undefined, {
                     style: "currency",
-                    currency: "EUR",
+                    currency: displayCurrency,
                   }).format(investmentGainChange)}
                 </span>
               </div>
@@ -417,7 +429,7 @@ export function AccountBalanceChart({ currentBalance, balanceHistory }: Props) {
                 tickFormatter={(value) =>
                   new Intl.NumberFormat(undefined, {
                     style: "currency",
-                    currency: "EUR",
+                    currency: displayCurrency,
                     notation: "compact",
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 1,
@@ -452,7 +464,10 @@ export function AccountBalanceChart({ currentBalance, balanceHistory }: Props) {
                 fill="url(#fillInvestmentGain)"
                 strokeWidth={2}
               />
-              <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: "none" }} />
+              <Tooltip
+                content={(props) => <CustomTooltip {...props} currency={displayCurrency} />}
+                wrapperStyle={{ outline: "none" }}
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>

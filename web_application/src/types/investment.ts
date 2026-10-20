@@ -12,6 +12,12 @@ export interface Investment extends Omit<
   total_paid?: number;
   unit_price: number;
   user_id: number;
+  currency?: string;
+  preferred_currency?: string;
+  unit_price_preferred?: number;
+  fee_preferred?: number;
+  tax_preferred?: number;
+  total_paid_preferred?: number | null;
 
   // Sell-only: related accounting entries created by backend
   pl_transaction_id?: number | null;

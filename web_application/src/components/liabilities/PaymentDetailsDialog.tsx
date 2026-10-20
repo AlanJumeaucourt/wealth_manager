@@ -77,6 +77,8 @@ export function PaymentDetailsDialog({ isOpen, onClose, payment }: PaymentDetail
     return null;
   }
 
+  const curr = liabilityData?.currency || "EUR";
+
   const handleViewTransaction = () => {
     if (payment.transaction_id) {
       // Navigate to transaction detail page
@@ -113,21 +115,21 @@ export function PaymentDetailsDialog({ isOpen, onClose, payment }: PaymentDetail
           <div className="grid grid-cols-3 gap-4">
             <div>
               <h3 className="text-sm font-medium text-muted-foreground">Principal</h3>
-              <p className="text-base">{formatCurrency(payment.principal_amount)}</p>
+              <p className="text-base">{formatCurrency(payment.principal_amount, curr)}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-muted-foreground">Interest</h3>
-              <p className="text-base">{formatCurrency(payment.interest_amount)}</p>
+              <p className="text-base">{formatCurrency(payment.interest_amount, curr)}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-muted-foreground">Extra</h3>
-              <p className="text-base">{formatCurrency(payment.extra_payment || 0)}</p>
+              <p className="text-base">{formatCurrency(payment.extra_payment || 0, curr)}</p>
             </div>
           </div>
 
           <div>
             <h3 className="text-sm font-medium text-muted-foreground">Total Amount</h3>
-            <p className="text-xl font-semibold">{formatCurrency(payment.amount)}</p>
+            <p className="text-xl font-semibold">{formatCurrency(payment.amount, curr)}</p>
           </div>
 
           {payment.transaction_id && transactionData?.items && transactionData.items.length > 0 && (
@@ -141,7 +143,9 @@ export function PaymentDetailsDialog({ isOpen, onClose, payment }: PaymentDetail
                       {format(parseISO(transactionData.items[0].date), "MMMM d, yyyy")}
                     </p>
                   </div>
-                  <p className="font-semibold">{formatCurrency(transactionData.items[0].amount)}</p>
+                  <p className="font-semibold">
+                    {formatCurrency(transactionData.items[0].amount, curr)}
+                  </p>
                 </div>
 
                 <div className="flex items-center text-sm text-muted-foreground mt-2">

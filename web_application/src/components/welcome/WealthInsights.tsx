@@ -2,7 +2,9 @@ import { useTransactions } from "@/api/queries";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { Account } from "@/types";
+import { formatCurrency as formatCurrencyAmount } from "@/utils/currency";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -29,6 +31,8 @@ export function WealthInsights({
 }: WealthInsightsProps) {
   // todo: remove this once we have a way to treat loans in backend
   const accountsb = accounts.filter((account) => !account.name.includes("Prêt"));
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || "EUR";
   // Fetch expense transactions from the last 3 months to calculate average monthly expenses
   const today = new Date();
   const threeMonthsAgo = new Date();
@@ -47,15 +51,10 @@ export function WealthInsights({
 
   const insights = useMemo(() => {
     const insights = [];
-    const totalBalance = accountsb.reduce((sum, account) => sum + account.balance, 0) || 0;
+    const accountBalance = (a: Account) => a.balance_preferred ?? a.balance;
+    const totalBalance = accountsb.reduce((sum, account) => sum + accountBalance(account), 0) || 0;
 
-    // Format currency values
-    const formatCurrency = (amount: number) => {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "EUR",
-      }).format(Math.abs(amount));
-    };
+    const formatCurrency = (amount: number) => formatCurrencyAmount(Math.abs(amount), curr);
 
     // Calculate monthly growth rate
     let monthlyGrowthRate = 0;
@@ -71,7 +70,7 @@ export function WealthInsights({
     const savingsAccounts = accountsb.filter(
       (a) => a.type === "savings" || a.type === "investment",
     );
-    const savingsBalance = savingsAccounts.reduce((sum, a) => sum + a.balance, 0) || 0;
+    const savingsBalance = savingsAccounts.reduce((sum, a) => sum + accountBalance(a), 0) || 0;
 
     const savingsRate = totalBalance > 0 ? savingsBalance / totalBalance : 0;
 
@@ -81,10 +80,11 @@ export function WealthInsights({
     if (transactionsResponse?.items && transactionsResponse.items.length > 0) {
       const expenseTransactions = transactionsResponse.items;
 
-      // Calculate net expenses (expenses minus refunded amounts)
+      // Calculate net expenses (expenses minus refunded amounts) in preferred currency
       const totalExpenses = expenseTransactions.reduce((sum, transaction) => {
-        // Include the transaction amount minus any refunded amount
-        return sum + (transaction.amount - (transaction.refunded_amount || 0));
+        const amount = transaction.amount_preferred ?? transaction.amount;
+        const refunded = transaction.refunded_amount_preferred ?? transaction.refunded_amount ?? 0;
+        return sum + (amount - refunded);
       }, 0);
 
       // Calculate number of months in the date range (at least 1 to avoid division by zero)
@@ -102,7 +102,9 @@ export function WealthInsights({
     // Emergency fund check (typically 3-6 months of expenses)
     const emergencyFundTarget = estimatedMonthlyExpenses * 6;
     const savingsBalanceMinusInvestments =
-      accountsb.filter((a) => a.type === "savings").reduce((sum, a) => sum + a.balance, 0) || 0;
+      accountsb
+        .filter((a) => a.type === "savings")
+        .reduce((sum, a) => sum + accountBalance(a), 0) || 0;
 
     const emergencyFundRatio = savingsBalanceMinusInvestments / emergencyFundTarget;
     // console.log("savingsBalanceMinusInvestments", savingsBalanceMinusInvestments)
@@ -199,7 +201,7 @@ export function WealthInsights({
     }
 
     return insights.slice(0, 3);
-  }, [wealthData, accountsb, transactionsResponse, fromDate, toDate]);
+  }, [wealthData, accountsb, transactionsResponse, fromDate, toDate, curr]);
 
   const getTypeStyles = (type: string) => {
     switch (type) {

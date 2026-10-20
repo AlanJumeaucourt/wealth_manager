@@ -1,6 +1,8 @@
 import { db } from "../db/client.js";
+import { getExchangeRatesInRange } from "../utils/currency.js";
 import { round2, round4 } from "../utils/money.js";
 import * as market from "./market.js";
+import { getUserPreferredCurrency } from "./user.js";
 
 export interface PerformanceDataPoint {
   date: string;
@@ -123,6 +125,8 @@ export async function getPortfolioPerformance(
     return { data_points: [] };
   }
 
+  const preferred = await getUserPreferredCurrency(userId);
+
   // Date range from first tx to "now"
   const firstDateStr = String(txRows[0]!.date).slice(0, 10);
   const startDate = new Date(firstDateStr);
@@ -131,19 +135,91 @@ export async function getPortfolioPerformance(
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
     allDates.push(d.toISOString().slice(0, 10));
   }
+  const todayKey = endDate.toISOString().slice(0, 10);
+
+  // Account currencies for cash-leg FX into preferred
+  const accountIds = new Set<number>();
+  for (const tx of txRows) {
+    accountIds.add(Number(tx.from_account_id));
+    accountIds.add(Number(tx.to_account_id));
+  }
+  const accountCurrency = new Map<number, string>();
+  if (accountIds.size > 0) {
+    const accountRows = await database
+      .selectFrom("accounts")
+      .select(["id", "currency"])
+      .where("id", "in", [...accountIds])
+      .execute();
+    for (const a of accountRows) {
+      accountCurrency.set(Number(a.id), String(a.currency ?? preferred).toUpperCase());
+    }
+  }
+
+  const cashCurrencyForTx = (tx: TxRow): string => {
+    const t = String(tx.investment_type ?? "").toLowerCase();
+    if (t === "buy" || t === "deposit") {
+      return accountCurrency.get(Number(tx.from_account_id)) ?? preferred;
+    }
+    return (
+      accountCurrency.get(Number(tx.to_account_id)) ??
+      accountCurrency.get(Number(tx.from_account_id)) ??
+      preferred
+    );
+  };
+
+  const cashCurrencies = [...new Set(txRows.map((tx) => cashCurrencyForTx(tx)))];
+  const cashRatesByCurrency: Record<string, Record<string, number>> = {};
+  await Promise.all(
+    cashCurrencies.map(async (c) => {
+      cashRatesByCurrency[c] = await getExchangeRatesInRange(c, preferred, firstDateStr, todayKey);
+    }),
+  );
+
+  const rateOnDate = (rates: Record<string, number>, dateStr: string): number => {
+    if (rates[dateStr] != null) return rates[dateStr]!;
+    const keys = Object.keys(rates).sort();
+    let last = 1;
+    for (const k of keys) {
+      if (k > dateStr) break;
+      last = rates[k] ?? last;
+    }
+    return last;
+  };
+
+  const toPreferredCash = (amount: number, tx: TxRow, dateStr: string): number => {
+    const from = cashCurrencyForTx(tx);
+    if (from === preferred) return amount;
+    return amount * rateOnDate(cashRatesByCurrency[from] ?? {}, dateStr);
+  };
 
   // Pre-fetch historical prices (via Yahoo) and enrich with transaction prices as fallback.
   const uniqueSymbols = [...new Set<string>(txRows.map((r) => r.symbol))];
-  const todayKey = endDate.toISOString().slice(0, 10);
-  const livePriceResults = await Promise.all(
-    uniqueSymbols.map((symbol) => market.getCurrentPrice(symbol)),
-  );
+  const quoteResults = await Promise.all(uniqueSymbols.map((symbol) => market.getQuote(symbol)));
   const livePrices: Record<string, number> = {};
+  const quoteCurrencyBySymbol: Record<string, string> = {};
   for (let i = 0; i < uniqueSymbols.length; i++) {
     const symbol = uniqueSymbols[i];
-    const price = livePriceResults[i];
-    if (symbol && price != null && price > 0) livePrices[symbol] = price;
+    const quote = quoteResults[i];
+    if (!symbol) continue;
+    quoteCurrencyBySymbol[symbol] = (quote?.currency ?? preferred).toUpperCase();
+    if (quote?.current_price != null && quote.current_price > 0) {
+      livePrices[symbol] = quote.current_price;
+    }
   }
+
+  const quoteCurrencies = [...new Set(Object.values(quoteCurrencyBySymbol))];
+  const quoteRatesByCurrency: Record<string, Record<string, number>> = {};
+  await Promise.all(
+    quoteCurrencies.map(async (c) => {
+      quoteRatesByCurrency[c] = await getExchangeRatesInRange(c, preferred, firstDateStr, todayKey);
+    }),
+  );
+
+  const toPreferredPrice = (price: number, symbol: string, dateStr: string): number => {
+    const from = quoteCurrencyBySymbol[symbol] ?? preferred;
+    if (from === preferred) return price;
+    return price * rateOnDate(quoteRatesByCurrency[from] ?? {}, dateStr);
+  };
 
   const historicalPrices: Record<string, Record<string, number>> = {};
   const histResults = await Promise.all(
@@ -222,9 +298,11 @@ export async function getPortfolioPerformance(
     const quantity = Number(tx.quantity ?? 0);
     const unitPrice = Number(tx.unit_price ?? 0);
     const invType = String(tx.investment_type ?? "").toLowerCase();
-    const totalPaid = tx.total_paid != null ? Number(tx.total_paid) : quantity * unitPrice;
-    const fee = Number(tx.fee ?? 0);
-    const tax = Number(tx.tax ?? 0);
+    const nativePaid = tx.total_paid != null ? Number(tx.total_paid) : quantity * unitPrice;
+    const totalPaid = toPreferredCash(nativePaid, tx, txDateStr);
+    const fee = toPreferredCash(Number(tx.fee ?? 0), tx, txDateStr);
+    const tax = toPreferredCash(Number(tx.tax ?? 0), tx, txDateStr);
+    const unitPricePref = toPreferredPrice(unitPrice, symbol, txDateStr);
 
     if (!(symbol in ownedAssets)) ownedAssets[symbol] = 0;
 
@@ -237,7 +315,7 @@ export async function getPortfolioPerformance(
       const basisBefore = costBasisBySymbol[symbol] ?? 0;
       const avgCost = heldBefore > 1e-9 ? basisBefore / heldBefore : 0;
       const soldBasis = avgCost * quantity;
-      const proceeds = quantity * unitPrice - fee - tax;
+      const proceeds = quantity * unitPricePref - fee - tax;
       ownedAssets[symbol] = heldBefore - quantity;
       costBasisBySymbol[symbol] = Math.max(0, basisBefore - soldBasis);
       totalWithdrawals += proceeds;
@@ -359,11 +437,12 @@ export async function getPortfolioPerformance(
         price = 0;
       }
 
-      const value = shares * price;
+      const pricePref = toPreferredPrice(price, symbol, dateStr);
+      const value = shares * pricePref;
       totalValue += value;
       assetsData[symbol] = {
         shares: round4(shares),
-        price: round4(price),
+        price: round4(pricePref),
         total_value: round2(value),
       };
     }

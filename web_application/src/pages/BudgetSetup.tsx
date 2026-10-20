@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import type { Budget, PeriodSummaryData } from "@/types/budget";
 import type { CategoryMetadata } from "@/types/category";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { formatCurrency } from "@/utils/currency";
 import { CheckIcon, SaveIcon, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -105,6 +106,8 @@ export default function BudgetSetupPage() {
   const [drafts, setDrafts] = useState<Record<string, BudgetDraft>>({});
   const [phaseByCategory, setPhaseByCategory] = useState<Record<string, PhaseDraft>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || "EUR";
 
   const { data: allCategories, isLoading: loadingCategories } = useAllCategories();
   const {
@@ -445,7 +448,7 @@ export default function BudgetSetupPage() {
           <CardContent className="pt-6 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm text-muted-foreground">Total planned for selected range</p>
-              <p className="text-2xl font-semibold">{formatCurrency(totalPlanned)}</p>
+              <p className="text-2xl font-semibold">{formatCurrency(totalPlanned, curr)}</p>
               {firstUnbudgetedMonth && (
                 <p className="text-xs text-amber-600 mt-1">
                   First month with missing budgets: {monthLabel(firstUnbudgetedMonth)}
@@ -599,7 +602,9 @@ export default function BudgetSetupPage() {
                                   <p className="text-[11px] uppercase text-muted-foreground">
                                     Actual
                                   </p>
-                                  <p className="text-sm font-medium">{formatCurrency(spent)}</p>
+                                  <p className="text-sm font-medium">
+                                    {formatCurrency(spent, curr)}
+                                  </p>
                                 </div>
                                 <div>
                                   <p className="text-[11px] uppercase text-muted-foreground">

@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { Account } from "@/types";
+import { formatCurrency as formatCurrencyAmount } from "@/utils/currency";
 import { Home, Plane, Target, Umbrella } from "lucide-react";
 import { useMemo } from "react";
 
@@ -21,11 +23,14 @@ interface FinancialGoalsProps {
 }
 
 export function FinancialGoals({ accounts, onAccountClick, isLoading }: FinancialGoalsProps) {
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || "EUR";
+
   // Calculate savings amount
   const savingsTotal = useMemo(() => {
     return accounts
       .filter((account) => account.type === "savings")
-      .reduce((sum, account) => sum + account.balance, 0);
+      .reduce((sum, account) => sum + (account.balance_preferred ?? account.balance), 0);
   }, [accounts]);
 
   // Example goals (in a real app, these would come from a database)
@@ -56,13 +61,7 @@ export function FinancialGoals({ accounts, onAccountClick, isLoading }: Financia
     },
   ];
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: "EUR",
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) => formatCurrencyAmount(amount, curr);
 
   // Get first account by type for navigation
   const getFirstAccountByType = (type: string) => {

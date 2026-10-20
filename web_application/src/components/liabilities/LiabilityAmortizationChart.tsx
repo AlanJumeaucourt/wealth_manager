@@ -18,19 +18,21 @@ import { NameType, ValueType } from "recharts/types/component/DefaultTooltipCont
 
 interface LiabilityAmortizationChartProps {
   schedule: AmortizationScheduleItem[];
+  currency?: string;
   title?: string;
   description?: string;
 }
 
 export function LiabilityAmortizationChart({
   schedule,
+  currency = "EUR",
   title = "Amortization Schedule",
   description = "Breakdown of principal and interest payments over time",
 }: LiabilityAmortizationChartProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
-      currency: "EUR",
+      currency,
       notation: "compact",
       maximumFractionDigits: 1,
     }).format(value);

@@ -210,7 +210,10 @@ export function AccountDetailPage() {
 
   const isLoading = isLoadingAccounts || isLoadingBalanceHistory;
   const typeColors = TYPE_COLORS[account?.type ?? "checking"] ?? TYPE_COLORS.checking;
-  const currency = account?.currency ?? preferredCurrency;
+  const accountCurrency = account?.currency ?? preferredCurrency;
+  /** Portfolio summary amounts are already in preferred currency. */
+  const portfolioCurrency = portfolioSummary?.currency || preferredCurrency || "EUR";
+  const currency = isInvestment ? portfolioCurrency : accountCurrency;
 
   if (isLoading) {
     return (
@@ -688,7 +691,11 @@ export function AccountDetailPage() {
         )}
 
         {/* Balance Chart */}
-        <AccountBalanceChart currentBalance={account.balance} balanceHistory={balanceHistory} />
+        <AccountBalanceChart
+          currentBalance={account.balance}
+          balanceHistory={balanceHistory}
+          currency={accountCurrency}
+        />
 
         {/* Recent Transactions */}
         <Card className="overflow-hidden">

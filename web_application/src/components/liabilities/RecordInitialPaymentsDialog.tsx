@@ -308,7 +308,10 @@ export function RecordInitialPaymentsDialog({
                       <TableCell>{format(new Date(transaction.date), "yyyy-MM-dd")}</TableCell>
                       <TableCell>{transaction.description}</TableCell>
                       <TableCell className="text-right">
-                        {formatCurrency(transaction.amount)}
+                        {formatCurrency(
+                          transaction.amount,
+                          liability.currency || transaction.currency || "EUR",
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -415,7 +418,11 @@ export function RecordInitialPaymentsDialog({
             <p className="text-sm text-muted-foreground">
               Linked to transaction: &apos;{selectedTransaction.description}
               &apos; on {format(new Date(selectedTransaction.date), "yyyy-MM-dd")} for{" "}
-              {formatCurrency(selectedTransaction.amount)}.
+              {formatCurrency(
+                selectedTransaction.amount,
+                liability.currency || selectedTransaction.currency || "EUR",
+              )}
+              .
             </p>
           )}
 

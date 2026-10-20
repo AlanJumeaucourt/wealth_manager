@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDebounce } from "@/hooks/use-debounce";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -118,6 +119,7 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
   getAccountName,
   getAssetSymbol,
   navigate,
+  displayCurrency,
 }: {
   investment: Investment;
   selectedInvestments: number[];
@@ -127,6 +129,7 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
   getAccountName: (id?: number) => string;
   getAssetSymbol: (id?: number) => string;
   navigate: (params: any) => void;
+  displayCurrency: string;
 }) {
   const formattedDate = useMemo(() => {
     const date = new Date(investment.date);
@@ -136,33 +139,32 @@ const InvestmentTableRow = memo(function InvestmentTableRow({
     };
   }, [investment.date]);
 
+  const unitPrice = investment.unit_price_preferred ?? investment.unit_price;
+  const fee = investment.fee_preferred ?? investment.fee;
+  const tax = investment.tax_preferred ?? investment.tax;
+  const totalPaid = investment.total_paid_preferred ?? investment.total_paid ?? 0;
+
   const formattedValues = useMemo(
     () => ({
       quantity: investment.quantity.toLocaleString(),
       unitPrice: new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: "EUR",
-      }).format(investment.unit_price),
+        currency: displayCurrency,
+      }).format(unitPrice),
       fee: new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: "EUR",
-      }).format(investment.fee),
+        currency: displayCurrency,
+      }).format(fee),
       tax: new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: "EUR",
-      }).format(investment.tax),
+        currency: displayCurrency,
+      }).format(tax),
       total: new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: "EUR",
-      }).format(investment.total_paid || 0),
+        currency: displayCurrency,
+      }).format(totalPaid),
     }),
-    [
-      investment.quantity,
-      investment.unit_price,
-      investment.fee,
-      investment.tax,
-      investment.total_paid,
-    ],
+    [investment.quantity, unitPrice, fee, tax, totalPaid, displayCurrency],
   );
 
   const fromAccountName = getAccountName(investment.from_account_id);
@@ -348,6 +350,7 @@ const MobileInvestmentCard = memo(function MobileInvestmentCard({
   getAccountName,
   getAssetSymbol,
   navigate,
+  displayCurrency,
 }: {
   investment: Investment;
   isSelected: boolean;
@@ -357,16 +360,21 @@ const MobileInvestmentCard = memo(function MobileInvestmentCard({
   getAccountName: (id?: number) => string;
   getAssetSymbol: (id?: number) => string;
   navigate: (params: any) => void;
+  displayCurrency: string;
 }) {
   const formattedDate = new Date(investment.date).toLocaleDateString();
   const formattedTime = new Date(investment.date).toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   });
+  const unitPrice = investment.unit_price_preferred ?? investment.unit_price;
+  const feeAmt = investment.fee_preferred ?? investment.fee;
+  const taxAmt = investment.tax_preferred ?? investment.tax;
+  const totalPaid = investment.total_paid_preferred ?? investment.total_paid ?? 0;
   const totalFormatted = new Intl.NumberFormat(undefined, {
     style: "currency",
-    currency: "EUR",
-  }).format(investment.total_paid || 0);
+    currency: displayCurrency,
+  }).format(totalPaid);
   const isInflow =
     investment.investment_type === "Buy" ||
     investment.investment_type === "Deposit" ||
@@ -436,8 +444,8 @@ const MobileInvestmentCard = memo(function MobileInvestmentCard({
               Qty: {investment.quantity.toLocaleString()} @{" "}
               {new Intl.NumberFormat(undefined, {
                 style: "currency",
-                currency: "EUR",
-              }).format(investment.unit_price)}
+                currency: displayCurrency,
+              }).format(unitPrice)}
             </span>
             {investment.from_account_id && (
               <span>From: {getAccountName(investment.from_account_id)}</span>
@@ -447,8 +455,8 @@ const MobileInvestmentCard = memo(function MobileInvestmentCard({
                 Fee:{" "}
                 {new Intl.NumberFormat(undefined, {
                   style: "currency",
-                  currency: "EUR",
-                }).format(investment.fee)}
+                  currency: displayCurrency,
+                }).format(feeAmt)}
               </span>
             )}
             {investment.to_account_id && (
@@ -459,8 +467,8 @@ const MobileInvestmentCard = memo(function MobileInvestmentCard({
                 Tax:{" "}
                 {new Intl.NumberFormat(undefined, {
                   style: "currency",
-                  currency: "EUR",
-                }).format(investment.tax)}
+                  currency: displayCurrency,
+                }).format(taxAmt)}
               </span>
             )}
           </div>
@@ -491,6 +499,8 @@ const MobileInvestmentCard = memo(function MobileInvestmentCard({
 });
 
 export function InvestmentsTransactionPage() {
+  const { preferredCurrency } = usePreferredCurrency();
+  const displayCurrency = preferredCurrency || "EUR";
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -670,12 +680,12 @@ export function InvestmentsTransactionPage() {
       inv.investment_type === "Deposit" ||
       inv.investment_type === "Dividend"
     ) {
-      return sum + (inv.total_paid || 0);
+      return sum + (inv.total_paid_preferred ?? inv.total_paid ?? 0);
     }
     return sum;
   }, 0);
-  const totalFees = investments.reduce((sum, inv) => sum + inv.fee, 0);
-  const totalTax = investments.reduce((sum, inv) => sum + inv.tax, 0);
+  const totalFees = investments.reduce((sum, inv) => sum + (inv.fee_preferred ?? inv.fee), 0);
+  const totalTax = investments.reduce((sum, inv) => sum + (inv.tax_preferred ?? inv.tax), 0);
 
   const filteredInvestments = investments.filter((investment) => {
     if (investmentTypeFilter === "all" && assetFilter === "all") return true;
@@ -699,7 +709,7 @@ export function InvestmentsTransactionPage() {
       value: totalInvested,
       valueFormatted: new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: "EUR",
+        currency: displayCurrency,
       }).format(totalInvested),
       icon: <TrendingUp className="h-4 w-4 text-green-500" />,
     },
@@ -708,7 +718,7 @@ export function InvestmentsTransactionPage() {
       value: totalFees,
       valueFormatted: new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: "EUR",
+        currency: displayCurrency,
       }).format(totalFees),
       icon: <ArrowDownIcon className="h-4 w-4 text-orange-500" />,
     },
@@ -717,7 +727,7 @@ export function InvestmentsTransactionPage() {
       value: totalTax,
       valueFormatted: new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: "EUR",
+        currency: displayCurrency,
       }).format(totalTax),
       icon: <ArrowUpIcon className="h-4 w-4 text-red-500" />,
     },
@@ -977,6 +987,7 @@ export function InvestmentsTransactionPage() {
                       getAccountName={getAccountName}
                       getAssetSymbol={getAssetSymbol}
                       navigate={navigate}
+                      displayCurrency={displayCurrency}
                     />
                   ))
                 )}
@@ -1025,6 +1036,7 @@ export function InvestmentsTransactionPage() {
                   getAccountName={getAccountName}
                   getAssetSymbol={getAssetSymbol}
                   navigate={navigate}
+                  displayCurrency={displayCurrency}
                 />
               ))}
             </>
