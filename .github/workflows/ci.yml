@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.33"
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+        working-directory: frontend
+      - name: Format, lint, typecheck
+        run: bunx vp check
+      - name: Backend unit tests
+        run: bun test
+        working-directory: backend
+        env:
+          NODE_ENV: test
+      - name: Web ApiError unit tests
+        run: bun test src/api/edenUnwrap.test.ts
+        working-directory: web_application
+        env:
+          NODE_ENV: test
