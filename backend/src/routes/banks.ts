@@ -8,6 +8,8 @@ import {
   tCreateBankSchema,
   tIdParamSchema,
   tBanksListQuerySchema,
+  tCrudErrorResponses,
+  tErrorResponse,
   tListResponseSchema,
   tUpdateBankSchema,
 } from "../schemas/typebox.js";
@@ -108,6 +110,8 @@ export const banksRoutes = new Elysia({ prefix: BANKS_PREFIX, tags: [...BANKS_TA
       },
       response: {
         200: tListResponseSchema(tBankResponse),
+        400: tErrorResponse,
+        401: tErrorResponse,
       },
     },
   )
@@ -129,6 +133,7 @@ export const banksRoutes = new Elysia({ prefix: BANKS_PREFIX, tags: [...BANKS_TA
       },
       response: {
         200: tBankResponse,
+        ...tCrudErrorResponses,
       },
     },
   )

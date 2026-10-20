@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDebounce } from "@/hooks/useDebounce";
+import { useDebounce } from "@/hooks/use-debounce";
 import { AmortizationScheduleItem, Liability, LiabilityPayment } from "@/types";
 import { formZodResolver } from "@/lib/formZodResolver";
 import { format } from "date-fns";

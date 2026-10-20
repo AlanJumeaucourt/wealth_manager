@@ -6,7 +6,13 @@ export function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-export type AppErrorCode = "NOT_FOUND" | "VALIDATION" | "CONFLICT" | "UNAUTHORIZED" | "FORBIDDEN";
+export type AppErrorCode =
+  | "NOT_FOUND"
+  | "VALIDATION"
+  | "CONFLICT"
+  | "UNAUTHORIZED"
+  | "FORBIDDEN"
+  | "SERVICE_UNAVAILABLE";
 
 export class AppError extends Error {
   readonly status: number;
@@ -58,5 +64,12 @@ export class ForbiddenError extends AppError {
   constructor(message = "Forbidden", details?: unknown) {
     super(message, { status: 403, code: "FORBIDDEN", details });
     this.name = "ForbiddenError";
+  }
+}
+
+export class ServiceUnavailableError extends AppError {
+  constructor(message = "Service unavailable", details?: unknown) {
+    super(message, { status: 503, code: "SERVICE_UNAVAILABLE", details });
+    this.name = "ServiceUnavailableError";
   }
 }

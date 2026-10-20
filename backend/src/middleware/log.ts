@@ -20,12 +20,14 @@ export function logResponse({
   durationMs,
   reason,
   userId,
+  requestId,
 }: {
   request: Request;
   status: number;
   durationMs?: number;
   reason?: string | null;
   userId?: number | null;
+  requestId?: string | null;
 }): void {
   const url = new URL(request.url);
   if (LOG_JSON) {
@@ -36,6 +38,7 @@ export function logResponse({
       ...(durationMs != null && { duration_ms: durationMs }),
       ...(reason != null && reason !== "" && { reason }),
       ...(userId != null && { user_id: userId }),
+      ...(requestId != null && requestId !== "" && { request_id: requestId }),
     };
     const line = JSON.stringify(payload);
     if (status >= 500) console.error(line);
@@ -51,6 +54,7 @@ export function logResponse({
   ].filter(Boolean);
   if (reason != null && reason !== "") parts.push(`reason=${JSON.stringify(reason)}`);
   if (userId != null) parts.push(`user_id=${userId}`);
+  if (requestId != null && requestId !== "") parts.push(`request_id=${requestId}`);
   const line = parts.join(" ");
   if (status >= 500) {
     console.error(line);

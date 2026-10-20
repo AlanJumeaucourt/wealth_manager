@@ -1,4 +1,5 @@
 import { unwrapEden } from "@/api/edenUnwrap";
+import { QueryKeys } from "@/api/queryKeys";
 import { wealthApi } from "@/api/wealthApi";
 import { User } from "@/types/user";
 import { userStorage } from "@/utils/user-storage";
@@ -24,7 +25,7 @@ export function useUser() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["user"],
+    queryKey: QueryKeys.user,
     queryFn: fetchUser,
     initialData: storedUser,
     enabled: !!userStorage.getToken(),

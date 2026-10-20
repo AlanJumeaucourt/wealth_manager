@@ -128,6 +128,24 @@ export function tListQuerySchemaWithExtraKeys(extraKeys: readonly string[]) {
 
 export const tIdParamSchema = t.Object({ id: t.String() });
 
+/** Shared API error body (AppError + onError). Use on route `response` for 4xx. */
+export const tErrorResponse = t.Object({
+  error: t.String(),
+  code: t.Optional(t.String()),
+  details: t.Optional(t.Unknown()),
+  msg: t.Optional(t.String()),
+});
+
+/** Common authenticated CRUD error responses for OpenAPI / Eden. */
+export const tCrudErrorResponses = {
+  400: tErrorResponse,
+  401: tErrorResponse,
+  403: tErrorResponse,
+  404: tErrorResponse,
+  409: tErrorResponse,
+  422: tErrorResponse,
+};
+
 export function tListResponseSchema<T extends ReturnType<typeof t.Object>>(itemSchema: T) {
   return t.Object({
     items: t.Array(itemSchema),

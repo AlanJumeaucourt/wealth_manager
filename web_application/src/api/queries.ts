@@ -202,7 +202,8 @@ export function useWealthOverTime() {
 export function useWealthSummary() {
   return useCreateQuery<WealthSummary>({
     queryKey: QueryKeys.wealthSummary,
-    queryFn: () => fetchWithAuth<WealthSummary>("accounts/wealth/summary"),
+    queryFn: () =>
+      unwrapEden<WealthSummary>(wealthApi.accounts.wealth.summary.get() as Promise<unknown>),
   });
 }
 
@@ -325,7 +326,10 @@ export const useInvestments = createPaginatedQuery<Investment, InvestmentQueryPa
 // #endregion
 
 // #region RefundGroup Operations and Queries
-const refundGroupOperations = createCrudOperations<RefundGroup>({
+const refundGroupOperations = createCrudOperations<
+  RefundGroup,
+  Omit<RefundGroup, "id" | "user_id">
+>({
   resource: "refund_groups",
   queryKeysToInvalidate: ["refundGroups", "refundItems", "transactions", "potentialRefunds"],
 });

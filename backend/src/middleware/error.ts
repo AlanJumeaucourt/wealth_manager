@@ -3,14 +3,19 @@ import type { ErrorMessageRef } from "./log.js";
 import { AppError } from "../utils/error.js";
 
 export interface ErrorResponse {
-  error?: string;
+  error: string;
+  code?: string;
+  details?: unknown;
   errors?: Record<string, unknown>;
   msg?: string;
 }
 
 const GENERIC_OWNERSHIP_ERROR = "Invalid related record reference";
 
-/** Map error message substrings to HTTP status. First match wins. responseMessage overrides error message when set. */
+/**
+ * Temporary bridge for plain Error throws until all call sites use AppError.
+ * First match wins. Prefer AppError / Elysia codes over this map.
+ */
 const ERROR_STATUS_MAP: Array<{ status: number; patterns: string[]; responseMessage?: string }> = [
   { status: 401, patterns: ["Unauthorized", "jwt", "token"] },
   { status: 403, patterns: ["Forbidden", "cannot access"] },
@@ -26,13 +31,27 @@ const ERROR_STATUS_MAP: Array<{ status: number; patterns: string[]; responseMess
     responseMessage: GENERIC_OWNERSHIP_ERROR,
   },
   { status: 404, patterns: ["not found", "Not found"] },
-  { status: 400, patterns: ["Validation", "Invalid", "required"] },
-  { status: 422, patterns: ["Unsupported", "already exists"] },
+  { status: 409, patterns: ["already exists", "Conflict"] },
+  { status: 400, patterns: ["required"] },
 ];
 
 function requestLine(request: Request): string {
   const url = new URL(request.url);
   return `${request.method} ${url.pathname}`;
+}
+
+function elysiaErrorCode(error: Error): string | undefined {
+  if ("code" in error && typeof (error as { code: unknown }).code === "string") {
+    return (error as { code: string }).code;
+  }
+  return undefined;
+}
+
+function validationDetails(error: Error): unknown {
+  const e = error as Error & { all?: unknown; detail?: unknown };
+  if (e.all != null) return e.all;
+  if (e.detail != null) return e.detail;
+  return undefined;
 }
 
 export function errorHandler({
@@ -48,7 +67,6 @@ export function errorHandler({
 }) {
   const error = rawError instanceof Error ? rawError : new Error(String(rawError));
 
-  // Prefer explicit AppError instances when available.
   if (error instanceof AppError) {
     const message = error.message ?? "Internal server error";
     if (_errorRef) _errorRef.current = message;
@@ -58,7 +76,38 @@ export function errorHandler({
       error: message,
       code: error.code,
       ...(error.details !== undefined && { details: error.details }),
-    } as ErrorResponse & { code: string };
+    } satisfies ErrorResponse;
+  }
+
+  const elysiaCode = elysiaErrorCode(error);
+
+  if (elysiaCode === "VALIDATION") {
+    const message = error.message || "Validation failed";
+    if (_errorRef) _errorRef.current = message;
+    set.status = 422;
+    const details = validationDetails(error);
+    logErrorResponse(request, 422, message);
+    return {
+      error: message,
+      code: "VALIDATION",
+      ...(details !== undefined && { details }),
+    } satisfies ErrorResponse;
+  }
+
+  if (elysiaCode === "NOT_FOUND") {
+    const message = error.message || "Not found";
+    if (_errorRef) _errorRef.current = message;
+    set.status = 404;
+    logErrorResponse(request, 404, message);
+    return { error: message, code: "NOT_FOUND" } satisfies ErrorResponse;
+  }
+
+  if (elysiaCode === "PARSE" || elysiaCode === "INVALID_COOKIE_SIGNATURE") {
+    const message = error.message || "Bad request";
+    if (_errorRef) _errorRef.current = message;
+    set.status = 400;
+    logErrorResponse(request, 400, message);
+    return { error: message, code: "VALIDATION" } satisfies ErrorResponse;
   }
 
   const message = error.message ?? "Internal server error";
@@ -70,9 +119,19 @@ export function errorHandler({
       const bodyMessage = responseMessage ?? message;
       set.status = status;
       logErrorResponse(request, status, message);
+      const code =
+        status === 401
+          ? "UNAUTHORIZED"
+          : status === 403
+            ? "FORBIDDEN"
+            : status === 404
+              ? "NOT_FOUND"
+              : status === 409
+                ? "CONFLICT"
+                : "VALIDATION";
       return (
-        status === 401 ? { error: message, msg: message } : { error: bodyMessage }
-      ) as ErrorResponse;
+        status === 401 ? { error: message, msg: message, code } : { error: bodyMessage, code }
+      ) satisfies ErrorResponse;
     }
   }
 
@@ -89,7 +148,7 @@ export function errorHandler({
   logErrorResponse(request, 500, message, error.stack, cause);
   return {
     error: isProd ? "Internal server error" : message,
-  } as ErrorResponse;
+  } satisfies ErrorResponse;
 }
 
 function logErrorResponse(
