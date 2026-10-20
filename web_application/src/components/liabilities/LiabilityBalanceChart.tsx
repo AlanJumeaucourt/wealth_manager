@@ -13,19 +13,21 @@ import {
 
 interface LiabilityBalanceChartProps {
   schedule: AmortizationScheduleItem[];
+  currency?: string;
   title?: string;
   description?: string;
 }
 
 export function LiabilityBalanceChart({
   schedule,
+  currency = "EUR",
   title = "Balance Over Time",
   description = "Remaining balance throughout the loan term",
 }: LiabilityBalanceChartProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
-      currency: "EUR",
+      currency,
       notation: "compact",
       maximumFractionDigits: 1,
     }).format(value);

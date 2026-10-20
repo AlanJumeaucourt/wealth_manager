@@ -40,7 +40,7 @@ export function AssetAllocationChart() {
 
   const currencyFormatter = new Intl.NumberFormat(undefined, {
     style: "currency",
-    currency: portfolioSummary.currency,
+    currency: portfolioSummary.currency || "EUR",
   });
 
   return (

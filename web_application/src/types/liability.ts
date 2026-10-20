@@ -33,6 +33,7 @@ export interface Liability {
   direction: "i_owe" | "they_owe";
   account_id?: number;
   lender_name?: string;
+  currency?: string;
   created_at?: string;
   updated_at?: string;
 
@@ -42,6 +43,14 @@ export interface Liability {
   remaining_balance?: number;
   missed_payments_count?: number;
   next_payment_date?: string;
+
+  /** Amounts converted to the user's preferred currency (list/detail enrichment). */
+  preferred_currency?: string;
+  principal_amount_preferred?: number;
+  principal_paid_preferred?: number;
+  interest_paid_preferred?: number;
+  remaining_balance_preferred?: number;
+  payment_amount_preferred?: number | null;
 }
 
 export interface LiabilityPayment {

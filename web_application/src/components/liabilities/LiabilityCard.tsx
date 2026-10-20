@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { Liability } from "@/types";
 import { formatCurrency } from "@/utils/currency";
 import { format, parseISO } from "date-fns";
@@ -21,6 +22,12 @@ interface LiabilityCardProps {
 }
 
 export function LiabilityCard({ liability, onEdit, onDelete, onViewDetails }: LiabilityCardProps) {
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || liability.preferred_currency || liability.currency || "EUR";
+  const principal = liability.principal_amount_preferred ?? liability.principal_amount;
+  const remaining = liability.remaining_balance_preferred ?? liability.remaining_balance ?? 0;
+  const interestPaid = liability.interest_paid_preferred ?? liability.interest_paid ?? 0;
+
   const nextPaymentDate = liability.next_payment_date
     ? format(parseISO(liability.next_payment_date), "MMM d, yyyy")
     : "N/A";
@@ -54,7 +61,7 @@ export function LiabilityCard({ liability, onEdit, onDelete, onViewDetails }: Li
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <p className="text-muted-foreground">Principal</p>
-              <p className="font-medium">{formatCurrency(liability.principal_amount)}</p>
+              <p className="font-medium">{formatCurrency(principal, curr)}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Interest Rate</p>
@@ -62,11 +69,11 @@ export function LiabilityCard({ liability, onEdit, onDelete, onViewDetails }: Li
             </div>
             <div>
               <p className="text-muted-foreground">Remaining Balance</p>
-              <p className="font-medium">{formatCurrency(liability.remaining_balance || 0)}</p>
+              <p className="font-medium">{formatCurrency(remaining, curr)}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Interest Paid</p>
-              <p className="font-medium">{formatCurrency(liability.interest_paid || 0)}</p>
+              <p className="font-medium">{formatCurrency(interestPaid, curr)}</p>
             </div>
           </div>
 

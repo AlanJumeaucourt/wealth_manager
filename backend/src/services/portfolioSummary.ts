@@ -1,6 +1,8 @@
 import { db } from "../db/client.js";
+import { convert } from "../utils/currency.js";
 import { round2, round4 } from "../utils/money.js";
 import * as market from "./market.js";
+import { getUserPreferredCurrency } from "./user.js";
 
 /** Matches frontend AssetSummary (types/portfolio.ts). */
 export interface AssetSummary {
@@ -67,6 +69,7 @@ export async function getPortfolioSummary(
   accountId?: number,
 ): Promise<PortfolioSummary> {
   const database = db();
+  const preferred = await getUserPreferredCurrency(userId);
 
   // --- Step 1: investment_transactions for initial/net investment & dividends ---
   let invQ = database
@@ -94,13 +97,51 @@ export async function getPortfolioSummary(
 
   const invRows = await invQ.orderBy("transactions.date", "asc").execute();
 
+  const accountIds = new Set<number>();
+  for (const tx of invRows ?? []) {
+    if (tx.from_account_id != null) accountIds.add(Number(tx.from_account_id));
+    if (tx.to_account_id != null) accountIds.add(Number(tx.to_account_id));
+  }
+  const accountCurrency = new Map<number, string>();
+  if (accountIds.size > 0) {
+    const accountRows = await database
+      .selectFrom("accounts")
+      .select(["id", "currency"])
+      .where("id", "in", [...accountIds])
+      .execute();
+    for (const a of accountRows) {
+      accountCurrency.set(Number(a.id), String(a.currency ?? preferred).toUpperCase());
+    }
+  }
+
+  const cashCurrencyForTx = (tx: {
+    investment_type: string | null;
+    from_account_id: number | null;
+    to_account_id: number | null;
+  }): string => {
+    const t = String(tx.investment_type ?? "").toLowerCase();
+    const fromId = tx.from_account_id != null ? Number(tx.from_account_id) : null;
+    const toId = tx.to_account_id != null ? Number(tx.to_account_id) : null;
+    if (t === "buy" || t === "deposit") {
+      return (fromId != null ? accountCurrency.get(fromId) : undefined) ?? preferred;
+    }
+    return (
+      (toId != null ? accountCurrency.get(toId) : undefined) ??
+      (fromId != null ? accountCurrency.get(fromId) : undefined) ??
+      preferred
+    );
+  };
+
+  const toPreferred = (amount: number, fromCurrency: string) =>
+    convert(amount, fromCurrency, preferred);
+
   let initialInvestment = 0;
   let totalWithdrawals = 0;
   let totalDividends = 0;
 
   for (const tx of invRows ?? []) {
     const t = String(tx.investment_type ?? "");
-    const totalPaid = Number(tx.total_paid ?? 0);
+    const totalPaid = await toPreferred(Number(tx.total_paid ?? 0), cashCurrencyForTx(tx));
     if (t === "Buy") {
       initialInvestment += totalPaid;
     } else if (t === "Sell") {
@@ -124,7 +165,7 @@ export async function getPortfolioSummary(
     const rawDate = String(tx.date ?? "").slice(0, 10);
     if (!rawDate) continue;
     const year = Number(rawDate.slice(0, 4));
-    const amount = Number(tx.total_paid ?? 0);
+    const amount = await toPreferred(Number(tx.total_paid ?? 0), cashCurrencyForTx(tx));
     if (year === currentYear) currentYearDividends += amount;
     else if (year === currentYear - 1) previousYearDividends += amount;
   }
@@ -147,7 +188,7 @@ export async function getPortfolioSummary(
   const balanceRows = await balancesQ.execute();
 
   if (!balanceRows || balanceRows.length === 0) {
-    return emptySummary();
+    return emptySummary(preferred);
   }
 
   // Aggregate quantity by symbol / asset
@@ -171,7 +212,7 @@ export async function getPortfolioSummary(
   }
 
   if (bySymbol.size === 0) {
-    return emptySummary();
+    return emptySummary(preferred);
   }
 
   // --- Step 3: average-cost basis (same method as portfolioPerformance) ---
@@ -205,6 +246,22 @@ export async function getPortfolioSummary(
   }
   const costTxRows = await costTxQ.orderBy("transactions.date", "asc").execute();
 
+  // Ensure cash-currency map covers cost-basis transactions as well
+  for (const tx of costTxRows ?? []) {
+    if (tx.from_account_id != null) accountIds.add(Number(tx.from_account_id));
+    if (tx.to_account_id != null) accountIds.add(Number(tx.to_account_id));
+  }
+  if (accountIds.size > accountCurrency.size) {
+    const accountRows = await database
+      .selectFrom("accounts")
+      .select(["id", "currency"])
+      .where("id", "in", [...accountIds])
+      .execute();
+    for (const a of accountRows) {
+      accountCurrency.set(Number(a.id), String(a.currency ?? preferred).toUpperCase());
+    }
+  }
+
   const sharesByAssetId = new Map<number, number>();
   const costBasisByAssetId = new Map<number, number>();
   for (const tx of costTxRows ?? []) {
@@ -212,7 +269,8 @@ export async function getPortfolioSummary(
     const invType = String(tx.investment_type ?? "").toLowerCase();
     const quantity = Number(tx.quantity ?? 0);
     const unitPrice = Number(tx.unit_price ?? 0);
-    const totalPaid = tx.total_paid != null ? Number(tx.total_paid) : quantity * unitPrice;
+    const nativePaid = tx.total_paid != null ? Number(tx.total_paid) : quantity * unitPrice;
+    const totalPaid = await toPreferred(nativePaid, cashCurrencyForTx(tx));
 
     if (invType === "buy" || invType === "deposit") {
       sharesByAssetId.set(assetId, (sharesByAssetId.get(assetId) ?? 0) + quantity);
@@ -248,15 +306,19 @@ export async function getPortfolioSummary(
   let largestPositionValue = 0;
 
   const symbols = [...bySymbol.keys()];
-  const priceResults = await Promise.all(symbols.map((symbol) => market.getCurrentPrice(symbol)));
+  const quoteResults = await Promise.all(symbols.map((symbol) => market.getQuote(symbol)));
   const currentPrices: Record<string, number> = {};
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
     if (symbol === undefined) continue;
     const meta = bySymbol.get(symbol)!;
-    const price = priceResults[i];
+    const quote = quoteResults[i];
     const avgBuy = avgByAssetId.get(meta.asset_id) ?? 0;
-    const priceToUse = price != null ? price : avgBuy;
+    const nativePrice = quote?.current_price != null ? quote.current_price : avgBuy;
+    const quoteCurrency = (quote?.currency ?? preferred).toUpperCase();
+    // avgBuy is already in preferred (from converted cost basis); only convert live quotes
+    const priceToUse =
+      quote?.current_price != null ? await toPreferred(nativePrice, quoteCurrency) : nativePrice;
     currentPrices[symbol] = priceToUse;
     const positionValue = meta.shares * priceToUse;
     totalPortfolioValue += positionValue;
@@ -326,7 +388,7 @@ export async function getPortfolioSummary(
 
   return {
     assets,
-    currency: "EUR",
+    currency: preferred,
     dividend_metrics: {
       total_dividends_received: round2(totalDividends),
       current_year_dividends: round2(currentYearDividends),
@@ -351,10 +413,10 @@ export async function getPortfolioSummary(
   };
 }
 
-function emptySummary(): PortfolioSummary {
+function emptySummary(currency = "EUR"): PortfolioSummary {
   return {
     assets: [],
-    currency: "EUR",
+    currency,
     dividend_metrics: ZERO_DIVIDEND_METRICS,
     initial_investment: 0,
     last_update: new Date().toISOString(),

@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useToast } from "@/hooks/use-toast";
 import { Investment } from "@/types";
 import { formZodResolver } from "@/lib/formZodResolver";
@@ -105,6 +106,8 @@ function assetsToOptions(assets: Array<{ id: number; name: string; symbol: strin
 
 export function AddInvestmentDialog({ open, onOpenChange, investment }: AddInvestmentDialogProps) {
   const { toast } = useToast();
+  const { preferredCurrency } = usePreferredCurrency();
+  const displayCurrency = preferredCurrency || "EUR";
   const createMutation = useCreateInvestment();
   const updateMutation = useUpdateInvestment();
   const { data: accountsResponse } = useAccounts({
@@ -438,7 +441,7 @@ export function AddInvestmentDialog({ open, onOpenChange, investment }: AddInves
                   Market price:{" "}
                   {new Intl.NumberFormat(undefined, {
                     style: "currency",
-                    currency: "EUR",
+                    currency: displayCurrency,
                     minimumFractionDigits: 4,
                     maximumFractionDigits: 4,
                   }).format(stockHistory.find((p) => p.date === selectedDate)?.close || 0)}

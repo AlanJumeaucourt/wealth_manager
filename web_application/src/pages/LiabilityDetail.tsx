@@ -47,6 +47,7 @@ export default function LiabilityDetailPage() {
 
   // Fetch liability details
   const { data: liability, isLoading: isLoadingLiability } = useLiability(liabilityId);
+  const curr = liability?.currency || "EUR";
 
   // Fetch amortization schedule
   const { data: amortizationSchedule, isLoading: isLoadingSchedule } =
@@ -190,7 +191,9 @@ export default function LiabilityDetailPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Principal Amount</CardDescription>
-            <CardTitle className="text-2xl">{formatCurrency(liability.principal_amount)}</CardTitle>
+            <CardTitle className="text-2xl">
+              {formatCurrency(liability.principal_amount, curr)}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground flex items-center">
@@ -217,13 +220,13 @@ export default function LiabilityDetailPage() {
           <CardHeader className="pb-2">
             <CardDescription>Remaining Balance</CardDescription>
             <CardTitle className="text-2xl">
-              {formatCurrency(liability.remaining_balance || 0)}
+              {formatCurrency(liability.remaining_balance || 0, curr)}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground flex items-center">
               <DollarSignIcon className="h-3 w-3 mr-1" />
-              {formatCurrency(liability.principal_paid || 0)} principal paid
+              {formatCurrency(liability.principal_paid || 0, curr)} principal paid
             </div>
           </CardContent>
         </Card>
@@ -271,6 +274,7 @@ export default function LiabilityDetailPage() {
             <AmortizationTable
               schedule={amortizationSchedule}
               liabilityId={Number(liabilityId)}
+              currency={curr}
               onRecordPayment={(payment) => {
                 setSelectedPayment(payment);
                 setIsPaymentDialogOpen(true);
@@ -299,6 +303,7 @@ export default function LiabilityDetailPage() {
               {amortizationSchedule && amortizationSchedule.length > 0 ? (
                 <LiabilityBalanceChart
                   schedule={amortizationSchedule}
+                  currency={curr}
                   title="Balance Over Time"
                   description="Remaining balance throughout the loan term"
                 />
@@ -322,6 +327,7 @@ export default function LiabilityDetailPage() {
               {amortizationSchedule && amortizationSchedule.length > 0 ? (
                 <LiabilityPaymentChart
                   schedule={amortizationSchedule}
+                  currency={curr}
                   title="Payment Breakdown"
                   description="Principal vs interest over time"
                 />
@@ -345,6 +351,7 @@ export default function LiabilityDetailPage() {
               {amortizationSchedule && amortizationSchedule.length > 0 ? (
                 <LiabilityAmortizationChart
                   schedule={amortizationSchedule}
+                  currency={curr}
                   title="Amortization Schedule"
                   description="Detailed breakdown of payments over the loan term"
                 />

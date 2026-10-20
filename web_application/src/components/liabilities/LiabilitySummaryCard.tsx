@@ -8,11 +8,12 @@ interface LiabilitySummaryCardProps {
 }
 
 export function LiabilitySummaryCard({ liability }: LiabilitySummaryCardProps) {
+  const currency = liability.currency || "EUR";
   const formatCurrency = (value: number | undefined) => {
     if (value === undefined) return "N/A";
     return new Intl.NumberFormat(undefined, {
       style: "currency",
-      currency: "EUR",
+      currency,
       maximumFractionDigits: 2,
     }).format(value);
   };

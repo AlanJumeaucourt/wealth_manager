@@ -5,7 +5,8 @@ import { ChartContainer } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDateRange } from "@/contexts/date-range-context";
 import { useCategories } from "@/hooks/use-categories";
-import { formatCurrency } from "@/lib/utils";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
+import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "date-fns";
 import { PiggyBank, Wallet } from "lucide-react";
 import * as React from "react";
@@ -24,6 +25,8 @@ interface Category {
 export function CategoryChart() {
   const { type } = useCategories();
   const { dateRange } = useDateRange();
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || "EUR";
   const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd");
   const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd");
 
@@ -160,12 +163,12 @@ export function CategoryChart() {
                           {datum.originalValue !== datum.value ? (
                             <>
                               <span className="line-through text-muted-foreground">
-                                {formatCurrency(datum.originalValue)}
+                                {formatCurrency(datum.originalValue, curr)}
                               </span>
-                              <span className="ml-2">{formatCurrency(datum.value)}</span>
+                              <span className="ml-2">{formatCurrency(datum.value, curr)}</span>
                             </>
                           ) : (
-                            formatCurrency(datum.value)
+                            formatCurrency(datum.value, curr)
                           )}
                         </div>
                       </div>
@@ -194,7 +197,7 @@ export function CategoryChart() {
                               y={viewBox.cy}
                               className="fill-foreground text-xl font-bold"
                             >
-                              {formatCurrency(totalAmount)}
+                              {formatCurrency(totalAmount, curr)}
                             </tspan>
                             <tspan
                               x={viewBox.cx}
@@ -218,7 +221,9 @@ export function CategoryChart() {
                 <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
                 <span className="text-xs text-muted-foreground">
                   {item.category}
-                  <span className="ml-1 text-muted-foreground">{formatCurrency(item.value)}</span>
+                  <span className="ml-1 text-muted-foreground">
+                    {formatCurrency(item.value, curr)}
+                  </span>
                 </span>
               </div>
             ))}

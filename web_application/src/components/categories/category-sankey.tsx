@@ -3,7 +3,8 @@
 import { useAllCategories, useCategorySummary } from "@/api/queries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDateRange } from "@/contexts/date-range-context";
-import { formatCurrency } from "@/lib/utils";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
+import { formatCurrency } from "@/utils/currency";
 import { ResponsiveSankey } from "@nivo/sankey";
 import { formatDate } from "date-fns";
 import * as React from "react";
@@ -29,6 +30,8 @@ interface SankeyData {
 
 export function CategorySankey() {
   const { dateRange } = useDateRange();
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || "EUR";
   const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd");
   const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd");
 
@@ -143,12 +146,12 @@ export function CategorySankey() {
                 {hasRefund ? (
                   <>
                     <span className="line-through text-muted-foreground">
-                      {formatCurrency(originalValue)}
+                      {formatCurrency(originalValue, curr)}
                     </span>
-                    <span className="ml-2">{formatCurrency(value)}</span>
+                    <span className="ml-2">{formatCurrency(value, curr)}</span>
                   </>
                 ) : (
-                  formatCurrency(value)
+                  formatCurrency(value, curr)
                 )}
               </div>
             </div>

@@ -1,9 +1,11 @@
 import { db } from "../db/client.js";
+import { convert } from "../utils/currency.js";
 import { formatDateOnly, normalizeDateOnly, parseDateOnly } from "../utils/date.js";
 import { NotFoundError, ValidationError } from "../utils/error.js";
 import { round2, roundCeiling2 } from "../utils/money.js";
 import { toNumber } from "../utils/number.js";
 import { stringifyUnknown } from "../utils/stringifyUnknown.js";
+import { getUserPreferredCurrency } from "./user.js";
 
 type SortOrder = "asc" | "desc";
 
@@ -655,6 +657,22 @@ export async function getLiabilityWithDetails(userId: number, liabilityId: numbe
     balance ? toNumber(balance.principal_paid) : undefined,
     balance ? toNumber(balance.interest_paid) : undefined,
   );
+  const preferred = await getUserPreferredCurrency(userId);
+  const native = (serialized.currency || preferred).toUpperCase();
+  const toPref = (amount: number) => convert(amount, native, preferred);
+  const [
+    principal_amount_preferred,
+    principal_paid_preferred,
+    interest_paid_preferred,
+    remaining_balance_preferred,
+    payment_amount_preferred,
+  ] = await Promise.all([
+    toPref(serialized.principal_amount),
+    toPref(asOf.principal_paid),
+    toPref(asOf.interest_paid),
+    toPref(asOf.remaining_balance),
+    serialized.payment_amount != null ? toPref(serialized.payment_amount) : Promise.resolve(null),
+  ]);
   return {
     ...serialized,
     principal_paid: asOf.principal_paid,
@@ -662,6 +680,12 @@ export async function getLiabilityWithDetails(userId: number, liabilityId: numbe
     remaining_balance: asOf.remaining_balance,
     missed_payments_count: asOf.missed_payments_count,
     next_payment_date: asOf.next_payment_date ?? serialized.next_payment_date,
+    preferred_currency: preferred,
+    principal_amount_preferred,
+    principal_paid_preferred,
+    interest_paid_preferred,
+    remaining_balance_preferred,
+    payment_amount_preferred,
   };
 }
 

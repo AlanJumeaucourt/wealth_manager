@@ -19,6 +19,7 @@ interface AmortizationTableProps {
   schedule: AmortizationScheduleItem[];
   onRecordPayment?: (payment: AmortizationScheduleItem) => void;
   liabilityId: number;
+  currency?: string;
   onViewPaymentDetails?: (payment: LiabilityPayment) => void;
 }
 
@@ -26,6 +27,7 @@ export function AmortizationTable({
   schedule,
   onRecordPayment,
   liabilityId,
+  currency = "EUR",
   onViewPaymentDetails,
 }: AmortizationTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -122,10 +124,10 @@ export function AmortizationTable({
   const formatPaymentAmount = (item: AmortizationScheduleItem) => {
     if (item.is_deferred && item.deferral_type === "total") {
       return item.capitalized_interest > 0
-        ? `${formatCurrency(0)} (${formatCurrency(item.capitalized_interest)} capitalized)`
-        : formatCurrency(0);
+        ? `${formatCurrency(0, currency)} (${formatCurrency(item.capitalized_interest, currency)} capitalized)`
+        : formatCurrency(0, currency);
     }
-    return formatCurrency(item.payment_amount);
+    return formatCurrency(item.payment_amount, currency);
   };
 
   return (
@@ -192,20 +194,20 @@ export function AmortizationTable({
                         )}
                     </TableCell>
                     <TableCell>{formatPaymentAmount(item)}</TableCell>
-                    <TableCell>{formatCurrency(item.principal_amount)}</TableCell>
+                    <TableCell>{formatCurrency(item.principal_amount, currency)}</TableCell>
                     <TableCell>
                       {item.capitalized_interest > 0 ? (
                         <div>
-                          <span>{formatCurrency(item.interest_amount)}</span>
+                          <span>{formatCurrency(item.interest_amount, currency)}</span>
                           <div className="text-xs text-blue-600">
-                            +{formatCurrency(item.capitalized_interest)} capitalized
+                            +{formatCurrency(item.capitalized_interest, currency)} capitalized
                           </div>
                         </div>
                       ) : (
-                        formatCurrency(item.interest_amount)
+                        formatCurrency(item.interest_amount, currency)
                       )}
                     </TableCell>
-                    <TableCell>{formatCurrency(item.remaining_principal)}</TableCell>
+                    <TableCell>{formatCurrency(item.remaining_principal, currency)}</TableCell>
                     <TableCell>
                       <div className="flex items-center">
                         <span
