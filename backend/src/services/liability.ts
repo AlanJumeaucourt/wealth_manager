@@ -450,23 +450,189 @@ async function getLiabilityBalanceRecord(
   return (row as LiabilityBalanceRecord | undefined) ?? null;
 }
 
+/**
+ * Remaining principal as of a date:
+ * `principal - actual_principal_paid + deferred_capitalized_interest`.
+ * Unpaid non-deferred schedule rows are missed — they do not reduce principal.
+ */
+export function remainingBalanceAsOf(
+  schedule: AmortizationScheduleItem[],
+  principalAmount: number,
+  asOfDate: string = formatDateOnly(new Date()),
+  recordedPrincipalPaid?: number,
+  recordedInterestPaid?: number,
+): {
+  remaining_balance: number;
+  principal_paid: number;
+  interest_paid: number;
+  capitalized_interest: number;
+  missed_payments_count: number;
+  next_payment_date: string | null;
+} {
+  let principalPaid = 0;
+  let interestPaid = 0;
+  let capitalized = 0;
+  let missed = 0;
+  let nextPaymentDate: string | null = null;
+
+  for (const item of schedule) {
+    const date = String(item.payment_date).slice(0, 10);
+    if (date > asOfDate) {
+      if (nextPaymentDate == null && !item.is_actual_payment) {
+        nextPaymentDate = date;
+      }
+      continue;
+    }
+
+    if (item.is_actual_payment) {
+      principalPaid = round2(principalPaid + item.principal_amount);
+      interestPaid = round2(interestPaid + item.interest_amount);
+      continue;
+    }
+
+    if (item.is_deferred || item.capitalized_interest > 0) {
+      capitalized = round2(capitalized + item.capitalized_interest);
+      continue;
+    }
+
+    missed += 1;
+  }
+
+  // Prefer ledger totals when provided (covers date-window match gaps on the schedule).
+  if (recordedPrincipalPaid != null) principalPaid = round2(recordedPrincipalPaid);
+  if (recordedInterestPaid != null) interestPaid = round2(recordedInterestPaid);
+
+  return {
+    remaining_balance: Math.max(0, round2(principalAmount - principalPaid + capitalized)),
+    principal_paid: principalPaid,
+    interest_paid: interestPaid,
+    capitalized_interest: capitalized,
+    missed_payments_count: missed,
+    next_payment_date: nextPaymentDate,
+  };
+}
+
+/** Signed loan balance for wealth (i_owe → negative remaining). */
+export function signedLiabilityBalance(remaining: number, direction: string): number {
+  return direction === "they_owe" ? round2(remaining) : round2(-remaining);
+}
+
+/**
+ * Map account_id → signed remaining debt for the user's liabilities.
+ * Used by wealth / balance-over-time instead of raw loan account cash flows.
+ */
+export async function getLoanBalancesByAccountId(userId: number): Promise<Map<number, number>> {
+  const database = db();
+  const rows = await database
+    .selectFrom("liabilities")
+    .select(["id", "account_id", "direction", "principal_amount"])
+    .where("user_id", "=", userId)
+    .execute();
+
+  const out = new Map<number, number>();
+  await Promise.all(
+    rows.map(async (row) => {
+      const accountId = row.account_id;
+      if (accountId == null) return;
+      const details = await getLiabilityWithDetails(userId, row.id);
+      const remaining = details?.remaining_balance ?? toNumber(row.principal_amount);
+      out.set(
+        accountId,
+        signedLiabilityBalance(remaining, String(details?.direction ?? row.direction)),
+      );
+    }),
+  );
+  return out;
+}
+
+/**
+ * Date → signed remaining balance history derived from the amortization schedule.
+ */
+export async function getLiabilitySignedBalanceHistory(
+  userId: number,
+  liabilityId: number,
+): Promise<Record<string, number>> {
+  const row = await getLiabilityRecord(userId, liabilityId);
+  if (!row) return {};
+  const [schedule, paymentRows] = await Promise.all([
+    generateAmortizationSchedule(liabilityId, userId),
+    getLiabilityPaymentsForLiability(userId, liabilityId),
+  ]);
+  const principal = toNumber(row.principal_amount);
+  const direction = row.direction;
+  const startKey = String(row.start_date).slice(0, 10);
+  const out: Record<string, number> = {
+    [startKey]: signedLiabilityBalance(principal, direction),
+  };
+
+  const paymentsChronological = [...paymentRows.items].sort((a, b) =>
+    String(a.payment_date).localeCompare(String(b.payment_date)),
+  );
+  const paymentsByDate = new Map<string, { principal: number; interest: number }>();
+  let cumPrincipal = 0;
+  let cumInterest = 0;
+  for (const payment of paymentsChronological) {
+    const date = String(payment.payment_date).slice(0, 10);
+    cumPrincipal = round2(cumPrincipal + toNumber(payment.principal_amount));
+    cumInterest = round2(cumInterest + toNumber(payment.interest_amount));
+    paymentsByDate.set(date, { principal: cumPrincipal, interest: cumInterest });
+  }
+
+  const dates = [
+    ...new Set([
+      ...schedule.map((item) => String(item.payment_date).slice(0, 10)),
+      ...paymentsByDate.keys(),
+    ]),
+  ].sort();
+  let lastPaid = { principal: 0, interest: 0 };
+  for (const date of dates) {
+    const paid = paymentsByDate.get(date);
+    if (paid) lastPaid = paid;
+    const snap = remainingBalanceAsOf(
+      schedule,
+      principal,
+      date,
+      lastPaid.principal,
+      lastPaid.interest,
+    );
+    out[date] = signedLiabilityBalance(snap.remaining_balance, direction);
+  }
+  return out;
+}
+
 export async function getLiabilityWithDetails(userId: number, liabilityId: number) {
   const row = await getLiabilityRecord(userId, liabilityId);
   if (!row) return null;
   const balance = await getLiabilityBalanceRecord(userId, liabilityId);
-  return serializeLiability(row, balance);
+  const serialized = serializeLiability(row, balance);
+  const schedule = await generateAmortizationSchedule(liabilityId, userId);
+  const asOf = remainingBalanceAsOf(
+    schedule,
+    toNumber(row.principal_amount),
+    formatDateOnly(new Date()),
+    balance ? toNumber(balance.principal_paid) : undefined,
+    balance ? toNumber(balance.interest_paid) : undefined,
+  );
+  return {
+    ...serialized,
+    principal_paid: asOf.principal_paid,
+    interest_paid: asOf.interest_paid,
+    remaining_balance: asOf.remaining_balance,
+    missed_payments_count: asOf.missed_payments_count,
+    next_payment_date: asOf.next_payment_date ?? serialized.next_payment_date,
+  };
 }
 
 async function getLiabilitySummaryForPayment(userId: number, liabilityId: number) {
-  const liability = await getLiabilityWithDetails(userId, liabilityId);
-  if (!liability) return undefined;
+  const row = await getLiabilityRecord(userId, liabilityId);
+  if (!row) return undefined;
   return {
-    id: liability.id,
-    name: liability.name,
-    liability_type: liability.liability_type,
-    principal_amount: liability.principal_amount,
-    interest_rate: liability.interest_rate,
-    payment_frequency: liability.payment_frequency,
+    id: row.id,
+    name: row.name,
+    liability_type: row.liability_type,
+    principal_amount: toNumber(row.principal_amount),
+    interest_rate: toNumber(row.interest_rate),
+    payment_frequency: row.payment_frequency,
   };
 }
 
@@ -630,9 +796,11 @@ export async function getLiabilityPaymentsForLiability(userId: number, liability
     .orderBy("payment_date", "asc")
     .orderBy("transaction_id", "asc")
     .execute();
+  // Avoid includeDetails here: schedule generation calls this, and details
+  // enrichment would re-enter getLiabilityWithDetails → infinite recursion.
   return {
     items: await Promise.all(
-      (rows as LiabilityPaymentRecord[]).map((row) => serializeLiabilityPayment(row, true)),
+      (rows as LiabilityPaymentRecord[]).map((row) => serializeLiabilityPayment(row, false)),
     ),
   };
 }
@@ -882,25 +1050,9 @@ export async function generateAmortizationSchedule(
   liabilityId: number,
   userId: number,
 ): Promise<AmortizationScheduleItem[]> {
-  const liability = await getLiabilityWithDetails(userId, liabilityId);
-  if (!liability) return [];
-
-  if (liability.name === "Prêt Etudiant CA") {
-    console.log("[DEBUG] Generating schedule for Prêt Etudiant CA", {
-      id: liability.id,
-      principal: liability.principal_amount,
-      interest_rate: liability.interest_rate,
-      start_date: liability.start_date,
-      end_date: liability.end_date,
-      compounding_period: liability.compounding_period,
-      payment_frequency: liability.payment_frequency,
-      deferral_months: liability.deferral_period_months,
-      deferral_type: liability.deferral_type,
-      capitalization_frequency: liability.capitalization_frequency,
-      interest_calculation: liability.interest_calculation,
-      first_period_days: liability.first_period_days,
-    });
-  }
+  const row = await getLiabilityRecord(userId, liabilityId);
+  if (!row) return [];
+  const liability = serializeLiability(row, null);
 
   const startDate = parseDateOnly(liability.start_date);
   const endDate = liability.end_date ? parseDateOnly(liability.end_date) : null;
@@ -913,6 +1065,7 @@ export async function generateAmortizationSchedule(
   const deferralType = normalizeDeferralType(liability.deferral_type);
   const capitalizationFrequency = (liability.capitalization_frequency ?? "monthly") as string;
   const interestCalculation = (liability.interest_calculation ?? "actuariel") as string;
+  const todayKey = formatDateOnly(new Date());
   const isAnnualCap = deferralType === "total" && capitalizationFrequency === "annually";
   const isProportionnel = interestCalculation === "proportionnel";
 
@@ -1140,6 +1293,11 @@ export async function generateAmortizationSchedule(
     deferralEndDate = null;
   }
 
+  // Proportionnel schedules start on the first contractual payment date (not disbursement).
+  if (isProportionnel && !(isAnnualCap && deferralMonths > 0)) {
+    currentDate = getFirstProportionnelPaymentDate(startDate);
+  }
+
   while (true) {
     paymentNumber += 1;
     if (paymentNumber > 1200) break;
@@ -1229,6 +1387,7 @@ export async function generateAmortizationSchedule(
       let theoreticalPrincipalPaid = 0;
       let theoreticalInterestPaid = 0;
       let currentPaymentAmount = theoreticalPayment ?? 0;
+      const balanceEnteringPeriod = balanceBeforePayment;
 
       if (isDeferred) {
         if (deferralType === "total") {
@@ -1304,6 +1463,13 @@ export async function generateAmortizationSchedule(
           theoreticalPrincipalPaid = Math.min(theoreticalPrincipalPaid, balanceBeforePayment);
           currentPaymentAmount = round2(theoreticalPrincipalPaid + theoreticalInterestPaid);
           currentRemainingPrincipal = round2(balanceBeforePayment - theoreticalPrincipalPaid);
+        }
+
+        // Past unpaid non-deferred installments are missed: do not reduce principal.
+        // Keep scheduled payment amounts for the UI, but freeze remaining principal.
+        if (currentDateKey <= todayKey) {
+          theoreticalPrincipalPaid = 0;
+          currentRemainingPrincipal = balanceEnteringPeriod;
         }
       }
 

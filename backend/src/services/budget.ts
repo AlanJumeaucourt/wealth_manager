@@ -399,7 +399,13 @@ export async function getBudgetSummary(
   userId: number,
 ): Promise<BudgetSummaryCategory[]> {
   const preferred = await getPreferredCurrency(userId);
-  const { txRows, accountMap, refundMap } = await loadBudgetBaseData(startDate, endDate, userId);
+  // Spending summary only — exclude income and transfers.
+  const { txRows, accountMap, refundMap } = await loadBudgetBaseData(
+    startDate,
+    endDate,
+    userId,
+    "expense",
+  );
 
   const byCategory: Record<
     string,

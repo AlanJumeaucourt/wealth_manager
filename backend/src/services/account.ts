@@ -3,6 +3,7 @@ import { db } from "../db/client.js";
 import { createCache } from "../utils/cache.js";
 import { convert, getExchangeRatesInRange } from "../utils/currency.js";
 import * as market from "./market.js";
+import { getLiabilitySignedBalanceHistory, getLoanBalancesByAccountId } from "./liability.js";
 import { getPortfolioPerformance } from "./portfolioPerformance.js";
 
 const preferredCurrencyCache = createCache<string>({
@@ -279,7 +280,19 @@ export async function sumAccountsBalancesOverDays(
     let history: Record<string, number> = {};
 
     const wealthTypes = new Set(["checking", "savings", "investment", "loan"]);
-    if (wealthTypes.has(accountType)) {
+    if (accountType === "loan") {
+      const liability = await database
+        .selectFrom("liabilities")
+        .select(["id"])
+        .where("user_id", "=", userId)
+        .where("account_id", "=", accountId)
+        .executeTakeFirst();
+      if (liability) {
+        history = await getLiabilitySignedBalanceHistory(userId, liability.id);
+      } else {
+        history = await getAccountBalanceHistory(userId, accountId);
+      }
+    } else if (wealthTypes.has(accountType)) {
       history = await getAccountBalanceHistory(userId, accountId);
     } else if (accountType === "expense" || accountType === "income") {
       const rows = await database
@@ -393,8 +406,44 @@ export async function sumAccountsBalancesOverDays(
   const wealthAccounts = accounts.filter((a) => includedTypes.has(a.type));
   if (wealthAccounts.length === 0) return {};
 
+  const loanAccounts = wealthAccounts.filter((a) => a.type === "loan");
+  const liabilityRows =
+    loanAccounts.length > 0
+      ? await database
+          .selectFrom("liabilities")
+          .select(["id", "account_id"])
+          .where("user_id", "=", userId)
+          .where(
+            "account_id",
+            "in",
+            loanAccounts.map((a) => a.id),
+          )
+          .execute()
+      : [];
+  const liabilityIdByAccountId = new Map<number, number>();
+  for (const row of liabilityRows) {
+    if (row.account_id != null) liabilityIdByAccountId.set(row.account_id, row.id);
+  }
+  const [loanByAccount, loanHistories] = await Promise.all([
+    getLoanBalancesByAccountId(userId),
+    Promise.all(
+      [...liabilityIdByAccountId.entries()].map(async ([accountId, liabilityId]) => {
+        const history = await getLiabilitySignedBalanceHistory(userId, liabilityId);
+        return [accountId, history] as const;
+      }),
+    ),
+  ]);
+  const loanHistoryByAccountId = new Map(loanHistories);
+
   const accountHistories = await Promise.all(
     wealthAccounts.map(async (a) => {
+      if (a.type === "loan" && loanHistoryByAccountId.has(a.id)) {
+        return {
+          id: a.id,
+          currency: (a.currency ?? preferred).toUpperCase(),
+          history: loanHistoryByAccountId.get(a.id)!,
+        };
+      }
       const history = await getAccountBalanceHistory(userId, a.id);
       if (Object.keys(history).length === 0) {
         const snapshot = await calculateBalance(a.id);
@@ -410,7 +459,14 @@ export async function sumAccountsBalancesOverDays(
     }),
   );
 
-  const snapshotBalances = await Promise.all(wealthAccounts.map((a) => calculateBalance(a.id)));
+  const snapshotBalances = await Promise.all(
+    wealthAccounts.map(async (a) => {
+      if (a.type === "loan" && loanByAccount.has(a.id)) {
+        return loanByAccount.get(a.id)!;
+      }
+      return calculateBalance(a.id);
+    }),
+  );
 
   let minDate = endDate;
   let maxDate = startDate;

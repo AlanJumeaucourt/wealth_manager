@@ -10,6 +10,14 @@ node_modules
 .venv
 *.log
 *.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+backend/core
+backend/data/
 backend/logs/*
 .DS_Store
 coverage/

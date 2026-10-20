@@ -134,6 +134,17 @@ export async function getPortfolioPerformance(
 
   // Pre-fetch historical prices (via Yahoo) and enrich with transaction prices as fallback.
   const uniqueSymbols = [...new Set<string>(txRows.map((r) => r.symbol))];
+  const todayKey = endDate.toISOString().slice(0, 10);
+  const livePriceResults = await Promise.all(
+    uniqueSymbols.map((symbol) => market.getCurrentPrice(symbol)),
+  );
+  const livePrices: Record<string, number> = {};
+  for (let i = 0; i < uniqueSymbols.length; i++) {
+    const symbol = uniqueSymbols[i];
+    const price = livePriceResults[i];
+    if (symbol && price != null && price > 0) livePrices[symbol] = price;
+  }
+
   const historicalPrices: Record<string, Record<string, number>> = {};
   const histResults = await Promise.all(
     uniqueSymbols.map((symbol) => market.getHistoricalPrices(symbol, "max")),
@@ -326,17 +337,22 @@ export async function getPortfolioPerformance(
       const history = historicalPrices[symbol] ?? {};
       let price: number | undefined;
 
-      const sorted = sortedPriceDates[symbol] ?? [];
-      const idx = bsearchFloor(sorted, dateStr);
-      if (idx >= 0) {
-        const priceKey = sorted[idx];
-        if (priceKey !== undefined) {
-          price = history[priceKey];
+      // Align "today" with portfolio summary / live quotes.
+      if (dateStr >= todayKey && livePrices[symbol] != null) {
+        price = livePrices[symbol];
+      } else {
+        const sorted = sortedPriceDates[symbol] ?? [];
+        const idx = bsearchFloor(sorted, dateStr);
+        if (idx >= 0) {
+          const priceKey = sorted[idx];
+          if (priceKey !== undefined) {
+            price = history[priceKey];
+          }
         }
-      }
 
-      if ((price == null || price <= 0) && "fallback_latest" in history) {
-        price = history.fallback_latest;
+        if ((price == null || price <= 0) && "fallback_latest" in history) {
+          price = history.fallback_latest;
+        }
       }
 
       if (price == null || price <= 0) {

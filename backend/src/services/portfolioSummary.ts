@@ -134,9 +134,7 @@ export async function getPortfolioSummary(
     dividendGrowth = ((currentYearDividends - previousYearDividends) / previousYearDividends) * 100;
   }
 
-  // Note: keep legacy formula, even if slightly odd, for parity.
-  const monthlyIncomeEstimate =
-    currentMonth > 0 ? (currentYearDividends / currentMonth) * (1 / 12) : 0;
+  const monthlyIncomeEstimate = currentMonth > 0 ? currentYearDividends / currentMonth : 0;
 
   // --- Step 2: holdings from asset_balances_by_account (optionally filtered by account_id) ---
   let balancesQ = database
@@ -159,6 +157,7 @@ export async function getPortfolioSummary(
     if (!sym) continue;
     const key = sym;
     const qty = Number(r.quantity ?? 0);
+    if (qty <= 1e-9) continue;
     const existing = bySymbol.get(key);
     if (existing) {
       existing.shares += qty;
@@ -175,26 +174,72 @@ export async function getPortfolioSummary(
     return emptySummary();
   }
 
-  // --- Step 3: average buy price per asset (all accounts, buys only) ---
+  // --- Step 3: average-cost basis (same method as portfolioPerformance) ---
   const assetIds = [...new Set([...bySymbol.values()].map((v) => v.asset_id))];
-  const avgRows = await database
+  let costTxQ = database
     .selectFrom("investment_details")
     .innerJoin("transactions", "transactions.id", "investment_details.transaction_id")
-    .select((eb) => [
-      eb.ref("investment_details.asset_id").as("asset_id"),
-      eb.fn.avg("investment_details.unit_price").as("avg_buy_price"),
+    .innerJoin("assets", "assets.id", "investment_details.asset_id")
+    .select([
+      "investment_details.asset_id as asset_id",
+      "assets.symbol as symbol",
+      "investment_details.investment_type as investment_type",
+      "investment_details.quantity as quantity",
+      "investment_details.unit_price as unit_price",
+      "investment_details.total_paid as total_paid",
+      "investment_details.fee as fee",
+      "investment_details.tax as tax",
+      "transactions.date as date",
+      "transactions.from_account_id as from_account_id",
+      "transactions.to_account_id as to_account_id",
     ])
     .where("transactions.user_id", "=", userId)
-    .where("investment_details.investment_type", "=", "Buy")
-    .where("investment_details.asset_id", "in", assetIds)
-    .groupBy("investment_details.asset_id")
-    .execute();
+    .where("investment_details.asset_id", "in", assetIds);
+  if (accountId != null) {
+    costTxQ = costTxQ.where((eb) =>
+      eb.or([
+        eb("transactions.from_account_id", "=", accountId),
+        eb("transactions.to_account_id", "=", accountId),
+      ]),
+    );
+  }
+  const costTxRows = await costTxQ.orderBy("transactions.date", "asc").execute();
+
+  const sharesByAssetId = new Map<number, number>();
+  const costBasisByAssetId = new Map<number, number>();
+  for (const tx of costTxRows ?? []) {
+    const assetId = Number(tx.asset_id);
+    const invType = String(tx.investment_type ?? "").toLowerCase();
+    const quantity = Number(tx.quantity ?? 0);
+    const unitPrice = Number(tx.unit_price ?? 0);
+    const totalPaid = tx.total_paid != null ? Number(tx.total_paid) : quantity * unitPrice;
+
+    if (invType === "buy" || invType === "deposit") {
+      sharesByAssetId.set(assetId, (sharesByAssetId.get(assetId) ?? 0) + quantity);
+      costBasisByAssetId.set(assetId, (costBasisByAssetId.get(assetId) ?? 0) + totalPaid);
+    } else if (invType === "sell" || invType === "withdrawal") {
+      const heldBefore = sharesByAssetId.get(assetId) ?? 0;
+      const basisBefore = costBasisByAssetId.get(assetId) ?? 0;
+      const avgCost = heldBefore > 1e-9 ? basisBefore / heldBefore : 0;
+      const soldBasis = avgCost * quantity;
+      sharesByAssetId.set(assetId, heldBefore - quantity);
+      costBasisByAssetId.set(assetId, Math.max(0, basisBefore - soldBasis));
+    }
+
+    if ((sharesByAssetId.get(assetId) ?? 0) <= 1e-9) {
+      sharesByAssetId.delete(assetId);
+      costBasisByAssetId.delete(assetId);
+    }
+  }
 
   const avgByAssetId = new Map<number, number>();
-  for (const r of avgRows ?? []) {
-    const assetId = Number((r as { asset_id: unknown }).asset_id);
-    const avg = Number((r as { avg_buy_price: unknown }).avg_buy_price ?? 0);
-    avgByAssetId.set(assetId, avg);
+  const openCostByAssetId = new Map<number, number>();
+  for (const [, meta] of bySymbol) {
+    const openCost = costBasisByAssetId.get(meta.asset_id) ?? 0;
+    const openShares = sharesByAssetId.get(meta.asset_id) ?? meta.shares;
+    const avg = openShares > 1e-9 ? openCost / openShares : 0;
+    avgByAssetId.set(meta.asset_id, avg);
+    openCostByAssetId.set(meta.asset_id, openCost);
   }
 
   // --- Step 4: price & positions, dividend yield, diversification metrics ---
@@ -240,7 +285,7 @@ export async function getPortfolioSummary(
     const currentPrice = currentPrices[symbol] ?? 0;
 
     const currentValue = shares * currentPrice;
-    const costBasis = shares * avgBuyPrice;
+    const costBasis = openCostByAssetId.get(meta.asset_id) ?? shares * avgBuyPrice;
     const gainLoss = currentValue - costBasis;
     const gainLossPct = costBasis > 0 ? (gainLoss / costBasis) * 100 : 0;
     const portfolioPct = totalPortfolioValue > 0 ? (currentValue / totalPortfolioValue) * 100 : 0;

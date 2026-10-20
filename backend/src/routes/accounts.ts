@@ -22,6 +22,7 @@ import {
   resolveBodyCurrency,
   sumAccountsBalancesOverDays,
 } from "../services/account.js";
+import { getLoanBalancesByAccountId } from "../services/liability.js";
 import { getWealthSummary } from "../services/wealthSummary.js";
 import {
   createBatchCreateHandler,
@@ -79,19 +80,26 @@ const accountsBase = new Elysia({ prefix: "/accounts", tags: ["accounts"] })
       };
     }
     const accountIds = wealthAccounts.map((a: { id: number }) => a.id);
-    const balanceRows = await database
-      .selectFrom("account_balances")
-      .select(["account_id", "current_balance"])
-      .where("account_id", "in", accountIds)
-      .execute();
+    const [balanceRows, loanByAccount] = await Promise.all([
+      database
+        .selectFrom("account_balances")
+        .select(["account_id", "current_balance"])
+        .where("account_id", "in", accountIds)
+        .execute(),
+      getLoanBalancesByAccountId(userId!),
+    ]);
     const balanceByAccountId = new Map<number, number>();
     for (const row of balanceRows) {
       balanceByAccountId.set(row.account_id, Number(row.current_balance ?? 0));
     }
     const converted = await Promise.all(
-      wealthAccounts.map((acc: { id: number; type: string; currency?: string | null }) =>
-        convert(balanceByAccountId.get(acc.id) ?? 0, acc.currency ?? "EUR", preferred),
-      ),
+      wealthAccounts.map((acc: { id: number; type: string; currency?: string | null }) => {
+        const raw =
+          acc.type === "loan" && loanByAccount.has(acc.id)
+            ? loanByAccount.get(acc.id)!
+            : (balanceByAccountId.get(acc.id) ?? 0);
+        return convert(raw, acc.currency ?? "EUR", preferred);
+      }),
     );
     const totals = {
       total_balance: 0,

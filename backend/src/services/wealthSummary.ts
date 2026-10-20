@@ -2,6 +2,7 @@ import { db } from "../db/client.js";
 import { round2 } from "../utils/money.js";
 import { convert } from "../utils/currency.js";
 import { enrichAccountsBatch, getPreferredCurrency } from "./account.js";
+import { getLoanBalancesByAccountId } from "./liability.js";
 import { getPortfolioSummary } from "./portfolioSummary.js";
 
 export interface WealthSummary {
@@ -36,10 +37,11 @@ export async function getWealthSummary(userId: number): Promise<WealthSummary> {
     .where("user_id", "=", userId)
     .execute();
 
-  const [preferredCurrency, enrichedAccounts, portfolioSummary] = await Promise.all([
+  const [preferredCurrency, enrichedAccounts, portfolioSummary, loanByAccount] = await Promise.all([
     getPreferredCurrency(userId),
     enrichAccountsBatch(accountRows as unknown as Record<string, unknown>[], userId),
     getPortfolioSummary(userId),
+    getLoanBalancesByAccountId(userId),
   ]);
 
   const byType = {
@@ -51,10 +53,19 @@ export async function getWealthSummary(userId: number): Promise<WealthSummary> {
   };
 
   for (const account of enrichedAccounts) {
+    if (account.type === "loan") {
+      const liabilityBalance = loanByAccount.get(account.id);
+      const loanNative = liabilityBalance != null ? liabilityBalance : Number(account.balance ?? 0);
+      byType.loans += await convert(
+        loanNative,
+        String(account.currency ?? preferredCurrency),
+        preferredCurrency,
+      );
+      continue;
+    }
     const balancePreferred = Number(account.balance_preferred ?? 0);
     if (account.type === "checking") byType.checking += balancePreferred;
     if (account.type === "savings") byType.savings += balancePreferred;
-    if (account.type === "loan") byType.loans += balancePreferred;
     if (account.type === "investment") {
       byType.investmentsBook += balancePreferred;
       if (account.market_value != null) {
