@@ -1,20 +1,15 @@
 /**
- * Fixed FX rates for converting display amounts into the user's preferred currency.
- * Keep in sync with clients that only display server-computed `amount_preferred`.
+ * Preferred-currency conversion for API display fields.
+ * Delegates to the live FX module (`currency.ts`) so refund / preferred-amount
+ * paths stay consistent with wealth/account enrichment.
  */
-const RATES: Record<string, number> = {
-  "EUR->EUR": 1,
-  "RON->RON": 1,
-  "EUR->RON": 4.97,
-  "RON->EUR": 0.2012,
-};
+import { convert } from "./currency.js";
 
-export function convertAmount(amount: number, fromCurrency: string, toCurrency: string): number {
-  const from = fromCurrency.toUpperCase();
-  const to = toCurrency.toUpperCase();
-  if (from === to) return amount;
-  const key = `${from}->${to}`;
-  const rate = RATES[key];
-  if (rate == null) return amount;
-  return Math.round(amount * rate * 100) / 100;
+/** Convert amount using live/date-aware rates (Frankfurter / currencyx). */
+export async function convertAmount(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+): Promise<number> {
+  return convert(amount, fromCurrency, toCurrency);
 }

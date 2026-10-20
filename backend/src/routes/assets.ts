@@ -8,6 +8,8 @@ import {
   tCreateAssetSchema,
   tIdParamSchema,
   tAssetsListQuerySchema,
+  tCrudErrorResponses,
+  tErrorResponse,
   tListResponseSchema,
   tUpdateAssetSchema,
 } from "../schemas/typebox.js";
@@ -119,6 +121,8 @@ export const assetsRoutes = new Elysia({ prefix: ASSETS_PREFIX, tags: [...ASSETS
       },
       response: {
         200: tListResponseSchema(tAssetResponse),
+        400: tErrorResponse,
+        401: tErrorResponse,
       },
     },
   )
@@ -140,6 +144,7 @@ export const assetsRoutes = new Elysia({ prefix: ASSETS_PREFIX, tags: [...ASSETS
       },
       response: {
         200: tAssetResponse,
+        ...tCrudErrorResponses,
       },
     },
   )

@@ -11,9 +11,11 @@ import { cn } from "@/lib/utils";
 export interface DatePickerProps {
   value?: Date;
   onChange?: (date?: Date) => void;
+  minDate?: Date;
+  maxDate?: Date;
 }
 
-export function DatePicker({ value, onChange }: DatePickerProps) {
+export function DatePicker({ value, onChange, minDate, maxDate }: DatePickerProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -29,7 +31,19 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0">
-        <Calendar mode="single" selected={value} onSelect={onChange} initialFocus />
+        <Calendar
+          mode="single"
+          selected={value}
+          onSelect={onChange}
+          fromDate={minDate}
+          toDate={maxDate}
+          disabled={
+            minDate || maxDate
+              ? (date) => Boolean((minDate && date < minDate) || (maxDate && date > maxDate))
+              : undefined
+          }
+          initialFocus
+        />
       </PopoverContent>
     </Popover>
   );

@@ -10,7 +10,6 @@ import {
 } from "../middleware/auth.js";
 import { invalidatePreferredCurrencyCache } from "../services/account.js";
 import * as userService from "../services/user.js";
-import { ConflictError } from "../utils/error.js";
 import {
   tIdParamSchema,
   tLoginSchema,
@@ -43,17 +42,9 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["users"] })
     async ({ body, set }) => {
       const { name, email, password } = body;
       const hash = await Bun.password.hash(password, { algorithm: "argon2id" });
-      try {
-        const user = await userService.createUser(name, email, hash);
-        set.status = 201;
-        return userToJson(user);
-      } catch (e) {
-        if (e instanceof ConflictError) {
-          set.status = 422;
-          return { error: e.message };
-        }
-        throw e;
-      }
+      const user = await userService.createUser(name, email, hash);
+      set.status = 201;
+      return userToJson(user);
     },
     { body: tRegisterSchema, detail: { summary: "Register user" } },
   )
@@ -124,8 +115,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["users"] })
     "/:id",
     ({ params, userId, set }) =>
       withIdParam({ params, userId, set }, async (id) => {
-        const resp = requireSelfAccess(userId!, id, set);
-        if (resp) return resp;
+        requireSelfAccess(userId!, id, set);
         const user = await userService.getUserById(id);
         if (!user) {
           set.status = 404;
@@ -139,8 +129,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["users"] })
     "/:id",
     ({ params, body, userId, set }) =>
       withIdParam({ params, userId, set }, async (id) => {
-        const resp = requireSelfAccess(userId!, id, set, "Unauthorized, cannot update this user");
-        if (resp) return resp;
+        requireSelfAccess(userId!, id, set, "Unauthorized, cannot update this user");
         const hasName = body.name != null && body.name !== "";
         const hasEmail = body.email != null && body.email !== "";
         const hasPassword = body.password != null && body.password !== "";
@@ -195,8 +184,7 @@ export const usersRoutes = new Elysia({ prefix: "/users", tags: ["users"] })
     "/:id",
     ({ params, userId, set }) =>
       withIdParam({ params, userId, set }, async (id) => {
-        const resp = requireSelfAccess(userId!, id, set, "Unauthorized");
-        if (resp) return resp;
+        requireSelfAccess(userId!, id, set, "Unauthorized");
         await userService.deleteUser(id);
         set.status = 204;
         return "";

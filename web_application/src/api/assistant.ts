@@ -1,5 +1,5 @@
 import { authFetch } from "@/api/authFetch";
-import { API_URL } from "@/api/queryKeys";
+import { API_URL, QueryKeys } from "@/api/queryKeys";
 import type { AgentEvent, AgentRunSnapshot } from "@/types/assistant";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -26,7 +26,7 @@ export function useStartAgentRun() {
 
 export function useAgentRun(runId: string | null, enabled: boolean) {
   return useQuery({
-    queryKey: ["agentRun", runId],
+    queryKey: QueryKeys.agentRun(runId ?? ""),
     queryFn: async () => {
       const res = await authFetch(`${API_URL}/ai/runs/${runId}`);
       return parseJson<AgentRunSnapshot>(res);
@@ -50,7 +50,7 @@ export function useCancelAgentRun() {
       return parseJson<{ ok: boolean }>(res);
     },
     onSuccess: (_data, runId) => {
-      void queryClient.invalidateQueries({ queryKey: ["agentRun", runId] });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.agentRun(runId) });
     },
   });
 }

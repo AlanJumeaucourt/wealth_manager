@@ -73,4 +73,5 @@ export const QueryKeys = {
   liabilityPaymentById: (id: number) => ["liability_payments", id] as QueryKeyArray,
   liabilityPaymentsByLiability: (liabilityId: number) =>
     ["liability_payments", "liability", liabilityId] as QueryKeyArray,
+  agentRun: (runId: string) => ["agentRun", runId] as QueryKeyArray,
 } as const;

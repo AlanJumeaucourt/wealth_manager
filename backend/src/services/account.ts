@@ -507,11 +507,13 @@ export async function sumAccountsBalancesOverDays(
 
   const output: Record<string, BalanceOverTimePoint> = {};
   const allDateKeys = generateDateRange(rangeStart, rangeEnd);
+  // Live snapshots only when the chart ends on/after today — never for historical ends.
+  const todayKey = new Date().toISOString().slice(0, 10);
 
   for (const key of allDateKeys) {
     let balancePref = 0;
     const byCurrency: Record<string, number> = {};
-    const useLiveSnapshots = key === rangeEnd;
+    const useLiveSnapshots = key === rangeEnd && rangeEnd >= todayKey;
 
     for (let i = 0; i < accountHistories.length; i++) {
       const { currency, history } = accountHistories[i]!;

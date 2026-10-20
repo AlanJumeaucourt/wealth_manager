@@ -30,11 +30,6 @@ function hasOwn(obj: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-function isRefundGroupConflictError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.includes("Transaction already belongs to another refund group");
-}
-
 export const refundItemsListHandler = createListHandler(TABLE, {
   searchFields: SEARCH_FIELDS,
   allowedFilters: ["id", "refund_group_id", "income_transaction_id", "expense_transaction_id"],
@@ -64,19 +59,11 @@ export const refundItemsRoutes = new Elysia({ prefix: "/refund_items", tags: ["r
       description: (b.description as string | null | undefined) ?? null,
       user_id: userId!,
     };
-    try {
-      await assertTransactionsBelongToSingleRefundGroup(data, userId!);
-      const row = await base.createOne(TABLE, data);
-      if (!row) throw new Error("Create refund_item: insert returned no row");
-      set.status = 201;
-      return row;
-    } catch (error) {
-      if (isRefundGroupConflictError(error)) {
-        set.status = 409;
-        return { error: "Transaction already belongs to another refund group" };
-      }
-      throw error;
-    }
+    await assertTransactionsBelongToSingleRefundGroup(data, userId!);
+    const row = await base.createOne(TABLE, data);
+    if (!row) throw new Error("Create refund_item: insert returned no row");
+    set.status = 201;
+    return row;
   })
   .get("/", refundItemsListHandler, { query: tRefundItemsListQuerySchema })
   .get("/:id", createGetByIdHandler(TABLE))
@@ -118,21 +105,13 @@ export const refundItemsRoutes = new Elysia({ prefix: "/refund_items", tags: ["r
             : Number(patch.refund_group_id)
           : existing.refund_group_id,
       };
-      try {
-        await assertTransactionsBelongToSingleRefundGroup(data, userId!, id);
-        const row = await base.updateOne(TABLE, id, userId!, patch);
-        if (!row) {
-          set.status = 404;
-          return "";
-        }
-        return row;
-      } catch (error) {
-        if (isRefundGroupConflictError(error)) {
-          set.status = 409;
-          return { error: "Transaction already belongs to another refund group" };
-        }
-        throw error;
+      await assertTransactionsBelongToSingleRefundGroup(data, userId!, id);
+      const row = await base.updateOne(TABLE, id, userId!, patch);
+      if (!row) {
+        set.status = 404;
+        return "";
       }
+      return row;
     }),
   )
   .delete("/:id", createDeleteByIdHandler(TABLE))

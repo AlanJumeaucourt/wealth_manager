@@ -1,10 +1,12 @@
-import { Elysia } from "elysia";
-import { authDerivePlugin, type AuthDerive } from "../middleware/auth.js";
+import { Elysia, t } from "elysia";
+import { authDerivePlugin } from "../middleware/auth.js";
 import { listQueryDescription } from "../schemas/openapi.js";
 import {
   tBatchCreateBodySchema,
   tBatchDeleteBodySchema,
   tBatchUpdateBodySchema,
+  tCrudErrorResponses,
+  tErrorResponse,
   tIdParamSchema,
   tBaseListQuerySchema,
   tListQuerySchemaWithExtraKeys,
@@ -34,33 +36,35 @@ function resourceName(prefix: string): string {
 const AUTH_NOTE = " **Header:** Authorization: Bearer <token>.";
 const RETURNS_LIST = " **Returns:** { items, total, page, per_page }.";
 
-/** Minimal context shape we rely on after authDerivePlugin. */
-type AppContext = AuthDerive & {
-  body?: unknown;
-  query?: unknown;
-  params?: { id: string };
-  request: Request;
-  set: { status?: number | string };
-};
-
-export type CrudRoutesConfig = {
+export type CrudRoutesConfig<TItem extends TypeBoxObjectSchema = TypeBoxObjectSchema> = {
   table: TableName;
   prefix: string;
   tags: string[];
   createSchema: TypeBoxObjectSchema;
   updateSchema: TypeBoxObjectSchema;
   listConfig: ListHandlerConfig;
-  /** Optional TypeBox schema describing a single response item (for OpenAPI). */
-  responseItemSchema?: TypeBoxObjectSchema;
+  /** TypeBox schema for a single response item (required for OpenAPI / Eden). */
+  responseItemSchema: TItem;
   createTransform?: CreateTransform;
   updateTransform?: (body: Record<string, unknown>) => Record<string, unknown>;
   batchCreateTransform?: BatchCreateTransform;
   getByIdOptions?: GetByIdOptions;
 };
 
-function addCrudRoutes(app: unknown, config: CrudRoutesConfig, prefix: string) {
+/**
+ * Standard CRUD routes for a table.
+ *
+ * Prefer this for new resources. Existing banks/assets/refund_groups stay as
+ * explicit route modules so Eden Treaty keeps precise item types; migrate them
+ * once handler factories type-check cleanly against Elysia InlineHandler.
+ */
+export function createCrudRoutes<TItem extends TypeBoxObjectSchema>(
+  config: CrudRoutesConfig<TItem>,
+) {
   const {
     table,
+    prefix,
+    tags,
     createSchema,
     updateSchema,
     listConfig,
@@ -84,96 +88,114 @@ function addCrudRoutes(app: unknown, config: CrudRoutesConfig, prefix: string) {
   const batchDeleteHandler = createBatchDeleteHandler(table);
 
   const listDesc = listQueryDescription(allowedFilters, searchFields) + RETURNS_LIST + AUTH_NOTE;
-  return (app as Elysia)
+  const listQuery =
+    allowedFilters.length === 0
+      ? tBaseListQuerySchema
+      : tListQuerySchemaWithExtraKeys(allowedFilters);
+
+  return new Elysia({ prefix, tags })
+    .use(authDerivePlugin)
     .post(
       "/",
-      (ctx) => {
-        const c = ctx as unknown as AppContext;
-        return createHandler({
-          body: c.body as Record<string, unknown>,
-          userId: c.userId,
-          set: c.set,
-        });
-      },
+      ({ body, userId, set }) =>
+        createHandler({
+          body: body as Record<string, unknown>,
+          userId,
+          set,
+        }),
       {
         body: createSchema,
         detail: {
           summary: `Create ${name}`,
           description: "**Body:** from schema below." + AUTH_NOTE,
         },
+        response: {
+          201: responseItemSchema,
+          ...tCrudErrorResponses,
+        },
       },
     )
     .get(
       "/",
-      (ctx) => {
-        const c = ctx as unknown as AppContext;
-        return listHandler({ query: c.query, request: c.request, userId: c.userId, set: c.set });
-      },
+      // Handler factories are intentionally loosely typed vs Elysia's InlineHandler.
+      ((ctx: {
+        query: unknown;
+        request: Request;
+        userId: number | null;
+        set: { status?: number | string };
+      }) => listHandler(ctx)) as never,
       {
-        query:
-          allowedFilters.length === 0
-            ? tBaseListQuerySchema
-            : tListQuerySchemaWithExtraKeys(allowedFilters),
+        query: listQuery,
         detail: { summary: `List ${name}s`, description: listDesc },
-        ...(responseItemSchema && {
-          response: {
-            200: tListResponseSchema(responseItemSchema),
-          },
-        }),
+        response: {
+          200: tListResponseSchema(responseItemSchema),
+          400: tErrorResponse,
+          401: tErrorResponse,
+        },
       },
     )
     .get(
       "/:id",
-      (ctx) => {
-        const c = ctx as unknown as AppContext;
-        return getByIdHandler({ params: c.params!, userId: c.userId, set: c.set });
-      },
+      ((ctx: {
+        params: { id: string };
+        userId: number | null;
+        set: { status?: number | string };
+      }) => getByIdHandler(ctx)) as never,
       {
         params: tIdParamSchema,
         detail: {
           summary: `Get ${name} by ID`,
           description: "Returns 404 if not found or not owned." + AUTH_NOTE,
         },
-        ...(responseItemSchema && {
-          response: {
-            200: responseItemSchema,
-          },
-        }),
+        response: {
+          200: responseItemSchema,
+          ...tCrudErrorResponses,
+        },
       },
     )
     .put(
       "/:id",
-      (ctx) => {
-        const c = ctx as unknown as AppContext;
-        return updateHandler({
-          params: c.params!,
-          body: c.body as Record<string, unknown>,
-          userId: c.userId,
-          set: c.set,
-        });
-      },
+      ((ctx: {
+        params: { id: string };
+        body: unknown;
+        userId: number | null;
+        set: { status?: number | string };
+      }) =>
+        updateHandler({
+          params: ctx.params,
+          body: ctx.body as Record<string, unknown>,
+          userId: ctx.userId,
+          set: ctx.set,
+        })) as never,
       {
         body: updateSchema,
         detail: { summary: `Update ${name}`, description: "Partial update." + AUTH_NOTE },
+        response: {
+          200: responseItemSchema,
+          ...tCrudErrorResponses,
+        },
       },
     )
     .delete(
       "/:id",
-      (ctx) => {
-        const c = ctx as unknown as AppContext;
-        return deleteHandler({ params: c.params!, userId: c.userId, set: c.set });
-      },
+      ((ctx: {
+        params: { id: string };
+        userId: number | null;
+        set: { status?: number | string };
+      }) => deleteHandler(ctx)) as never,
       {
         params: tIdParamSchema,
         detail: { summary: `Delete ${name}`, description: "Returns 204." + AUTH_NOTE },
+        response: {
+          204: t.Void(),
+          ...tCrudErrorResponses,
+        },
       },
     )
     .post(
       "/batch/create",
-      (ctx) => {
-        const c = ctx as unknown as AppContext;
-        return batchCreateHandler({ body: c.body, userId: c.userId, set: c.set });
-      },
+      ((ctx: { body: unknown; userId: number | null; set: { status?: number | string } }) =>
+        batchCreateHandler(ctx)) as never,
       {
         body: tBatchCreateBodySchema(createSchema),
         detail: { summary: `Create multiple ${name}s`, description: AUTH_NOTE.trim() },
@@ -181,10 +203,8 @@ function addCrudRoutes(app: unknown, config: CrudRoutesConfig, prefix: string) {
     )
     .post(
       "/batch/update",
-      (ctx) => {
-        const c = ctx as unknown as AppContext;
-        return batchUpdateHandler({ body: c.body, userId: c.userId, set: c.set });
-      },
+      ((ctx: { body: unknown; userId: number | null; set: { status?: number | string } }) =>
+        batchUpdateHandler(ctx)) as never,
       {
         body: tBatchUpdateBodySchema,
         detail: { summary: `Update multiple ${name}s`, description: AUTH_NOTE.trim() },
@@ -192,30 +212,11 @@ function addCrudRoutes(app: unknown, config: CrudRoutesConfig, prefix: string) {
     )
     .post(
       "/batch/delete",
-      (ctx) => {
-        const c = ctx as unknown as AppContext;
-        return batchDeleteHandler({ body: c.body, userId: c.userId, set: c.set });
-      },
+      ((ctx: { body: unknown; userId: number | null; set: { status?: number | string } }) =>
+        batchDeleteHandler(ctx)) as never,
       {
         body: tBatchDeleteBodySchema,
         detail: { summary: `Delete multiple ${name}s`, description: AUTH_NOTE.trim() },
       },
     );
-}
-
-export function createCrudRoutes(
-  appOrConfig: Elysia | CrudRoutesConfig,
-  config?: Omit<CrudRoutesConfig, "prefix" | "tags">,
-) {
-  if (config !== undefined && appOrConfig instanceof Elysia) {
-    const app = appOrConfig as Elysia;
-    const cfg = (app as unknown as { config?: { prefix?: string; tags?: string[] } }).config;
-    const prefix = cfg?.prefix ?? "";
-    const tags = cfg?.tags ?? [];
-    return addCrudRoutes(app, { ...config, prefix, tags }, prefix);
-  }
-  const fullConfig = appOrConfig as CrudRoutesConfig;
-  const { prefix, tags } = fullConfig;
-  const app = new Elysia({ prefix, tags }).use(authDerivePlugin);
-  return addCrudRoutes(app, fullConfig, prefix);
 }

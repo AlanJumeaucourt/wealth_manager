@@ -1,3 +1,7 @@
+/**
+ * Legacy OpenRouter HTTP helper (chat completions + shared OpenAI-shaped types).
+ * Live agent path is ADK under `ai/adk/*` — prefer that for new work.
+ */
 import { config } from "../config.js";
 import { retryDelayMs, sleep } from "./retry.js";
 

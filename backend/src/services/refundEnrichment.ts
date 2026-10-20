@@ -106,10 +106,8 @@ export async function getRefundEnrichment(
       if (!map.has(expenseId)) map.set(expenseId, { refund_items: [], refunded_amount: 0 });
       const ent = map.get(expenseId)!;
       ent.refund_items.push(item);
-      ent.refunded_amount =
-        Math.round(
-          (ent.refunded_amount + convertAmount(itemAmount, incomeCurrency, expenseCurrency)) * 100,
-        ) / 100;
+      const converted = await convertAmount(itemAmount, incomeCurrency, expenseCurrency);
+      ent.refunded_amount = Math.round((ent.refunded_amount + converted) * 100) / 100;
     }
     if (idSet.has(r.income_transaction_id)) {
       const incomeId = r.income_transaction_id;

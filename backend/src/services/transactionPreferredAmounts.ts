@@ -19,15 +19,15 @@ function stringFromUnknown(value: unknown, fallback: string): string {
  * Computes preferred-currency amounts for API responses. No `preferred_currency` field is added;
  * only numeric fields in the user's preferred unit.
  */
-export function computePreferredAmountFields(
+export async function computePreferredAmountFields(
   row: Record<string, unknown>,
   userPreferred: string,
   curr: CurrencyRow,
-): {
+): Promise<{
   amount_preferred: number | null;
   refunded_amount_preferred: number;
   net_amount_preferred: number | null;
-} {
+}> {
   const pref = userPreferred.toUpperCase();
   const fromCur = curr.from_currency;
   const toCur = curr.to_currency;
@@ -55,13 +55,17 @@ export function computePreferredAmountFields(
     nativeCur = fromCur;
   }
 
-  const amount_preferred = convertAmount(nativeAbs, nativeCur, pref);
-  const refunded_amount_preferred = convertAmount(refunded, nativeCur, pref);
-  const netNative =
-    type === "income"
-      ? Math.abs((toAmount != null ? toAmount : amount) - refunded)
-      : Math.abs(amount - refunded);
-  const net_amount_preferred = convertAmount(netNative, nativeCur, pref);
+  const [amount_preferred, refunded_amount_preferred, net_amount_preferred] = await Promise.all([
+    convertAmount(nativeAbs, nativeCur, pref),
+    convertAmount(refunded, nativeCur, pref),
+    convertAmount(
+      type === "income"
+        ? Math.abs((toAmount != null ? toAmount : amount) - refunded)
+        : Math.abs(amount - refunded),
+      nativeCur,
+      pref,
+    ),
+  ]);
 
   return {
     amount_preferred,
@@ -70,27 +74,31 @@ export function computePreferredAmountFields(
   };
 }
 
-export function attachPreferredAmountFields<T extends Record<string, unknown>>(
+export async function attachPreferredAmountFields<T extends Record<string, unknown>>(
   items: T[],
   userPreferred: string,
-): (T & {
-  amount_preferred: number | null;
-  refunded_amount_preferred: number;
-  net_amount_preferred: number | null;
-})[] {
-  return items.map((row) => {
-    const curr: CurrencyRow = {
-      from_currency: stringFromUnknown(row.from_currency, "EUR").toUpperCase(),
-      to_currency: stringFromUnknown(row.to_currency, "EUR").toUpperCase(),
-      currency: stringFromUnknown(row.currency, "EUR").toUpperCase(),
-    };
-    const fields = computePreferredAmountFields(row, userPreferred, curr);
-    const next = { ...row, ...fields } as T & {
-      amount_preferred: number | null;
-      refunded_amount_preferred: number;
-      net_amount_preferred: number | null;
-    };
-    delete (next as { preferred_currency?: unknown }).preferred_currency;
-    return next;
-  });
+): Promise<
+  (T & {
+    amount_preferred: number | null;
+    refunded_amount_preferred: number;
+    net_amount_preferred: number | null;
+  })[]
+> {
+  return Promise.all(
+    items.map(async (row) => {
+      const curr: CurrencyRow = {
+        from_currency: stringFromUnknown(row.from_currency, "EUR").toUpperCase(),
+        to_currency: stringFromUnknown(row.to_currency, "EUR").toUpperCase(),
+        currency: stringFromUnknown(row.currency, "EUR").toUpperCase(),
+      };
+      const fields = await computePreferredAmountFields(row, userPreferred, curr);
+      const next = { ...row, ...fields } as T & {
+        amount_preferred: number | null;
+        refunded_amount_preferred: number;
+        net_amount_preferred: number | null;
+      };
+      delete (next as { preferred_currency?: unknown }).preferred_currency;
+      return next;
+    }),
+  );
 }

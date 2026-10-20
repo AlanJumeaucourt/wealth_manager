@@ -38,7 +38,7 @@ function toFiniteNumber(value: string | number | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function amountInPreferredCurrency(
+async function amountInPreferredCurrency(
   tx: TransactionRow,
   preferredCurrency: string,
   txCurrency: {
@@ -46,7 +46,7 @@ function amountInPreferredCurrency(
     to_currency: string;
     currency: string;
   },
-): number {
+): Promise<number> {
   if (tx.type === "income") {
     const incomeNative =
       tx.to_amount != null ? toFiniteNumber(tx.to_amount) : toFiniteNumber(tx.amount);
@@ -237,7 +237,7 @@ export async function getPotentialRefunds(
       to_currency: "EUR",
       currency: "EUR",
     };
-    const incomeAmt = amountInPreferredCurrency(income, preferredCurrency, incomeCurrency);
+    const incomeAmt = await amountInPreferredCurrency(income, preferredCurrency, incomeCurrency);
     const incomeDate = incomeDates.get(income.id) ?? income.date;
     const toAcc = incomeToAccounts.get(income.id) ?? income.to_account_id;
 
@@ -249,28 +249,27 @@ export async function getPotentialRefunds(
       return true;
     });
 
-    const suggested: SuggestedExpense[] = candidates
-      .map((exp) => {
-        const expenseCurrency = currencyByTransactionId.get(exp.id) ?? {
-          from_currency: "EUR",
-          to_currency: "EUR",
-          currency: "EUR",
-        };
-        const isCrossCurrency = incomeCurrency.to_currency !== expenseCurrency.from_currency;
-        const score = scoreExpenseMatch(
-          incomeAmt,
-          incomeDate,
-          toAcc,
-          amountInPreferredCurrency(exp, preferredCurrency, expenseCurrency),
-          exp.date,
-          exp.from_account_id,
-          isCrossCurrency,
-        );
-        return { transaction: exp, score };
-      })
-      .filter((s) => s.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
+    const scored: SuggestedExpense[] = [];
+    for (const exp of candidates) {
+      const expenseCurrency = currencyByTransactionId.get(exp.id) ?? {
+        from_currency: "EUR",
+        to_currency: "EUR",
+        currency: "EUR",
+      };
+      const isCrossCurrency = incomeCurrency.to_currency !== expenseCurrency.from_currency;
+      const expenseAmt = await amountInPreferredCurrency(exp, preferredCurrency, expenseCurrency);
+      const score = scoreExpenseMatch(
+        incomeAmt,
+        incomeDate,
+        toAcc,
+        expenseAmt,
+        exp.date,
+        exp.from_account_id,
+        isCrossCurrency,
+      );
+      if (score > 0) scored.push({ transaction: exp, score });
+    }
+    const suggested = scored.sort((a, b) => b.score - a.score).slice(0, 5);
 
     const enrichedIncome: TransactionRow = incomeCurrency
       ? {

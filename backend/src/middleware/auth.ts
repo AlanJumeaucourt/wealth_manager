@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import { SignJWT, jwtVerify } from "jose";
 import { config } from "../config.js";
+import { ForbiddenError, UnauthorizedError } from "../utils/error.js";
 
 const secret = new TextEncoder().encode(config.jwt.secretKey);
 type TokenType = "access" | "refresh";
@@ -28,15 +29,19 @@ export async function createRefreshToken(userId: number): Promise<string> {
 }
 
 function parseTokenUserId(sub: unknown): number {
-  if (typeof sub !== "string" || sub.trim() === "") throw new Error("Invalid token");
+  if (typeof sub !== "string" || sub.trim() === "") {
+    throw new UnauthorizedError("Invalid token");
+  }
   const userId = parseInt(sub, 10);
-  if (!Number.isInteger(userId) || userId <= 0) throw new Error("Invalid token");
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new UnauthorizedError("Invalid token");
+  }
   return userId;
 }
 
 async function verifyToken(token: string, expectedType: TokenType): Promise<{ userId: number }> {
   const { payload } = await jwtVerify(token, secret);
-  if (payload.token_type !== expectedType) throw new Error("Invalid token");
+  if (payload.token_type !== expectedType) throw new UnauthorizedError("Invalid token");
   return { userId: parseTokenUserId(payload.sub) };
 }
 
@@ -70,7 +75,9 @@ export async function deriveAuth(request: Request): Promise<AuthDerive> {
 
 /** Call in beforeHandle on protected routes; throws if userId is null. */
 export function requireAuth({ userId }: AuthDerive): void {
-  if (userId == null) throw new Error("Unauthorized: missing or invalid token");
+  if (userId == null) {
+    throw new UnauthorizedError("Unauthorized: missing or invalid token");
+  }
 }
 
 /** Elysia plugin that derives userId from JWT. Use once at app level to avoid repeating .derive() in every route. */
@@ -79,15 +86,14 @@ export const authDerivePlugin = new Elysia({ name: "auth-derive" }).derive(
   async ({ request }) => await deriveAuth(request),
 );
 
-/** Returns 403 response if id !== userId. Use for self-access routes (e.g. users/:id). */
+/** Throws ForbiddenError if id !== userId. Use for self-access routes (e.g. users/:id). */
 export function requireSelfAccess(
   userId: number,
   id: number,
-  set: { status?: number | string },
+  _set?: { status?: number | string },
   message = "Unauthorized, cannot access this user",
-): { error: string } | void {
+): void {
   if (id !== userId) {
-    set.status = 403;
-    return { error: message };
+    throw new ForbiddenError(message);
   }
 }
