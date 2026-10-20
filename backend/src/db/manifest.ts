@@ -172,6 +172,8 @@ export const CUSTOM_LIST_QUERY_SCHEMAS: readonly CustomListQuerySchemaDef[] = [
     includeListBase: false,
     properties: {
       period: { kind: "string", required: false },
+      /** When "false", omit per-point `assets` (dashboard sparklines only need totals). */
+      include_assets: { kind: "string", required: false },
     },
   },
   {
@@ -189,6 +191,8 @@ export const CUSTOM_LIST_QUERY_SCHEMAS: readonly CustomListQuerySchemaDef[] = [
       start_date: { kind: "string", required: true },
       end_date: { kind: "string", required: true },
       period: { kind: "string", required: true },
+      /** When "true", embed per-category transaction lists (large). Charts omit this. */
+      include_transactions: { kind: "string", required: false },
     },
   },
   {

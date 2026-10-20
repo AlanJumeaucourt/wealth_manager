@@ -673,6 +673,7 @@ export const tInvestmentsPortfolioSummaryQuerySchema = t.Object(
 export const tInvestmentsPortfolioPerformanceQuerySchema = t.Object(
   {
     period: t.Optional(t.String()),
+    include_assets: t.Optional(t.String()),
   },
   { additionalProperties: false },
 );
@@ -690,6 +691,7 @@ export const tBudgetsSummaryPeriodQuerySchema = t.Object(
     start_date: t.String(),
     end_date: t.String(),
     period: t.String(),
+    include_transactions: t.Optional(t.String()),
   },
   { additionalProperties: false },
 );

@@ -101,7 +101,7 @@ function TransactionDialog({ category, open, onOpenChange, type }: TransactionDi
   };
 
   const transactions = useMemo(() => {
-    return [...category.transactions].sort((a, b) => {
+    return [...(category.transactions ?? [])].sort((a, b) => {
       if (sortBy === "date") {
         return sortOrder === "desc"
           ? new Date(b.date).getTime() - new Date(a.date).getTime()

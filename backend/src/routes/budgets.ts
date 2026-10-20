@@ -245,38 +245,13 @@ export const budgetsRoutes = new Elysia({
         return { error: "start_date must be before end_date" };
       }
 
-      const periodSummaries: Array<{
-        start_date: string;
-        end_date: string;
-        income: unknown;
-        expense: unknown;
-      }> = [];
+      const includeTransactions =
+        typeof q.include_transactions === "string" &&
+        q.include_transactions.trim().toLowerCase() === "true";
 
-      let [currentStart] = budget.calculatePeriodBoundaries(parsed.start, period);
-
-      while (currentStart < parsed.end) {
-        const [, currentEnd] = budget.calculatePeriodBoundaries(currentStart, period);
-        const startStr = currentStart.toISOString().slice(0, 10);
-        const endStr = currentEnd.toISOString().slice(0, 10);
-
-        const [incomeData, expenseData] = await Promise.all([
-          budget.getTransactionsByCategories(startStr, endStr, userId!, "income"),
-          budget.getTransactionsByCategories(startStr, endStr, userId!, "expense"),
-        ]);
-        periodSummaries.push({
-          start_date: startStr,
-          end_date: endStr,
-          income: buildCategoryBlock(incomeData),
-          expense: buildCategoryBlock(expenseData),
-        });
-
-        currentStart = budget.getNextPeriodStart(currentStart, period);
-      }
-
-      return {
-        period,
-        summaries: periodSummaries,
-      };
+      return budget.getPeriodSummaries(parsed.start_date, parsed.end_date, userId!, period, {
+        includeTransactions,
+      });
     },
     {
       query: tBudgetsSummaryPeriodQuerySchema,

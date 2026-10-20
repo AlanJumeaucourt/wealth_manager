@@ -10,7 +10,6 @@ import {
   tCreateAccountSchema,
   tIdParamSchema,
   tAccountsListQuerySchema,
-  tDateRangeQuerySchema,
   tListResponseSchema,
   tUpdateAccountSchema,
 } from "../schemas/typebox.js";
@@ -21,7 +20,16 @@ import {
   getPreferredCurrency,
   resolveBodyCurrency,
   sumAccountsBalancesOverDays,
+  type SumAccountsBalancesOptions,
 } from "../services/account.js";
+
+function parseGranularityQuery(
+  value: string | undefined,
+): SumAccountsBalancesOptions["granularity"] {
+  const raw = (value ?? "").trim().toLowerCase();
+  if (raw === "day" || raw === "week" || raw === "month" || raw === "auto") return raw;
+  return undefined;
+}
 import { getLoanBalancesByAccountId } from "../services/liability.js";
 import { getWealthSummary } from "../services/wealthSummary.js";
 import {
@@ -49,9 +57,12 @@ const accountsBase = new Elysia({ prefix: "/accounts", tags: ["accounts"] })
     "/balance_over_time",
     ({ query, userId, set }) =>
       withDateRange({ query: query as Record<string, unknown>, set, userId }, (start, end) => {
-        const raw = query as { include_debt?: string };
+        const raw = query as { include_debt?: string; granularity?: string };
         const includeDebt = raw.include_debt !== "false";
-        return sumAccountsBalancesOverDays(userId!, start, end, undefined, { includeDebt });
+        return sumAccountsBalancesOverDays(userId!, start, end, undefined, {
+          includeDebt,
+          granularity: parseGranularityQuery(raw.granularity),
+        });
       }),
     { query: tBalanceOverTimeQuerySchema },
   )
@@ -166,10 +177,13 @@ const accountsBase = new Elysia({ prefix: "/accounts", tags: ["accounts"] })
   .get(
     "/:id/balance_over_time",
     ({ params, query, userId, set }) =>
-      withIdParamAndDateRange({ params, query, userId, set }, TABLE, (id, start, end) =>
-        sumAccountsBalancesOverDays(userId!, start, end, id),
-      ),
-    { query: tDateRangeQuerySchema },
+      withIdParamAndDateRange({ params, query, userId, set }, TABLE, (id, start, end) => {
+        const raw = query as { granularity?: string };
+        return sumAccountsBalancesOverDays(userId!, start, end, id, {
+          granularity: parseGranularityQuery(raw.granularity),
+        });
+      }),
+    { query: tBalanceOverTimeQuerySchema },
   );
 
 async function accountCreateTransform(body: Record<string, unknown>, userId: number) {

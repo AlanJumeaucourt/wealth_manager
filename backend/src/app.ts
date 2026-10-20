@@ -4,6 +4,7 @@ import { Elysia } from "elysia";
 import { config } from "./config.js";
 import { getDemoSeededStatus } from "./demo/demoSeedStatus.js";
 import { authDerivePlugin } from "./middleware/auth";
+import { compressPlugin } from "./middleware/compress.js";
 import { errorHandler } from "./middleware/error";
 import { logRequest, logResponse } from "./middleware/log";
 import { accountsRoutes } from "./routes/accounts";
@@ -30,6 +31,7 @@ export const app = new Elysia()
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     }),
   )
+  .use(compressPlugin)
   .use(authDerivePlugin)
   .derive(({ request }) => {
     const incoming = request.headers.get("x-request-id");

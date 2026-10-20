@@ -30,7 +30,7 @@ interface CategoryData {
   net_amount: number;
   original_amount: number;
   by_currency?: Record<string, { net_amount: number; original_amount: number }>;
-  transactions: Array<{
+  transactions?: Array<{
     amount: number;
     category: string;
     date: string;
