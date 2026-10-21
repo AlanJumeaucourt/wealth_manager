@@ -219,6 +219,10 @@ export const tBalanceOverTimeQuerySchema = t.Object(
     start_date: t.String(),
     end_date: t.String(),
     include_debt: t.Optional(t.Union([t.Literal("true"), t.Literal("false")])),
+    /** Chart sampling: day | week | month | auto (default). Long ranges downsample for speed. */
+    granularity: t.Optional(
+      t.Union([t.Literal("day"), t.Literal("week"), t.Literal("month"), t.Literal("auto")]),
+    ),
   },
   { additionalProperties: false },
 );

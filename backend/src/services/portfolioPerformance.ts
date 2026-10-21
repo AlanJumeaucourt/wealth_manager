@@ -1,8 +1,16 @@
 import { db } from "../db/client.js";
+import { createCache } from "../utils/cache.js";
 import { getExchangeRatesInRange } from "../utils/currency.js";
 import { round2, round4 } from "../utils/money.js";
 import * as market from "./market.js";
 import { getUserPreferredCurrency } from "./user.js";
+
+export type PortfolioPerformanceOptions = {
+  /** Only emit these dates (still advances holdings chronologically). */
+  sampleDates?: string[];
+  /** When false, omit per-symbol `assets` payload (wealth chart only needs gains). */
+  includeAssets?: boolean;
+};
 
 export interface PerformanceDataPoint {
   date: string;
@@ -25,6 +33,11 @@ export interface PerformanceDataPoint {
 export interface PortfolioPerformanceResult {
   data_points: PerformanceDataPoint[];
 }
+
+const portfolioPerfCache = createCache<PortfolioPerformanceResult>({
+  ttlMs: 5 * 60 * 1000,
+  maxKeys: 200,
+});
 
 /** Binary search: index of largest element <= target, or -1 if none. */
 function bsearchFloor(sorted: string[], target: string): number {
@@ -74,7 +87,18 @@ export async function getPortfolioPerformance(
   userId: number,
   periodParam?: string,
   accountId?: number,
+  options?: PortfolioPerformanceOptions,
 ): Promise<PortfolioPerformanceResult> {
+  const includeAssets = options?.includeAssets !== false;
+  const sampleDates = options?.sampleDates;
+  const sampleKey =
+    sampleDates && sampleDates.length > 0
+      ? `${sampleDates[0]}:${sampleDates[sampleDates.length - 1]}:${sampleDates.length}`
+      : "daily";
+  const cacheKey = `perf:${userId}:${accountId ?? "all"}:${periodParam ?? ""}:${sampleKey}:assets=${includeAssets}`;
+  const cached = portfolioPerfCache.get(cacheKey);
+  if (cached) return cached;
+
   const database = db();
 
   type TxRow = {
@@ -122,20 +146,32 @@ export async function getPortfolioPerformance(
     .execute()) as unknown as TxRow[];
 
   if (!txRows || txRows.length === 0) {
-    return { data_points: [] };
+    const empty = { data_points: [] };
+    portfolioPerfCache.set(cacheKey, empty);
+    return empty;
   }
 
   const preferred = await getUserPreferredCurrency(userId);
 
-  // Date range from first tx to "now"
+  // Date range from first tx to "now" (or caller sample set / period window)
   const firstDateStr = String(txRows[0]!.date).slice(0, 10);
-  const startDate = new Date(firstDateStr);
   const endDate = new Date();
-  const allDates: string[] = [];
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    allDates.push(d.toISOString().slice(0, 10));
-  }
   const todayKey = endDate.toISOString().slice(0, 10);
+  const periodStart = computePeriodStart(periodParam);
+  const evalStartStr = periodStart && periodStart > firstDateStr ? periodStart : firstDateStr;
+
+  const allDates: string[] =
+    sampleDates && sampleDates.length > 0
+      ? sampleDates.filter((d) => d >= firstDateStr && (!periodStart || d >= periodStart))
+      : (() => {
+          const dates: string[] = [];
+          // Only price/emit inside the requested period (state still built from all txs below).
+          const evalStart = new Date(`${evalStartStr}T00:00:00Z`);
+          for (let d = new Date(evalStart); d <= endDate; d.setDate(d.getDate() + 1)) {
+            dates.push(d.toISOString().slice(0, 10));
+          }
+          return dates;
+        })();
 
   // Account currencies for cash-leg FX into preferred
   const accountIds = new Set<number>();
@@ -222,8 +258,15 @@ export async function getPortfolioPerformance(
   };
 
   const historicalPrices: Record<string, Record<string, number>> = {};
+  // Bound Yahoo range to the evaluation window (period), not full portfolio lifetime.
+  const histFrom = new Date(`${evalStartStr}T00:00:00Z`);
+  const histPeriodDays = Math.max(
+    30,
+    Math.ceil((Date.now() - histFrom.getTime()) / 86_400_000) + 14,
+  );
+  const histPeriod = `${histPeriodDays}d`;
   const histResults = await Promise.all(
-    uniqueSymbols.map((symbol) => market.getHistoricalPrices(symbol, "max")),
+    uniqueSymbols.map((symbol) => market.getHistoricalPrices(symbol, histPeriod)),
   );
 
   for (let si = 0; si < uniqueSymbols.length; si++) {
@@ -337,7 +380,7 @@ export async function getPortfolioPerformance(
     };
   }
 
-  // Step 2: daily values.
+  // Step 2: daily values (evaluation window only).
   const dataPoints: PerformanceDataPoint[] = [];
   const stateChangeDates = Object.keys(portfolioStates).sort();
   let lastState: State = {
@@ -348,7 +391,19 @@ export async function getPortfolioPerformance(
   };
   let stateIdx = 0;
 
-  const periodStart = computePeriodStart(periodParam);
+  // Fast-forward holdings to the first evaluation date so period charts stay correct.
+  const firstEval = allDates[0];
+  if (firstEval) {
+    while (stateIdx < stateChangeDates.length) {
+      const stateKey = stateChangeDates[stateIdx];
+      if (stateKey === undefined || stateKey > firstEval) break;
+      const nextState = portfolioStates[stateKey];
+      if (nextState !== undefined) {
+        lastState = nextState;
+      }
+      stateIdx++;
+    }
+  }
 
   for (const dateStr of allDates) {
     while (stateIdx < stateChangeDates.length) {
@@ -375,7 +430,8 @@ export async function getPortfolioPerformance(
     }
 
     let totalValue = 0;
-    const assetsData: Record<string, { shares: number; price: number; total_value: number }> = {};
+    const assetsData: Record<string, { shares: number; price: number; total_value: number }> =
+      includeAssets ? {} : {};
 
     if (Object.keys(holdings).length === 0) {
       // Mirror legacy: still allow datapoint only if there is non-zero net investment.
@@ -440,11 +496,13 @@ export async function getPortfolioPerformance(
       const pricePref = toPreferredPrice(price, symbol, dateStr);
       const value = shares * pricePref;
       totalValue += value;
-      assetsData[symbol] = {
-        shares: round4(shares),
-        price: round4(pricePref),
-        total_value: round2(value),
-      };
+      if (includeAssets) {
+        assetsData[symbol] = {
+          shares: round4(shares),
+          price: round4(pricePref),
+          total_value: round2(value),
+        };
+      }
     }
 
     const totalGains = totalValue + cd - netInvested;
@@ -490,5 +548,7 @@ export async function getPortfolioPerformance(
     }
   }
 
-  return { data_points: dataPoints };
+  const result = { data_points: dataPoints };
+  portfolioPerfCache.set(cacheKey, result);
+  return result;
 }

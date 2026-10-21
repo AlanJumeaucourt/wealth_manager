@@ -35,7 +35,8 @@ export interface CategorySummary {
       original_amount: number;
     }
   >;
-  transactions: Transaction[];
+  /** Omitted/empty on chart period summaries; present on category drill-down endpoints. */
+  transactions?: Transaction[];
 }
 
 export interface CategorySummaryResponse {

@@ -261,8 +261,12 @@ export const investmentsRoutes = new Elysia({ prefix: "/investments", tags: ["in
     "/portfolio/performance",
     async ({ query, userId }) => {
       requireAuth({ userId });
-      const period = (query as { period?: string }).period;
-      const result = await getPortfolioPerformance(userId!, period);
+      const q = query as { period?: string; include_assets?: string };
+      const period = q.period;
+      const includeAssets = q.include_assets !== "false";
+      const result = await getPortfolioPerformance(userId!, period, undefined, {
+        includeAssets,
+      });
       return result;
     },
     {

@@ -1,6 +1,13 @@
 import { sql } from "kysely";
 import { db } from "../db/client.js";
 import { createCache } from "../utils/cache.js";
+import {
+  balanceAtCursor,
+  createHistoryCursor,
+  generateSampleDates,
+  resolveChartGranularity,
+  type ChartGranularity,
+} from "../utils/chartSampling.js";
 import { convert, getExchangeRatesInRange } from "../utils/currency.js";
 import * as market from "./market.js";
 import { getLiabilitySignedBalanceHistory, getLoanBalancesByAccountId } from "./liability.js";
@@ -10,29 +17,6 @@ const preferredCurrencyCache = createCache<string>({
   ttlMs: 60 * 1000,
   maxKeys: 500,
 });
-
-/** Generate an array of YYYY-MM-DD strings from start to end (inclusive). */
-function generateDateRange(startDate: string, endDate: string): string[] {
-  const dates: string[] = [];
-  let [y, m, d] = startDate.split("-").map(Number) as [number, number, number];
-  const endVal = endDate;
-  const daysInMonth = (yr: number, mo: number) => new Date(yr, mo, 0).getDate();
-  for (;;) {
-    const key = `${y}-${m < 10 ? "0" : ""}${m}-${d < 10 ? "0" : ""}${d}`;
-    if (key > endVal) break;
-    dates.push(key);
-    d++;
-    if (d > daysInMonth(y, m)) {
-      d = 1;
-      m++;
-    }
-    if (m > 12) {
-      m = 1;
-      y++;
-    }
-  }
-  return dates;
-}
 
 export async function getPreferredCurrency(userId: number): Promise<string> {
   const cached = preferredCurrencyCache.get(String(userId));
@@ -201,12 +185,8 @@ function investmentGainFromPerfPoint(point: {
 
 /** Balance of an account on `dateKey` (last known on or before that date). */
 export function balanceOnOrBefore(history: Record<string, number>, dateKey: string): number {
-  let last = 0;
-  for (const d of Object.keys(history).sort()) {
-    if (d > dateKey) break;
-    last = history[d] ?? last;
-  }
-  return last;
+  const cursor = createHistoryCursor(history);
+  return balanceAtCursor(cursor, dateKey);
 }
 
 export function balancePointGains(
@@ -251,6 +231,10 @@ export type SumAccountsBalancesOptions = {
    * When false, loan accounts are omitted (gross assets only). Default true = full net worth including debt.
    */
   includeDebt?: boolean;
+  /**
+   * Chart sampling: `day` | `week` | `month`, or omit/`auto` to pick from range length.
+   */
+  granularity?: ChartGranularity | "auto";
 };
 
 export async function sumAccountsBalancesOverDays(
@@ -261,6 +245,7 @@ export async function sumAccountsBalancesOverDays(
   options?: SumAccountsBalancesOptions,
 ): Promise<Record<string, BalanceOverTimePoint>> {
   const includeDebt = options?.includeDebt ?? true;
+  const requestedGranularity = options?.granularity;
   if (accountId != null) {
     const database = db();
     const accountRow = await database
@@ -342,11 +327,20 @@ export async function sumAccountsBalancesOverDays(
       return {};
     }
 
+    const granularity = resolveChartGranularity(rangeStart, rangeEnd, requestedGranularity);
+    const sampleDates = generateSampleDates(rangeStart, rangeEnd, granularity);
+
     const perfPromise =
       accountType === "investment"
-        ? getPortfolioPerformance(userId, undefined, accountId).catch(() => null)
+        ? getPortfolioPerformance(userId, undefined, accountId, {
+            sampleDates,
+            includeAssets: false,
+          }).catch(() => null)
         : Promise.resolve(null);
-    const ratesPromise = getExchangeRatesInRange(accountCurrency, preferred, rangeStart, rangeEnd);
+    const ratesPromise =
+      accountCurrency === preferred
+        ? Promise.resolve(null as Record<string, number> | null)
+        : getExchangeRatesInRange(accountCurrency, preferred, rangeStart, rangeEnd);
     const [rates, perf] = await Promise.all([ratesPromise, perfPromise]);
 
     const investmentGainByDate: Record<string, InvestmentGainByDate> = {};
@@ -360,23 +354,21 @@ export async function sumAccountsBalancesOverDays(
     }
 
     const output: Record<string, BalanceOverTimePoint> = {};
-    const startTime = new Date(rangeStart + "T00:00:00Z").getTime();
-    const endTime = new Date(rangeEnd + "T00:00:00Z").getTime();
-    let lastBalance = 0;
+    const cursor = createHistoryCursor(history);
+    let lastGain: InvestmentGainByDate = { total: 0, unrealized: 0, realized: 0 };
 
-    for (let t = startTime; t <= endTime; t += 86400000) {
-      const key = new Date(t).toISOString().slice(0, 10);
-      if (history[key] != null) {
-        lastBalance = history[key];
-      }
+    for (const key of sampleDates) {
+      const lastBalance = balanceAtCursor(cursor, key);
       let signedBalance = lastBalance;
       if (accountType === "income") {
         signedBalance = -lastBalance;
       } else if (accountType === "expense") {
         signedBalance = lastBalance;
       }
-      const rate = rates[key] ?? rates[rangeStart] ?? rates[rangeEnd] ?? 1;
+      const rate = rates?.[key] ?? rates?.[rangeStart] ?? rates?.[rangeEnd] ?? 1;
       const balancePref = signedBalance * rate;
+      if (investmentGainByDate[key]) lastGain = investmentGainByDate[key]!;
+      else investmentGainByDate[key] = lastGain;
 
       output[key] = buildBalanceOverTimePoint(
         Math.round(balancePref * 100) / 100,
@@ -481,10 +473,18 @@ export async function sumAccountsBalancesOverDays(
   const rangeStart = minDate > startDate ? minDate : startDate;
   const rangeEnd = maxDate < endDate ? maxDate : endDate;
 
-  const currenciesNeeded = new Set(accountHistories.map((h) => h.currency));
+  const granularity = resolveChartGranularity(rangeStart, rangeEnd, requestedGranularity);
+  const sampleDates = generateSampleDates(rangeStart, rangeEnd, granularity);
+
+  const currenciesNeeded = new Set(
+    accountHistories.map((h) => h.currency).filter((c) => c !== preferred),
+  );
   const hasInvestmentAccounts = wealthAccounts.some((a) => a.type === "investment");
   const perfPromise = hasInvestmentAccounts
-    ? getPortfolioPerformance(userId, undefined, accountId).catch(() => null)
+    ? getPortfolioPerformance(userId, undefined, accountId, {
+        sampleDates,
+        includeAssets: false,
+      }).catch(() => null)
     : Promise.resolve(null);
 
   const rateByDateAndCurrency: Record<string, Record<string, number>> = {};
@@ -506,23 +506,27 @@ export async function sumAccountsBalancesOverDays(
   }
 
   const output: Record<string, BalanceOverTimePoint> = {};
-  const allDateKeys = generateDateRange(rangeStart, rangeEnd);
   // Live snapshots only when the chart ends on/after today — never for historical ends.
   const todayKey = new Date().toISOString().slice(0, 10);
+  const cursors = accountHistories.map(({ history }) => createHistoryCursor(history));
+  let lastGain: InvestmentGainByDate = { total: 0, unrealized: 0, realized: 0 };
 
-  for (const key of allDateKeys) {
+  for (const key of sampleDates) {
     let balancePref = 0;
     const byCurrency: Record<string, number> = {};
     const useLiveSnapshots = key === rangeEnd && rangeEnd >= todayKey;
 
     for (let i = 0; i < accountHistories.length; i++) {
-      const { currency, history } = accountHistories[i]!;
-      const bal = useLiveSnapshots ? snapshotBalances[i]! : balanceOnOrBefore(history, key);
+      const { currency } = accountHistories[i]!;
+      const bal = useLiveSnapshots ? snapshotBalances[i]! : balanceAtCursor(cursors[i]!, key);
       const rates = rateByDateAndCurrency[currency];
       const rate = rates?.[key] ?? rates?.[rangeStart] ?? rates?.[rangeEnd] ?? 1;
       balancePref += bal * rate;
       byCurrency[currency] = Math.round(((byCurrency[currency] ?? 0) + bal) * 100) / 100;
     }
+
+    if (investmentGainByDate[key]) lastGain = investmentGainByDate[key]!;
+    else investmentGainByDate[key] = lastGain;
 
     output[key] = buildBalanceOverTimePoint(
       Math.round(balancePref * 100) / 100,

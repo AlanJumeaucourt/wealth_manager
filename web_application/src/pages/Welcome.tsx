@@ -80,7 +80,12 @@ export function Welcome() {
     ...transactionsThroughTodayRange(),
   });
 
-  const { data: wealthData, isLoading: isLoadingWealth, error: wealthError } = useWealthOverTime();
+  // Dashboard sparklines only need ~90 days; avoid multi-decade balance_over_time here.
+  const {
+    data: wealthData,
+    isLoading: isLoadingWealth,
+    error: wealthError,
+  } = useWealthOverTime({ days: 120 });
   const {
     data: wealthSummary,
     isLoading: isLoadingWealthSummary,
@@ -95,7 +100,7 @@ export function Welcome() {
     data: performanceData,
     isLoading: isLoadingPerformance,
     error: performanceError,
-  } = usePortfolioPerformance("1Y");
+  } = usePortfolioPerformance("1Y", { includeAssets: false });
 
   const isLoading =
     isLoadingAccounts ||

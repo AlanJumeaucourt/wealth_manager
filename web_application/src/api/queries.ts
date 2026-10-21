@@ -136,18 +136,37 @@ export const useAccounts = createPaginatedQuery<Account, AccountQueryParams>(
   (params) => [...QueryKeys.accounts, params],
 );
 
+const CHART_HISTORY_MONTHS = 500;
+/** Heavy chart series stay fresh longer — they are expensive and rarely change mid-session. */
+const CHART_STALE_TIME = 10 * 60 * 1000;
+
+function chartHistoryDateRange(options?: { days?: number }): {
+  startDateStr: string;
+  endDateStr: string;
+} {
+  const endDate = new Date();
+  const startDate = new Date();
+  if (options?.days != null && options.days > 0) {
+    startDate.setDate(startDate.getDate() - options.days);
+  } else {
+    startDate.setMonth(startDate.getMonth() - CHART_HISTORY_MONTHS);
+  }
+  return {
+    startDateStr: startDate.toISOString().split("T")[0]!,
+    endDateStr: endDate.toISOString().split("T")[0]!,
+  };
+}
+
 export function useAccountBalanceHistory(accountId: number) {
   return useCreateQuery<BalanceHistoryPoint[]>({
     queryKey: [...QueryKeys.accountById(accountId), "balance_history"],
+    staleTime: CHART_STALE_TIME,
     queryFn: async () => {
-      const endDate = new Date().toISOString().split("T")[0];
-      const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 500);
-      const startDateStr = startDate.toISOString().split("T")[0];
+      const { startDateStr, endDateStr } = chartHistoryDateRange();
 
       const data = (await unwrapEden(
         wealthApi.accounts({ id: String(accountId) }).balance_over_time.get({
-          query: { start_date: startDateStr, end_date: endDate },
+          query: { start_date: startDateStr, end_date: endDateStr, granularity: "day" },
         }),
       )) as BalanceHistoryResponse;
 
@@ -173,18 +192,19 @@ export function useAccountBalanceHistory(accountId: number) {
   });
 }
 
-export function useWealthOverTime() {
+export function useWealthOverTime(options?: { days?: number }) {
+  const days = options?.days;
   return useCreateQuery<BalanceHistoryPoint[]>({
-    queryKey: QueryKeys.wealthOverTime,
+    queryKey: days != null ? [...QueryKeys.wealthOverTime, "days", days] : QueryKeys.wealthOverTime,
+    staleTime: CHART_STALE_TIME,
     queryFn: async () => {
-      const endDate = new Date().toISOString().split("T")[0];
-      const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 500);
-      const startDateStr = startDate.toISOString().split("T")[0];
+      const { startDateStr, endDateStr } = chartHistoryDateRange(
+        days != null ? { days } : undefined,
+      );
 
       const data = (await unwrapEden(
         wealthApi.accounts.balance_over_time.get({
-          query: { start_date: startDateStr, end_date: endDate },
+          query: { start_date: startDateStr, end_date: endDateStr, granularity: "day" },
         }),
       )) as BalanceHistoryResponse;
 
@@ -212,19 +232,17 @@ export function useWealthOverTimeWithGains(options?: { includeDebt?: boolean }) 
   return useQuery<BalanceHistoryResponse>({
     queryKey: [...QueryKeys.wealthOverTime, "withGains", includeDebt],
     placeholderData: keepPreviousData,
-    staleTime: DEFAULT_STALE_TIME,
+    staleTime: CHART_STALE_TIME,
     queryFn: async () => {
-      const endDate = new Date().toISOString().split("T")[0];
-      const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 500);
-      const startDateStr = startDate.toISOString().split("T")[0];
+      const { startDateStr, endDateStr } = chartHistoryDateRange();
 
       return unwrapEden(
         wealthApi.accounts.balance_over_time.get({
           query: {
             start_date: startDateStr,
-            end_date: endDate,
+            end_date: endDateStr,
             include_debt: includeDebt ? "true" : "false",
+            granularity: "day",
           },
         }),
       ) as Promise<BalanceHistoryResponse>;
@@ -621,13 +639,21 @@ export function usePortfolioSummary(accountId?: number) {
   });
 }
 
-export function usePortfolioPerformance(period: string = "1Y") {
+export function usePortfolioPerformance(
+  period: string = "1Y",
+  options?: { includeAssets?: boolean },
+) {
+  const includeAssets = options?.includeAssets ?? true;
   return useCreateQuery<PortfolioPerformance>({
-    queryKey: QueryKeys.portfolioPerformance(period),
+    queryKey: [...QueryKeys.portfolioPerformance(period), { includeAssets }],
+    staleTime: CHART_STALE_TIME,
     queryFn: () =>
       unwrapEden(
         wealthApi.investments.portfolio.performance.get({
-          query: { period },
+          query: {
+            period,
+            include_assets: includeAssets ? "true" : "false",
+          },
         }),
       ) as unknown as Promise<PortfolioPerformance>,
   });
@@ -687,10 +713,17 @@ export function usePeriodSummary(
 ) {
   return useCreateQuery<PeriodSummaryResponse>({
     queryKey: QueryKeys.periodSummary(startDate, endDate, period),
+    staleTime: CHART_STALE_TIME,
     queryFn: () =>
       unwrapEden(
         wealthApi.budgets.summary.period.get({
-          query: { start_date: startDate, end_date: endDate, period },
+          query: {
+            start_date: startDate,
+            end_date: endDate,
+            period,
+            // Aggregates only — nested txs balloon multi-year payloads to multi-MB.
+            include_transactions: "false",
+          },
         }),
       ) as unknown as Promise<PeriodSummaryResponse>,
   });

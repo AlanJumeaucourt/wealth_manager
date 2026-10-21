@@ -75,6 +75,7 @@ export async function edenBalanceOverTime(
         start_date: startDate,
         end_date: endDate,
         include_debt: includeDebt ? "true" : "false",
+        granularity: "day",
       },
     }) as Promise<unknown>,
   );

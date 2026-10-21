@@ -1,5 +1,5 @@
 import { db } from "../db/client.js";
-import { getExchangeRateAtDate } from "../utils/currency.js";
+import { getExchangeRateAtDate, getExchangeRatesInRange } from "../utils/currency.js";
 import { round2 } from "../utils/money.js";
 import { getPreferredCurrency } from "./account.js";
 
@@ -260,36 +260,55 @@ export async function getTransactionsByCategories(
   transactionType: "income" | "expense" | "transfer",
 ): Promise<Record<string, TransactionSummary>> {
   const preferred = await getPreferredCurrency(userId);
-  const database = db();
-  const txRows = await database
-    .selectFrom("transactions")
-    .select([
-      "transactions.id",
-      "transactions.date",
-      "transactions.date_accountability",
-      "transactions.description",
-      "transactions.type",
-      "transactions.category",
-      "transactions.subcategory",
-      "transactions.amount",
-      "transactions.to_amount",
-      "transactions.from_account_id",
-      "transactions.to_account_id",
-    ])
-    .where("transactions.user_id", "=", userId)
-    .where("transactions.type", "=", transactionType)
-    .where("transactions.date_accountability", ">=", startDate)
-    .where("transactions.date_accountability", "<=", endDate)
-    .execute();
-
-  if (txRows.length === 0) return {};
-
-  const { accountMap, refundMap } = await loadBudgetBaseData(
+  const { txRows, accountMap, refundMap } = await loadBudgetBaseData(
     startDate,
     endDate,
     userId,
     transactionType,
   );
+
+  if (txRows.length === 0) return {};
+
+  const descRows = await db()
+    .selectFrom("transactions")
+    .select(["id", "description"])
+    .where("user_id", "=", userId)
+    .where(
+      "id",
+      "in",
+      txRows.map((r) => r.id),
+    )
+    .execute();
+  const descMap = new Map(descRows.map((r) => [r.id, r.description ?? ""]));
+
+  const currenciesNeeded = new Set<string>();
+  for (const row of txRows) {
+    const fromAcc = accountMap.get(row.from_account_id);
+    const toAcc = accountMap.get(row.to_account_id);
+    const impact = computeBudgetImpact({
+      tx: row,
+      fromAccount: fromAcc,
+      toAccount: toAcc,
+      refunded: refundMap.get(row.id) ?? 0,
+    });
+    if (!impact.include) continue;
+    if (impact.baseCurrency.toUpperCase() !== preferred) {
+      currenciesNeeded.add(impact.baseCurrency.toUpperCase());
+    }
+  }
+  const rateByCurrency: Record<string, Record<string, number>> = {};
+  await Promise.all(
+    [...currenciesNeeded].map(async (c) => {
+      rateByCurrency[c] = await getExchangeRatesInRange(c, preferred, startDate, endDate);
+    }),
+  );
+  const convertPref = (amount: number, fromCurrency: string, dateStr: string): number => {
+    const from = fromCurrency.toUpperCase();
+    if (from === preferred) return round2(amount);
+    const rates = rateByCurrency[from];
+    const rate = rates?.[dateStr] ?? rates?.[startDate] ?? rates?.[endDate] ?? 1;
+    return round2(amount * rate);
+  };
 
   const categorized: Record<string, TransactionSummary> = {};
 
@@ -297,7 +316,7 @@ export async function getTransactionsByCategories(
     const fromAcc = accountMap.get(row.from_account_id);
     const toAcc = accountMap.get(row.to_account_id);
     const impact = computeBudgetImpact({
-      tx: row as BudgetTxRow,
+      tx: row,
       fromAccount: fromAcc,
       toAccount: toAcc,
       refunded: refundMap.get(row.id) ?? 0,
@@ -315,25 +334,14 @@ export async function getTransactionsByCategories(
         transactions: [],
       };
     }
-    const cat = categorized[category];
+    const cat = categorized[category]!;
 
     const accountingDate = String(row.date_accountability ?? row.date).slice(0, 10);
-    const originalPref = await convertAtDate(
-      impact.originalAmount,
-      impact.baseCurrency,
-      preferred,
-      accountingDate,
-    );
-    const netPref = await convertAtDate(
-      impact.netAmount,
-      impact.baseCurrency,
-      preferred,
-      accountingDate,
-    );
-    const refundedPref = await convertAtDate(
+    const originalPref = convertPref(impact.originalAmount, impact.baseCurrency, accountingDate);
+    const netPref = convertPref(impact.netAmount, impact.baseCurrency, accountingDate);
+    const refundedPref = convertPref(
       Math.max(0, impact.originalAmount - impact.netAmount),
       impact.baseCurrency,
-      preferred,
       accountingDate,
     );
     const byCurrency = cat.by_currency ?? {};
@@ -354,7 +362,7 @@ export async function getTransactionsByCategories(
       id: row.id,
       date: String(row.date),
       date_accountability: String(row.date_accountability),
-      description: row.description ?? "",
+      description: descMap.get(row.id) ?? "",
       currency: impact.baseCurrency,
       amount_original: round2(impact.originalAmount),
       net_amount_original: round2(impact.netAmount),
@@ -466,4 +474,287 @@ export async function getBudgetSummary(
       transactions_related: v.txIds,
     })),
   }));
+}
+
+export type PeriodCategorySummary = {
+  preferred_currency?: string;
+  net_amount: number;
+  original_amount: number;
+  by_currency?: Record<string, { net_amount: number; original_amount: number }>;
+  count: number;
+  transactions: TransactionSummaryTx[];
+};
+
+export type PeriodSideBlock = {
+  total: {
+    preferred_currency?: string;
+    net: number;
+    original: number;
+    by_currency?: Record<string, { net: number; original: number }>;
+  };
+  by_category: Record<string, PeriodCategorySummary>;
+};
+
+export type PeriodSummaryRow = {
+  start_date: string;
+  end_date: string;
+  income: PeriodSideBlock;
+  expense: PeriodSideBlock;
+};
+
+export type PeriodSummariesResult = {
+  period: PeriodType;
+  summaries: PeriodSummaryRow[];
+};
+
+type MutableCategory = {
+  preferred_currency: string;
+  net_amount: number;
+  original_amount: number;
+  by_currency: Record<string, { net_amount: number; original_amount: number }>;
+  count: number;
+  transactions: TransactionSummaryTx[];
+};
+
+function emptySide(preferred: string): PeriodSideBlock {
+  return {
+    total: {
+      preferred_currency: preferred,
+      net: 0,
+      original: 0,
+      by_currency: {},
+    },
+    by_category: {},
+  };
+}
+
+function finalizeSide(side: PeriodSideBlock): PeriodSideBlock {
+  side.total.net = round2(side.total.net);
+  side.total.original = round2(side.total.original);
+  const totalBy = side.total.by_currency ?? {};
+  for (const [currency, values] of Object.entries(totalBy)) {
+    totalBy[currency] = {
+      net: round2(values.net),
+      original: round2(values.original),
+    };
+  }
+  for (const cat of Object.values(side.by_category)) {
+    cat.net_amount = round2(cat.net_amount);
+    cat.original_amount = round2(cat.original_amount);
+    const byCurrency = cat.by_currency ?? {};
+    for (const [currency, values] of Object.entries(byCurrency)) {
+      byCurrency[currency] = {
+        net_amount: round2(values.net_amount),
+        original_amount: round2(values.original_amount),
+      };
+    }
+  }
+  return side;
+}
+
+function periodKeyForDate(dateStr: string, period: PeriodType): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const [start] = calculatePeriodBoundaries(d, period);
+  return start.toISOString().slice(0, 10);
+}
+
+/**
+ * Build income/expense period buckets in one DB pass.
+ * Chart-oriented: omits nested transactions unless `includeTransactions` is true
+ * (keeps multi-year responses small enough for mobile).
+ */
+export async function getPeriodSummaries(
+  startDate: string,
+  endDate: string,
+  userId: number,
+  period: PeriodType,
+  options?: { includeTransactions?: boolean },
+): Promise<PeriodSummariesResult> {
+  const includeTransactions = options?.includeTransactions === true;
+  const preferred = await getPreferredCurrency(userId);
+
+  const periodStarts: string[] = [];
+  const periodEnds = new Map<string, string>();
+  let [currentStart] = calculatePeriodBoundaries(new Date(`${startDate}T00:00:00`), period);
+  const rangeEnd = new Date(`${endDate}T00:00:00`);
+  while (currentStart < rangeEnd) {
+    const [, currentEnd] = calculatePeriodBoundaries(currentStart, period);
+    const startStr = currentStart.toISOString().slice(0, 10);
+    const endStr = currentEnd.toISOString().slice(0, 10);
+    periodStarts.push(startStr);
+    periodEnds.set(startStr, endStr);
+    currentStart = getNextPeriodStart(currentStart, period);
+  }
+
+  const buckets = new Map<string, { income: PeriodSideBlock; expense: PeriodSideBlock }>();
+  for (const startStr of periodStarts) {
+    buckets.set(startStr, {
+      income: emptySide(preferred),
+      expense: emptySide(preferred),
+    });
+  }
+
+  if (periodStarts.length === 0) {
+    return { period, summaries: [] };
+  }
+
+  const { txRows, accountMap, refundMap } = await loadBudgetBaseData(startDate, endDate, userId);
+
+  const currenciesNeeded = new Set<string>();
+  for (const row of txRows) {
+    if (row.type !== "income" && row.type !== "expense") continue;
+    const fromAcc = accountMap.get(row.from_account_id);
+    const toAcc = accountMap.get(row.to_account_id);
+    const impact = computeBudgetImpact({
+      tx: row,
+      fromAccount: fromAcc,
+      toAccount: toAcc,
+      refunded: refundMap.get(row.id) ?? 0,
+    });
+    if (!impact.include) continue;
+    if (impact.baseCurrency.toUpperCase() !== preferred) {
+      currenciesNeeded.add(impact.baseCurrency.toUpperCase());
+    }
+  }
+
+  const rateByCurrency: Record<string, Record<string, number>> = {};
+  await Promise.all(
+    [...currenciesNeeded].map(async (c) => {
+      rateByCurrency[c] = await getExchangeRatesInRange(c, preferred, startDate, endDate);
+    }),
+  );
+
+  const convertPref = (amount: number, fromCurrency: string, dateStr: string): number => {
+    const from = fromCurrency.toUpperCase();
+    if (from === preferred) return round2(amount);
+    const rates = rateByCurrency[from];
+    const rate = rates?.[dateStr] ?? rates?.[startDate] ?? rates?.[endDate] ?? 1;
+    return round2(amount * rate);
+  };
+
+  for (const row of txRows) {
+    if (row.type !== "income" && row.type !== "expense") continue;
+    const accountingDate = String(row.date_accountability ?? row.date).slice(0, 10);
+    if (accountingDate < startDate || accountingDate > endDate) continue;
+
+    const bucketStart = periodKeyForDate(accountingDate, period);
+    const bucket = buckets.get(bucketStart);
+    if (!bucket) continue;
+
+    const fromAcc = accountMap.get(row.from_account_id);
+    const toAcc = accountMap.get(row.to_account_id);
+    const impact = computeBudgetImpact({
+      tx: row,
+      fromAccount: fromAcc,
+      toAccount: toAcc,
+      refunded: refundMap.get(row.id) ?? 0,
+    });
+    if (!impact.include) continue;
+
+    const side = row.type === "income" ? bucket.income : bucket.expense;
+    const category = row.category || "Uncategorized";
+    let cat = side.by_category[category] as MutableCategory | undefined;
+    if (!cat) {
+      cat = {
+        preferred_currency: preferred,
+        net_amount: 0,
+        original_amount: 0,
+        by_currency: {},
+        count: 0,
+        transactions: [],
+      };
+      side.by_category[category] = cat;
+    }
+
+    const originalPref = convertPref(impact.originalAmount, impact.baseCurrency, accountingDate);
+    const netPref = convertPref(impact.netAmount, impact.baseCurrency, accountingDate);
+    const refundedPref = convertPref(
+      Math.max(0, impact.originalAmount - impact.netAmount),
+      impact.baseCurrency,
+      accountingDate,
+    );
+
+    if (!cat.by_currency[impact.baseCurrency]) {
+      cat.by_currency[impact.baseCurrency] = { net_amount: 0, original_amount: 0 };
+    }
+    cat.by_currency[impact.baseCurrency]!.net_amount += impact.netAmount;
+    cat.by_currency[impact.baseCurrency]!.original_amount += impact.originalAmount;
+
+    cat.net_amount += netPref;
+    cat.original_amount += originalPref;
+    cat.count += 1;
+
+    if (!side.total.by_currency) side.total.by_currency = {};
+    if (!side.total.by_currency[impact.baseCurrency]) {
+      side.total.by_currency[impact.baseCurrency] = { net: 0, original: 0 };
+    }
+    side.total.by_currency[impact.baseCurrency]!.net += impact.netAmount;
+    side.total.by_currency[impact.baseCurrency]!.original += impact.originalAmount;
+    side.total.net += netPref;
+    side.total.original += originalPref;
+
+    if (includeTransactions) {
+      cat.transactions.push({
+        id: row.id,
+        date: String(row.date),
+        date_accountability: String(row.date_accountability),
+        description: "",
+        currency: impact.baseCurrency,
+        amount_original: round2(impact.originalAmount),
+        net_amount_original: round2(impact.netAmount),
+        amount_preferred: originalPref,
+        net_amount_preferred: netPref,
+        amount: originalPref,
+        net_amount: netPref,
+        refunded_amount: refundedPref,
+        from_account_id: row.from_account_id,
+        to_account_id: row.to_account_id,
+        category: row.category ?? "",
+        subcategory: row.subcategory ?? null,
+      });
+    }
+  }
+
+  // loadBudgetBaseData does not select description — fetch only when embedding txs
+  if (includeTransactions) {
+    const descIds = [
+      ...new Set(
+        [...buckets.values()].flatMap((b) =>
+          [...Object.values(b.income.by_category), ...Object.values(b.expense.by_category)].flatMap(
+            (c) => c.transactions.map((t) => t.id),
+          ),
+        ),
+      ),
+    ];
+    if (descIds.length > 0) {
+      const descRows = await db()
+        .selectFrom("transactions")
+        .select(["id", "description"])
+        .where("user_id", "=", userId)
+        .where("id", "in", descIds)
+        .execute();
+      const descMap = new Map(descRows.map((r) => [r.id, r.description ?? ""]));
+      for (const b of buckets.values()) {
+        for (const side of [b.income, b.expense]) {
+          for (const cat of Object.values(side.by_category)) {
+            for (const tx of cat.transactions) {
+              tx.description = descMap.get(tx.id) ?? "";
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const summaries: PeriodSummaryRow[] = periodStarts.map((startStr) => {
+    const bucket = buckets.get(startStr)!;
+    return {
+      start_date: startStr,
+      end_date: periodEnds.get(startStr)!,
+      income: finalizeSide(bucket.income),
+      expense: finalizeSide(bucket.expense),
+    };
+  });
+
+  return { period, summaries };
 }
