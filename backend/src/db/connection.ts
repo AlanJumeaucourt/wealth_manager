@@ -35,6 +35,8 @@ export function getDb(): Kysely<DBSchema> {
   validateDbPath();
   const nativeDb = new Database(dbPath);
   nativeDb.exec("PRAGMA foreign_keys = ON;");
+  nativeDb.exec("PRAGMA journal_mode = WAL;");
+  nativeDb.exec("PRAGMA busy_timeout = 5000;");
   _db = new Kysely<DBSchema>({
     dialect: new BunSqliteDialect({ database: nativeDb }),
   });

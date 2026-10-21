@@ -1,9 +1,11 @@
 import { db } from "../db/client.js";
+import { convert } from "../utils/currency.js";
 import { formatDateOnly, normalizeDateOnly, parseDateOnly } from "../utils/date.js";
 import { NotFoundError, ValidationError } from "../utils/error.js";
 import { round2, roundCeiling2 } from "../utils/money.js";
 import { toNumber } from "../utils/number.js";
 import { stringifyUnknown } from "../utils/stringifyUnknown.js";
+import { getUserPreferredCurrency } from "./user.js";
 
 type SortOrder = "asc" | "desc";
 
@@ -546,7 +548,49 @@ export async function getLoanBalancesByAccountId(userId: number): Promise<Map<nu
 }
 
 /**
- * Date → signed remaining balance history derived from the amortization schedule.
+ * Wealth-timeline only: when outstanding debt should appear on net-worth charts.
+ * Does NOT feed amortization — the schedule always uses liability.start_date.
+ *
+ * Prefers the first disbursement transfer on the linked loan account
+ * (outbound for i_owe, inbound for they_owe); falls back to start_date.
+ */
+async function resolveLiabilityDebtStartDate(
+  userId: number,
+  row: LiabilityRecord,
+): Promise<string> {
+  const contractualStart = String(row.start_date).slice(0, 10);
+  if (row.account_id == null) return contractualStart;
+
+  const accountId = row.account_id;
+  const disbursement =
+    row.direction === "they_owe"
+      ? await db()
+          .selectFrom("transactions")
+          .select("date")
+          .where("user_id", "=", userId)
+          .where("type", "=", "transfer")
+          .where("to_account_id", "=", accountId)
+          .orderBy("date", "asc")
+          .executeTakeFirst()
+      : await db()
+          .selectFrom("transactions")
+          .select("date")
+          .where("user_id", "=", userId)
+          .where("type", "=", "transfer")
+          .where("from_account_id", "=", accountId)
+          .orderBy("date", "asc")
+          .executeTakeFirst();
+
+  if (disbursement?.date) {
+    return String(disbursement.date).slice(0, 10);
+  }
+  return contractualStart;
+}
+
+/**
+ * Signed remaining-balance history for wealth aggregation / balance-over-time.
+ * Debt appears from the disbursement transfer date; payment schedule math still
+ * comes from generateAmortizationSchedule (contractual start_date).
  */
 export async function getLiabilitySignedBalanceHistory(
   userId: number,
@@ -560,9 +604,9 @@ export async function getLiabilitySignedBalanceHistory(
   ]);
   const principal = toNumber(row.principal_amount);
   const direction = row.direction;
-  const startKey = String(row.start_date).slice(0, 10);
+  const debtStart = await resolveLiabilityDebtStartDate(userId, row);
   const out: Record<string, number> = {
-    [startKey]: signedLiabilityBalance(principal, direction),
+    [debtStart]: signedLiabilityBalance(principal, direction),
   };
 
   const paymentsChronological = [...paymentRows.items].sort((a, b) =>
@@ -613,6 +657,22 @@ export async function getLiabilityWithDetails(userId: number, liabilityId: numbe
     balance ? toNumber(balance.principal_paid) : undefined,
     balance ? toNumber(balance.interest_paid) : undefined,
   );
+  const preferred = await getUserPreferredCurrency(userId);
+  const native = (serialized.currency || preferred).toUpperCase();
+  const toPref = (amount: number) => convert(amount, native, preferred);
+  const [
+    principal_amount_preferred,
+    principal_paid_preferred,
+    interest_paid_preferred,
+    remaining_balance_preferred,
+    payment_amount_preferred,
+  ] = await Promise.all([
+    toPref(serialized.principal_amount),
+    toPref(asOf.principal_paid),
+    toPref(asOf.interest_paid),
+    toPref(asOf.remaining_balance),
+    serialized.payment_amount != null ? toPref(serialized.payment_amount) : Promise.resolve(null),
+  ]);
   return {
     ...serialized,
     principal_paid: asOf.principal_paid,
@@ -620,6 +680,12 @@ export async function getLiabilityWithDetails(userId: number, liabilityId: numbe
     remaining_balance: asOf.remaining_balance,
     missed_payments_count: asOf.missed_payments_count,
     next_payment_date: asOf.next_payment_date ?? serialized.next_payment_date,
+    preferred_currency: preferred,
+    principal_amount_preferred,
+    principal_paid_preferred,
+    interest_paid_preferred,
+    remaining_balance_preferred,
+    payment_amount_preferred,
   };
 }
 
@@ -1046,6 +1112,7 @@ export async function deleteLiabilityPayment(userId: number, paymentId: number):
 
 type ExistingPaymentMap = Map<string, Array<Awaited<ReturnType<typeof serializeLiabilityPayment>>>>;
 
+/** Amortization table: always keyed off liability.start_date (not disbursement). */
 export async function generateAmortizationSchedule(
   liabilityId: number,
   userId: number,
@@ -1752,6 +1819,7 @@ export async function generateInterestExpenseTransactions(
       .executeTakeFirst();
     if (existing?.id) continue;
 
+    const { category, subcategory } = interestExpenseCategoryForLiability(liability.liability_type);
     const inserted = await database
       .insertInto("transactions")
       .values({
@@ -1761,8 +1829,8 @@ export async function generateInterestExpenseTransactions(
         amount: String(interestRecognized),
         description,
         type: "expense",
-        category: "Banque",
-        subcategory: "Banque - Autres",
+        category,
+        subcategory,
         from_account_id: liability.account_id,
         to_account_id: expenseAccountId,
       })

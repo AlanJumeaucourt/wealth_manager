@@ -31,10 +31,20 @@ export const app = new Elysia()
     }),
   )
   .use(authDerivePlugin)
-  .derive(() => ({
-    _requestStart: Date.now(),
-    _errorRef: { current: null as string | null },
-  }))
+  .derive(({ request }) => {
+    const incoming = request.headers.get("x-request-id");
+    const requestId =
+      incoming && incoming.trim() !== ""
+        ? incoming.trim()
+        : typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    return {
+      _requestStart: Date.now(),
+      _errorRef: { current: null as string | null },
+      requestId,
+    };
+  })
   .onError(errorHandler)
   .onRequest(logRequest)
   .onAfterResponse(
@@ -44,17 +54,22 @@ export const app = new Elysia()
       _requestStart,
       _errorRef,
       userId,
+      requestId,
     }: {
       request: Request;
-      set: { status?: number | string };
+      set: { status?: number | string; headers?: Record<string, string | number> };
       _requestStart?: number;
       _errorRef?: { current: string | null };
       userId?: number | null;
+      requestId?: string;
     }) => {
+      if (requestId) {
+        set.headers = { ...set.headers, "x-request-id": requestId };
+      }
       const status = typeof set?.status === "number" ? set.status : 200;
       const durationMs = _requestStart != null ? Date.now() - _requestStart : undefined;
       const reason = _errorRef?.current ?? undefined;
-      logResponse({ request, status, durationMs, reason, userId });
+      logResponse({ request, status, durationMs, reason, userId, requestId });
     },
   )
   .get(
@@ -111,6 +126,22 @@ export const app = new Elysia()
               scheme: "bearer",
               bearerFormat: "JWT",
               description: "JWT access token",
+            },
+          },
+          schemas: {
+            ErrorResponse: {
+              type: "object",
+              required: ["error"],
+              properties: {
+                error: { type: "string" },
+                code: {
+                  type: "string",
+                  description:
+                    "NOT_FOUND | VALIDATION | CONFLICT | UNAUTHORIZED | FORBIDDEN | SERVICE_UNAVAILABLE",
+                },
+                details: {},
+                msg: { type: "string" },
+              },
             },
           },
         },

@@ -1,8 +1,4 @@
-export interface RefundGroup {
-  id?: number;
-  name: string;
-  description?: string | null;
-}
+export type { RefundGroup } from "@/api/edenDerivedTypes";
 
 export interface RefundGroupFilters {
   id?: number | number[];
@@ -13,8 +9,8 @@ export interface RefundGroupFilters {
 export interface RefundGroupQueryParams extends RefundGroupFilters {
   page?: number;
   per_page?: number;
-  sort_by?: keyof RefundGroup;
+  sort_by?: string;
   sort_order?: "asc" | "desc";
   search?: string;
-  search_fields?: (keyof RefundGroup)[];
+  search_fields?: string[];
 }

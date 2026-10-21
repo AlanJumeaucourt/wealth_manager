@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useToast } from "@/hooks/use-toast";
 import { Investment } from "@/types";
 import { useNavigate } from "@tanstack/react-router";
@@ -28,6 +29,10 @@ export function DeleteInvestmentDialog({
   const { toast } = useToast();
   const navigate = useNavigate();
   const deleteMutation = useDeleteInvestment();
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || investment?.preferred_currency || investment?.currency || "EUR";
+  const unitPrice = investment?.unit_price_preferred ?? investment?.unit_price ?? 0;
+  const totalPaid = investment?.total_paid_preferred ?? investment?.total_paid ?? 0;
 
   if (!investment || !investment.transaction_id) return null;
 
@@ -74,15 +79,15 @@ export function DeleteInvestmentDialog({
                   <strong>Unit Price:</strong>{" "}
                   {new Intl.NumberFormat(undefined, {
                     style: "currency",
-                    currency: "EUR",
-                  }).format(investment.unit_price)}
+                    currency: curr,
+                  }).format(unitPrice)}
                 </p>
                 <p>
                   <strong>Total:</strong>{" "}
                   {new Intl.NumberFormat(undefined, {
                     style: "currency",
-                    currency: "EUR",
-                  }).format(investment.total_paid || 0)}
+                    currency: curr,
+                  }).format(totalPaid)}
                 </p>
                 <p>
                   <strong>Date:</strong> {new Date(investment.date).toLocaleDateString()}

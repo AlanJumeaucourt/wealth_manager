@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { Liability, LiabilityPayment } from "@/types";
 import { formatCurrency } from "@/utils/currency";
 import { addMonths, format, isBefore, parseISO } from "date-fns";
@@ -11,7 +12,22 @@ interface LiabilityDashboardProps {
   payments: LiabilityPayment[];
 }
 
+function remainingPreferred(l: Liability): number {
+  return l.remaining_balance_preferred ?? l.remaining_balance ?? 0;
+}
+
+function principalPaidPreferred(l: Liability): number {
+  return l.principal_paid_preferred ?? l.principal_paid ?? 0;
+}
+
+function interestPaidPreferred(l: Liability): number {
+  return l.interest_paid_preferred ?? l.interest_paid ?? 0;
+}
+
 export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboardProps) {
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || "EUR";
+
   // Calculate dashboard statistics
   const stats = useMemo(() => {
     const totalLiabilities = liabilities.length;
@@ -20,12 +36,12 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
     const iOweLiabilities = liabilities.filter((l) => l.direction === "i_owe");
     const theyOweLiabilities = liabilities.filter((l) => l.direction === "they_owe");
 
-    // Calculate totals
-    const totalDebt = iOweLiabilities.reduce((sum, l) => sum + (l.remaining_balance || 0), 0);
-    const totalOwed = theyOweLiabilities.reduce((sum, l) => sum + (l.remaining_balance || 0), 0);
+    // Calculate totals in preferred currency
+    const totalDebt = iOweLiabilities.reduce((sum, l) => sum + remainingPreferred(l), 0);
+    const totalOwed = theyOweLiabilities.reduce((sum, l) => sum + remainingPreferred(l), 0);
 
-    const totalPrincipalPaid = liabilities.reduce((sum, l) => sum + (l.principal_paid || 0), 0);
-    const totalInterestPaid = liabilities.reduce((sum, l) => sum + (l.interest_paid || 0), 0);
+    const totalPrincipalPaid = liabilities.reduce((sum, l) => sum + principalPaidPreferred(l), 0);
+    const totalInterestPaid = liabilities.reduce((sum, l) => sum + interestPaidPreferred(l), 0);
 
     // Calculate missed payments
     const missedPaymentsCount = liabilities.reduce(
@@ -88,7 +104,7 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
           <CardHeader className="pb-2">
             <CardDescription>Total Debt (I Owe)</CardDescription>
             <CardTitle className="text-2xl text-destructive">
-              {formatCurrency(stats.totalDebt)}
+              {formatCurrency(stats.totalDebt, curr)}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -103,7 +119,7 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
           <CardHeader className="pb-2">
             <CardDescription>Total Owed (They Owe)</CardDescription>
             <CardTitle className="text-2xl text-green-600">
-              {formatCurrency(stats.totalOwed)}
+              {formatCurrency(stats.totalOwed, curr)}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -120,7 +136,7 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
             <CardTitle
               className={`text-2xl ${stats.netLiabilityPosition >= 0 ? "text-green-600" : "text-destructive"}`}
             >
-              {formatCurrency(stats.netLiabilityPosition)}
+              {formatCurrency(stats.netLiabilityPosition, curr)}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -138,7 +154,7 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
           <CardHeader>
             <CardTitle>Principal vs Interest Paid</CardTitle>
             <CardDescription>
-              Total paid: {formatCurrency(stats.totalPrincipalPaid + stats.totalInterestPaid)}
+              Total paid: {formatCurrency(stats.totalPrincipalPaid + stats.totalInterestPaid, curr)}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -162,7 +178,7 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
                       />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                  <Tooltip formatter={(value) => formatCurrency(value as number, curr)} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -175,7 +191,7 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
           <CardHeader>
             <CardTitle>Debt vs Receivables</CardTitle>
             <CardDescription>
-              Total outstanding: {formatCurrency(stats.totalDebt + stats.totalOwed)}
+              Total outstanding: {formatCurrency(stats.totalDebt + stats.totalOwed, curr)}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -196,7 +212,7 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
                       <Cell key={`debt-owed-cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                  <Tooltip formatter={(value) => formatCurrency(value as number, curr)} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -220,6 +236,7 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
               <div className="space-y-4">
                 {stats.upcomingPayments.map((payment) => {
                   const liability = liabilities.find((l) => l.id === payment.liability_id);
+                  const payCurr = liability?.currency || curr;
                   return (
                     <div
                       key={payment.id}
@@ -232,9 +249,9 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium">{formatCurrency(payment.amount)}</div>
+                        <div className="font-medium">{formatCurrency(payment.amount, payCurr)}</div>
                         <div className="text-xs text-muted-foreground">
-                          Principal: {formatCurrency(payment.principal_amount)}
+                          Principal: {formatCurrency(payment.principal_amount, payCurr)}
                         </div>
                       </div>
                     </div>
@@ -276,7 +293,7 @@ export function LiabilityDashboard({ liabilities, payments }: LiabilityDashboard
                       </div>
                       <div className="text-right">
                         <div className="font-medium">
-                          {formatCurrency(liability.remaining_balance || 0)}
+                          {formatCurrency(remainingPreferred(liability), curr)}
                         </div>
                         <div className="text-xs text-muted-foreground">Remaining balance</div>
                       </div>

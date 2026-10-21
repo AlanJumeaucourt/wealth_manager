@@ -26,6 +26,8 @@ export async function runMigrations(): Promise<void> {
   console.log("Running migrations against:", dbPath);
   const nativeDb = new Database(dbPath);
   nativeDb.exec("PRAGMA foreign_keys = ON;");
+  nativeDb.exec("PRAGMA journal_mode = WAL;");
+  nativeDb.exec("PRAGMA busy_timeout = 5000;");
 
   const kdb = new Kysely<DBSchema>({
     dialect: new BunSqliteDialect({ database: nativeDb }),

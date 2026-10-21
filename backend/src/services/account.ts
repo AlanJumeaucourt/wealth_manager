@@ -507,11 +507,13 @@ export async function sumAccountsBalancesOverDays(
 
   const output: Record<string, BalanceOverTimePoint> = {};
   const allDateKeys = generateDateRange(rangeStart, rangeEnd);
+  // Live snapshots only when the chart ends on/after today — never for historical ends.
+  const todayKey = new Date().toISOString().slice(0, 10);
 
   for (const key of allDateKeys) {
     let balancePref = 0;
     const byCurrency: Record<string, number> = {};
-    const useLiveSnapshots = key === rangeEnd;
+    const useLiveSnapshots = key === rangeEnd && rangeEnd >= todayKey;
 
     for (let i = 0; i < accountHistories.length; i++) {
       const { currency, history } = accountHistories[i]!;
@@ -543,6 +545,7 @@ export interface EnrichedAccount {
   balance: number;
   balance_preferred: number;
   market_value: number | null;
+  market_value_preferred: number | null;
   [k: string]: unknown;
 }
 
@@ -556,12 +559,15 @@ export async function enrichAccount(
   const currency = (row.currency as string) ?? preferred;
   const balance_preferred = await convert(balance, currency, preferred);
   const market_value = await calculateMarketValue(accountId, (row.type as string) ?? "");
+  const market_value_preferred =
+    market_value != null ? await convert(market_value, currency, preferred) : null;
   return {
     ...row,
     currency,
     balance,
     balance_preferred,
     market_value,
+    market_value_preferred,
   } as EnrichedAccount;
 }
 
@@ -653,12 +659,15 @@ export async function enrichAccountsBatch(
         (row.type as string) === "investment"
           ? (marketValueByAccountId.get(accountId) ?? null)
           : null;
+      const market_value_preferred =
+        market_value != null ? await convert(market_value, currency, preferred) : null;
       return {
         ...row,
         currency,
         balance: Math.round(balance * 100) / 100,
         balance_preferred,
         market_value,
+        market_value_preferred,
       } as EnrichedAccount;
     }),
   );

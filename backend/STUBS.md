@@ -30,13 +30,7 @@ All routes return `[]` or `{}` and do not call any external API or DB. Entire pr
 
 ## Liability payments (`/liability_payments`)
 
-- **POST /record** – 201, returns `{}`; does not persist.
-- **POST /** – 201, returns `{}`; does not persist.
-- **GET /:id** – returns `{}`; does not load from DB.
-- **PUT /:id** – returns `{}`; does not update.
-- **DELETE /:id** – 204; confirm it deletes in DB.
-
-Only **GET /liability/:liability_id** and **GET /** (list) use the DB; list returns empty items.
+Implemented — routes call real service functions in `services/liability.ts` (`recordLiabilityPayment`, `createLiabilityPayment`, `listLiabilityPayments`, `getLiabilityPaymentById`, `updateLiabilityPayment`, `deleteLiabilityPayment`, `getLiabilityPaymentsForLiability`) and persist to `liability_payment_details`.
 
 ## Kysely transactions
 

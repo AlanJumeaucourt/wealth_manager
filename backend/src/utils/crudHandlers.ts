@@ -4,6 +4,7 @@ import { buildListParams, normalizeListQuery } from "../schemas/common.js";
 import * as base from "../services/base.js";
 import type { ListResponse } from "../types/index.js";
 import { extractBatchIds, extractBatchItems } from "./body.js";
+import { NotFoundError, ValidationError } from "./error.js";
 import { parseIdParamOr400 } from "./params.js";
 import { extractFiltersFromQuery, parseDateRangeOr400 } from "./query.js";
 
@@ -40,15 +41,12 @@ export function createGetByIdHandler<TItem = Record<string, unknown>>(
   table: TableName,
   options?: GetByIdOptions<TItem>,
 ) {
-  return async (ctx: IdHandlerContext): Promise<TItem | "" | { error: string }> => {
+  return async (ctx: IdHandlerContext): Promise<TItem | { error: string }> => {
     requireAuth({ userId: ctx.userId });
     const id = parseIdParamOr400(ctx.params.id, ctx.set);
     if (typeof id === "object") return id;
     const row = await base.getById<Record<string, unknown>>(table, id, ctx.userId!);
-    if (!row) {
-      ctx.set.status = 404;
-      return "";
-    }
+    if (!row) throw new NotFoundError(`${table} not found`);
     if (options?.enrich) {
       return options.enrich(row as Record<string, unknown>, ctx.userId!);
     }
@@ -64,15 +62,12 @@ export async function withIdParamAndGetById<T>(
   ctx: IdHandlerContext,
   table: TableName,
   fn: (id: number, row: Record<string, unknown>) => Promise<T>,
-): Promise<T | "" | { error: string }> {
+): Promise<T | { error: string }> {
   requireAuth({ userId: ctx.userId });
   const id = parseIdParamOr400(ctx.params.id, ctx.set);
   if (typeof id === "object") return id;
   const row = await base.getById(table, id, ctx.userId!);
-  if (!row) {
-    ctx.set.status = 404;
-    return "";
-  }
+  if (!row) throw new NotFoundError(`${table} not found`);
   return fn(id, row as Record<string, unknown>);
 }
 
@@ -87,17 +82,14 @@ export async function withIdParamAndDateRange<T>(
   ctx: IdAndDateRangeContext,
   table: TableName,
   fn: (id: number, startDate: string, endDate: string) => Promise<T>,
-): Promise<T | "" | { error: string } | { error: { error: string } }> {
+): Promise<T | { error: string } | { error: { error: string } }> {
   requireAuth({ userId: ctx.userId });
   const id = parseIdParamOr400(ctx.params.id, ctx.set);
   if (typeof id === "object") return id;
   const dateParsed = parseDateRangeOr400(ctx.query as Record<string, unknown>, ctx.set);
   if ("error" in dateParsed) return dateParsed.error;
   const row = await base.getById(table, id, ctx.userId!);
-  if (!row) {
-    ctx.set.status = 404;
-    return "";
-  }
+  if (!row) throw new NotFoundError(`${table} not found`);
   return fn(id, dateParsed.start_date, dateParsed.end_date);
 }
 
@@ -110,10 +102,7 @@ export function createDeleteByIdHandler(table: TableName) {
     const id = parseIdParamOr400(ctx.params.id, ctx.set);
     if (typeof id === "object") return id;
     const ok = await base.deleteOne(table, id, ctx.userId!);
-    if (!ok) {
-      ctx.set.status = 404;
-      return "";
-    }
+    if (!ok) throw new NotFoundError(`${table} not found`);
     ctx.set.status = 204;
     return "";
   };
@@ -157,8 +146,7 @@ export function createListHandler<TItem = Record<string, unknown>>(
       ]);
       const unknownKeys = Object.keys(rawQuery).filter((k) => !allowedKeys.has(k));
       if (unknownKeys.length > 0) {
-        ctx.set.status = 400;
-        return { error: `Unknown query parameters: ${unknownKeys.sort().join(", ")}` };
+        throw new ValidationError(`Unknown query parameters: ${unknownKeys.sort().join(", ")}`);
       }
     }
     const listQuery = normalizeListQuery(rawQuery as Partial<ListQuery> & Record<string, unknown>);
@@ -243,10 +231,7 @@ export function createUpdateHandler(
     if (typeof id === "object") return id;
     const data = transform ? transform(ctx.body) : ctx.body;
     const row = await base.updateOne(table, id, ctx.userId!, data);
-    if (!row) {
-      ctx.set.status = 404;
-      return "";
-    }
+    if (!row) throw new NotFoundError(`${table} not found`);
     return row;
   };
 }

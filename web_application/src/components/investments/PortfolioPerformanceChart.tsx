@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { TimePeriod } from "@/types";
 import * as React from "react";
 import {
@@ -23,18 +24,20 @@ import {
 
 type MetricType = "performance" | "total_value" | "absolute_gain";
 
-const metricLabels: Record<MetricType, string> = {
-  performance: "Performance (%)",
-  total_value: "Total Value (€)",
-  absolute_gain: "Absolute Gain (€)",
-};
+function metricLabels(currency: string): Record<MetricType, string> {
+  return {
+    performance: "Performance (%)",
+    total_value: `Total Value (${currency})`,
+    absolute_gain: `Absolute Gain (${currency})`,
+  };
+}
 
-function formatSignedMetricValue(value: number, metric: MetricType) {
+function formatSignedMetricValue(value: number, metric: MetricType, currency: string) {
   const sign = value >= 0 ? "+" : "";
   if (metric === "performance") return `${sign}${value.toFixed(2)}%`;
   return `${sign}${new Intl.NumberFormat(undefined, {
     style: "currency",
-    currency: "EUR",
+    currency,
   }).format(value)}`;
 }
 
@@ -61,7 +64,10 @@ export function PortfolioPerformanceChart({
   selectedRange = null,
   onSelectedRangeChange,
 }: PortfolioPerformanceChartProps) {
-  const { data: performanceData, isLoading } = usePortfolioPerformance();
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || "EUR";
+  const labels = metricLabels(curr);
+  const { data: performanceData, isLoading } = usePortfolioPerformance(period);
   const [selectedMetric, setSelectedMetric] = React.useState<MetricType>("performance");
   const [showStacked, setShowStacked] = React.useState(false);
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
@@ -112,7 +118,7 @@ export function PortfolioPerformanceChart({
       case "absolute_gain":
         return new Intl.NumberFormat(undefined, {
           style: "currency",
-          currency: "EUR",
+          currency: curr,
         }).format(value);
     }
   };
@@ -245,7 +251,7 @@ export function PortfolioPerformanceChart({
               <SelectValue placeholder="Select metric" />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(metricLabels).map(([value, label]) => (
+              {Object.entries(labels).map(([value, label]) => (
                 <SelectItem key={value} value={value}>
                   {label}
                 </SelectItem>
@@ -337,7 +343,7 @@ export function PortfolioPerformanceChart({
                             {formatTooltipDate(dragRange.endPoint.date)}
                           </div>
                           <div>
-                            {showStacked ? "Total diff" : `${metricLabels[selectedMetric]} diff`}:{" "}
+                            {showStacked ? "Total diff" : `${labels[selectedMetric]} diff`}:{" "}
                             <span
                               className={
                                 (showStacked ? totalNow - totalStart : selectedMetricDiff) >= 0
@@ -346,8 +352,12 @@ export function PortfolioPerformanceChart({
                               }
                             >
                               {showStacked
-                                ? formatSignedMetricValue(totalNow - totalStart, selectedMetric)
-                                : formatSignedMetricValue(selectedMetricDiff, selectedMetric)}
+                                ? formatSignedMetricValue(
+                                    totalNow - totalStart,
+                                    selectedMetric,
+                                    curr,
+                                  )
+                                : formatSignedMetricValue(selectedMetricDiff, selectedMetric, curr)}
                             </span>
                           </div>
                         </div>
@@ -369,7 +379,7 @@ export function PortfolioPerformanceChart({
                       ) : (
                         <>
                           <p className="font-medium">
-                            {metricLabels[selectedMetric]}: {formatValue(data[selectedMetric])}
+                            {labels[selectedMetric]}: {formatValue(data[selectedMetric])}
                           </p>
                           {selectedMetric === "total_value" && (
                             <>

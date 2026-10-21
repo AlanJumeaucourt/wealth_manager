@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 
 type Scope = "month" | "quarter" | "year";
 
@@ -13,7 +21,7 @@ interface DateRangeContextType {
   scope: Scope;
   setScope: (scope: Scope) => void;
   date: Date;
-  setDate: (date: Date) => void;
+  setDate: Dispatch<SetStateAction<Date>>;
   dateRange: DateRange;
 }
 
@@ -55,21 +63,26 @@ export function DateRangeProvider({ children }: { children: ReactNode }) {
   const [scope, setScope] = useState<Scope>("month");
   const [date, setDate] = useState(new Date());
 
-  const dateRange = calculateDateRange(date, scope);
-
-  return (
-    <DateRangeContext.Provider
-      value={{
-        scope,
-        setScope,
-        date,
-        setDate,
-        dateRange,
-      }}
-    >
-      {children}
-    </DateRangeContext.Provider>
+  const dateYear = date.getFullYear();
+  const dateMonth = date.getMonth();
+  const dateDay = date.getDate();
+  const dateRange = useMemo(
+    () => calculateDateRange(new Date(dateYear, dateMonth, dateDay), scope),
+    [dateYear, dateMonth, dateDay, scope],
   );
+
+  const value = useMemo(
+    () => ({
+      scope,
+      setScope,
+      date,
+      setDate,
+      dateRange,
+    }),
+    [scope, date, dateRange],
+  );
+
+  return <DateRangeContext.Provider value={value}>{children}</DateRangeContext.Provider>;
 }
 
 export function useDateRange() {

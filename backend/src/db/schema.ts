@@ -73,8 +73,20 @@ export interface LiabilityBalancesView {
   next_payment_date: string | null;
 }
 
+/** Server-side refresh JWT tracking (rotation / revoke). Not in manifest codegen. */
+export interface RefreshTokensTable {
+  id: import("kysely").Generated<number>;
+  user_id: number;
+  jti: string;
+  token_hash: string;
+  expires_at: string;
+  revoked_at: string | null;
+  created_at: string;
+}
+
 export interface Database {
   users: UsersTable;
+  refresh_tokens: RefreshTokensTable;
   banks: BanksTable;
   accounts: AccountsTable;
   transactions: TransactionsTable;

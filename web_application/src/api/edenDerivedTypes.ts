@@ -137,3 +137,25 @@ export type PotentialRefundTransactionRow = PotentialRefundApiItem extends {
 }
   ? Row
   : never;
+
+// --- Assets ---
+
+type AssetsListPayload = Treaty.Data<ReturnType<typeof wealthApi.assets.get>>;
+export type Asset = AssetsListPayload extends { items: infer Items extends readonly unknown[] }
+  ? Items[number]
+  : never;
+
+// --- Refund groups ---
+
+type RefundGroupsListPayload = Treaty.Data<ReturnType<typeof wealthApi.refund_groups.get>>;
+export type RefundGroup = RefundGroupsListPayload extends {
+  items: infer Items extends readonly unknown[];
+}
+  ? Items[number]
+  : never;
+
+/** Helper: list item type from a Treaty list payload. */
+export type ListItemOf<T> = T extends { items: readonly (infer Item)[] } ? Item : never;
+
+/** `GET /accounts/wealth/summary` — matches TypeBox response on the route. */
+export type WealthSummary = Treaty.Data<ReturnType<typeof wealthApi.accounts.wealth.summary.get>>;

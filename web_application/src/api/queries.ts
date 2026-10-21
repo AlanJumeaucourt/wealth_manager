@@ -202,7 +202,8 @@ export function useWealthOverTime() {
 export function useWealthSummary() {
   return useCreateQuery<WealthSummary>({
     queryKey: QueryKeys.wealthSummary,
-    queryFn: () => fetchWithAuth<WealthSummary>("accounts/wealth/summary"),
+    queryFn: () =>
+      unwrapEden<WealthSummary>(wealthApi.accounts.wealth.summary.get() as Promise<unknown>),
   });
 }
 
@@ -325,7 +326,10 @@ export const useInvestments = createPaginatedQuery<Investment, InvestmentQueryPa
 // #endregion
 
 // #region RefundGroup Operations and Queries
-const refundGroupOperations = createCrudOperations<RefundGroup>({
+const refundGroupOperations = createCrudOperations<
+  RefundGroup,
+  Omit<RefundGroup, "id" | "user_id">
+>({
   resource: "refund_groups",
   queryKeysToInvalidate: ["refundGroups", "refundItems", "transactions", "potentialRefunds"],
 });
@@ -863,6 +867,12 @@ export function useUpdatePreferredCurrency() {
       void queryClient.invalidateQueries({ queryKey: QueryKeys.wealthSummary });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.transactions });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.budgetSummary });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.investments });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.liabilities });
+      void queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.refundGroups });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.refundItems });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.potentialRefunds });
       const userStr = localStorage.getItem("user");
       if (userStr) {
         try {

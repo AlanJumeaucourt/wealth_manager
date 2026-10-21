@@ -128,27 +128,53 @@ export async function fetchWithAuth<T>(endpoint: string, options: FetchOptions =
   }
 }
 
+/** Prefix used for invalidating all queries under a factory key (e.g. liabilities → ["liabilities"]). */
+const QUERY_KEY_PREFIX: Partial<Record<keyof typeof QueryKeys, QueryKeyArray>> = {
+  accountById: ["accounts"],
+  transactionById: ["transactions"],
+  investmentById: ["investments"],
+  portfolioPerformance: ["portfolio", "performance"],
+  portfolioSummary: ["portfolio", "summary"],
+  assetTransactions: ["assets"],
+  refundGroupById: ["refund_groups"],
+  refundItemById: ["refund_items"],
+  stockHistory: ["stocks"],
+  stockSearch: ["stocks", "search"],
+  customPrices: ["stocks"],
+  budgetsByYearMonth: ["budgets"],
+  budgetComparison: ["budgets", "comparison"],
+  liabilityById: ["liabilities"],
+  liabilityDetailById: ["liabilities"],
+  liabilityAmortization: ["liabilities"],
+  liabilityPaymentById: ["liability_payments"],
+  liabilityPaymentsByLiability: ["liability_payments"],
+  categoryTransactions: ["categories"],
+  categorySummaryByDate: ["categories", "summary"],
+  periodSummary: ["budgets", "summary", "period"],
+};
+
 export function invalidateQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   key: keyof typeof QueryKeys,
 ) {
-  if (typeof QueryKeys[key] === "function") {
-    if (key === "portfolioSummary") {
-      void queryClient.invalidateQueries({
-        queryKey: (QueryKeys[key] as (id?: number) => QueryKeyArray)(),
-      });
-    } else if (key === "portfolioPerformance") {
-      void queryClient.invalidateQueries({
-        queryKey: (QueryKeys[key] as (period?: string) => QueryKeyArray)("1Y"),
-      });
-    } else {
-      void queryClient.invalidateQueries({
-        queryKey: [String(QueryKeys[key].toString().split(",")[0])],
-      });
-    }
-  } else {
-    void queryClient.invalidateQueries({ queryKey: QueryKeys[key] as QueryKey });
+  const prefix = QUERY_KEY_PREFIX[key];
+  if (prefix) {
+    void queryClient.invalidateQueries({ queryKey: prefix });
+    return;
   }
+  const value = QueryKeys[key];
+  if (typeof value === "function") {
+    // Factory without an explicit prefix map: invalidate by first segment of a sample key.
+    const sample = (value as (...args: never[]) => QueryKeyArray)(
+      ...(Array(value.length).fill(0) as never[]),
+    );
+    const root = sample[0];
+    void queryClient.invalidateQueries({
+      queryKey: root !== undefined ? [root] : sample,
+    });
+    return;
+  }
+  void queryClient.invalidateQueries({ queryKey: value as QueryKey });
 }
 
 function isPaginatedListCache(value: unknown): value is PaginatedResponse<unknown> {

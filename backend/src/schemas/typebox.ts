@@ -128,6 +128,24 @@ export function tListQuerySchemaWithExtraKeys(extraKeys: readonly string[]) {
 
 export const tIdParamSchema = t.Object({ id: t.String() });
 
+/** Shared API error body (AppError + onError). Use on route `response` for 4xx. */
+export const tErrorResponse = t.Object({
+  error: t.String(),
+  code: t.Optional(t.String()),
+  details: t.Optional(t.Unknown()),
+  msg: t.Optional(t.String()),
+});
+
+/** Common authenticated CRUD error responses for OpenAPI / Eden. */
+export const tCrudErrorResponses = {
+  400: tErrorResponse,
+  401: tErrorResponse,
+  403: tErrorResponse,
+  404: tErrorResponse,
+  409: tErrorResponse,
+  422: tErrorResponse,
+};
+
 export function tListResponseSchema<T extends ReturnType<typeof t.Object>>(itemSchema: T) {
   return t.Object({
     items: t.Array(itemSchema),
@@ -252,3 +270,23 @@ export const tPotentialRefundsListResponse = t.Object(
   },
   { additionalProperties: false },
 );
+
+/** POST /stocks/:symbol/custom-prices body. */
+export const tCustomPriceBodySchema = t.Object({
+  date: t.String({ minLength: 1 }),
+  close: t.Number(),
+  open: t.Optional(t.Number()),
+  high: t.Optional(t.Number()),
+  low: t.Optional(t.Number()),
+  volume: t.Optional(t.Number()),
+});
+
+/** POST /stocks/:symbol/custom-prices/batch body. */
+export const tCustomPriceBatchBodySchema = t.Object({
+  prices: t.Array(tCustomPriceBodySchema, { minItems: 1 }),
+});
+
+/** POST /stocks/:symbol/custom-prices/batch/delete body. */
+export const tCustomPriceBatchDeleteBodySchema = t.Object({
+  dates: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
+});

@@ -2,7 +2,9 @@ import type { PortfolioPerformance } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { PortfolioSummary } from "@/types";
+import { formatCurrency as formatCurrencyAmount } from "@/utils/currency";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -28,6 +30,9 @@ export function PortfolioHighlights({
   onAssetClick,
   isLoading,
 }: PortfolioHighlightsProps) {
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || portfolioSummary?.currency || "EUR";
+
   // Show loading state
   if (isLoading) {
     return (
@@ -104,12 +109,7 @@ export function PortfolioHighlights({
     );
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: portfolioSummary?.currency || "EUR",
-    }).format(Math.abs(amount));
-  };
+  const formatCurrency = (amount: number) => formatCurrencyAmount(Math.abs(amount), curr);
 
   const formatPercent = (value: number) => {
     return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;

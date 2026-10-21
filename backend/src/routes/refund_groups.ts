@@ -8,6 +8,8 @@ import {
   tBatchUpdateBodySchema,
   tIdParamSchema,
   tRefundGroupsListQuerySchema,
+  tCrudErrorResponses,
+  tErrorResponse,
   tListResponseSchema,
 } from "../schemas/typebox.js";
 import {
@@ -123,6 +125,8 @@ export const refundGroupsRoutes = new Elysia({
       },
       response: {
         200: tListResponseSchema(tRefundGroupResponse),
+        400: tErrorResponse,
+        401: tErrorResponse,
       },
     },
   )
@@ -144,6 +148,7 @@ export const refundGroupsRoutes = new Elysia({
       },
       response: {
         200: tRefundGroupResponse,
+        ...tCrudErrorResponses,
       },
     },
   )

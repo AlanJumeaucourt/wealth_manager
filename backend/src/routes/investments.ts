@@ -17,8 +17,10 @@ import * as investmentService from "../services/investment.js";
 import * as market from "../services/market.js";
 import { getPortfolioPerformance } from "../services/portfolioPerformance.js";
 import { getPortfolioSummary } from "../services/portfolioSummary.js";
+import { getUserPreferredCurrency } from "../services/user.js";
 import type { ListResponse } from "../types/index.js";
 import { extractBatchIds } from "../utils/body.js";
+import { convert } from "../utils/currency.js";
 import { errorMessage } from "../utils/error.js";
 import { coerceNumericJsonFieldsMany } from "../utils/jsonNumeric.js";
 import { withIdParam } from "../utils/params.js";
@@ -39,6 +41,12 @@ export interface InvestmentListItem {
   activity_type: string;
   /** Same as activity_type; included for clients that expect investment_details.investment_type naming. */
   investment_type: string;
+  currency?: string;
+  preferred_currency?: string;
+  unit_price_preferred?: number;
+  fee_preferred?: number;
+  tax_preferred?: number;
+  total_paid_preferred?: number | null;
 }
 
 const tInvestmentDetailSchema = t.Object({
@@ -126,20 +134,78 @@ export async function listInvestmentsForUser(
       .execute(),
   ]);
   const total = Number(countResult?.total ?? 0);
+  const coerced = coerceNumericJsonFieldsMany(items as unknown as Record<string, unknown>[], [
+    "transactions",
+    "investment_details",
+  ]) as unknown as InvestmentListItem[];
+
+  const preferred = await getUserPreferredCurrency(userId);
+  const accountIds = new Set<number>();
+  for (const item of coerced) {
+    accountIds.add(Number(item.from_account_id));
+    accountIds.add(Number(item.to_account_id));
+  }
+  const accountCurrency = new Map<number, string>();
+  if (accountIds.size > 0) {
+    const accountRows = await database
+      .selectFrom("accounts")
+      .select(["id", "currency"])
+      .where("id", "in", [...accountIds])
+      .execute();
+    for (const a of accountRows) {
+      accountCurrency.set(Number(a.id), String(a.currency ?? preferred).toUpperCase());
+    }
+  }
+
+  const enriched: InvestmentListItem[] = [];
+  for (const item of coerced) {
+    const activity = String(item.activity_type ?? item.investment_type ?? "").toLowerCase();
+    const fromId = Number(item.from_account_id);
+    const toId = Number(item.to_account_id);
+    const native =
+      activity === "buy" || activity === "deposit"
+        ? (accountCurrency.get(fromId) ?? preferred)
+        : (accountCurrency.get(toId) ?? accountCurrency.get(fromId) ?? preferred);
+    const unitPrice = Number(item.unit_price ?? 0);
+    const fee = Number(item.fee ?? 0);
+    const tax = Number(item.tax ?? 0);
+    const totalPaid = item.total_paid != null ? Number(item.total_paid) : null;
+    const [unit_price_preferred, fee_preferred, tax_preferred, total_paid_preferred] =
+      await Promise.all([
+        convert(unitPrice, native, preferred),
+        convert(fee, native, preferred),
+        convert(tax, native, preferred),
+        totalPaid != null ? convert(totalPaid, native, preferred) : Promise.resolve(null),
+      ]);
+    enriched.push({
+      ...item,
+      currency: native,
+      preferred_currency: preferred,
+      unit_price_preferred,
+      fee_preferred,
+      tax_preferred,
+      total_paid_preferred,
+    });
+  }
+
   return {
-    items: coerceNumericJsonFieldsMany(items as unknown as Record<string, unknown>[], [
-      "transactions",
-      "investment_details",
-    ]) as unknown as InvestmentListItem[],
+    items: enriched,
     total,
     page: q.page,
     per_page: q.per_page,
   };
 }
 
-const portfolioStub = async ({ userId }: { userId: number | null }) => {
+const portfolioStub = async ({
+  userId,
+  set,
+}: {
+  userId: number | null;
+  set: { status?: number | string };
+}) => {
   requireAuth({ userId });
-  return {};
+  set.status = 501;
+  return { error: "Not implemented", code: "NOT_IMPLEMENTED" };
 };
 
 export const investmentsRoutes = new Elysia({ prefix: "/investments", tags: ["investments"] })
@@ -260,16 +326,31 @@ export const investmentsRoutes = new Elysia({ prefix: "/investments", tags: ["in
       .where("investment_details.asset_id", "=", asset.id)
       .orderBy("transactions.date", "desc")
       .execute();
-    return (rows ?? []).map((r) => ({
-      id: r.id,
-      date: r.date,
-      activity_type: r.activity_type,
-      quantity: Number(r.quantity),
-      unit_price: Number(r.unit_price),
-      total_paid: r.total_paid != null ? Number(r.total_paid) : null,
-      fee: Number(r.fee ?? 0),
-      tax: Number(r.tax ?? 0),
-    }));
+    return (rows ?? []).map((r) => {
+      const unit_price = Number(r.unit_price ?? 0);
+      const fee = Number(r.fee ?? 0);
+      const tax = Number(r.tax ?? 0);
+      const total_paid = r.total_paid != null ? Number(r.total_paid) : null;
+      const activity = String(r.activity_type ?? "");
+      // Dividends store the cash amount in unit_price / total_paid (quantity is 0).
+      const amount =
+        activity.toLowerCase() === "dividend"
+          ? (total_paid ?? unit_price)
+          : total_paid != null
+            ? total_paid
+            : Number(r.quantity ?? 0) * unit_price;
+      return {
+        id: r.id,
+        date: r.date,
+        activity_type: r.activity_type,
+        quantity: Number(r.quantity ?? 0),
+        unit_price,
+        total_paid,
+        fee,
+        tax,
+        amount,
+      };
+    });
   })
   .get("/assets/:symbol/analysis", async ({ params, userId, set }) => {
     requireAuth({ userId });

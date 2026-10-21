@@ -36,7 +36,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { useToast } from "@/hooks/use-toast";
-import { useDebounce } from "@/hooks/useDebounce";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useDialogStore } from "@/store/dialogStore";
 import { Account, Transaction, TransactionField, TransactionType } from "@/types";
 import { formatCurrency } from "@/utils/currency";

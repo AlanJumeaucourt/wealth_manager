@@ -169,7 +169,7 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
   const searchParams = useSearch({ strict: false });
   const deleteMutation = useDeleteAccount();
 
-  const { data: banksResponse } = useBanks({ per_page: 9999 });
+  const { data: banksResponse } = useBanks({ per_page: 500 });
   const bankMap = useMemo(() => {
     const map = new Map<number, Bank>();
     for (const bank of banksResponse?.items ?? []) {
@@ -182,7 +182,7 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
 
   const baseParams = {
     page: 1,
-    per_page: 9999,
+    per_page: 500,
     sort_by: "name" as const,
     sort_order: "asc" as const,
     search: debouncedSearch,
@@ -266,15 +266,9 @@ export function AccountsPage({ defaultType = "all" }: AccountsPageProps) {
       if (a.type === "investment") {
         let marketValuePreferred = baseBalance;
 
-        if (a.market_value != null) {
+        if (a.market_value_preferred != null || a.market_value != null) {
           hasMarketValueInvestments = true;
-
-          if (a.balance_preferred != null && a.balance !== 0) {
-            const conversionFactor = a.balance_preferred / a.balance;
-            marketValuePreferred = a.market_value * conversionFactor;
-          } else {
-            marketValuePreferred = a.market_value;
-          }
+          marketValuePreferred = a.market_value_preferred ?? a.market_value ?? baseBalance;
         }
 
         netWorthWithMarket += marketValuePreferred;

@@ -481,6 +481,22 @@ export async function createInvestment(
     if (activityType === "Dividend") {
       const description = `Dividend ${asset.symbol} -> ${data.unit_price}€`;
       const amount = data.unit_price;
+      // Withholding tax is paid from the cash leg (from_account for Dividend).
+      if (data.tax > 0) {
+        const taxAccountId = await getOrCreateFeeAccount(trx, userId);
+        taxTransactionId = await createInvestmentTransaction(trx, {
+          user_id: userId,
+          date: descDate,
+          date_accountability: descDate,
+          description: `Investment tax for ${asset.symbol} dividend`,
+          amount: String(data.tax),
+          from_account_id: data.from_account_id,
+          to_account_id: taxAccountId,
+          category: INVESTMENT_CATEGORY,
+          subcategory: TAX_SUBCATEGORY,
+          type: "expense",
+        });
+      }
       const mainId = await createInvestmentTransaction(trx, {
         user_id: userId,
         date: descDate,
@@ -510,12 +526,12 @@ export async function createInvestment(
           quantity: String(0),
           unit_price: String(data.unit_price),
           fee: String(0),
-          tax: String(0),
+          tax: String(data.tax),
           total_paid: String(totalPaid),
           investment_type: activityType,
           pl_transaction_id: null,
           fee_transaction_id: null,
-          tax_transaction_id: null,
+          tax_transaction_id: taxTransactionId,
           gain_loss_override: null,
           gain_loss_source: null,
           gain_loss_calculated: null,
@@ -531,14 +547,14 @@ export async function createInvestment(
         fee: 0,
         from_account_id: data.from_account_id,
         quantity: 0,
-        tax: 0,
+        tax: data.tax,
         to_account_id: data.to_account_id,
         total_paid: totalPaid,
         unit_price: data.unit_price,
         user_id: userId,
         pl_transaction_id: null,
         fee_transaction_id: null,
-        tax_transaction_id: null,
+        tax_transaction_id: taxTransactionId,
         gain_loss_override: null,
         gain_loss_source: null,
         gain_loss_calculated: null,

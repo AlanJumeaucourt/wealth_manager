@@ -71,7 +71,8 @@ const getByIdHandler = createGetByIdHandler(TABLE, {
       refunded_amount: ent.refunded_amount,
     } as Record<string, unknown>;
     const userPref = await getUserPreferredCurrency(userId);
-    return attachPreferredAmountFields([merged], userPref)[0];
+    const withPreferred = await attachPreferredAmountFields([merged], userPref);
+    return withPreferred[0];
   },
 });
 const updateHandler = createUpdateHandler(TABLE, (body) => transactionAmountTransform(body));
@@ -152,7 +153,7 @@ export async function listTransactionsHandler(ctx: TransactionsListContext) {
     );
     const withCurrency = attachTransactionCurrencyEnrichment(withRefund, currencyEnrichment);
     const userPref = await getUserPreferredCurrency(userId!);
-    const withPreferred = attachPreferredAmountFields(
+    const withPreferred = await attachPreferredAmountFields(
       withCurrency as unknown as Record<string, unknown>[],
       userPref,
     );
@@ -311,7 +312,7 @@ export async function listTransactionsHandler(ctx: TransactionsListContext) {
     currencyEnrichment,
   );
   const userPref = await getUserPreferredCurrency(userId!);
-  const withPreferred = attachPreferredAmountFields(
+  const withPreferred = await attachPreferredAmountFields(
     withCurrency as unknown as Record<string, unknown>[],
     userPref,
   );

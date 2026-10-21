@@ -5,13 +5,16 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDateRange } from "@/contexts/date-range-context";
 import { useCategories } from "@/hooks/use-categories";
-import { formatCurrency } from "@/lib/utils";
+import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
+import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "date-fns";
 import { ArrowDownIcon, ArrowRightIcon, ArrowUpIcon } from "lucide-react";
 
 export function MoneySummary() {
   const { dateRange } = useDateRange();
   const { type, stats } = useCategories();
+  const { preferredCurrency } = usePreferredCurrency();
+  const curr = preferredCurrency || "EUR";
   const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd");
   const endDate = formatDate(dateRange.endDate, "yyyy-MM-dd");
 
@@ -70,7 +73,9 @@ export function MoneySummary() {
             <span className="text-sm font-medium text-muted-foreground">Total Income</span>
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-bold text-green-500">{formatCurrency(totalIncome)}</span>
+            <span className="text-2xl font-bold text-green-500">
+              {formatCurrency(totalIncome, curr)}
+            </span>
           </div>
         </Card>
 
@@ -81,7 +86,7 @@ export function MoneySummary() {
           </div>
           <div className="mt-2">
             <span className="text-2xl font-bold text-destructive">
-              {formatCurrency(totalExpenses)}
+              {formatCurrency(totalExpenses, curr)}
             </span>
           </div>
         </Card>
@@ -97,7 +102,7 @@ export function MoneySummary() {
                 remainingMoney >= 0 ? "text-primary" : "text-destructive"
               }`}
             >
-              {formatCurrency(remainingMoney)}
+              {formatCurrency(remainingMoney, curr)}
             </span>
             <span className="ml-2 text-sm text-muted-foreground">{savingsText}</span>
           </div>
@@ -109,10 +114,10 @@ export function MoneySummary() {
         <Card className="p-4 shadow-sm">
           <div className="flex justify-between items-center mb-2">
             <div className="text-sm font-medium">
-              Budget: {formatCurrency(stats.totalBudgeted)}
+              Budget: {formatCurrency(stats.totalBudgeted, curr)}
               <span className="text-xs text-muted-foreground ml-2">
-                {type === "expense" ? "Spent" : "Received"}: {formatCurrency(stats.totalActual)}(
-                {Math.round(budgetProgressValue)}%)
+                {type === "expense" ? "Spent" : "Received"}:{" "}
+                {formatCurrency(stats.totalActual, curr)}({Math.round(budgetProgressValue)}%)
               </span>
             </div>
           </div>
@@ -128,7 +133,7 @@ export function MoneySummary() {
                     width: `${segment.percentage}%`,
                     backgroundColor: segment.color,
                   }}
-                  title={`${segment.name}: ${formatCurrency(segment.amount)} (${Math.round(segment.percentage)}%)`}
+                  title={`${segment.name}: ${formatCurrency(segment.amount, curr)} (${Math.round(segment.percentage)}%)`}
                 >
                   {segment.percentage > 8 && (
                     <span className="text-xs text-white px-1 truncate h-full flex items-center">

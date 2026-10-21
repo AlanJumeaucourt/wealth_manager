@@ -59,7 +59,7 @@ export async function getExchangeRate(fromCurrency: string, toCurrency: string):
     to,
   });
   if (result.success && typeof result.result === "number") {
-    const rate = round2(result.result);
+    const rate = result.result;
     rateCache.set(key, rate);
     return rate;
   }
@@ -82,7 +82,7 @@ async function fetchFrankfurterRate(
     if (!res.ok) return null;
     const data = (await res.json()) as { rates?: Record<string, number> };
     const rate = data.rates?.[to];
-    return typeof rate === "number" ? round2(rate) : null;
+    return typeof rate === "number" ? rate : null;
   } catch {
     return null;
   }
@@ -114,7 +114,7 @@ async function fetchFrankfurterRange(
       const dayRates = byDate[d as keyof typeof byDate];
       const r = dayRates?.[to];
       if (typeof r === "number") {
-        lastRate = round2(r);
+        lastRate = r;
         out[d] = lastRate;
       } else if (lastRate != null) {
         out[d] = lastRate;

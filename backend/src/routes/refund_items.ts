@@ -3,10 +3,10 @@ import { authDerivePlugin, requireAuth } from "../middleware/auth.js";
 import { tRefundItemsListQuerySchema } from "../schemas/typebox.js";
 import * as base from "../services/base.js";
 import { assertTransactionsBelongToSingleRefundGroup } from "../services/refundItem.js";
+import { extractBatchItems } from "../utils/body.js";
 import {
   createBatchCreateHandler,
   createBatchDeleteHandler,
-  createBatchUpdateHandler,
   createDeleteByIdHandler,
   createGetByIdHandler,
   createListHandler,
@@ -28,11 +28,6 @@ interface RefundItemRecord {
 
 function hasOwn(obj: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key);
-}
-
-function isRefundGroupConflictError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.includes("Transaction already belongs to another refund group");
 }
 
 export const refundItemsListHandler = createListHandler(TABLE, {
@@ -64,19 +59,11 @@ export const refundItemsRoutes = new Elysia({ prefix: "/refund_items", tags: ["r
       description: (b.description as string | null | undefined) ?? null,
       user_id: userId!,
     };
-    try {
-      await assertTransactionsBelongToSingleRefundGroup(data, userId!);
-      const row = await base.createOne(TABLE, data);
-      if (!row) throw new Error("Create refund_item: insert returned no row");
-      set.status = 201;
-      return row;
-    } catch (error) {
-      if (isRefundGroupConflictError(error)) {
-        set.status = 409;
-        return { error: "Transaction already belongs to another refund group" };
-      }
-      throw error;
-    }
+    await assertTransactionsBelongToSingleRefundGroup(data, userId!);
+    const row = await base.createOne(TABLE, data);
+    if (!row) throw new Error("Create refund_item: insert returned no row");
+    set.status = 201;
+    return row;
   })
   .get("/", refundItemsListHandler, { query: tRefundItemsListQuerySchema })
   .get("/:id", createGetByIdHandler(TABLE))
@@ -118,24 +105,55 @@ export const refundItemsRoutes = new Elysia({ prefix: "/refund_items", tags: ["r
             : Number(patch.refund_group_id)
           : existing.refund_group_id,
       };
-      try {
-        await assertTransactionsBelongToSingleRefundGroup(data, userId!, id);
-        const row = await base.updateOne(TABLE, id, userId!, patch);
-        if (!row) {
-          set.status = 404;
-          return "";
-        }
-        return row;
-      } catch (error) {
-        if (isRefundGroupConflictError(error)) {
-          set.status = 409;
-          return { error: "Transaction already belongs to another refund group" };
-        }
-        throw error;
+      await assertTransactionsBelongToSingleRefundGroup(data, userId!, id);
+      const row = await base.updateOne(TABLE, id, userId!, patch);
+      if (!row) {
+        set.status = 404;
+        return "";
       }
+      return row;
     }),
   )
   .delete("/:id", createDeleteByIdHandler(TABLE))
-  .post("/batch/create", createBatchCreateHandler(TABLE))
-  .post("/batch/update", createBatchUpdateHandler(TABLE))
+  .post(
+    "/batch/create",
+    createBatchCreateHandler(TABLE, async (item, userId) => {
+      const data = {
+        income_transaction_id: Number(item.income_transaction_id),
+        expense_transaction_id: Number(item.expense_transaction_id),
+        amount: Number(item.amount),
+        refund_group_id: item.refund_group_id == null ? null : Number(item.refund_group_id),
+        description: (item.description as string | null | undefined) ?? null,
+        user_id: userId,
+      };
+      await assertTransactionsBelongToSingleRefundGroup(data, userId);
+      return data;
+    }),
+  )
+  .post("/batch/update", async ({ body, userId }) => {
+    requireAuth({ userId });
+    const items = extractBatchItems<Record<string, unknown> & { id: number }>(body);
+    for (const item of items) {
+      const existing = (await base.getById(TABLE, item.id, userId!)) as RefundItemRecord | null;
+      if (!existing) continue;
+      const data = {
+        income_transaction_id:
+          item.income_transaction_id != null
+            ? Number(item.income_transaction_id)
+            : existing.income_transaction_id,
+        expense_transaction_id:
+          item.expense_transaction_id != null
+            ? Number(item.expense_transaction_id)
+            : existing.expense_transaction_id,
+        refund_group_id:
+          item.refund_group_id !== undefined
+            ? item.refund_group_id == null
+              ? null
+              : Number(item.refund_group_id)
+            : existing.refund_group_id,
+      };
+      await assertTransactionsBelongToSingleRefundGroup(data, userId!, item.id);
+    }
+    return base.batchUpdate(TABLE, userId!, items);
+  })
   .post("/batch/delete", createBatchDeleteHandler(TABLE));
