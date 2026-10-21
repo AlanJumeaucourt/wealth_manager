@@ -68,15 +68,10 @@ export function FinancialSummary({
           investmentBalance += baseBalance;
 
           let marketValuePreferred = baseBalance;
-          if (account.market_value != null) {
+          if (account.market_value_preferred != null || account.market_value != null) {
             hasMarketValueInvestments = true;
-
-            if (account.balance_preferred != null && account.balance !== 0) {
-              const conversionFactor = account.balance_preferred / account.balance;
-              marketValuePreferred = account.market_value * conversionFactor;
-            } else {
-              marketValuePreferred = account.market_value;
-            }
+            marketValuePreferred =
+              account.market_value_preferred ?? account.market_value ?? baseBalance;
           }
 
           investmentMarketValue += marketValuePreferred;

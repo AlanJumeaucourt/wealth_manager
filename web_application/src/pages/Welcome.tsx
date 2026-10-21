@@ -60,7 +60,7 @@ export function Welcome() {
     error: accountsError,
   } = useAccounts({
     page: 1,
-    per_page: 9999,
+    per_page: 500,
   });
 
   const { isLoading: isLoadingBanks, error: banksError } = useBanks({

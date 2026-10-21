@@ -40,14 +40,25 @@ import {
 
 interface AssetTransaction {
   activity_type: "Buy" | "Sell" | "Dividend" | "Interest" | "Deposit" | "Withdrawal";
-  amount: number;
+  /** Gross cash amount (API-provided; for dividends equals total_paid / unit_price). */
+  amount?: number | null;
   date: string;
   fee: number;
   id: number;
   quantity: number;
   tax: number;
-  total_paid: number;
+  total_paid: number | null;
   unit_price: number;
+}
+
+function dividendGross(t: AssetTransaction): number {
+  const raw = t.amount ?? t.total_paid ?? t.unit_price;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function dividendNet(t: AssetTransaction): number {
+  return dividendGross(t) - (Number(t.fee) || 0) - (Number(t.tax) || 0);
 }
 
 interface AssetInfo {
@@ -674,9 +685,21 @@ export function InvestmentDetailPage() {
                               {new Intl.NumberFormat(undefined, {
                                 style: "currency",
                                 currency: assetInfo?.currency || "USD",
-                              }).format(transaction.amount)}
+                              }).format(dividendGross(transaction))}
                             </div>
                           </div>
+                          {transaction.tax > 0 && (
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground">Tax</div>
+                              <div className="font-medium text-red-500">
+                                -
+                                {new Intl.NumberFormat(undefined, {
+                                  style: "currency",
+                                  currency: assetInfo?.currency || "USD",
+                                }).format(transaction.tax)}
+                              </div>
+                            </div>
+                          )}
                           {transaction.fee > 0 && (
                             <div className="text-right">
                               <div className="text-xs text-muted-foreground">Fee</div>
@@ -695,7 +718,7 @@ export function InvestmentDetailPage() {
                               {new Intl.NumberFormat(undefined, {
                                 style: "currency",
                                 currency: assetInfo?.currency || "USD",
-                              }).format(transaction.amount - transaction.fee)}
+                              }).format(dividendNet(transaction))}
                             </div>
                           </div>
                         </>
@@ -716,7 +739,12 @@ export function InvestmentDetailPage() {
                               {new Intl.NumberFormat(undefined, {
                                 style: "currency",
                                 currency: assetInfo?.currency || "USD",
-                              }).format(transaction.total_paid)}
+                              }).format(
+                                Number(
+                                  transaction.total_paid ??
+                                    transaction.quantity * transaction.unit_price,
+                                ) || 0,
+                              )}
                             </div>
                           </div>
                         </>

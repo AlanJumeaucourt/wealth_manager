@@ -44,9 +44,13 @@ async function refreshAccessTokenOnce(): Promise<boolean> {
 
   const data = (await res.json()) as {
     access_token: string;
-    user?: { id: number; email: string; name: string };
+    refresh_token?: string;
+    user?: { id: number; email: string; name: string; preferred_currency?: string };
   };
   localStorage.setItem("access_token", data.access_token);
+  if (data.refresh_token) {
+    localStorage.setItem("refresh_token", data.refresh_token);
+  }
   if (data.user) {
     localStorage.setItem("user", JSON.stringify(data.user));
     localStorage.setItem("lastUserFetch", Date.now().toString());

@@ -45,29 +45,27 @@ interface CategoriesStore {
   setBudgetSegments: (type: "income" | "expense", segments: BudgetSegment[]) => void;
 }
 
+const emptyBiggest = {
+  name: "",
+  amount: 0,
+  difference: 0,
+  percentage: 0,
+};
+
 export const useCategories = create<CategoriesStore>((set) => ({
   type: "expense",
   stats: {
-    monthlyBudget: 3200,
-    remaining: 850,
-    remainingPercentage: 26.5,
-    usedPercentage: 73.5,
-    totalBudgeted: 3200,
-    totalActual: 2350,
+    monthlyBudget: 0,
+    remaining: 0,
+    remainingPercentage: 0,
+    usedPercentage: 0,
+    totalBudgeted: 0,
+    totalActual: 0,
     overBudgetCount: 0,
     expenseBudgetSegments: [],
     incomeBudgetSegments: [],
-    biggestCategory: {
-      name: "",
-      amount: 1500,
-      difference: 50,
-      percentage: 46.8,
-    },
-    dailyAverage: {
-      amount: 78.33,
-      difference: -12,
-      percentage: 85,
-    },
+    biggestCategory: { ...emptyBiggest },
+    dailyAverage: { amount: 0, difference: 0, percentage: 0 },
     mostOverCategory: {
       name: "",
       budgeted: 0,
@@ -78,16 +76,40 @@ export const useCategories = create<CategoriesStore>((set) => ({
   },
   setType: (type) => set({ type }),
   setStats: (newStats) =>
-    set((state) => ({
-      stats: { ...state.stats, ...newStats },
-    })),
+    set((state) => {
+      let changed = false;
+      for (const [key, value] of Object.entries(newStats) as Array<
+        [keyof CategoriesStore["stats"], CategoriesStore["stats"][keyof CategoriesStore["stats"]]]
+      >) {
+        if (state.stats[key] !== value) {
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) return state;
+      return { stats: { ...state.stats, ...newStats } };
+    }),
   setBudgetSegments: (type, segments) =>
-    set((state) => ({
-      stats: {
-        ...state.stats,
-        ...(type === "expense"
-          ? { expenseBudgetSegments: segments }
-          : { incomeBudgetSegments: segments }),
-      },
-    })),
+    set((state) => {
+      const key = type === "expense" ? "expenseBudgetSegments" : "incomeBudgetSegments";
+      const prev = state.stats[key];
+      if (
+        prev.length === segments.length &&
+        prev.every(
+          (seg, i) =>
+            seg.name === segments[i]?.name &&
+            seg.amount === segments[i]?.amount &&
+            seg.percentage === segments[i]?.percentage &&
+            seg.color === segments[i]?.color,
+        )
+      ) {
+        return state;
+      }
+      return {
+        stats: {
+          ...state.stats,
+          [key]: segments,
+        },
+      };
+    }),
 }));

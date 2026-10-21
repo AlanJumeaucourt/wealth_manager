@@ -545,6 +545,7 @@ export interface EnrichedAccount {
   balance: number;
   balance_preferred: number;
   market_value: number | null;
+  market_value_preferred: number | null;
   [k: string]: unknown;
 }
 
@@ -558,12 +559,15 @@ export async function enrichAccount(
   const currency = (row.currency as string) ?? preferred;
   const balance_preferred = await convert(balance, currency, preferred);
   const market_value = await calculateMarketValue(accountId, (row.type as string) ?? "");
+  const market_value_preferred =
+    market_value != null ? await convert(market_value, currency, preferred) : null;
   return {
     ...row,
     currency,
     balance,
     balance_preferred,
     market_value,
+    market_value_preferred,
   } as EnrichedAccount;
 }
 
@@ -655,12 +659,15 @@ export async function enrichAccountsBatch(
         (row.type as string) === "investment"
           ? (marketValueByAccountId.get(accountId) ?? null)
           : null;
+      const market_value_preferred =
+        market_value != null ? await convert(market_value, currency, preferred) : null;
       return {
         ...row,
         currency,
         balance: Math.round(balance * 100) / 100,
         balance_preferred,
         market_value,
+        market_value_preferred,
       } as EnrichedAccount;
     }),
   );

@@ -11,6 +11,7 @@ interface LoginResponse {
     id: number;
     email: string;
     name: string;
+    preferred_currency?: string;
   };
 }
 
@@ -45,7 +46,21 @@ export const authService = {
     );
   },
 
-  logout(queryClient?: QueryClient) {
+  async logout(queryClient?: QueryClient) {
+    const refresh = localStorage.getItem("refresh_token");
+    const access = localStorage.getItem("access_token");
+    try {
+      const { API_URL } = await import("@/api/queryKeys");
+      await fetch(`${API_URL}/users/logout`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${refresh || access || ""}`,
+        },
+      });
+    } catch {
+      // Best-effort server revoke; always clear local session.
+    }
+
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");

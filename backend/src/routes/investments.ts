@@ -196,9 +196,16 @@ export async function listInvestmentsForUser(
   };
 }
 
-const portfolioStub = async ({ userId }: { userId: number | null }) => {
+const portfolioStub = async ({
+  userId,
+  set,
+}: {
+  userId: number | null;
+  set: { status?: number | string };
+}) => {
   requireAuth({ userId });
-  return {};
+  set.status = 501;
+  return { error: "Not implemented", code: "NOT_IMPLEMENTED" };
 };
 
 export const investmentsRoutes = new Elysia({ prefix: "/investments", tags: ["investments"] })
@@ -319,16 +326,31 @@ export const investmentsRoutes = new Elysia({ prefix: "/investments", tags: ["in
       .where("investment_details.asset_id", "=", asset.id)
       .orderBy("transactions.date", "desc")
       .execute();
-    return (rows ?? []).map((r) => ({
-      id: r.id,
-      date: r.date,
-      activity_type: r.activity_type,
-      quantity: Number(r.quantity),
-      unit_price: Number(r.unit_price),
-      total_paid: r.total_paid != null ? Number(r.total_paid) : null,
-      fee: Number(r.fee ?? 0),
-      tax: Number(r.tax ?? 0),
-    }));
+    return (rows ?? []).map((r) => {
+      const unit_price = Number(r.unit_price ?? 0);
+      const fee = Number(r.fee ?? 0);
+      const tax = Number(r.tax ?? 0);
+      const total_paid = r.total_paid != null ? Number(r.total_paid) : null;
+      const activity = String(r.activity_type ?? "");
+      // Dividends store the cash amount in unit_price / total_paid (quantity is 0).
+      const amount =
+        activity.toLowerCase() === "dividend"
+          ? (total_paid ?? unit_price)
+          : total_paid != null
+            ? total_paid
+            : Number(r.quantity ?? 0) * unit_price;
+      return {
+        id: r.id,
+        date: r.date,
+        activity_type: r.activity_type,
+        quantity: Number(r.quantity ?? 0),
+        unit_price,
+        total_paid,
+        fee,
+        tax,
+        amount,
+      };
+    });
   })
   .get("/assets/:symbol/analysis", async ({ params, userId, set }) => {
     requireAuth({ userId });

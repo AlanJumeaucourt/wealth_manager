@@ -67,7 +67,7 @@ export function PortfolioPerformanceChart({
   const { preferredCurrency } = usePreferredCurrency();
   const curr = preferredCurrency || "EUR";
   const labels = metricLabels(curr);
-  const { data: performanceData, isLoading } = usePortfolioPerformance();
+  const { data: performanceData, isLoading } = usePortfolioPerformance(period);
   const [selectedMetric, setSelectedMetric] = React.useState<MetricType>("performance");
   const [showStacked, setShowStacked] = React.useState(false);
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);

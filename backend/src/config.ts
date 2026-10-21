@@ -61,12 +61,12 @@ if (!config.sqliteDbPath && process.env.NODE_ENV !== "test") {
   throw new Error("SQLITE_DB_PATH environment variable must be set");
 }
 
-// Reject weak JWT secret in production
-if (
-  process.env.NODE_ENV === "production" &&
-  (config.jwt.secretKey === DEV_JWT_FALLBACK || (config.jwt.secretKey?.length ?? 0) < 32)
-) {
-  throw new Error(
-    "JWT_SECRET_KEY must be set to a strong secret (at least 32 characters) in production",
-  );
+// Fail closed outside explicit development/test: weak or missing secrets are a foot-gun.
+const nodeEnv = process.env.NODE_ENV ?? "";
+if (nodeEnv !== "development" && nodeEnv !== "test") {
+  if (config.jwt.secretKey === DEV_JWT_FALLBACK || (config.jwt.secretKey?.length ?? 0) < 32) {
+    throw new Error(
+      "JWT_SECRET_KEY must be set to a strong secret (at least 32 characters) unless NODE_ENV is development or test",
+    );
+  }
 }

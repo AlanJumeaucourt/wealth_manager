@@ -129,9 +129,16 @@ async function convertAtDate(
   return round2(amount * rate);
 }
 
-function computeBudgetImpact(input: BudgetImpactInput): BudgetImpactResult {
+/** Exported for unit tests — loan financing must not inflate earned income / living expense. */
+export function computeBudgetImpact(input: BudgetImpactInput): BudgetImpactResult {
   const { tx, fromAccount, toAccount, refunded } = input;
-  if (tx.type === "expense" && fromAccount?.type === "loan") {
+  // Financing / accrual on loan accounts is not earned income or living expense.
+  // - expense from loan: interest accruals / internal loan bookkeeping
+  // - income from loan: disbursements / drawdowns (cash in, but not income)
+  if (
+    (tx.type === "expense" && fromAccount?.type === "loan") ||
+    (tx.type === "income" && fromAccount?.type === "loan")
+  ) {
     return {
       include: false,
       originalAmount: 0,

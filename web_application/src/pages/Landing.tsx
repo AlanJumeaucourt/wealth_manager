@@ -9,9 +9,11 @@ import { authService } from "@/services/auth";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+const demoLoginEnabled = import.meta.env.VITE_DEMO_LOGIN === "true";
+
 export function Landing() {
-  const [email, setEmail] = useState("test@example.com");
-  const [password, setPassword] = useState("test123");
+  const [email, setEmail] = useState(demoLoginEnabled ? "test@example.com" : "");
+  const [password, setPassword] = useState(demoLoginEnabled ? "test123" : "");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [backendStatusMessage, setBackendStatusMessage] = useState<string | null>(
@@ -20,9 +22,10 @@ export function Landing() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-  }, []);
+    if (localStorage.getItem("access_token")) {
+      void navigate({ to: "/dashboard" });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     let disposed = false;

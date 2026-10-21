@@ -329,7 +329,7 @@ function TransactionDialog({ category, open, onOpenChange, type }: TransactionDi
 }
 
 export function CategoryList() {
-  const { type, stats, setBudgetSegments } = useCategories();
+  const { type, stats, setBudgetSegments, setStats } = useCategories();
   const { preferredCurrency } = usePreferredCurrency();
   const { dateRange } = useDateRange();
   const startDate = formatDate(dateRange.startDate, "yyyy-MM-dd");
@@ -363,17 +363,13 @@ export function CategoryList() {
   const updateBudgetMutation = useUpdate();
   const createBudgetMutation = useCreate();
 
-  // Setup the current month/year based on the date range
+  // Setup the current month/year based on the date range (primitive deps — avoid object identity loops)
+  const rangeStartYear = dateRange.startDate.getFullYear();
+  const rangeStartMonth = dateRange.startDate.getMonth() + 1;
   useEffect(() => {
-    if (dateRange.startDate) {
-      const date = new Date(dateRange.startDate);
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1; // 0-indexed to 1-indexed
-
-      setCurrentYear(year);
-      setCurrentMonth(month);
-    }
-  }, [dateRange]);
+    setCurrentYear(rangeStartYear);
+    setCurrentMonth(rangeStartMonth);
+  }, [rangeStartYear, rangeStartMonth]);
 
   const loading = loadingCategories || loadingSummary || budgetsLoading || comparisonsLoading;
 
@@ -483,12 +479,39 @@ export function CategoryList() {
     }
   };
 
+  // Keep category money-summary totals in sync with comparison API (never ship placeholder budgets).
+  useEffect(() => {
+    let totalBudgeted = 0;
+    let totalActual = 0;
+    let overBudgetCount = 0;
+    for (const category of categoryData) {
+      const budgetData = budgetDataMap.get(category.name);
+      const budgeted = budgetData?.budgeted ?? 0;
+      const actual = Math.abs(category.amount);
+      totalBudgeted += budgeted;
+      totalActual += actual;
+      if (budgeted > 0 && actual > budgeted) overBudgetCount += 1;
+    }
+    const remaining = totalBudgeted - totalActual;
+    const remainingPercentage = totalBudgeted > 0 ? (remaining / totalBudgeted) * 100 : 0;
+    const usedPercentage = totalBudgeted > 0 ? (totalActual / totalBudgeted) * 100 : 0;
+    setStats({
+      monthlyBudget: totalBudgeted,
+      totalBudgeted,
+      totalActual,
+      remaining,
+      remainingPercentage,
+      usedPercentage,
+      overBudgetCount,
+    });
+  }, [categoryData, budgetDataMap, setStats]);
+
   // Calculate budget segments for the horizontal bar - MOVED OUTSIDE CONDITIONAL
   useEffect(() => {
     // Skip if loading or no data
     if (loading || !categoryData.length) return;
 
-    const totalBudget = type === "expense" ? stats.totalBudgeted : stats.totalBudgeted;
+    const totalBudget = stats.totalBudgeted;
 
     // Skip if no budget data or total is zero
     if (totalBudget === 0) return;

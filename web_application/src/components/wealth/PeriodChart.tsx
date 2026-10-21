@@ -1,4 +1,6 @@
 import { useAllCategories } from "@/api/queries";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { usePreferredCurrency } from "@/hooks/use-preferred-currency";
 import { format, parseISO } from "date-fns";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
@@ -83,6 +85,8 @@ interface CashFlowPoint {
   expense: number;
   savings: number;
   savingsRate: number;
+  /** Income used as savings-rate denominator (gross when netting refunds). */
+  incomeDenom: number;
   incomeByCurrency?: Record<string, { net: number; original: number }>;
   expenseByCurrency?: Record<string, { net: number; original: number }>;
 }
@@ -122,6 +126,26 @@ function safeParse(value: string | number | Date | undefined): Date | null {
   if (typeof value === "number") return new Date(value);
   const d = parseISO(value);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Savings rate = savings / incomeDenom.
+ * When netting refunds, bars use net income/expense but the rate keeps gross income
+ * as denominator so toggling refunds does not inflate % (refund receipts shrink net income).
+ * Zero earned income + spending → deficit sentinel (-100), not 0%.
+ */
+function computeSavingsRate(savings: number, incomeDenom: number, expense: number): number {
+  if (incomeDenom > 1e-9) {
+    const rate = (savings / incomeDenom) * 100;
+    return Math.max(-999, Math.min(999, rate));
+  }
+  if (expense > 1e-9) return -100;
+  return 0;
+}
+
+function formatSavingsRatePercent(rate: number, incomeDenom: number, expense: number): string {
+  if (incomeDenom <= 1e-9 && expense > 1e-9) return "N/A";
+  return `${rate.toFixed(1)}%`;
 }
 
 // ---------------------------------------------------------------------------
@@ -230,7 +254,7 @@ function SavingsHealthStrip({
   data,
   formatLabel,
 }: {
-  data: Array<{ period: string; income: number; expense: number }>;
+  data: Array<{ period: string; savings: number; expense: number; incomeDenom: number }>;
   formatLabel: (v: string | number | Date | undefined) => string;
 }) {
   if (data.length === 0) return null;
@@ -254,12 +278,7 @@ function SavingsHealthStrip({
       </div>
       <div className="flex gap-px rounded-lg overflow-hidden">
         {data.map((item, i) => {
-          const rate =
-            item.income > 0
-              ? ((item.income - item.expense) / item.income) * 100
-              : item.expense > 0
-                ? -100
-                : 0;
+          const rate = computeSavingsRate(item.savings, item.incomeDenom, item.expense);
           const colorClass =
             rate >= 30
               ? "bg-emerald-500"
@@ -274,7 +293,7 @@ function SavingsHealthStrip({
             <div
               key={i}
               className={`h-2.5 flex-1 ${colorClass} transition-all hover:h-4 cursor-default first:rounded-l-sm last:rounded-r-sm`}
-              title={`${formatLabel(item.period)}: ${rate.toFixed(1)}% savings rate`}
+              title={`${formatLabel(item.period)}: ${formatSavingsRatePercent(rate, item.incomeDenom, item.expense)} savings rate`}
             />
           );
         })}
@@ -294,6 +313,8 @@ export function PeriodChart({
 }: PeriodChartProps) {
   const { preferredCurrency } = usePreferredCurrency();
   const { data: allCategories } = useAllCategories();
+  /** When true, income/expense use net amounts (refunds subtracted). When false, use gross originals. */
+  const [netOfRefunds, setNetOfRefunds] = React.useState(true);
 
   // Selection state
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
@@ -385,19 +406,36 @@ export function PeriodChart({
   const cashFlowData: CashFlowPoint[] = React.useMemo(
     () =>
       activeSummaries.map((s) => {
-        const income = s.income.total.net;
-        const expense = Math.abs(s.expense.total.net);
+        const incomeGross = s.income.total.original;
+        const expenseGross = Math.abs(s.expense.total.original);
+        const incomeNet = s.income.total.net;
+        const expenseNet = Math.abs(s.expense.total.net);
+        const income = netOfRefunds ? incomeNet : incomeGross;
+        const expense = netOfRefunds ? expenseNet : expenseGross;
+        const savings = income - expense;
+        // Denominator stays on gross income when netting refunds so rate stays comparable.
+        const incomeDenom = netOfRefunds ? incomeGross : income;
+        const pickCurrency = (by?: Record<string, { net: number; original: number }>) => {
+          if (!by) return undefined;
+          return Object.fromEntries(
+            Object.entries(by).map(([cur, vals]) => [
+              cur,
+              { net: netOfRefunds ? vals.net : vals.original, original: vals.original },
+            ]),
+          );
+        };
         return {
           period: s.start_date,
           income,
           expense,
-          savings: income - expense,
-          savingsRate: income > 0 ? ((income - expense) / income) * 100 : 0,
-          incomeByCurrency: s.income.total.by_currency,
-          expenseByCurrency: s.expense.total.by_currency,
+          savings,
+          incomeDenom,
+          savingsRate: computeSavingsRate(savings, incomeDenom, expense),
+          incomeByCurrency: pickCurrency(s.income.total.by_currency),
+          expenseByCurrency: pickCurrency(s.expense.total.by_currency),
         };
       }),
-    [activeSummaries],
+    [activeSummaries, netOfRefunds],
   );
 
   const metrics = React.useMemo(() => {
@@ -407,6 +445,7 @@ export function PeriodChart({
         totalIncome: 0,
         totalExpense: 0,
         totalSavings: 0,
+        totalIncomeGross: 0,
         avgIncome: 0,
         avgExpense: 0,
         overallRate: 0,
@@ -418,22 +457,26 @@ export function PeriodChart({
     const totalIncome = cashFlowData.reduce((s, d) => s + d.income, 0);
     const totalExpense = cashFlowData.reduce((s, d) => s + d.expense, 0);
     const totalSavings = totalIncome - totalExpense;
+    const totalIncomeGross = netOfRefunds
+      ? activeSummaries.reduce((s, row) => s + row.income.total.original, 0)
+      : totalIncome;
     const last = cashFlowData[n - 1];
     const prev = n >= 2 ? cashFlowData[n - 2] : null;
     return {
       totalIncome,
       totalExpense,
       totalSavings,
+      totalIncomeGross,
       avgIncome: totalIncome / n,
       avgExpense: totalExpense / n,
-      overallRate: totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0,
+      overallRate: computeSavingsRate(totalSavings, totalIncomeGross, totalExpense),
       incomeGrowth: prev && prev.income > 0 ? ((last.income - prev.income) / prev.income) * 100 : 0,
       expenseGrowth:
         prev && prev.expense > 0 ? ((last.expense - prev.expense) / prev.expense) * 100 : 0,
       savingsDelta: prev ? last.savings - prev.savings : 0,
       hasPrev: !!prev,
     };
-  }, [cashFlowData]);
+  }, [cashFlowData, activeSummaries, netOfRefunds]);
 
   const sparkIncome = React.useMemo(
     () => cashFlowData.map((d) => ({ v: d.income })),
@@ -447,8 +490,9 @@ export function PeriodChart({
     () => cashFlowData.map((d) => ({ v: d.savings })),
     [cashFlowData],
   );
+  // Clamp for sparkline so a near-zero net-income period cannot flatten the spark domain.
   const sparkRate = React.useMemo(
-    () => cashFlowData.map((d) => ({ v: d.savingsRate })),
+    () => cashFlowData.map((d) => ({ v: Math.max(-100, Math.min(100, d.savingsRate)) })),
     [cashFlowData],
   );
 
@@ -620,6 +664,9 @@ export function PeriodChart({
           </div>
         )}
         <div className="space-y-1">
+          <div className="text-[0.65rem] text-muted-foreground mb-1">
+            {netOfRefunds ? "Net of refunds" : "Gross (refunds ignored)"}
+          </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Income</span>
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">
@@ -644,7 +691,9 @@ export function PeriodChart({
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Savings rate</span>
-            <span>{point.savingsRate.toFixed(1)}%</span>
+            <span>
+              {formatSavingsRatePercent(point.savingsRate, point.incomeDenom, point.expense)}
+            </span>
           </div>
         </div>
         {point.incomeByCurrency && Object.keys(point.incomeByCurrency).length > 0 && (
@@ -817,15 +866,21 @@ export function PeriodChart({
         />
         <MetricCard
           label="Savings Rate"
-          value={`${metrics.overallRate.toFixed(1)}%`}
+          value={formatSavingsRatePercent(
+            metrics.overallRate,
+            metrics.totalIncomeGross,
+            metrics.totalExpense,
+          )}
           subLabel={
-            metrics.overallRate >= 20
-              ? "Excellent"
-              : metrics.overallRate >= 10
-                ? "Good"
-                : metrics.overallRate >= 0
-                  ? "Fair"
-                  : "Deficit"
+            metrics.totalIncomeGross <= 1e-9 && metrics.totalExpense > 1e-9
+              ? "No earned income"
+              : metrics.overallRate >= 20
+                ? "Excellent"
+                : metrics.overallRate >= 10
+                  ? "Good"
+                  : metrics.overallRate >= 0
+                    ? "Fair"
+                    : "Deficit"
           }
           sparkData={sparkRate}
           accentColor={accentAmber}
@@ -837,8 +892,9 @@ export function PeriodChart({
       <SavingsHealthStrip
         data={cashFlowData.map((d) => ({
           period: d.period,
-          income: d.income,
+          savings: d.savings,
           expense: d.expense,
+          incomeDenom: d.incomeDenom,
         }))}
         formatLabel={formatPeriodLabel}
       />
@@ -846,31 +902,46 @@ export function PeriodChart({
       {/* ── Cash Flow Chart ── */}
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <div className="px-6 pt-5 pb-2">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm font-semibold">Cash Flow</h3>
-            <div className="h-px flex-1 bg-border" />
-            <div className="flex items-center gap-4 text-[0.65rem] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="inline-block h-2.5 w-4 rounded-sm"
-                  style={{ background: accentGreen }}
-                />
-                Income
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="inline-block h-2.5 w-4 rounded-sm"
-                  style={{ background: accentRed }}
-                />
-                Expense
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="inline-block h-0.5 w-4 rounded-full"
-                  style={{ background: accentBlue }}
-                />
-                Savings
-              </span>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <h3 className="text-sm font-semibold shrink-0">Cash Flow</h3>
+              <div className="h-px flex-1 bg-border" />
+              <div className="flex items-center gap-4 text-[0.65rem] text-muted-foreground shrink-0">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-2.5 w-4 rounded-sm"
+                    style={{ background: accentGreen }}
+                  />
+                  Income
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-2.5 w-4 rounded-sm"
+                    style={{ background: accentRed }}
+                  />
+                  Expense
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-0.5 w-4 rounded-full"
+                    style={{ background: accentBlue }}
+                  />
+                  Savings
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Switch
+                id="cash-flow-net-refunds"
+                checked={netOfRefunds}
+                onCheckedChange={setNetOfRefunds}
+              />
+              <Label
+                htmlFor="cash-flow-net-refunds"
+                className="text-sm font-normal cursor-pointer whitespace-nowrap"
+              >
+                {netOfRefunds ? "Net of refunds" : "Gross (ignore refunds)"}
+              </Label>
             </div>
           </div>
         </div>

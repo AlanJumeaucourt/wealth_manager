@@ -74,10 +74,12 @@ interface AssetMetrics {
 }
 
 export function AssetPerformanceChart({
+  period,
   selectedRange = null,
   onSelectedRangeChange,
 }: AssetPerformanceChartProps) {
-  const { data: performanceData, isLoading: isLoadingPerformance } = usePortfolioPerformance();
+  const { data: performanceData, isLoading: isLoadingPerformance } =
+    usePortfolioPerformance(period);
   const { data: summaryData, isLoading: isLoadingSummary } = usePortfolioSummary();
   const [selectedAsset, setSelectedAsset] = React.useState<string>(ALL_ASSETS);
   const [selectedMetric, setSelectedMetric] = React.useState<MetricType>("relative_price");

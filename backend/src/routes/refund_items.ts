@@ -3,10 +3,10 @@ import { authDerivePlugin, requireAuth } from "../middleware/auth.js";
 import { tRefundItemsListQuerySchema } from "../schemas/typebox.js";
 import * as base from "../services/base.js";
 import { assertTransactionsBelongToSingleRefundGroup } from "../services/refundItem.js";
+import { extractBatchItems } from "../utils/body.js";
 import {
   createBatchCreateHandler,
   createBatchDeleteHandler,
-  createBatchUpdateHandler,
   createDeleteByIdHandler,
   createGetByIdHandler,
   createListHandler,
@@ -115,6 +115,45 @@ export const refundItemsRoutes = new Elysia({ prefix: "/refund_items", tags: ["r
     }),
   )
   .delete("/:id", createDeleteByIdHandler(TABLE))
-  .post("/batch/create", createBatchCreateHandler(TABLE))
-  .post("/batch/update", createBatchUpdateHandler(TABLE))
+  .post(
+    "/batch/create",
+    createBatchCreateHandler(TABLE, async (item, userId) => {
+      const data = {
+        income_transaction_id: Number(item.income_transaction_id),
+        expense_transaction_id: Number(item.expense_transaction_id),
+        amount: Number(item.amount),
+        refund_group_id: item.refund_group_id == null ? null : Number(item.refund_group_id),
+        description: (item.description as string | null | undefined) ?? null,
+        user_id: userId,
+      };
+      await assertTransactionsBelongToSingleRefundGroup(data, userId);
+      return data;
+    }),
+  )
+  .post("/batch/update", async ({ body, userId }) => {
+    requireAuth({ userId });
+    const items = extractBatchItems<Record<string, unknown> & { id: number }>(body);
+    for (const item of items) {
+      const existing = (await base.getById(TABLE, item.id, userId!)) as RefundItemRecord | null;
+      if (!existing) continue;
+      const data = {
+        income_transaction_id:
+          item.income_transaction_id != null
+            ? Number(item.income_transaction_id)
+            : existing.income_transaction_id,
+        expense_transaction_id:
+          item.expense_transaction_id != null
+            ? Number(item.expense_transaction_id)
+            : existing.expense_transaction_id,
+        refund_group_id:
+          item.refund_group_id !== undefined
+            ? item.refund_group_id == null
+              ? null
+              : Number(item.refund_group_id)
+            : existing.refund_group_id,
+      };
+      await assertTransactionsBelongToSingleRefundGroup(data, userId!, item.id);
+    }
+    return base.batchUpdate(TABLE, userId!, items);
+  })
   .post("/batch/delete", createBatchDeleteHandler(TABLE));

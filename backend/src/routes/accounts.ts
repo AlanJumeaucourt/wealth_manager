@@ -191,6 +191,7 @@ const tAccountResponse = t.Object({
   balance: t.Number(),
   balance_preferred: t.Number(),
   market_value: t.Union([t.Number(), t.Null()]),
+  market_value_preferred: t.Union([t.Number(), t.Null()]),
 });
 
 const ACCOUNTS_TABLE = "accounts" as const;

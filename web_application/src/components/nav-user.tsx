@@ -44,8 +44,9 @@ export function NavUser({
   const queryClient = useQueryClient();
 
   const handleLogout = () => {
-    authService.logout(queryClient);
-    void navigate({ to: "/" });
+    void authService.logout(queryClient).finally(() => {
+      void navigate({ to: "/" });
+    });
   };
 
   // Get initials for avatar fallback

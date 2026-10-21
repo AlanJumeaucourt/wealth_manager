@@ -490,9 +490,8 @@ export default function BudgetSetupPage() {
                       firstAmount: "",
                       secondAmount: "",
                     };
-
                     return (
-                      <TableRow key={category.id}>
+                      <TableRow key={`${type}-${category.name.fr}`}>
                         <TableCell className="align-top">
                           <div className="space-y-3">
                             <div className="flex items-center gap-2">

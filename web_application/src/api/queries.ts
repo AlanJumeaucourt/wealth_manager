@@ -867,6 +867,12 @@ export function useUpdatePreferredCurrency() {
       void queryClient.invalidateQueries({ queryKey: QueryKeys.wealthSummary });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.transactions });
       void queryClient.invalidateQueries({ queryKey: QueryKeys.budgetSummary });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.investments });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.liabilities });
+      void queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.refundGroups });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.refundItems });
+      void queryClient.invalidateQueries({ queryKey: QueryKeys.potentialRefunds });
       const userStr = localStorage.getItem("user");
       if (userStr) {
         try {
